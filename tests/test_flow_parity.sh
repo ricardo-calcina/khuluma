@@ -440,15 +440,29 @@ import sys
 
 socket_path = sys.argv[1]
 os.makedirs(os.path.dirname(socket_path), exist_ok=True)
+# Like the real daemon: never take over a socket another daemon serves.
+probe = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+try:
+    probe.connect(socket_path)
+    sys.stderr.write("another daemon is already listening on %s\n" % socket_path)
+    sys.exit(2)
+except OSError:
+    pass
+finally:
+    probe.close()
 try:
     os.unlink(socket_path)
 except FileNotFoundError:
     pass
 
+import time, uuid
+time.sleep(float(os.environ.get("DICTATE_TEST_STUB_START_DELAY", "0") or 0))
 server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 server.bind(socket_path)
 server.listen(5)
 transcribe_count = 0
+generation = str(uuid.uuid4())
+loaded = None
 delay_values = [s.strip() for s in os.environ.get("DICTATE_TEST_SWIFT_DELAY_SEQUENCE", "").split("|")]
 text_values = [s for s in os.environ.get("DICTATE_TEST_SWIFT_TEXT_SEQUENCE", "").split("|")]
 
@@ -470,7 +484,11 @@ while True:
                 "ok": True,
                 "engine": "swift_parakeet",
                 "message": "ok",
+                "pid": os.getpid(),
+                "generation": generation,
             }
+            if loaded:
+                resp["model_loaded"] = loaded
         elif os.environ.get("DICTATE_TEST_SWIFT_DAEMON_FAIL", "0") == "1":
             resp = {
                 "id": req.get("id"),
@@ -515,6 +533,9 @@ while True:
                 text_value = ""
             else:
                 text_value = os.environ.get("DICTATE_TEST_SWIFT_TEXT", "swift transcript")
+            if req.get("model_path") and os.environ.get("DICTATE_TEST_STUB_NEVER_LOADS", "0") != "1":
+                loaded = {"path": req["model_path"],
+                          "version": os.environ.get("DICTATE_TEST_STUB_LOADED_VERSION") or req.get("model_version") or "v3"}
             resp = {
                 "id": req.get("id"),
                 "ok": True,
@@ -1498,6 +1519,189 @@ run_transcribe_file_write_race_round() {
 }
 
 
+# Live stub daemons serving one socket.
+live_stub_daemons_for() {
+  local want="$1" sf pid socket_path count=0
+  while IFS= read -r sf; do
+    unset pid socket_path
+    # shellcheck disable=SC1090
+    . "$sf" 2>/dev/null || true
+    if [[ "${socket_path:-}" == "$want" ]] && stub_process_matches_registry "${pid:-}" "$want"; then
+      count=$((count + 1))
+    fi
+  done < <(find "$STUB_REGISTRY_DIR" -type f -name '*.state' 2>/dev/null || true)
+  printf '%s\n' "$count"
+}
+
+# True while some process holds the flock on a lifecycle lock file.
+flock_held() {
+  [[ -f "$1" ]] || return 1
+  python3 - "$1" <<'PYEOF'
+import fcntl, sys
+with open(sys.argv[1], "a") as f:
+    try:
+        fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        sys.exit(0)
+sys.exit(1)
+PYEOF
+}
+
+json_field() {
+  python3 -c 'import json, sys
+v = json.loads(sys.argv[1])
+for k in sys.argv[2].split("."):
+    v = v.get(k) if isinstance(v, dict) else None
+print("" if v is None else v)' "$1" "$2"
+}
+
+run_daemon_lifecycle_round() {
+  setup_case "daemon-lifecycle"
+  local socket="$DICTATE_SWIFT_PARAKEET_SOCKET_PATH" meta="$DICTATE_SWIFT_PARAKEET_SOCKET_PATH.meta"
+  local out a b pid meta_pid holder lock="$DICTATE_SWIFT_PARAKEET_SOCKET_PATH.lifecycle.lock"
+  mkdir -p "$CASE_DIR/memos"
+  printf '%s\n' "memo" >"$CASE_DIR/memos/m.m4a"
+  # Slow starts make the launchers overlap.
+  export DICTATE_TEST_STUB_START_DELAY=0.5
+
+  # Lowkey-style warmups, a CLI transcription and a background warmup all
+  # find no daemon at once: exactly one starts, and meta names it.
+  "$DICTATE_BIN" warmup --json >"$CASE_DIR/w1.json" &
+  a=$!
+  "$DICTATE_BIN" warmup --json >"$CASE_DIR/w2.json" &
+  b=$!
+  DICTATE_TEST_FFPROBE_DURATION_MS=3000 "$DICTATE_BIN" transcribe "$CASE_DIR/memos/m.m4a" -q >"$CASE_DIR/t.txt" &
+  local c=$!
+  "$DICTATE_BIN" warmup --best-effort >/dev/null &
+  local d=$!
+  wait "$a" "$b" "$c" "$d" || fail "lifecycle_concurrent_callers_exit_ok"
+  pass "lifecycle_concurrent_callers_exit_ok"
+  assert_equals "lifecycle_one_daemon" "$(live_stub_daemons_for "$socket")" "1"
+  out="$(cat "$CASE_DIR/w1.json")"
+  assert_equals "lifecycle_warmup_json_ready" "$(json_field "$out" state)" "ready"
+  assert_equals "lifecycle_warmup_json_ready_too" "$(json_field "$(cat "$CASE_DIR/w2.json")" state)" "ready"
+  assert_equals "lifecycle_warmup_json_model" "$(json_field "$out" model_loaded.path)" "$DICTATE_SWIFT_PARAKEET_MODEL_PATH"
+  [[ -n "$(json_field "$out" generation)" ]] || fail "lifecycle_warmup_json_generation"
+  pass "lifecycle_warmup_json_generation"
+  pid="$(json_field "$out" pid)"
+  meta_pid="$(awk -F= '$1 == "pid" { print $2 }' "$meta")"
+  assert_equals "lifecycle_meta_names_serving_daemon" "$meta_pid" "$pid"
+  assert_file_contains "lifecycle_transcribe_worked" "$CASE_DIR/t.txt" "default transcript"
+  flock_held "$lock" && fail "lifecycle_lock_released"
+  pass "lifecycle_lock_released"
+  # The daemon must not inherit the lock (it would hold it forever).
+  "$DICTATE_BIN" warmup --json >/dev/null
+  flock_held "$lock" && fail "lifecycle_daemon_does_not_hold_lock"
+  pass "lifecycle_daemon_does_not_hold_lock"
+
+  # A daemon too slow to answer is stopped before the lock is released, so
+  # it can't come up later beside one someone else starts.
+  cleanup_stub_daemons
+  wait_for_absent "$socket" 60 || rm -f "$socket"
+  export DICTATE_TEST_STUB_START_DELAY=3
+  out="$(DICTATE_DAEMON_START_WAIT_SECONDS=1 "$DICTATE_BIN" warmup --json)"
+  assert_equals "lifecycle_slow_start_unavailable" "$(json_field "$out" state)" "unavailable"
+  assert_file_contains "lifecycle_slow_start_logged" "$DICTATE_TRANSCRIBE_LOG" "did not answer within 1s; stopping it"
+  sleep 3
+  assert_equals "lifecycle_slow_start_stopped" "$(live_stub_daemons_for "$socket")" "0"
+  unset DICTATE_TEST_STUB_START_DELAY
+  wait_for_absent "$socket" 60 || rm -f "$socket"
+
+  # Ready means this daemon holds this model and version.
+  out="$(DICTATE_TEST_STUB_LOADED_VERSION=v2 "$DICTATE_BIN" warmup --json)"
+  assert_equals "lifecycle_other_version_not_ready" "$(json_field "$out" state)" "warming"
+  assert_equals "lifecycle_other_version_reason" "$(json_field "$out" reason)" "model_changed"
+  cleanup_stub_daemons
+  wait_for_absent "$socket" 60 || rm -f "$socket"
+  out="$(DICTATE_TEST_STUB_NEVER_LOADS=1 "$DICTATE_BIN" warmup --json)"
+  assert_equals "lifecycle_cold_not_ready" "$(json_field "$out" state)" "warming"
+  assert_equals "lifecycle_cold_reason" "$(json_field "$out" reason)" "cold"
+  cleanup_stub_daemons
+  wait_for_absent "$socket" 60 || rm -f "$socket"
+
+  # A daemon that accepts but never answers is never unlinked or doubled.
+  cleanup_stub_daemons
+  wait_for_absent "$socket" 60 || rm -f "$socket"
+  python3 - "$socket" "$CASE_DIR/hung.ready" <<'PYEOF' &
+import socket, sys, time
+s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+s.bind(sys.argv[1]); s.listen(16)
+open(sys.argv[2], "w").close()
+conns = []
+end = time.time() + 30
+while time.time() < end:
+    s.settimeout(0.2)
+    try:
+        conns.append(s.accept()[0])
+    except OSError:
+        pass
+PYEOF
+  holder=$!
+  for _ in {1..100}; do [[ -f "$CASE_DIR/hung.ready" ]] && break; sleep 0.05; done
+  [[ -f "$CASE_DIR/hung.ready" ]] || fail "lifecycle_hung_daemon_started"
+  out="$(DICTATE_SWIFT_PARAKEET_PING_TIMEOUT_SECONDS=0.5 "$DICTATE_BIN" warmup --json)"
+  assert_equals "lifecycle_hung_daemon_unavailable" "$(json_field "$out" state)" "unavailable"
+  [[ -S "$socket" ]] || fail "lifecycle_hung_socket_kept"
+  pass "lifecycle_hung_socket_kept"
+  assert_file_contains "lifecycle_hung_logged" "$DICTATE_TRANSCRIBE_LOG" "does not answer; not starting another"
+  assert_equals "lifecycle_hung_no_second_daemon" "$(live_stub_daemons_for "$socket")" "0"
+  kill "$holder" 2>/dev/null; wait "$holder" 2>/dev/null || true
+
+  # A socket left by a crashed daemon (nobody accepting) is replaced.
+  [[ -S "$socket" ]] || fail "lifecycle_stale_socket_left"
+  out="$("$DICTATE_BIN" warmup --json)"
+  assert_equals "lifecycle_stale_socket_replaced" "$(json_field "$out" state)" "ready"
+  cleanup_stub_daemons
+  wait_for_absent "$socket" 60 || rm -f "$socket"
+
+  # Someone else is mid-start: report warming instead of piling on.
+  python3 - "$lock" "$CASE_DIR/lock.ready" <<'PYEOF' &
+import fcntl, sys, time
+f = open(sys.argv[1], "a")
+fcntl.flock(f, fcntl.LOCK_EX)
+open(sys.argv[2], "w").close()
+time.sleep(30)
+PYEOF
+  holder=$!
+  for _ in {1..100}; do [[ -f "$CASE_DIR/lock.ready" ]] && break; sleep 0.05; done
+  out="$(DICTATE_DAEMON_LIFECYCLE_WAIT_SECONDS=0 "$DICTATE_BIN" warmup --json)"
+  assert_equals "lifecycle_lock_held_warming" "$(json_field "$out" state)" "warming"
+  assert_equals "lifecycle_lock_held_reason" "$(json_field "$out" reason)" "starting"
+  assert_equals "lifecycle_lock_held_no_daemon" "$(live_stub_daemons_for "$socket")" "0"
+  kill "$holder" 2>/dev/null; wait "$holder" 2>/dev/null || true
+  # Its holder died: the kernel released the lock.
+  out="$("$DICTATE_BIN" warmup --json)"
+  assert_equals "lifecycle_dead_lock_reclaimed" "$(json_field "$out" state)" "ready"
+  cleanup_stub_daemons
+  wait_for_absent "$socket" 60 || rm -f "$socket"
+
+  # A socket dir that doesn't exist yet (fresh install, custom path).
+  out="$(DICTATE_SWIFT_PARAKEET_SOCKET_PATH="$TMP_ROOT/fresh/d.sock" "$DICTATE_BIN" warmup --json)"
+  assert_equals "lifecycle_fresh_socket_dir" "$(json_field "$out" state)" "ready"
+  cleanup_stub_daemons
+
+  out="$(DICTATE_TMUX_WHISPERD_BIN="$CASE_DIR/missing-daemon" "$DICTATE_BIN" warmup --json)"
+  assert_equals "lifecycle_missing_binary_unavailable" "$(json_field "$out" state)" "unavailable"
+  assert_equals "lifecycle_missing_binary_reason" "$(json_field "$out" reason)" "no_daemon_binary"
+  out="$(DICTATE_SWIFT_PARAKEET_MODEL_PATH= "$DICTATE_BIN" warmup --json)"
+  assert_equals "lifecycle_no_model_reason" "$(json_field "$out" reason)" "no_model"
+  out="$(DICTATE_TEST_SWIFT_DAEMON_FAIL=1 "$DICTATE_BIN" warmup --json)"
+  assert_equals "lifecycle_warmup_error_unavailable" "$(json_field "$out" state)" "unavailable"
+  assert_equals "lifecycle_warmup_error_code" "$(json_field "$out" reason)" "forced_error"
+  cleanup_stub_daemons
+
+  # Cancelling a CLI recording clears the CLI's markers, never Lowkey's.
+  mkdir -p "$DICTATE_PROCESSING_DIR"
+  printf 'pid=%s\nkind=inline\nphase=processing\n' "$$" >"$DICTATE_PROCESSING_DIR/inline-lowkey-keep"
+  printf 'pid=%s\nkind=inline\n' "$$" >"$DICTATE_PROCESSING_DIR/inline-12345"
+  printf 'started=1\n' >"$DICTATE_INLINE_STATE_FILE"
+  "$DICTATE_BIN" cancel >/dev/null
+  assert_path_absent "cancel_clears_cli_marker" "$DICTATE_PROCESSING_DIR/inline-12345"
+  [[ -f "$DICTATE_PROCESSING_DIR/inline-lowkey-keep" ]] || fail "cancel_keeps_lowkey_marker"
+  pass "cancel_keeps_lowkey_marker"
+  rm -f "$DICTATE_PROCESSING_DIR/inline-lowkey-keep"
+}
+
 run_daemon_build_and_refresh_round() {
   setup_case "daemon-refresh"
   unset DICTATE_TMUX_WHISPERD_BIN
@@ -1524,7 +1728,15 @@ chmod +x .build/release/tmux-whisperd
 EOF
   chmod +x "$HOME/.local/bin/swift"
   local socket="$DICTATE_SWIFT_PARAKEET_SOCKET_PATH" meta="$DICTATE_SWIFT_PARAKEET_SOCKET_PATH.meta"
-  local builds stamp pid1 pid2 hash
+  local builds stamp pid1 pid2 hash out
+
+  # A first build that failed recently is reported, not retried on every call.
+  date +%s >"$build.build-failed"
+  out="$(DICTATE_DAEMON_BACKGROUND_REFRESH=1 "$DICTATE_BIN" warmup --json)"
+  assert_equals "daemon_failed_build_unavailable" "$(json_field "$out" reason)" "build_failed"
+  [[ -s "$build_log" ]] && fail "daemon_failed_build_not_retried"
+  pass "daemon_failed_build_not_retried"
+  rm -f "$build.build-failed"
 
   # First use: sources synced into the build root, built once, daemon started.
   "$DICTATE_BIN" warmup >/dev/null
@@ -1556,11 +1768,28 @@ EOF
   assert_file_contains "daemon_busy_logged" "$DICTATE_TRANSCRIBE_LOG" "daemon still busy"
   rm -f "$DICTATE_INLINE_STATE_FILE"
 
+  # A Lowkey take in any phase (recording included) keeps the old daemon.
+  local take_owner
+  sleep 60 &
+  take_owner=$!
+  mkdir -p "$DICTATE_PROCESSING_DIR"
+  printf 'pid=%s\nkind=inline\nsession_id=t1\nphase=recording\n' "$take_owner" >"$DICTATE_PROCESSING_DIR/inline-lowkey-t1"
+  "$DICTATE_BIN" warmup --restart-stale >/dev/null
+  assert_equals "daemon_not_restarted_mid_recording" "$(awk -F= '$1 == "pid" { print $2 }' "$meta")" "$pid1"
+  # A marker whose owner died (Lowkey crashed) is pruned rather than
+  # blocking upgrades forever; so is one abandoned before its pid was written.
+  kill "$take_owner" 2>/dev/null; wait "$take_owner" 2>/dev/null || true
+  : >"$DICTATE_PROCESSING_DIR/inline-lowkey-t2"
+  touch -t 202001010000 "$DICTATE_PROCESSING_DIR/inline-lowkey-t2"
+
   # Idle: the out-of-date daemon is replaced by one started from the new build.
   "$DICTATE_BIN" warmup --restart-stale >/dev/null
   pid2="$(awk -F= '$1 == "pid" { print $2 }' "$meta")"
   [[ -n "$pid2" && "$pid2" != "$pid1" ]] || fail "daemon_restarted_when_idle"
   pass "daemon_restarted_when_idle"
+  assert_path_absent "daemon_dead_take_marker_pruned" "$DICTATE_PROCESSING_DIR/inline-lowkey-t1"
+  assert_path_absent "daemon_abandoned_marker_pruned" "$DICTATE_PROCESSING_DIR/inline-lowkey-t2"
+  assert_equals "daemon_meta_names_new_daemon" "$(json_field "$("$DICTATE_BIN" warmup --json)" pid)" "$pid2"
   kill -0 "$pid1" 2>/dev/null && fail "daemon_old_process_stopped"
   pass "daemon_old_process_stopped"
   hash="$(cat "$build/.build/tmux-whisper-built-source-hash")"
@@ -1599,6 +1828,8 @@ EOF
   assert_file_contains "daemon_failed_rebuild_keeps_binary" "$DICTATE_TRANSCRIBE_LOG" "rebuilding tmux-whisperd failed; keeping the existing binary"
   [[ -x "$build/.build/release/tmux-whisperd" ]] || fail "daemon_binary_still_present"
   pass "daemon_binary_still_present"
+  [[ -s "$build.build-failed" ]] || fail "daemon_failed_build_recorded"
+  pass "daemon_failed_build_recorded"
 
   unset DICTATE_TMUX_WHISPERD_ROOT DICTATE_TMUX_WHISPERD_BUILD_ROOT DICTATE_DAEMON_BACKGROUND_REFRESH DICTATE_DAEMON_RESTART_WAIT_SECONDS
   unset DICTATE_TEST_SWIFT_BUILD_LOG DICTATE_TEST_STUB_DAEMON
@@ -1724,11 +1955,17 @@ assert t["socket_path"].endswith(".sock") and t["model_path"], t
 assert t["tail_pad_ms"] == "500" and t["tail_rescue"] is True and t["language"] == "en", t
 assert t["chunking"] is False and t["silence_trim"] is False, t
 assert t["processing_dir"].endswith("/processing"), t
-assert c["pipeline"] == {"native": True, "verify": True}, c["pipeline"]
+assert c["pipeline"] == {"native": True, "verify": True, "supervise": True}, c["pipeline"]
 ' || { echo "$out" >&2; fail "app_config_transcription_section"; }
   pass "app_config_transcription_section"
   out="$(DICTATE_APP_NATIVE_PIPELINE=0 "$DICTATE_BIN" app-config --json)"
   assert_contains "app_config_native_pipeline_off" "$out" '"pipeline": {"native": false'
+  assert_equals "app_config_supervise_default" "$(json_field "$out" pipeline.supervise)" "True"
+  assert_contains "app_config_capabilities" "$out" '"capabilities": ["take_markers", "lifecycle_lock", "warmup_json"]'
+  printf '[app]\nsupervise_daemon = false\n' >"$DICTATE_CONFIG_FILE"
+  out="$("$DICTATE_BIN" app-config --json)"
+  assert_equals "app_config_supervise_off" "$(json_field "$out" pipeline.supervise)" "False"
+  rm -f "$DICTATE_CONFIG_FILE"
 
   # No locale at all is the C locale, even though Python itself coerces it to
   # C.UTF-8 in its own environment.
@@ -1972,6 +2209,7 @@ run_transcribe_file_long_round
 run_transcribe_file_no_tail_rescue_round
 run_transcribe_file_daemon_unavailable_round
 run_transcribe_file_write_race_round
+run_daemon_lifecycle_round
 run_daemon_build_and_refresh_round
 run_app_backend_round
 run_app_backend_failure_round

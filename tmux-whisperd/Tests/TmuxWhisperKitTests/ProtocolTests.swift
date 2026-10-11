@@ -49,6 +49,29 @@ struct ProtocolTests {
     #expect(response.ok)
     #expect(response.version == DaemonInfo.daemonVersion)
     #expect(response.activeRequests == 0)
+    #expect(response.pid == Int(getpid()))
+    // Nothing loaded yet: the field is absent, not a stale value.
+    #expect(response.modelLoaded == nil)
+    let again = await service.handle(DaemonRequest(id: "q", op: .ping))
+    #expect(response.generation?.isEmpty == false)
+    #expect(again.generation == response.generation)
+    #expect(await TranscriptionService().handle(DaemonRequest(id: "r", op: .ping)).generation != response.generation)
+  }
+
+  @Test func pingFieldsUseSnakeCaseAndStayOptional() throws {
+    let response = DaemonResponse(
+      id: "p", ok: true, pid: 42, generation: "g", modelLoaded: .init(path: "/m/", version: "v3"))
+    let object = try #require(
+      JSONSerialization.jsonObject(with: JSONEncoder().encode(response)) as? [String: Any]
+    )
+    #expect(object["pid"] as? Int == 42)
+    #expect(object["generation"] as? String == "g")
+    let loaded = try #require(object["model_loaded"] as? [String: Any])
+    #expect(loaded["path"] as? String == "/m/")
+    #expect(loaded["version"] as? String == "v3")
+    // Responses from older daemons (no new fields) still decode.
+    let old = try JSONDecoder().decode(DaemonResponse.self, from: Data(#"{"id":"p","ok":true,"version":"0.2.0"}"#.utf8))
+    #expect(old.pid == nil && old.generation == nil && old.modelLoaded == nil)
   }
 
   @Test func transcribeValidatesPathsBeforeLoadingModel() async {

@@ -411,14 +411,41 @@ struct TakeRecordTests {
     #expect(object["startup_source"] as? String == "app:native")
   }
 
-  @Test func processingMarkerLooksLikeTheCLIs() throws {
+  @Test func takeMarkerLooksLikeTheCLIsAndFollowsTheTake() throws {
     let dir = NSTemporaryDirectory() + "lk-markers-\(UUID().uuidString)"
     defer { try? FileManager.default.removeItem(atPath: dir) }
-    let marker = try #require(ProcessingMarker.create(directory: dir, takeId: "abc-123/../x", pid: 4242))
+    let marker = try #require(TakeMarker.create(directory: dir, takeId: "abc-123/../x", phase: .recording, pid: 4242))
     #expect(marker.url.lastPathComponent == "inline-lowkey-abc-123x")
-    let body = try String(contentsOf: marker.url, encoding: .utf8)
-    #expect(body.hasPrefix("pid=4242\nkind=inline\n"))
+    var body = try String(contentsOf: marker.url, encoding: .utf8)
+    #expect(body.hasPrefix("pid=4242\nkind=inline\nsession_id=abc-123x\nphase=recording\n"))
+    for phase in [TakeMarker.Phase.queued, .processing, .cli] {
+      marker.update(phase)
+      body = try String(contentsOf: marker.url, encoding: .utf8)
+      #expect(body.contains("\nphase=\(phase.rawValue)\n"))
+      #expect(body.hasPrefix("pid=4242\n"))
+    }
+    // Renamed into place: no temp files left where the CLI's glob would see them.
+    #expect(try FileManager.default.contentsOfDirectory(atPath: dir) == ["inline-lowkey-abc-123x"])
     marker.remove()
     #expect(!FileManager.default.fileExists(atPath: marker.url.path))
+    // A late update never brings a finished take back.
+    marker.update(.processing)
+    #expect(!FileManager.default.fileExists(atPath: marker.url.path))
+  }
+
+  @Test func staleTakeMarkersAreRemovedAtLaunch() throws {
+    let dir = NSTemporaryDirectory() + "lk-markers-\(UUID().uuidString)"
+    defer { try? FileManager.default.removeItem(atPath: dir) }
+    _ = try #require(TakeMarker.create(directory: dir, takeId: "dead", phase: .processing, pid: 111))
+    _ = try #require(TakeMarker.create(directory: dir, takeId: "other-app", phase: .recording, pid: 222))
+    _ = try #require(TakeMarker.create(directory: dir, takeId: "reused-pid", phase: .queued, pid: 333))
+    _ = try #require(TakeMarker.create(directory: dir, takeId: "mine", phase: .recording, pid: 444))
+    try "pid=555\nkind=inline\n".write(toFile: dir + "/inline-12345", atomically: true, encoding: .utf8)
+    // 222 is another running Lowkey; 333 was reused by some other program.
+    let removed = TakeMarker.removeStale(directory: dir, ownPid: 444, isLowkey: { $0 == 222 })
+    #expect(Set(removed) == ["inline-lowkey-dead", "inline-lowkey-reused-pid"])
+    #expect(Set(try FileManager.default.contentsOfDirectory(atPath: dir))
+            == ["inline-lowkey-other-app", "inline-lowkey-mine", "inline-12345"])
+    #expect(TakeMarker.isRunningLowkey(getpid()) == false)
   }
 }

@@ -68,24 +68,3 @@ public struct RecordResult: Decodable, Equatable, Sendable {
     case historySaved = "history_saved"
   }
 }
-
-/// The marker the CLI, SwiftBar and the daemon's idle check read while an
-/// inline take is processing (`processing_marker_start`): a file in the
-/// processing dir named `inline-*` whose first line is `pid=<live pid>`.
-public struct ProcessingMarker: Sendable {
-  public let url: URL
-
-  public static func create(directory: String, takeId: String, pid: Int32 = getpid()) -> ProcessingMarker? {
-    let dir = URL(fileURLWithPath: directory, isDirectory: true)
-    try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-    let safeId = String(takeId.unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) || $0 == "-" })
-    let url = dir.appendingPathComponent("inline-lowkey-\(safeId)")
-    let body = "pid=\(pid)\nkind=inline\nsession_id=\(safeId)\nstarted_at=\(Int(Date().timeIntervalSince1970))\n"
-    guard FileManager.default.createFile(atPath: url.path, contents: Data(body.utf8)) else { return nil }
-    return ProcessingMarker(url: url)
-  }
-
-  public func remove() {
-    try? FileManager.default.removeItem(at: url)
-  }
-}

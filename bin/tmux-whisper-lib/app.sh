@@ -155,6 +155,7 @@ app_config_json() {
     APPCFG_CONFIG_ERROR="${CFG_CONFIG_PARSE_ERROR:-}" \
     APPCFG_CONFIG_SOURCE="${CFG_CONFIG_SOURCE:-file}" \
     APPCFG_VERIFY_PIPELINE="${DICTATE_APP_VERIFY_PIPELINE:-${CFG_APP_VERIFY_PIPELINE:-1}}" \
+    APPCFG_SUPERVISE_DAEMON="${DICTATE_APP_SUPERVISE_DAEMON:-${CFG_APP_SUPERVISE_DAEMON:-1}}" \
     python3 - <<'PYEOF'
 import json, os
 e = os.environ
@@ -185,7 +186,14 @@ print(json.dumps({
     "pipeline": {
         "native": e["APPCFG_NATIVE_PIPELINE"].lower() in ("1", "true", "yes", "on"),
         "verify": e["APPCFG_VERIFY_PIPELINE"].lower() in ("1", "true", "yes", "on"),
+        # Lowkey keeps the daemon warm (it still never launches one itself).
+        "supervise": e["APPCFG_SUPERVISE_DAEMON"].lower() in ("1", "true", "yes", "on"),
     },
+    # What this CLI supports, so a newer app can tell an older CLI apart:
+    # take_markers: Lowkey's whole-take markers count as busy and dead ones
+    #   are pruned; lifecycle_lock: daemon starts/restarts are serialized;
+    #   warmup_json: `warmup --json` reports ready/warming/unavailable.
+    "capabilities": ["take_markers", "lifecycle_lock", "warmup_json"],
 }))
 PYEOF
 }

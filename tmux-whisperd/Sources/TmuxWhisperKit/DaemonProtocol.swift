@@ -2,7 +2,7 @@ import Foundation
 
 /// Version reported by `tmux-whisperd version` and in ping responses.
 public enum DaemonInfo {
-  public static let daemonVersion = "0.2.0"
+  public static let daemonVersion = "0.3.0"
   public static let engineName = "swift_parakeet"
 }
 
@@ -66,6 +66,25 @@ public struct DaemonResponse: Codable, Sendable, Equatable {
   public let version: String?
   /// Warmup/transcribe requests in flight, excluding this one (ping only).
   public let activeRequests: Int?
+  /// Daemon process ID (ping only), so a launcher can tell whether the
+  /// daemon answering is the one it started.
+  public let pid: Int?
+  /// Random per-process ID (ping only): a new value means a new daemon,
+  /// whose model is cold until warmed.
+  public let generation: String?
+  /// The model this daemon has loaded, as the request named it (ping and
+  /// warmup; null in a ping before any model is loaded).
+  public let modelLoaded: LoadedModel?
+
+  public struct LoadedModel: Codable, Sendable, Equatable {
+    public let path: String
+    public let version: String
+
+    public init(path: String, version: String) {
+      self.path = path
+      self.version = version
+    }
+  }
 
   public init(
     id: String,
@@ -77,7 +96,10 @@ public struct DaemonResponse: Codable, Sendable, Equatable {
     errorCode: String? = nil,
     message: String? = nil,
     version: String? = nil,
-    activeRequests: Int? = nil
+    activeRequests: Int? = nil,
+    pid: Int? = nil,
+    generation: String? = nil,
+    modelLoaded: LoadedModel? = nil
   ) {
     self.id = id
     self.ok = ok
@@ -89,6 +111,9 @@ public struct DaemonResponse: Codable, Sendable, Equatable {
     self.message = message
     self.version = version
     self.activeRequests = activeRequests
+    self.pid = pid
+    self.generation = generation
+    self.modelLoaded = modelLoaded
   }
 
   public static func failure(id: String, code: String, message: String) -> DaemonResponse {
@@ -106,6 +131,9 @@ public struct DaemonResponse: Codable, Sendable, Equatable {
     case message
     case version
     case activeRequests = "active_requests"
+    case pid
+    case generation
+    case modelLoaded = "model_loaded"
   }
 }
 

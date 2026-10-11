@@ -376,6 +376,7 @@ On first launch, allow Microphone, and Accessibility (for pasting) in System Set
 hotkey = "ctrl+option+space"   # e.g. "cmd+shift+d", "f13"
 native_pipeline = true         # false: always use `tmux-whisper inline process`
 verify_pipeline = true         # also run the CLI cleanup in the background and log any difference
+supervise_daemon = true        # keep the Parakeet daemon warm (launch, wake, recording start)
 ```
 
 Then choose **Reload Settings** from the menu. Timings, errors and `verify:` results are in `~/Library/Logs/Lowkey/app.log`.

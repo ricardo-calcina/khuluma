@@ -532,7 +532,7 @@ count_processing() {
     local now count
     now="$(date +%s)"
     count=0
-    local f line pid kind
+    local f line pid kind phase
     for f in "$PROCESSING_DIR"/*; do
       [[ -f "$f" ]] || continue
 
@@ -545,6 +545,9 @@ count_processing() {
         pid="$line"
       fi
       kind="$(sed -n 's/^kind=//p' "$f" 2>/dev/null | head -n 1 || true)"
+      # Lowkey markers cover the whole take: count only the processing part
+      # (a take handed to the CLI has the CLI's own marker).
+      phase="$(sed -n 's/^phase=//p' "$f" 2>/dev/null | head -n 1 || true)"
 
       # Only show processing for inline flows (Raycast inline or `tmux-whisper inline`).
       # Still clean up stale markers for other kinds.
@@ -554,6 +557,8 @@ count_processing() {
       elif [[ "$(basename "$f")" == inline-* ]]; then
         is_inline="1"
       fi
+
+      [[ -z "$phase" || "$phase" == "queued" || "$phase" == "processing" ]] || is_inline="0"
 
       if [[ -n "$pid" ]]; then
         if kill -0 "$pid" 2>/dev/null; then

@@ -6,6 +6,25 @@ private struct LoadedModelKey: Equatable {
   let version: String
 }
 
+/// The model an engine has loaded, readable without waiting for the engine
+/// (pings must answer while a transcription runs).
+final class LoadedModelSnapshot: @unchecked Sendable {
+  private let lock = NSLock()
+  private var value: (path: String, version: String)?
+
+  var current: (path: String, version: String)? {
+    lock.lock()
+    defer { lock.unlock() }
+    return value
+  }
+
+  func set(path: String, version: String) {
+    lock.lock()
+    value = (path, version)
+    lock.unlock()
+  }
+}
+
 public struct TranscriptionResult: Sendable {
   public let text: String
   public let model: String
@@ -58,22 +77,37 @@ public actor ASREngine {
   private var currentKey: LoadedModelKey?
   private var manager: AsrManager?
   private let gate = SerialGate()
+  private let snapshot = LoadedModelSnapshot()
 
   public init() {}
 
-  public func warmup(modelURL: URL, modelVersion: String) async throws -> (model: String, durationMs: Int) {
+  /// The loaded model as the last request that used it named it (path
+  /// string and version label), or nil before any load succeeds. Set as
+  /// soon as a load commits, even if the request then fails.
+  public nonisolated var loadedModel: (path: String, version: String)? { snapshot.current }
+
+  /// `requestedPath` is the model path as the client sent it, reported back
+  /// by `loadedModel` (defaults to `modelURL.path`).
+  public func warmup(
+    modelURL: URL, modelVersion: String, requestedPath: String? = nil
+  ) async throws -> (model: String, durationMs: Int) {
     let version = try Self.parseModelVersion(modelVersion)
     return try await gate.withExclusiveAccess {
       let started = ContinuousClock.now
-      try await self.ensureInitialized(modelURL: modelURL, version: version, versionLabel: modelVersion)
+      try await self.ensureInitialized(
+        modelURL: modelURL, version: version, versionLabel: modelVersion, requestedPath: requestedPath)
       return (modelURL.lastPathComponent, Self.elapsedMs(since: started))
     }
   }
 
-  public func transcribe(audioURL: URL, modelURL: URL, modelVersion: String) async throws -> TranscriptionResult {
+  public func transcribe(
+    audioURL: URL, modelURL: URL, modelVersion: String, requestedPath: String? = nil
+  ) async throws -> TranscriptionResult {
     let version = try Self.parseModelVersion(modelVersion)
     return try await gate.withExclusiveAccess {
-      try await self.runTranscription(audioURL: audioURL, modelURL: modelURL, version: version, versionLabel: modelVersion)
+      try await self.runTranscription(
+        audioURL: audioURL, modelURL: modelURL, version: version, versionLabel: modelVersion,
+        requestedPath: requestedPath)
     }
   }
 
@@ -81,9 +115,11 @@ public actor ASREngine {
     audioURL: URL,
     modelURL: URL,
     version: AsrModelVersion,
-    versionLabel: String
+    versionLabel: String,
+    requestedPath: String?
   ) async throws -> TranscriptionResult {
-    try await ensureInitialized(modelURL: modelURL, version: version, versionLabel: versionLabel)
+    try await ensureInitialized(
+      modelURL: modelURL, version: version, versionLabel: versionLabel, requestedPath: requestedPath)
     guard let manager else {
       throw DaemonServiceError.invalidRequest("ASR manager was not initialized")
     }
@@ -97,9 +133,12 @@ public actor ASREngine {
     )
   }
 
-  private func ensureInitialized(modelURL: URL, version: AsrModelVersion, versionLabel: String) async throws {
+  private func ensureInitialized(
+    modelURL: URL, version: AsrModelVersion, versionLabel: String, requestedPath: String?
+  ) async throws {
     let key = LoadedModelKey(path: modelURL.path, version: versionLabel)
     if currentKey == key, manager != nil {
+      snapshot.set(path: requestedPath ?? modelURL.path, version: versionLabel)
       return
     }
 
@@ -118,6 +157,7 @@ public actor ASREngine {
     try await newManager.initialize(models: models)
     manager = newManager
     currentKey = key
+    snapshot.set(path: requestedPath ?? modelURL.path, version: versionLabel)
   }
 
   static func parseModelVersion(_ raw: String) throws -> AsrModelVersion {

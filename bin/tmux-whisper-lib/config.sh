@@ -127,7 +127,7 @@ BOOL_KEYS = (
   "audio.sounds.process_enabled", "audio.sounds.error_enabled", "audio.sounds.cancel_enabled",
   "postprocess.enabled", "inline.autosend", "inline.process_sound", "tmux.autosend", "tmux.postprocess",
   "tmux.process_sound", "debug.keep_logs", "integrations.swiftbar.enabled", "app.native_pipeline",
-  "app.verify_pipeline",
+  "app.verify_pipeline", "app.supervise_daemon",
 )
 
 class InvalidConfig(ValueError):
@@ -281,6 +281,7 @@ out = {
   "CFG_APP_HOTKEY": str(get("app.hotkey", "ctrl+option+space")),
   "CFG_APP_NATIVE_PIPELINE": "1" if b(get("app.native_pipeline", True), True) else "0",
   "CFG_APP_VERIFY_PIPELINE": "1" if b(get("app.verify_pipeline", True), True) else "0",
+  "CFG_APP_SUPERVISE_DAEMON": "1" if b(get("app.supervise_daemon", True), True) else "0",
   "CFG_CLEAN_REPEATS_LEVEL": str(get("clean.repeats_level", "1")),
 }
 

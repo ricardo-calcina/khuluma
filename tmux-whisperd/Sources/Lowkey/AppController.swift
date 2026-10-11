@@ -15,6 +15,9 @@ final class AppController: NSObject, NSApplicationDelegate {
     /// Settings read while recording, so each take uses what the CLI would
     /// use now (e.g. after `tmux-whisper autosend off`), not launch-time values.
     let settings: SettingsFetch?
+    /// Published before capture starts and removed when the take ends, so
+    /// the CLI never swaps the daemon out mid-take.
+    let marker: TakeMarker?
   }
 
   /// `tmux-whisper app-config --json`, fetched in the background.
@@ -71,9 +74,14 @@ final class AppController: NSObject, NSApplicationDelegate {
   private let recovered = RecoveredTakes.standard
   private var recoveryRunning = false
   private let settingsQueue = DispatchQueue(label: "lowkey.settings", qos: .userInitiated, attributes: .concurrent)
+  /// Where take markers go: the CLI's processing dir.
+  private var markerDirectory: String { config?.transcription?.processingDir ?? TakeMarker.defaultDirectory }
+  /// Marker dirs already swept for a previous run's leftovers.
+  private var sweptMarkerDirectories: Set<String> = []
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     buildMenu()
+    sweepStaleMarkers()
     Log.write("launch: Lowkey \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev")")
 
     recorder.prepare()
@@ -117,6 +125,7 @@ final class AppController: NSObject, NSApplicationDelegate {
 
   @objc private func discardUnsavedAndQuit() {
     Log.write("quit: discarding \(unsaved.count) unsaved recording(s) at the user's request")
+    unsaved.forEach { $0.marker?.remove() }
     unsaved.removeAll()
     discardItem.isHidden = true
     NSApp.terminate(nil)
@@ -146,6 +155,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     let startedEpochMs: Int
     let startupMs: Int
     let app: String?
+    let marker: TakeMarker?
   }
   /// Every take stopped for Quit whose audio couldn't be written yet.
   private var unsaved: [UnsavedTake] = []
@@ -159,10 +169,13 @@ final class AppController: NSObject, NSApplicationDelegate {
     if let take {
       let samples = recorder.stop()
       self.take = nil
-      if !samples.isEmpty {
+      if samples.isEmpty {
+        take.marker?.remove()
+      } else {
+        take.marker?.update(.processing)
         unsaved.append(UnsavedTake(samples: samples, takeId: UUID().uuidString.lowercased(),
                                    startedEpochMs: take.startedEpochMs, startupMs: take.startupMs,
-                                   app: take.originalApp?.localizedName))
+                                   app: take.originalApp?.localizedName, marker: take.marker))
       }
     }
     let config = self.config
@@ -174,6 +187,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         // Only the newest take goes onto the clipboard.
         let copy = pendingTake.takeId == unsaved.last?.takeId
         work.async { [weak self] in
+          defer { pendingTake.marker?.remove() }
           self?.recover(url: url, samples: pendingTake.samples, takeId: pendingTake.takeId,
                         startedEpochMs: pendingTake.startedEpochMs, startupMs: pendingTake.startupMs,
                         app: pendingTake.app, config: config, copy: copy)
@@ -310,6 +324,12 @@ final class AppController: NSObject, NSApplicationDelegate {
       Log.write(String(format: "start: chime play() %.1fms (hotkey→chime ≈ %.1fms)", playMs, monotonicMs() - hotkeyAt))
     }
     let original = NSWorkspace.shared.frontmostApplication
+    let marker = TakeMarker.create(directory: markerDirectory, takeId: UUID().uuidString.lowercased(), phase: .recording)
+    if marker == nil {
+      // Recording matters more: without the marker an upgrade could restart
+      // the daemon mid-take, which costs a slower (CLI) take, not the take.
+      Log.write("markers: could not publish a take marker in \(markerDirectory); recording anyway")
+    }
     do {
       let engineMs = try recorder.start()
       let startedAt = monotonicMs()
@@ -319,12 +339,14 @@ final class AppController: NSObject, NSApplicationDelegate {
         startedEpochMs: Int(Date().timeIntervalSince1970 * 1000),
         startupMs: Int((startedAt - hotkeyAt).rounded()),
         originalApp: original,
-        settings: cli.map { SettingsFetch(cli: $0, queue: settingsQueue) }
+        settings: cli.map { SettingsFetch(cli: $0, queue: settingsQueue) },
+        marker: marker
       )
       phase = .recording
       Log.write(String(format: "start: engine.start %.1fms, hotkey→capturing %.1fms, app=%@",
                        engineMs, startedAt - hotkeyAt, original?.localizedName ?? "-"))
     } catch {
+      marker?.remove()
       sounds.play(.error)
       fail("could not start recording: \(error.localizedDescription)")
     }
@@ -340,10 +362,12 @@ final class AppController: NSObject, NSApplicationDelegate {
       Log.write(String(format: "stop: record %dms, hotkey→first audio %.1fms, samples %d", recordMs, firstBuffer - take.hotkeyAt, samples.count))
     }
     guard !samples.isEmpty else {
+      take.marker?.remove()
       sounds.play(.error)
       fail("no audio captured (microphone permission?)")
       return
     }
+    take.marker?.update(.queued)
     if config?.inline.processSound ?? true {
       sounds.play(.process)
     }
@@ -353,9 +377,10 @@ final class AppController: NSObject, NSApplicationDelegate {
   }
 
   @objc private func cancelRecording() {
-    guard take != nil else { return }
+    guard let take else { return }
     _ = recorder.stop()
-    take = nil
+    take.marker?.remove()
+    self.take = nil
     sounds.play(.cancel)
     phase = processing > 0 ? .processing : .ready
     Log.write("cancel: recording discarded")
@@ -372,6 +397,7 @@ final class AppController: NSObject, NSApplicationDelegate {
 
   private func process(samples: [Float], take: Take, recordMs: Int) {
     guard let cli else {
+      take.marker?.remove()
       finishProcessing(error: "tmux-whisper CLI not found")
       return
     }
@@ -379,7 +405,10 @@ final class AppController: NSObject, NSApplicationDelegate {
     let cachedConfig = self.config
     let stopAt = monotonicMs()
     work.async { [weak self] in
+      // Every path below is synchronous on this queue: the take is over when it returns.
+      defer { take.marker?.remove() }
       guard let self else { return }
+      take.marker?.update(.processing)
       // Settings fetched during the recording; usually ready long before
       // stop. Without them, the CLI path reads its own fresh settings.
       let (fresh, problem) = take.settings?.wait(timeout: 5) ?? (nil, "no settings fetch")
@@ -399,8 +428,17 @@ final class AppController: NSObject, NSApplicationDelegate {
       } else {
         Log.write("pipeline: CLI path (\(problem ?? "settings unavailable"))")
       }
+      take.marker?.update(.cli)
       self.processWithCLI(samples: samples, take: take, recordMs: recordMs, appName: appName, cli: cli,
                           stopAt: stopAt, config: config)
+    }
+  }
+
+  private func sweepStaleMarkers() {
+    let directory = markerDirectory
+    guard sweptMarkerDirectories.insert(directory).inserted else { return }
+    for name in TakeMarker.removeStale(directory: directory) {
+      Log.write("markers: removed \(name), left by a previous run")
     }
   }
 
@@ -415,6 +453,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     if fresh.config != config?.config { showConfigStatus(fresh) }
     recoverLeftoverTakes(config: fresh)
     config = fresh
+    sweepStaleMarkers()
     sounds.load(from: fresh)
     if pipelineChanged {
       Log.write("settings: pipeline " + (fresh.nativePipelineBlocker.map { "CLI (\($0))" } ?? "native"))
@@ -430,8 +469,6 @@ final class AppController: NSObject, NSApplicationDelegate {
           let modelPath = transcription.modelPath else { return false }
     let takeId = UUID().uuidString.lowercased()
     let startedAt = monotonicMs()
-    let marker = ProcessingMarker.create(directory: transcription.processingDir, takeId: takeId)
-    defer { marker?.remove() }
 
     let client = DaemonClient(socketPath: transcription.socketPath)
     // Parakeet runs far faster than real time; allow a cold model load.
@@ -697,6 +734,7 @@ final class AppController: NSObject, NSApplicationDelegate {
 
   private func apply(_ config: AppConfig) {
     self.config = config
+    sweepStaleMarkers()
     sounds.load(from: config)
     showConfigStatus(config)
     recoverLeftoverTakes(config: config)

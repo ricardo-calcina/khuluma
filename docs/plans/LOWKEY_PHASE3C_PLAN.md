@@ -2,6 +2,8 @@
 
 Status: reviewed (2026-10-10, two oracle reviews: strategy + risks), revised. Follows 3b (PR #50), see `LOWKEY_PHASE3_PLAN.md`. Ships after v0.10.0, which is gated on 3b's real-use measurements.
 
+3c-1 lands in three PRs: **(a)** CLI/daemon foundations (items 1, 2, the daemon/CLI half of 3, app-config capabilities); **(b)** Lowkey supervision (rest of 3), timeouts (4), hotkey swap (rest of 5), idle device change (7); **(c)** instrumentation and `tools/lowkey-report.sh` (6).
+
 ## Where 3b left us (measured)
 - **Overhead:** ~37 ms beyond the `asr` stage on the first native take (97 s take: queue 1 ms, cleanup 16 ms, paste 55 ms incl. the configured 35 ms send delay). The CLI path's was a median 992 ms (n=13). Caveat: `asr` still includes WAV prep and socket work, so "overhead beyond Parakeet" isn't fully measured yet (item 4).
 - **One model, already warm:** the model lives only in `tmux-whisperd` (~11 MB RSS, memory-mapped CoreML; RSS alone doesn't establish CoreML memory pressure on an 8 GB machine). Lowkey (~19 MB) loads none.

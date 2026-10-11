@@ -104,6 +104,29 @@ if [[ "$INSTALL" == "1" || "$OUT" != "$HOME/Applications/$APP_NAME.app" ]]; then
       done < <(ps -axo pid=,command=)
       return 0
     }
+    # A take in progress has a marker naming the running app's pid (from
+    # recording start to delivery).
+    take_in_progress() {
+      local pid="$1" marker line
+      for marker in "${DICTATE_PROCESSING_DIR:-/tmp/dictate-processing}"/inline-lowkey-*; do
+        [[ -f "$marker" ]] || continue
+        IFS= read -r line <"$marker" 2>/dev/null || true
+        [[ "$line" == "pid=$pid" ]] && return 0
+      done
+      return 1
+    }
+    lowkey_pid="$(running_pid)"
+    if [[ -n "$lowkey_pid" ]]; then
+      # Let a dictation finish so it lands where it was meant to. Quitting
+      # mid-take is safe too (the audio is saved and transcribed into
+      # history), so give up waiting after 5 minutes.
+      waited=0
+      while take_in_progress "$lowkey_pid" && (( waited < 3000 )); do
+        (( waited == 0 )) && echo "Waiting for the dictation in progress to finish (up to 5 min)…"
+        sleep 0.1
+        waited=$((waited + 1))
+      done
+    fi
     if [[ -n "$(running_pid)" ]]; then
       was_running=1
       osascript -e "tell application id \"$BUNDLE_ID\" to quit" >/dev/null 2>&1 || true
