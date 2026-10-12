@@ -899,6 +899,11 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     let record: TakeRecord?
   }
   private var retried: RetriedText?
+  /// A paste of the retried text is under way.
+  private var pastingRetry = false
+  /// Retried pastes run here, not behind other takes on `work`: they must
+  /// happen while the app the user chose is still in front.
+  private let pasteQueue = DispatchQueue(label: "lowkey.paste", qos: .userInitiated)
 
   func menuWillOpen(_ menu: NSMenu) {
     refreshTimedOutItems()
@@ -912,8 +917,8 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
       retried = nil // expired or removed
     }
     retryItem.isHidden = entries.isEmpty || retrying || retried != nil
-    pasteRetriedItem.isHidden = retried == nil || retrying
-    discardTimedOutItem.isHidden = entries.isEmpty || retrying
+    pasteRetriedItem.isHidden = retried == nil || retrying || pastingRetry
+    discardTimedOutItem.isHidden = entries.isEmpty || retrying || pastingRetry
     if let retried {
       pasteRetriedItem.title = "Paste retried dictation (\(retried.text.count) chars, doesn't send)"
     }
@@ -925,6 +930,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
   }
 
   @objc private func discardTimedOut() {
+    guard !pastingRetry else { return }
     let entries = timedOut.all()
     entries.forEach(timedOut.remove)
     retried = nil
@@ -969,11 +975,28 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
   /// Pastes the retried text into the app in front (never sends). The
   /// recording is dropped only once the paste went through.
   @objc private func pasteRetried() {
-    guard let pending = retried, let cli else { return }
+    guard let pending = retried, let cli, !pastingRetry else { return }
+    pastingRetry = true
+    refreshTimedOutItems()
+    // Lowkey never takes focus, so this is the app the user chose Paste in.
+    let chosen = NSWorkspace.shared.frontmostApplication
     let delivery = Delivery(autosend: false, sendMode: "enter", pasteTarget: "current", activateDelayMs: 0, sendDelayMs: 0)
-    work.async { [weak self] in
+    pasteQueue.async { [weak self] in
+      defer {
+        DispatchQueue.main.async {
+          self?.pastingRetry = false
+          self?.refreshTimedOutItems()
+        }
+      }
       // Let the menu close so the paste reaches the app underneath.
       usleep(200_000)
+      let front = DispatchQueue.main.sync { NSWorkspace.shared.frontmostApplication }
+      guard front?.processIdentifier == chosen?.processIdentifier else {
+        DispatchQueue.main.async {
+          self?.fail("didn't paste: \(front?.localizedName ?? "another app") came to the front; choose Paste again")
+        }
+        return
+      }
       do {
         let target = try Deliverer.perform(DeliveryPlan.steps(text: pending.text, delivery: delivery, hasOriginalApp: false),
                                            originalApp: nil)

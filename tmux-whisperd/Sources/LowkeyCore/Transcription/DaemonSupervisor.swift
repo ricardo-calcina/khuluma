@@ -84,6 +84,9 @@ public final class DaemonSupervisor: @unchecked Sendable {
   private var rechecks = 0
   /// One scheduled recheck at most, however many triggers see "warming".
   private var recheckPending = false
+  /// A settings change arrived during a check: check again once it ends
+  /// (that check's result is dropped as stale).
+  private var settingsPending = false
   /// Bumped by `configure`: results of a check started before a change
   /// are dropped.
   private var configuration = 0
@@ -122,6 +125,7 @@ public final class DaemonSupervisor: @unchecked Sendable {
       guard target != nil, !inFlight else {
         // A dropped recheck must not leave the next one blocked.
         if trigger == .recheck { recheckPending = false }
+        if trigger == .settings, target != nil { settingsPending = true }
         return false
       }
       inFlight = true
@@ -130,7 +134,12 @@ public final class DaemonSupervisor: @unchecked Sendable {
     guard start else { return }
     queue.async { [self] in
       run(trigger)
-      lock.withLock { inFlight = false }
+      let again = lock.withLock { () -> Bool in
+        inFlight = false
+        defer { settingsPending = false }
+        return settingsPending
+      }
+      if again { self.trigger(.settings) }
     }
   }
 

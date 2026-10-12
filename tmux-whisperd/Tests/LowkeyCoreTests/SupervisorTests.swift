@@ -156,6 +156,27 @@ struct DaemonSupervisorTests {
     #expect(world.warmups == 2)
   }
 
+  @Test func aSettingsChangeDuringACheckIsCheckedAfterIt() {
+    let world = World()
+    let queue = DispatchQueue(label: "test.supervisor.settings")
+    let supervisor = world.supervisor(queue: queue)
+    supervisor.configure(target)
+    world.reports = [.success(WarmupReport(state: .unavailable, reason: "x", message: "stale")),
+                     .success(WarmupReport(state: .unavailable, reason: "y", message: "fresh"))]
+    let other = DaemonSupervisor.Target(socketPath: "/s.sock", modelPath: "/other", modelVersion: "v3")
+    world.duringWarmup = {
+      world.duringWarmup = nil
+      supervisor.configure(other)
+      supervisor.trigger(.settings) // dropped: the launch check is still running
+    }
+    supervisor.trigger(.launch)
+    queue.sync {}
+    queue.sync {}
+    // The launch result was stale; the settings check ran after it.
+    #expect(world.warmups == 2)
+    #expect(supervisor.currentState == .unavailable("fresh"))
+  }
+
   @Test func backoffCountsFromWhenAFailureFinished() {
     let world = World()
     world.reports = [.failure(Boom()), .success(WarmupReport(state: .unavailable, reason: "x"))]
