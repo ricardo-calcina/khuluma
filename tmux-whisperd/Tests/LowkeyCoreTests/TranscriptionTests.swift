@@ -364,7 +364,10 @@ struct DaemonClientTests {
 
   @Test func timesOutOnASlowDaemon() async throws {
     let path = socketPath()
-    let server = UnixSocketServer(socketPath: path, handler: FakeDaemon(delay: .seconds(3)))
+    // The daemon answers after 10 s; the client must give up at its 0.3 s
+    // timeout. The bound is loose because CI runners can stall threads for
+    // a second or two.
+    let server = UnixSocketServer(socketPath: path, handler: FakeDaemon(delay: .seconds(10)))
     try server.start()
     defer { server.stop() }
     let started = Date()
@@ -375,7 +378,7 @@ struct DaemonClientTests {
           modelVersion: nil, timeout: 0.3)
       }
     }
-    #expect(Date().timeIntervalSince(started) < 2)
+    #expect(Date().timeIntervalSince(started) < 5)
   }
 }
 
