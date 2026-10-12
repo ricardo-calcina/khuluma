@@ -28,6 +28,15 @@ public struct TakeLog: Sendable {
     add(key, value.map { Int($0.rounded()) })
   }
 
+  /// A status code reduced to `[a-z0-9_]` (at most 40 characters), so a
+  /// field meant for a code can never carry free text.
+  public static func category(_ code: String?) -> String {
+    let cleaned = String((code ?? "").lowercased().unicodeScalars
+      .filter { ("a"..."z").contains($0) || ("0"..."9").contains($0) || $0 == "_" }
+      .prefix(40).map(Character.init))
+    return cleaned.isEmpty ? "other" : cleaned
+  }
+
   public var line: String {
     (["take:"] + fields.map { "\($0.key)=\(Self.quoted($0.value))" }).joined(separator: " ")
   }

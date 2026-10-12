@@ -53,6 +53,8 @@ elif days_arg:
     since = today - dt.timedelta(days=max(int(days_arg), 1) - 1)
 
 LINE = re.compile(r"^\[([^\]]+)\] (.*)$")
+VERIFY = re.compile(r"^verify: take \S+ (matches the CLI|skipped:|could not run|pipeline mismatch:)(.*)$")
+CODE = re.compile(r"^[a-z0-9_]{1,40}$")
 PAIR = re.compile(r'([A-Za-z_]+)=("((?:[^"\\]|\\.)*)"|\S*)')
 
 
@@ -136,11 +138,15 @@ with open(log_path, encoding="utf-8", errors="replace") as handle:
             found = re.search(r"unavailable: (.*?) \(", message)
             unavailable[found.group(1) if found else "?"] += 1
         elif message.startswith("verify: "):
-            if " matches the CLI" in message:
+            # Judge only the status right after the take id: mismatch lines
+            # go on to quote dictated text, which may contain any phrase.
+            found = VERIFY.match(message)
+            status = found.group(1) if found else ""
+            if status == "matches the CLI" and found.group(2) == "":
                 kind = "match"
-            elif " skipped:" in message:
+            elif status == "skipped:":
                 kind = "skipped"
-            elif " could not run" in message:
+            elif status == "could not run":
                 kind = "error"
             else:
                 kind = "mismatch"
@@ -201,7 +207,9 @@ if takes:
         print("  CLI by settings: " + ", ".join(f"{r} x{n}" for r, n in cli_reasons.most_common()))
     failed = [t for t in takes if t.get("outcome") in ("failed", "timed_out", "paste_failed", "no_audio")]
     print(f"  failure rate: {pct(len(failed), len(takes))} ({len(failed)} of {len(takes)})")
-    errors = Counter(t.get("outcome") + (f": {t['error']}" if "error" in t else "") for t in failed)
+    # Error fields are codes; print nothing that isn't one.
+    errors = Counter(t.get("outcome") + (f": {t['error'] if CODE.match(t['error']) else 'other'}" if "error" in t else "")
+                     for t in failed)
     for error, count in errors.most_common(5):
         print(f"    {error} x{count}")
 states = Counter(t.get("state", "?") for t in takes if t.get("path") == "native")
@@ -221,8 +229,15 @@ def overhead(take):
     """Stop to delivered, minus the model's own time and the deliberate
     delivery waits: what Lowkey, the socket and the OS add."""
     total, waits = num(take, "total"), num(take, "waits")
-    daemon = [num(take, k) for k in ("full_daemon", "tail_daemon") if k in take]
-    if total is None or waits is None or "full_daemon" not in take or None in daemon:
+    if total is None or waits is None:
+        return None
+    daemon = []
+    # Every pass that was sent needs the daemon's time (a failed tail pass
+    # has none, and its model time would otherwise count as overhead).
+    for elapsed, key in (("full", "full_daemon"), ("tail", "tail_daemon")):
+        if elapsed in take or key in take:
+            daemon.append(num(take, key))
+    if not daemon or None in daemon:
         return None
     return total - sum(daemon) - waits
 
@@ -239,11 +254,14 @@ def transport(take):
 
 delivered = [t for t in takes if t.get("path") == "native" and t.get("outcome") == "delivered"]
 timed = [t for t in delivered if overhead(t) is not None]
+incomplete = len(delivered) - len(timed)
 # Cold takes include the model load, which the daemon's time leaves out, and
 # contended ones a wait behind another request: judge overhead on warm takes.
 warm = [t for t in timed if t.get("state") == "warm"]
 print()
 print(f"Native takes delivered: {len(delivered)} ({len(timed)} with daemon timings, {len(warm)} warm)")
+if incomplete:
+    print(f"  {incomplete} without daemon timings for every pass (older daemon or a failed tail pass): left out")
 if warm:
     print(f"  overhead, warm (stop to delivered, minus Parakeet and delivery waits): {spread([overhead(t) for t in warm])}")
     for label, low, high in BUCKETS:
@@ -257,11 +275,16 @@ if not_warm:
 if timed:
     print(f"  stop to delivered: {spread([num(t, 'total') for t in timed])}")
     print(f"  Parakeet (daemon): {spread([num(t, 'full_daemon') + (num(t, 'tail_daemon') or 0) for t in timed])}")
+    # The plan's in-process trigger: WAV plus socket cost on warm takes. The
+    # residual is request time minus model time, so it also holds any wait
+    # behind a request that arrived after the stop-time ping.
+    in_process = [num(t, "prep") + transport(t) for t in warm if "prep" in t and transport(t) is not None]
     for label, values in (
         ("queue", [num(t, "queue") for t in timed]),
         ("WAV prep", [num(t, "prep") for t in timed if "prep" in t]),
         ("probe wait", [num(t, "probe") for t in timed if "probe" in t]),
-        ("transport (warm)", [transport(t) for t in warm if transport(t) is not None]),
+        ("request minus model time (warm)", [transport(t) for t in warm if transport(t) is not None]),
+        ("WAV prep + request residual (warm)", in_process),
         ("cleanup", [num(t, "clean") for t in timed if "clean" in t]),
         ("delivery minus waits", [num(t, "deliver") - num(t, "waits") for t in timed if "deliver" in t]),
     ):
@@ -294,10 +317,10 @@ print()
 print("Daemon")
 if warmups:
     triggers = Counter(trigger for _, trigger in warmups)
-    print(f"  cold-start recoveries (warmed by Lowkey): {spread([w for w, _ in warmups])}, max {ms(max(w for w, _ in warmups))}"
+    print(f"  model warmups started by Lowkey (CLI warmup time, excluding launch): {spread([w for w, _ in warmups])}, max {ms(max(w for w, _ in warmups))}"
           + "; " + ", ".join(f"{k} {v}" for k, v in triggers.most_common()))
 else:
-    print("  cold-start recoveries: none")
+    print("  model warmups started by Lowkey: none")
 if unavailable:
     print("  unavailable: " + ", ".join(f"{k} x{v}" for k, v in unavailable.most_common(5)))
 

@@ -2015,24 +2015,33 @@ cat >"$REPORT_LOG" <<'EOF'
 [2026-10-11T09:05:00.000Z] supervisor: daemon warmed in 1800ms (launch)
 [2026-10-11T09:05:01.000Z] verify: take bbb matches the CLI
 [2026-10-11T09:06:00.000Z] error: could not start recording: format mismatch
+[2026-10-11T09:07:00.000Z] take: path=native outcome=delivered state=warm record=14000 total=2000 queue=1 prep=3 probe=0 full=900 full_daemon=880 tail_window=8000 tail=600 tail_failed=1 asr=1500 clean=4 deliver=165 waits=150 mode=base chars=20 target=Claude
+[2026-10-11T09:08:00.000Z] take: path=fallback reason="daemon unreachable" outcome=failed record=3000 total=900 queue=1 error="SECRET leaked through an error"
+[2026-10-12T09:00:00.000Z] verify: take ccc pipeline mismatch: text native="SECRET this matches the CLI" cli="x"
+[2026-10-12T09:00:01.000Z] verify: take ddd pipeline mismatch: text native="SECRET skipped: and could not run" cli="x"
+[2026-10-12T09:00:02.000Z] verify: take eee matches the CLI
+[2026-10-13T09:00:02.000Z] verify: take fff matches the CLI
 EOF
 report_text="$(TZ=UTC "$ROOT/tools/lowkey-report.sh" --log "$REPORT_LOG")"
-assert_contains "lowkey_report_take_counts" "$report_text" "Takes (instrumented): 5 (native 4, fallback 1)"
-assert_contains "lowkey_report_fallback_rate" "$report_text" "fallback rate: 20.0% (1 of 5 tried natively); daemon unreachable x1"
-assert_contains "lowkey_report_failure_rate" "$report_text" "failure rate: 20.0% (1 of 5)"
+assert_contains "lowkey_report_take_counts" "$report_text" "Takes (instrumented): 7 (native 5, fallback 2)"
+assert_contains "lowkey_report_fallback_rate" "$report_text" "fallback rate: 28.6% (2 of 7 tried natively); daemon unreachable x2"
+assert_contains "lowkey_report_failure_rate" "$report_text" "failure rate: 28.6% (2 of 7)"
 assert_contains "lowkey_report_failure_kinds" "$report_text" "    timed_out x1"
+assert_contains "lowkey_report_error_codes_only" "$report_text" "    failed: other x1"
+assert_contains "lowkey_report_incomplete_tail" "$report_text" "1 without daemon timings for every pass"
+assert_contains "lowkey_report_verify_anchored" "$report_text" "2026-10-12: 1 match, 2 mismatch"
 assert_contains "lowkey_report_overhead" "$report_text" "minus Parakeet and delivery waits): median 55ms, p90 60ms (n=2)"
 assert_contains "lowkey_report_overhead_bucket" "$report_text" "5-15s: median 60ms, p90 60ms (n=1)"
 assert_contains "lowkey_report_overhead_cold" "$report_text" "overhead, not warm (cold): median 150ms"
-assert_contains "lowkey_report_transport" "$report_text" "transport (warm): median 8ms"
+assert_contains "lowkey_report_transport" "$report_text" "request minus model time (warm): median 8ms"
 assert_contains "lowkey_report_legacy" "$report_text" "before instrumentation: 1 native takes"
 assert_contains "lowkey_report_start_failures" "$report_text" "recordings that failed to start: 1"
-assert_contains "lowkey_report_warmups" "$report_text" "cold-start recoveries (warmed by Lowkey): median 1800ms"
+assert_contains "lowkey_report_warmups" "$report_text" "model warmups started by Lowkey (CLI warmup time, excluding launch): median 1800ms"
 assert_contains "lowkey_report_overhead_gate" "$report_text" "[NOT YET] 20+ warm native takes"
-assert_contains "lowkey_report_verify_gate" "$report_text" "[FAIL] 2+ days of verified takes with no verify mismatches: 1 clean day(s), mismatches on 2026-10-10"
+assert_contains "lowkey_report_verify_gate" "$report_text" "[FAIL] 2+ days of verified takes with no verify mismatches: 2 clean day(s), mismatches on 2026-10-10, 2026-10-12"
 assert_not_contains "lowkey_report_transcript_free" "$report_text" "SECRET"
 report_since="$(TZ=UTC "$ROOT/tools/lowkey-report.sh" --log "$REPORT_LOG" --since 2026-10-11)"
-assert_contains "lowkey_report_since_drops_old_mismatch" "$report_since" "Verify (native cleanup vs the CLI): 1 match, 0 mismatch"
+assert_contains "lowkey_report_since_drops_old_mismatch" "$report_since" "Verify (native cleanup vs the CLI): 3 match, 2 mismatch"
 assert_not_contains "lowkey_report_since_drops_legacy" "$report_since" "before instrumentation"
 if "$ROOT/tools/lowkey-report.sh" --log "$REPORT_LOG" --days x >/dev/null 2>&1; then
   echo "FAIL: lowkey_report_rejects_bad_days" >&2

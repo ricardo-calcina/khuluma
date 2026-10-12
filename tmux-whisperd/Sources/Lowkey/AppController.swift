@@ -396,10 +396,12 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
   private func stopRecording() {
     guard let take else { return }
+    // "Stop → delivered" starts here, before the engine is torn down.
+    let stopAt = monotonicMs()
     let firstBuffer = recorder.firstBufferTime
     let samples = recorder.stop()
     self.take = nil
-    let recordMs = Int((monotonicMs() - take.startedAt).rounded())
+    let recordMs = Int((stopAt - take.startedAt).rounded())
     if let firstBuffer {
       Log.write(String(format: "stop: record %dms, hotkey→first audio %.1fms, samples %d", recordMs, firstBuffer - take.hotkeyAt, samples.count))
     }
@@ -422,7 +424,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
     processing += 1
     phase = .processing
-    process(samples: samples, take: take, recordMs: recordMs)
+    process(samples: samples, take: take, recordMs: recordMs, stopAt: stopAt)
   }
 
   @objc private func cancelRecording() {
@@ -445,21 +447,20 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
   // MARK: - Processing and delivery
 
-  private func process(samples: [Float], take: Take, recordMs: Int) {
+  private func process(samples: [Float], take: Take, recordMs: Int, stopAt: Double) {
     guard let cli else {
       take.marker?.remove()
       var line = TakeLog()
       line.add("path", "none")
       line.add("outcome", "failed")
       line.add("record", recordMs)
-      line.add("error", "tmux-whisper CLI not found")
+      line.add("error", "cli_missing")
       Log.write(line.line)
       finishProcessing(error: "tmux-whisper CLI not found")
       return
     }
     let frontmostAtStop = NSWorkspace.shared.frontmostApplication?.localizedName
     let cachedConfig = self.config
-    let stopAt = monotonicMs()
     work.async { [weak self] in
       // Every path below is synchronous on this queue: the take is over when it returns.
       defer { take.marker?.remove() }
@@ -540,6 +541,28 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     case .timedOut?: return "daemon timed out"
     case nil: return "native transcription failed"
     }
+  }
+
+  /// A fixed error category for the take log: never the message, which
+  /// can carry CLI output (and so dictated text).
+  private static func errorCategory(_ error: Error) -> String {
+    if let bridge = error as? CLIBridge.BridgeError {
+      switch bridge {
+      case .notInstalled: return "cli_missing"
+      case .failed: return "cli_failed"
+      case .timedOut: return "cli_timed_out"
+      case .badOutput: return "cli_bad_output"
+      }
+    }
+    let error = error as NSError
+    if error.domain == "Lowkey" {
+      switch error.code {
+      case 2: return "accessibility_missing"
+      case 3: return "no_paste_key"
+      default: return "lowkey_\(error.code)"
+      }
+    }
+    return "other"
   }
 
   /// How long a take waits, after WAV prep, for the ping that tags it
@@ -698,7 +721,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         logTake("paste_failed", endedAt: monotonicMs(), transcribed: transcribed) { line in
           line.add("asr", ms: transcribedAt - startedAt)
           line.add("clean", ms: cleanedAt - transcribedAt)
-          line.add("error", error.localizedDescription)
+          line.add("error", Self.errorCategory(error))
         }
         persist(record, cli: cli)
         verifyAfterDelivery()
@@ -836,7 +859,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
       processedAt = monotonicMs()
       guard result.ok else {
         logTake(result.status == "no_speech" ? "no_speech" : "failed") { line in
-          if result.status != "no_speech" { line.add("error", result.message ?? result.status) }
+          if result.status != "no_speech" { line.add("error", TakeLog.category(result.status)) }
         }
         DispatchQueue.main.async {
           if result.status == "no_speech" {
@@ -869,7 +892,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         self.finishProcessing(error: nil)
       }
     } catch {
-      logTake("failed") { $0.add("error", error.localizedDescription) }
+      logTake("failed") { $0.add("error", Self.errorCategory(error)) }
       DispatchQueue.main.async {
         self.sounds.play(.error)
         self.finishProcessing(error: error.localizedDescription)
