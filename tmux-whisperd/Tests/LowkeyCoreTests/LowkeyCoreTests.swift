@@ -105,18 +105,28 @@ struct CLIModelTests {
 }
 
 struct DeliveryPlanTests {
-  private func delivery(autosend: Bool = true, sendMode: String = "enter", pasteTarget: String = "current") -> Delivery {
-    Delivery(autosend: autosend, sendMode: sendMode, pasteTarget: pasteTarget, activateDelayMs: 90, sendDelayMs: 35)
+  private func delivery(autosend: Bool = true, sendMode: String = "enter", pasteTarget: String = "current",
+                        sendDelayMs: Int = 35) -> Delivery {
+    Delivery(autosend: autosend, sendMode: sendMode, pasteTarget: pasteTarget, activateDelayMs: 90, sendDelayMs: sendDelayMs)
   }
 
   @Test func pastesThenPressesEnter() {
+    // The default 35 ms is raised to the minimum gap: back to back, the
+    // Claude desktop app sometimes takes Enter before the paste.
     let steps = DeliveryPlan.steps(text: "hi", delivery: delivery(), hasOriginalApp: true)
     #expect(steps == [
       .setClipboard("hi"),
       .shortcut(character: "v", command: true, control: false),
-      .wait(milliseconds: 35),
+      .wait(milliseconds: 150),
       .key(code: 36, command: false, control: false),
     ])
+  }
+
+  @Test func sendGapIsNeverShorterThanTheMinimumButLongerDelaysStay() {
+    for (configured, expected) in [(0, 150), (35, 150), (150, 150), (400, 400)] {
+      let steps = DeliveryPlan.steps(text: "x", delivery: delivery(sendDelayMs: configured), hasOriginalApp: false)
+      #expect(steps[2] == .wait(milliseconds: expected), "send_delay_ms \(configured)")
+    }
   }
 
   @Test func restoreReactivatesTheOriginalAppFirst() {

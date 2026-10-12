@@ -15,6 +15,13 @@ public enum DeliveryStep: Equatable, Sendable {
 
 public enum DeliveryPlan {
   public static let keyReturn: UInt16 = 36
+  /// The shortest wait between Cmd+V and the send key. The CLI posts them
+  /// from two `osascript` runs, so its send key lands `send_delay_ms` plus
+  /// ~80 ms of process launch after the paste. Posted back to back, Electron
+  /// apps (the Claude desktop app) sometimes take the send key before the
+  /// paste (Cmd+V goes through their Edit menu), so the text is pasted but
+  /// not sent.
+  public static let minimumSendGapMs = 150
 
   public static func steps(text: String, delivery: Delivery, hasOriginalApp: Bool) -> [DeliveryStep] {
     var steps: [DeliveryStep] = [.setClipboard(text)]
@@ -28,9 +35,7 @@ public enum DeliveryPlan {
     guard delivery.autosend else { return steps }
 
     // Give the target app a moment to insert the paste before sending.
-    if delivery.sendDelayMs > 0 {
-      steps.append(.wait(milliseconds: delivery.sendDelayMs))
-    }
+    steps.append(.wait(milliseconds: max(delivery.sendDelayMs, minimumSendGapMs)))
     switch delivery.sendMode {
     case "ctrl_j":
       steps.append(.shortcut(character: "j", command: false, control: true))

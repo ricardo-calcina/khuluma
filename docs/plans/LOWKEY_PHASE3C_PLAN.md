@@ -60,6 +60,8 @@ Shipped ahead of 3c: the CLI falls back to the last valid `config.toml` copy, `a
 ### 7. Device change while idle
 On `AVAudioEngineConfigurationChange` with no take: rebuild the input graph for the new default device (`stop`, `reset`, `prepare`), recreate the converter on next start, and log the device. Mid-take behaviour stays (keep the partial take). Manual test: switch mics while idle, then dictate.
 
+Done (fix/lowkey-device-switch-start): the engine is replaced by a fresh `AVAudioEngine` rather than reset, because a stale engine raised `com.apple.coreaudio.avfaudio` ("Failed to create tap due to format mismatch") on 2026-10-11, and the failure was silent. A start that still fails is retried once on a fresh engine. AVAudioEngine exceptions are caught (`LowkeyObjC`), and `TakeStarter` makes starts non-reentrant and leak-free for markers.
+
 ## 3c-2: capture correctness and login (v0.11.0 or next)
 
 ### 8. Make the "speak now" cue honest

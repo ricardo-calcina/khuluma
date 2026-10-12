@@ -48,9 +48,16 @@ let package = Package(
       dependencies: ["TmuxWhisperKit"],
       path: "Tests/TmuxWhisperKitTests"
     ),
+    // Catches Objective-C exceptions (AVAudioEngine raises them), which
+    // Swift can't.
+    .target(
+      name: "LowkeyObjC",
+      path: "Sources/LowkeyObjC"
+    ),
     // Pure, testable logic for Lowkey (no AppKit).
     .target(
       name: "LowkeyCore",
+      dependencies: ["LowkeyObjC"],
       path: "Sources/LowkeyCore"
     ),
     .executableTarget(
