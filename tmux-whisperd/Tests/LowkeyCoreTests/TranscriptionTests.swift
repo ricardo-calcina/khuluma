@@ -241,7 +241,7 @@ private actor FakeDaemon: DaemonRequestHandling {
       if request.flow == "fail" {
         return .failure(id: request.id, code: "model_path_invalid", message: "bad model")
       }
-      return DaemonResponse(id: request.id, ok: true, text: "café \u{1F600} transcript")
+      return DaemonResponse(id: request.id, ok: true, text: "café \u{1F600} transcript", durationMs: 42)
     case .warmup:
       return DaemonResponse(id: request.id, ok: true)
     }
@@ -279,6 +279,12 @@ struct DaemonClientTests {
         modelPath: "/models/parakeet", modelVersion: "v3", timeout: 5)
     }
     #expect(Array(text.utf8) == Array("café \u{1F600} transcript".utf8))
+    let pass = try await offPool {
+      try client.transcribePass(
+        wav: URL(fileURLWithPath: "/tmp/take.wav"), language: "en", flow: "inline",
+        modelPath: "/models/parakeet", modelVersion: "v3", timeout: 5)
+    }
+    #expect(pass == NativeTranscriber.Pass(text: "café \u{1F600} transcript", daemonMs: 42))
 
     let request = try #require(await daemon.requests.last)
     #expect(request.op == .transcribe)
@@ -358,7 +364,10 @@ struct DaemonClientTests {
 
   @Test func timesOutOnASlowDaemon() async throws {
     let path = socketPath()
-    let server = UnixSocketServer(socketPath: path, handler: FakeDaemon(delay: .seconds(3)))
+    // The daemon answers after 10 s; the client must give up at its 0.3 s
+    // timeout. The bound is loose because CI runners can stall threads for
+    // a second or two.
+    let server = UnixSocketServer(socketPath: path, handler: FakeDaemon(delay: .seconds(10)))
     try server.start()
     defer { server.stop() }
     let started = Date()
@@ -369,7 +378,7 @@ struct DaemonClientTests {
           modelVersion: nil, timeout: 0.3)
       }
     }
-    #expect(Date().timeIntervalSince(started) < 2)
+    #expect(Date().timeIntervalSince(started) < 5)
   }
 }
 

@@ -46,4 +46,13 @@ public enum DeliveryPlan {
     }
     return steps
   }
+
+  /// The deliberate waits in a plan (activation and send gaps), so the take
+  /// log can tell them apart from processing time.
+  public static func waitMs(_ steps: [DeliveryStep]) -> Int {
+    steps.reduce(0) { total, step in
+      if case .wait(let milliseconds) = step { return total + milliseconds }
+      return total
+    }
+  }
 }

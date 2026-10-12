@@ -396,10 +396,12 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
   private func stopRecording() {
     guard let take else { return }
+    // "Stop → delivered" starts here, before the engine is torn down.
+    let stopAt = monotonicMs()
     let firstBuffer = recorder.firstBufferTime
     let samples = recorder.stop()
     self.take = nil
-    let recordMs = Int((monotonicMs() - take.startedAt).rounded())
+    let recordMs = Int((stopAt - take.startedAt).rounded())
     if let firstBuffer {
       Log.write(String(format: "stop: record %dms, hotkey→first audio %.1fms, samples %d", recordMs, firstBuffer - take.hotkeyAt, samples.count))
     }
@@ -407,6 +409,11 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
       take.marker?.remove()
       applyPendingHotkey()
       sounds.play(.error)
+      var line = TakeLog()
+      line.add("path", "none")
+      line.add("outcome", "no_audio")
+      line.add("record", recordMs)
+      Log.write(line.line)
       fail("no audio captured (microphone permission?)")
       return
     }
@@ -417,7 +424,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
     processing += 1
     phase = .processing
-    process(samples: samples, take: take, recordMs: recordMs)
+    process(samples: samples, take: take, recordMs: recordMs, stopAt: stopAt)
   }
 
   @objc private func cancelRecording() {
@@ -440,15 +447,20 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
   // MARK: - Processing and delivery
 
-  private func process(samples: [Float], take: Take, recordMs: Int) {
+  private func process(samples: [Float], take: Take, recordMs: Int, stopAt: Double) {
     guard let cli else {
       take.marker?.remove()
+      var line = TakeLog()
+      line.add("path", "none")
+      line.add("outcome", "failed")
+      line.add("record", recordMs)
+      line.add("error", "cli_missing")
+      Log.write(line.line)
       finishProcessing(error: "tmux-whisper CLI not found")
       return
     }
     let frontmostAtStop = NSWorkspace.shared.frontmostApplication?.localizedName
     let cachedConfig = self.config
-    let stopAt = monotonicMs()
     work.async { [weak self] in
       // Every path below is synchronous on this queue: the take is over when it returns.
       defer { take.marker?.remove() }
@@ -464,18 +476,25 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
       // Match the CLI: "restore" uses the app from recording start; "current"
       // uses whatever is frontmost when processing begins (for mode detection).
       let appName = config?.inline.pasteTarget == "restore" ? take.originalApp?.localizedName : frontmostAtStop
+      // How the take reaches the CLI path, for the take log.
+      let route: (path: String, reason: String)
       if let fresh {
-        if fresh.nativePipelineBlocker == nil,
-           self.processNatively(samples: samples, take: take, recordMs: recordMs, appName: appName,
-                                config: fresh, cli: cli, stopAt: stopAt) {
-          return
+        if let blocker = fresh.nativePipelineBlocker {
+          route = ("cli", blocker)
+        } else {
+          switch self.processNatively(samples: samples, take: take, recordMs: recordMs, appName: appName,
+                                      config: fresh, cli: cli, stopAt: stopAt) {
+          case .handled: return
+          case .fallback(let reason): route = ("fallback", reason)
+          }
         }
       } else {
         Log.write("pipeline: CLI path (\(problem ?? "settings unavailable"))")
+        route = ("cli", problem ?? "settings unavailable")
       }
       take.marker?.update(.cli)
       self.processWithCLI(samples: samples, take: take, recordMs: recordMs, appName: appName, cli: cli,
-                          stopAt: stopAt, config: config)
+                          stopAt: stopAt, config: config, route: route)
     }
   }
 
@@ -506,17 +525,91 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
   }
 
+  private enum NativeRoute {
+    case handled
+    /// Nothing visible happened: the take goes through the CLI instead.
+    case fallback(String)
+  }
+
+  /// A short, stable reason for the take log (details go on the
+  /// `pipeline:` line).
+  private static func fallbackReason(_ error: Error) -> String {
+    switch error as? DaemonClient.ClientError {
+    case .unreachable?: return "daemon unreachable"
+    case .protocolError?: return "daemon protocol error"
+    case .daemon(let code, _)?: return "daemon error \(code)"
+    case .timedOut?: return "daemon timed out"
+    case nil: return "native transcription failed"
+    }
+  }
+
+  /// A fixed error category for the take log: never the message, which
+  /// can carry CLI output (and so dictated text).
+  private static func errorCategory(_ error: Error) -> String {
+    if let bridge = error as? CLIBridge.BridgeError {
+      switch bridge {
+      case .notInstalled: return "cli_missing"
+      case .failed: return "cli_failed"
+      case .timedOut: return "cli_timed_out"
+      case .badOutput: return "cli_bad_output"
+      }
+    }
+    let error = error as NSError
+    if error.domain == "Lowkey" {
+      switch error.code {
+      case 2: return "accessibility_missing"
+      case 3: return "no_paste_key"
+      default: return "lowkey_\(error.code)"
+      }
+    }
+    return "other"
+  }
+
+  /// How long a take waits, after WAV prep, for the ping that tags it
+  /// warm/cold/contended before sending its own request.
+  private static let probeWait: TimeInterval = 0.05
+
   /// Phase 3b: transcribe through the daemon socket, clean up in Swift,
-  /// deliver, then persist in the background. Returns false (having done
-  /// nothing visible) when the take should go through the CLI instead.
+  /// deliver, then persist in the background.
   private func processNatively(samples: [Float], take: Take, recordMs: Int, appName: String?,
-                               config: AppConfig, cli: CLIBridge, stopAt: Double) -> Bool {
+                               config: AppConfig, cli: CLIBridge, stopAt: Double) -> NativeRoute {
     guard let transcription = config.transcription, let cleanup = config.cleanup,
-          let modelPath = transcription.modelPath else { return false }
+          let modelPath = transcription.modelPath else { return .fallback("transcription settings missing") }
     let takeId = UUID().uuidString.lowercased()
     let startedAt = monotonicMs()
 
     let client = DaemonClient(socketPath: transcription.socketPath)
+    let modelVersion = transcription.modelVersion ?? "v3"
+    let probe = TakeProbe { client.status(timeout: DaemonSupervisor.probeTimeout) }
+    let probeState = { probe.state(waiting: Self.probeWait, modelPath: modelPath, modelVersion: modelVersion) }
+    // The take's one log line: transcript-free, for tools/lowkey-report.sh.
+    func logTake(_ outcome: String, endedAt: Double, transcribed: NativeTranscriber.Result? = nil,
+                 _ extra: (inout TakeLog) -> Void = { _ in }) {
+      var line = TakeLog()
+      line.add("path", "native")
+      line.add("outcome", outcome)
+      line.add("state", probeState().rawValue)
+      line.add("record", recordMs)
+      line.add("total", ms: endedAt - stopAt)
+      line.add("queue", ms: startedAt - stopAt)
+      if let timings = transcribed?.timings {
+        line.add("prep", ms: timings.prepMs)
+        line.add("probe", ms: probe.waitedMs)
+        if let full = timings.pass("inline") {
+          // The probe wait happens inside the first pass's timing.
+          line.add("full", ms: full.elapsedMs - probe.waitedMs)
+          line.add("full_daemon", full.daemonMs)
+        }
+        line.add("tail_window", transcribed?.tailRescueMs)
+        if let tail = timings.pass("inline-tail") {
+          line.add("tail", ms: tail.elapsedMs)
+          line.add("tail_daemon", tail.daemonMs)
+        }
+        if transcribed?.tailRescueFailed == true { line.add("tail_failed", 1) }
+      }
+      extra(&line)
+      Log.write(line.line)
+    }
     // Parakeet runs far faster than real time; allow a cold model load.
     let timeout = min(transcription.maxTimeout, 30 + 2 * Double(samples.count) / Double(AudioPrep.sampleRate))
     var record = TakeRecord(takeId: takeId, status: "ok", delivered: false)
@@ -531,9 +624,11 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     let transcribed: NativeTranscriber.Result
     do {
       transcribed = try NativeTranscriber(settings: transcription, keepWAV: transcription.keepLogs)
-        .transcribe(samples: samples) { wav, flow in
-        try client.transcribe(wav: wav, language: transcription.language, flow: flow, modelPath: modelPath,
-                              modelVersion: transcription.modelVersion, timeout: timeout)
+        .transcribeTimed(samples: samples) { wav, flow in
+        // Tag the take before its own request can count as contention.
+        if flow == "inline" { _ = probeState() }
+        return try client.transcribePass(wav: wav, language: transcription.language, flow: flow, modelPath: modelPath,
+                                         modelVersion: transcription.modelVersion, timeout: timeout)
       }
     } catch let failure as NativeTranscriber.Failure {
       if case DaemonClient.ClientError.timedOut(let seconds) = failure.underlying {
@@ -558,21 +653,25 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
           saved = false
           Log.write("pipeline: could not keep the timed-out take for Retry: \(error.localizedDescription)")
         }
+        logTake("timed_out", endedAt: monotonicMs()) { line in
+          line.add("asr", ms: monotonicMs() - startedAt)
+          line.add("kept", saved ? 1 : 0)
+        }
         DispatchQueue.main.async {
           self.sounds.play(.error)
           self.refreshTimedOutItems()
           self.finishProcessing(error: "transcription timed out after \(Int(seconds))s"
                                 + (saved ? " (Retry in the menu)" : ""))
         }
-        return true
+        return .handled
       }
       if case DaemonClient.ClientError.unreachable = failure.underlying { supervisor?.trigger(.unreachable) }
       if let kept = failure.keptWAV { try? FileManager.default.removeItem(at: kept) }
       Log.write("pipeline: native transcription unavailable (\(failure.underlying.localizedDescription)); using the CLI path")
-      return false
+      return .fallback(Self.fallbackReason(failure.underlying))
     } catch {
       Log.write("pipeline: native transcription unavailable (\(error.localizedDescription)); using the CLI path")
-      return false
+      return .fallback("native transcription failed")
     }
     let transcribedAt = monotonicMs()
     record.transcribeMs = Int(transcribedAt - startedAt)
@@ -595,14 +694,18 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     switch outcome {
     case .needsCLI:
       if let kept = transcribed.keptWAV { try? FileManager.default.removeItem(at: kept) }
-      return false
+      return .fallback("cleanup needs the CLI")
     case .noSpeech:
       record.status = "no_speech"
       record.totalMs = recordMs + Int(monotonicMs() - stopAt)
+      logTake("no_speech", endedAt: monotonicMs(), transcribed: transcribed) { line in
+        line.add("asr", ms: transcribedAt - startedAt)
+        line.add("clean", ms: cleanedAt - transcribedAt)
+      }
       persist(record, cli: cli)
       verifyAfterDelivery()
       DispatchQueue.main.async { self.finishProcessing(error: nil, note: "No speech detected") }
-      return true
+      return .handled
     case .text(let raw, let text, let mode):
       record.rawText = raw
       record.text = text
@@ -615,30 +718,40 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         record.status = "paste_failed"
         record.pasteMs = Int(monotonicMs() - cleanedAt)
         record.totalMs = recordMs + Int(monotonicMs() - stopAt)
+        logTake("paste_failed", endedAt: monotonicMs(), transcribed: transcribed) { line in
+          line.add("asr", ms: transcribedAt - startedAt)
+          line.add("clean", ms: cleanedAt - transcribedAt)
+          line.add("error", Self.errorCategory(error))
+        }
         persist(record, cli: cli)
         verifyAfterDelivery()
         DispatchQueue.main.async {
           self.sounds.play(.error)
           self.finishProcessing(error: error.localizedDescription)
         }
-        return true
+        return .handled
       }
       let deliveredAt = monotonicMs()
       record.delivered = true
       record.deliveredAtMs = Int(Date().timeIntervalSince1970 * 1000)
       record.pasteMs = Int(deliveredAt - cleanedAt)
       record.totalMs = recordMs + Int(deliveredAt - stopAt)
+      logTake("delivered", endedAt: deliveredAt, transcribed: transcribed) { line in
+        line.add("asr", ms: transcribedAt - startedAt)
+        line.add("clean", ms: cleanedAt - transcribedAt)
+        line.add("deliver", ms: deliveredAt - cleanedAt)
+        line.add("waits", DeliveryPlan.waitMs(steps))
+        line.add("mode", mode)
+        line.add("chars", text.count)
+        line.add("target", target ?? "-")
+      }
       persist(record, cli: cli)
       verifyAfterDelivery()
-      let rescue = transcribed.tailRescueMs.map { " (tail rescue \($0)ms)" } ?? ""
-      Log.write(String(format: "done(native): stop→delivered %.0fms: queue %.0f, asr %.0f%@, clean %.1f, deliver %.0f; mode=%@, chars=%d, target=%@",
-                       deliveredAt - stopAt, startedAt - stopAt, transcribedAt - startedAt, rescue,
-                       cleanedAt - transcribedAt, deliveredAt - cleanedAt, mode, text.count, target ?? "-"))
       DispatchQueue.main.async {
         self.sounds.play(.stop)
         self.finishProcessing(error: nil)
       }
-      return true
+      return .handled
     }
   }
 
@@ -721,17 +834,33 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
   /// Phase 2 path: `tmux-whisper inline process` transcribes, cleans up and
   /// records; the app delivers.
   private func processWithCLI(samples: [Float], take: Take, recordMs: Int, appName: String?, cli: CLIBridge,
-                              stopAt: Double, config: AppConfig?) {
+                              stopAt: Double, config: AppConfig?, route: (path: String, reason: String)) {
     let wav = FileManager.default.temporaryDirectory.appendingPathComponent("lowkey-\(UUID().uuidString).wav")
     defer { try? FileManager.default.removeItem(at: wav) }
     let startedAt = monotonicMs()
+    var processedAt: Double?
+    func logTake(_ outcome: String, _ extra: (inout TakeLog) -> Void = { _ in }) {
+      var line = TakeLog()
+      line.add("path", route.path)
+      line.add("reason", route.reason)
+      line.add("outcome", outcome)
+      line.add("record", recordMs)
+      line.add("total", ms: monotonicMs() - stopAt)
+      line.add("queue", ms: startedAt - stopAt)
+      line.add("cli", ms: processedAt.map { $0 - startedAt })
+      extra(&line)
+      Log.write(line.line)
+    }
     do {
       try WAVEncoder.encode(samples: samples).write(to: wav, options: [.atomic])
       chmod(wav.path, 0o600)
       let result = try cli.process(wav: wav, app: appName, recordMs: recordMs,
                                    startupMs: take.startupMs, startedAtEpochMs: take.startedEpochMs)
-      let processedAt = monotonicMs()
+      processedAt = monotonicMs()
       guard result.ok else {
+        logTake(result.status == "no_speech" ? "no_speech" : "failed") { line in
+          if result.status != "no_speech" { line.add("error", TakeLog.cliStatus(result.status)) }
+        }
         DispatchQueue.main.async {
           if result.status == "no_speech" {
             self.finishProcessing(error: nil, note: "No speech detected")
@@ -748,15 +877,22 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         ?? Delivery(autosend: false, sendMode: result.delivery.sendMode, pasteTarget: result.delivery.pasteTarget,
                     activateDelayMs: result.delivery.activateDelayMs, sendDelayMs: result.delivery.sendDelayMs)
       let steps = DeliveryPlan.steps(text: result.text, delivery: delivery, hasOriginalApp: take.originalApp != nil)
+      let delivering = monotonicMs()
       let target = try Deliverer.perform(steps, originalApp: take.originalApp)
-      Log.write(String(format: "done(cli): stop→processed %.0fms (queue %.0f), deliver %.0fms, transcribe %dms, mode=%@, chars=%d, target=%@",
-                       processedAt - stopAt, startedAt - stopAt, monotonicMs() - processedAt,
-                       result.timings["transcribe_ms"] ?? -1, result.mode ?? "-", result.text.count, target ?? "-"))
+      logTake("delivered") { line in
+        line.add("transcribe", result.timings["transcribe_ms"])
+        line.add("deliver", ms: monotonicMs() - delivering)
+        line.add("waits", DeliveryPlan.waitMs(steps))
+        line.add("mode", result.mode)
+        line.add("chars", result.text.count)
+        line.add("target", target ?? "-")
+      }
       DispatchQueue.main.async {
         self.sounds.play(.stop)
         self.finishProcessing(error: nil)
       }
     } catch {
+      logTake("failed") { $0.add("error", Self.errorCategory(error)) }
       DispatchQueue.main.async {
         self.sounds.play(.error)
         self.finishProcessing(error: error.localizedDescription)
