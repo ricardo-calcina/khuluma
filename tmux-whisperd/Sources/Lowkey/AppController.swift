@@ -859,7 +859,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
       processedAt = monotonicMs()
       guard result.ok else {
         logTake(result.status == "no_speech" ? "no_speech" : "failed") { line in
-          if result.status != "no_speech" { line.add("error", TakeLog.category(result.status)) }
+          if result.status != "no_speech" { line.add("error", TakeLog.cliStatus(result.status)) }
         }
         DispatchQueue.main.async {
           if result.status == "no_speech" {

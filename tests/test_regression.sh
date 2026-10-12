@@ -2036,7 +2036,7 @@ assert_contains "lowkey_report_overhead_cold" "$report_text" "overhead, not warm
 assert_contains "lowkey_report_transport" "$report_text" "request minus model time (warm): median 8ms"
 assert_contains "lowkey_report_legacy" "$report_text" "before instrumentation: 1 native takes"
 assert_contains "lowkey_report_start_failures" "$report_text" "recordings that failed to start: 1"
-assert_contains "lowkey_report_warmups" "$report_text" "model warmups started by Lowkey (CLI warmup time, excluding launch): median 1800ms"
+assert_contains "lowkey_report_warmups" "$report_text" "model warmups started by Lowkey (daemon model warmup time): median 1800ms"
 assert_contains "lowkey_report_overhead_gate" "$report_text" "[NOT YET] 20+ warm native takes"
 assert_contains "lowkey_report_verify_gate" "$report_text" "[FAIL] 2+ days of verified takes with no verify mismatches: 2 clean day(s), mismatches on 2026-10-10, 2026-10-12"
 assert_not_contains "lowkey_report_transcript_free" "$report_text" "SECRET"

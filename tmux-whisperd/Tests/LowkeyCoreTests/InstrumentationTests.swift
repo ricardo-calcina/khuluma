@@ -16,12 +16,12 @@ struct TakeLogTests {
       == #"take: path=native record=3200 total=1912 target="Google Chrome" error="said \"no\" \\ twice really" empty="""#)
   }
 
-  @Test func categoriesNeverCarryFreeText() {
-    #expect(TakeLog.category("transcribe_failed") == "transcribe_failed")
-    #expect(TakeLog.category("Bad output: \"my dictated words\"") == "badoutputmydictatedwords")
-    #expect(TakeLog.category(String(repeating: "a", count: 100)).count == 40)
-    #expect(TakeLog.category(nil) == "other")
-    #expect(TakeLog.category("  ") == "other")
+  @Test func cliStatusesNeverCarryFreeText() {
+    #expect(TakeLog.cliStatus("failed") == "cli_failed")
+    #expect(TakeLog.cliStatus("superseded") == "cli_superseded")
+    #expect(TakeLog.cliStatus("Bad output: \"my dictated words\"") == "other")
+    #expect(TakeLog.cliStatus("mydictatedwords") == "other")
+    #expect(TakeLog.cliStatus(nil) == "other")
   }
 
   @Test func quotesValuesThatWouldBreakParsing() {

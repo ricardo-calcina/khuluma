@@ -28,13 +28,14 @@ public struct TakeLog: Sendable {
     add(key, value.map { Int($0.rounded()) })
   }
 
-  /// A status code reduced to `[a-z0-9_]` (at most 40 characters), so a
-  /// field meant for a code can never carry free text.
-  public static func category(_ code: String?) -> String {
-    let cleaned = String((code ?? "").lowercased().unicodeScalars
-      .filter { ("a"..."z").contains($0) || ("0"..."9").contains($0) || $0 == "_" }
-      .prefix(40).map(Character.init))
-    return cleaned.isEmpty ? "other" : cleaned
+  /// The take-log code for an `inline process` status: one of the statuses
+  /// the CLI emits, else `other`, so an unexpected response can never put
+  /// free text in the log.
+  public static func cliStatus(_ status: String?) -> String {
+    switch status {
+    case "ok", "no_speech", "superseded", "failed": return "cli_\(status!)"
+    default: return "other"
+    }
   }
 
   public var line: String {

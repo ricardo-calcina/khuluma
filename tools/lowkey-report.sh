@@ -317,7 +317,7 @@ print()
 print("Daemon")
 if warmups:
     triggers = Counter(trigger for _, trigger in warmups)
-    print(f"  model warmups started by Lowkey (CLI warmup time, excluding launch): {spread([w for w, _ in warmups])}, max {ms(max(w for w, _ in warmups))}"
+    print(f"  model warmups started by Lowkey (daemon model warmup time): {spread([w for w, _ in warmups])}, max {ms(max(w for w, _ in warmups))}"
           + "; " + ", ".join(f"{k} {v}" for k, v in triggers.most_common()))
 else:
     print("  model warmups started by Lowkey: none")
