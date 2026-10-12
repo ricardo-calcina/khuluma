@@ -24,8 +24,13 @@ final class HotkeyMonitor {
 
     var eventType = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
     let installStatus = InstallEventHandler(GetApplicationEventTarget(), { _, _, _ in
-      // Carbon delivers hot keys on the main thread.
-      HotkeyMonitor.current?.action()
+      // Carbon delivers hot keys on the main thread. HIToolbox swallows an
+      // Objective-C exception raised in here without a trace: log it.
+      do {
+        try ObjCException.catching { HotkeyMonitor.current?.action() }
+      } catch {
+        Log.write("hotkey: the action raised \(error.localizedDescription)")
+      }
       return noErr
     }, 1, &eventType, nil, &handlerRef)
     guard installStatus == noErr else {

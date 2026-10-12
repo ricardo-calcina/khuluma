@@ -10,6 +10,10 @@
   - **`tmux-whisper warmup --json`** starts the daemon if needed, loads the model and reports the truth: `ready` (the daemon reports this exact model path and version loaded), `warming` (being built or started elsewhere, or replaced and still cold) or `unavailable` (no model, no binary, start or load failed, or a build that failed in the last 10 minutes). Unlike `--best-effort`, it never claims success when nothing was preloaded, and it never builds inline. The daemon reports the model its engine actually holds, updated the moment a load commits.
   - **`app-config --json`** gains `capabilities` (`take_markers`, `lifecycle_lock`, `warmup_json`) and `pipeline.supervise` (`[app] supervise_daemon`, default on), for Lowkey's daemon supervision in the next part.
   - `tools/build-lowkey-app.sh` waits (up to 5 minutes) for a dictation in progress to finish before quitting Lowkey.
+- **Lowkey: dictation works again after switching microphones or headphones**: after an input device change while idle, every hotkey press played the start chime and did nothing else, until the device changed back. The engine kept the old device's format, so AVAudioEngine raised an Objective-C exception when the tap was installed. Swift can't catch that, and HIToolbox silently swallowed it inside the hotkey handler, so nothing was logged and each press left an `inline-lowkey-*` marker behind. Those markers kept the CLI's idle check busy (blocking daemon upgrades) until Lowkey restarted.
+  - A device change while idle now replaces the engine with a fresh one for the new default input, and logs the device and its format. A start that still fails is retried once on a fresh engine, then fails loudly (error sound, menu, log).
+  - AVAudioEngine's Objective-C exceptions are caught and reported as errors (new `LowkeyObjC` target). A failed start always removes its marker, and a press during a start is ignored instead of stacking a second start.
+  - Delivery logs which app was frontmost when the paste was posted (`target=` on the `done` line), and warns if macOS reports no permission to post key events.
 
 ## v0.10.0 — Unreleased
 

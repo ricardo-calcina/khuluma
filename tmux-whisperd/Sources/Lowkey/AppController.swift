@@ -59,6 +59,8 @@ final class AppController: NSObject, NSApplicationDelegate {
   private let recorder = AudioRecorder()
   private let sounds = SoundPlayer()
   private lazy var hotkey = HotkeyMonitor { [weak self] in self?.toggle() }
+  /// One start at a time; a failed start never leaves its marker behind.
+  private let starter = TakeStarter()
   private var cli: CLIBridge?
   private var config: AppConfig?
   private var take: Take?
@@ -311,6 +313,10 @@ final class AppController: NSObject, NSApplicationDelegate {
     let hotkeyAt = monotonicMs()
     if take == nil {
       guard !quitting else { return }
+      guard !starter.isStarting else {
+        Log.write("start: ignored a press while the microphone was still starting")
+        return
+      }
       startRecording(hotkeyAt: hotkeyAt)
     } else {
       stopRecording()
@@ -324,14 +330,18 @@ final class AppController: NSObject, NSApplicationDelegate {
       Log.write(String(format: "start: chime play() %.1fms (hotkey→chime ≈ %.1fms)", playMs, monotonicMs() - hotkeyAt))
     }
     let original = NSWorkspace.shared.frontmostApplication
-    let marker = TakeMarker.create(directory: markerDirectory, takeId: UUID().uuidString.lowercased(), phase: .recording)
-    if marker == nil {
-      // Recording matters more: without the marker an upgrade could restart
-      // the daemon mid-take, which costs a slower (CLI) take, not the take.
-      Log.write("markers: could not publish a take marker in \(markerDirectory); recording anyway")
-    }
-    do {
-      let engineMs = try recorder.start()
+    let directory = markerDirectory
+    let outcome = starter.start(marker: {
+      let marker = TakeMarker.create(directory: directory, takeId: UUID().uuidString.lowercased(), phase: .recording)
+      if marker == nil {
+        // Recording matters more: without the marker an upgrade could restart
+        // the daemon mid-take, which costs a slower (CLI) take, not the take.
+        Log.write("markers: could not publish a take marker in \(directory); recording anyway")
+      }
+      return marker
+    }, capture: { try recorder.start() })
+    switch outcome {
+    case .started(let engineMs, let marker):
       let startedAt = monotonicMs()
       take = Take(
         hotkeyAt: hotkeyAt,
@@ -345,8 +355,10 @@ final class AppController: NSObject, NSApplicationDelegate {
       phase = .recording
       Log.write(String(format: "start: engine.start %.1fms, hotkey→capturing %.1fms, app=%@",
                        engineMs, startedAt - hotkeyAt, original?.localizedName ?? "-"))
-    } catch {
-      marker?.remove()
+    case .busy:
+      Log.write("start: ignored a press while the microphone was still starting")
+    case .failed(let error):
+      // The marker is already gone, so the CLI's idle check isn't blocked.
       sounds.play(.error)
       fail("could not start recording: \(error.localizedDescription)")
     }
@@ -544,8 +556,9 @@ final class AppController: NSObject, NSApplicationDelegate {
       record.text = text
       record.mode = mode
       let steps = DeliveryPlan.steps(text: text, delivery: config.delivery, hasOriginalApp: take.originalApp != nil)
+      let target: String?
       do {
-        try Deliverer.perform(steps, originalApp: take.originalApp)
+        target = try Deliverer.perform(steps, originalApp: take.originalApp)
       } catch {
         record.status = "paste_failed"
         record.pasteMs = Int(monotonicMs() - cleanedAt)
@@ -566,9 +579,9 @@ final class AppController: NSObject, NSApplicationDelegate {
       persist(record, cli: cli)
       verifyAfterDelivery()
       let rescue = transcribed.tailRescueMs.map { " (tail rescue \($0)ms)" } ?? ""
-      Log.write(String(format: "done(native): stop→delivered %.0fms: queue %.0f, asr %.0f%@, clean %.1f, deliver %.0f; mode=%@, chars=%d",
+      Log.write(String(format: "done(native): stop→delivered %.0fms: queue %.0f, asr %.0f%@, clean %.1f, deliver %.0f; mode=%@, chars=%d, target=%@",
                        deliveredAt - stopAt, startedAt - stopAt, transcribedAt - startedAt, rescue,
-                       cleanedAt - transcribedAt, deliveredAt - cleanedAt, mode, text.count))
+                       cleanedAt - transcribedAt, deliveredAt - cleanedAt, mode, text.count, target ?? "-"))
       DispatchQueue.main.async {
         self.sounds.play(.stop)
         self.finishProcessing(error: nil)
@@ -683,10 +696,10 @@ final class AppController: NSObject, NSApplicationDelegate {
         ?? Delivery(autosend: false, sendMode: result.delivery.sendMode, pasteTarget: result.delivery.pasteTarget,
                     activateDelayMs: result.delivery.activateDelayMs, sendDelayMs: result.delivery.sendDelayMs)
       let steps = DeliveryPlan.steps(text: result.text, delivery: delivery, hasOriginalApp: take.originalApp != nil)
-      try Deliverer.perform(steps, originalApp: take.originalApp)
-      Log.write(String(format: "done(cli): stop→processed %.0fms (queue %.0f), deliver %.0fms, transcribe %dms, mode=%@, chars=%d",
+      let target = try Deliverer.perform(steps, originalApp: take.originalApp)
+      Log.write(String(format: "done(cli): stop→processed %.0fms (queue %.0f), deliver %.0fms, transcribe %dms, mode=%@, chars=%d, target=%@",
                        processedAt - stopAt, startedAt - stopAt, monotonicMs() - processedAt,
-                       result.timings["transcribe_ms"] ?? -1, result.mode ?? "-", result.text.count))
+                       result.timings["transcribe_ms"] ?? -1, result.mode ?? "-", result.text.count, target ?? "-"))
       DispatchQueue.main.async {
         self.sounds.play(.stop)
         self.finishProcessing(error: nil)

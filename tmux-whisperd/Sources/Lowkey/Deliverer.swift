@@ -13,7 +13,10 @@ enum Deliverer {
   }
 
   /// Runs on a background queue; waits are real sleeps between steps.
-  static func perform(_ steps: [DeliveryStep], originalApp: NSRunningApplication?) throws {
+  /// Returns the app that was frontmost when the first key was posted (the
+  /// one that received the paste), for the log.
+  @discardableResult
+  static func perform(_ steps: [DeliveryStep], originalApp: NSRunningApplication?) throws -> String? {
     // The clipboard needs no permission, so the text is never lost: copy it
     // first, then require Accessibility only for activation and key events.
     var remaining = steps[...]
@@ -31,7 +34,17 @@ enum Deliverer {
       ])
     }
 
+    // Accessibility normally implies this; without it macOS drops synthetic
+    // key events silently, so the take "succeeds" without pasting.
+    if !CGPreflightPostEventAccess() {
+      Log.write("deliver: no permission to post key events (CGPreflightPostEventAccess): the paste may be dropped")
+    }
+
+    var target: String?
     for step in remaining {
+      if target == nil, step.postsKey {
+        target = DispatchQueue.main.sync { NSWorkspace.shared.frontmostApplication?.localizedName } ?? "-"
+      }
       switch step {
       case .setClipboard(let text):
         DispatchQueue.main.sync {
@@ -56,6 +69,7 @@ enum Deliverer {
         postKey(code: code, command: command, control: control)
       }
     }
+    return target
   }
 
   private static func postKey(code: UInt16, command: Bool, control: Bool) {
@@ -69,6 +83,15 @@ enum Deliverer {
     up?.flags = flags
     down?.post(tap: .cghidEventTap)
     up?.post(tap: .cghidEventTap)
+  }
+}
+
+private extension DeliveryStep {
+  var postsKey: Bool {
+    switch self {
+    case .shortcut, .key: true
+    case .setClipboard, .activateOriginalApp, .wait: false
+    }
   }
 }
 
