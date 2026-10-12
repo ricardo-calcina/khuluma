@@ -39,6 +39,9 @@ public struct AppConfig: Decodable, Equatable, Sendable {
   public let pipeline: Pipeline?
   /// Whether config.toml parsed (0.10+).
   public let config: ConfigStatus?
+  /// What the CLI supports (0.11+), e.g. "take_markers", "lifecycle_lock",
+  /// "warmup_json".
+  public let capabilities: [String]?
 
   public struct ConfigStatus: Decodable, Equatable, Sendable {
     /// The TOML parse error, if config.toml is invalid.
@@ -65,6 +68,8 @@ public struct AppConfig: Decodable, Equatable, Sendable {
   public struct Pipeline: Decodable, Equatable, Sendable {
     public let native: Bool
     public let verify: Bool
+    /// `[app] supervise_daemon` (0.11+; absent from older CLIs).
+    public let supervise: Bool?
   }
 
   enum CodingKeys: String, CodingKey {
@@ -77,6 +82,21 @@ public struct AppConfig: Decodable, Equatable, Sendable {
     case transcription
     case pipeline
     case config
+    case capabilities
+  }
+
+  /// CLI features daemon supervision relies on: markers that keep upgrades
+  /// out of a take, serialized daemon starts, and a truthful warmup.
+  public static let supervisionCapabilities = ["take_markers", "lifecycle_lock", "warmup_json"]
+
+  /// Why Lowkey must not keep the daemon warm, or nil if it may. An older
+  /// CLI keeps 3b behaviour: the daemon is started only by CLI fallbacks.
+  public var supervisionBlocker: String? {
+    let have = Set(capabilities ?? [])
+    guard Self.supervisionCapabilities.allSatisfy(have.contains) else { return "CLI too old for daemon supervision" }
+    guard pipeline?.supervise ?? false else { return "[app] supervise_daemon = false" }
+    guard transcription?.modelPath?.isEmpty == false else { return "no Parakeet model path" }
+    return nil
   }
 
   /// The delivery settings as `inline process` reports them (made safe when
@@ -151,5 +171,37 @@ public struct Delivery: Decodable, Equatable, Sendable {
     case pasteTarget = "paste_target"
     case activateDelayMs = "activate_delay_ms"
     case sendDelayMs = "send_delay_ms"
+  }
+}
+
+/// `tmux-whisper warmup --json` (0.11+).
+public struct WarmupReport: Decodable, Equatable, Sendable {
+  public enum State: String, Decodable, Sendable {
+    /// The daemon holds this model and version.
+    case ready
+    /// Being built or started elsewhere, or replaced and still cold.
+    case warming
+    /// Can't be used: see `reason`.
+    case unavailable
+  }
+
+  public let state: State
+  public let reason: String?
+  public let message: String?
+  public let generation: String?
+  public let durationMs: Int?
+
+  public init(state: State, reason: String? = nil, message: String? = nil, generation: String? = nil,
+              durationMs: Int? = nil) {
+    self.state = state
+    self.reason = reason
+    self.message = message
+    self.generation = generation
+    self.durationMs = durationMs
+  }
+
+  enum CodingKeys: String, CodingKey {
+    case state, reason, message, generation
+    case durationMs = "duration_ms"
   }
 }

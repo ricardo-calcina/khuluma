@@ -5,7 +5,7 @@ import LowkeyCore
 /// Menu-bar app: hotkey → chime + capture → transcription and cleanup →
 /// paste/send. Takes go through the native pipeline (daemon socket + Swift
 /// cleanup) unless the settings need the CLI's `inline process`.
-final class AppController: NSObject, NSApplicationDelegate {
+final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
   private struct Take {
     let hotkeyAt: Double
     let startedAt: Double
@@ -54,6 +54,10 @@ final class AppController: NSObject, NSApplicationDelegate {
   private let hotkeyLine = NSMenuItem(title: "Hotkey: –", action: nil, keyEquivalent: "")
   private let configLine = NSMenuItem(title: "", action: nil, keyEquivalent: "")
   private let recoveredLine = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+  private let daemonLine = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+  private let retryItem = NSMenuItem(title: "", action: #selector(retryTimedOut), keyEquivalent: "")
+  private let pasteRetriedItem = NSMenuItem(title: "", action: #selector(pasteRetried), keyEquivalent: "")
+  private let discardTimedOutItem = NSMenuItem(title: "Discard timed-out recording", action: #selector(discardTimedOut), keyEquivalent: "")
   private let cancelItem = NSMenuItem(title: "Cancel Recording", action: #selector(cancelRecording), keyEquivalent: "")
 
   private let recorder = AudioRecorder()
@@ -80,6 +84,16 @@ final class AppController: NSObject, NSApplicationDelegate {
   private var markerDirectory: String { config?.transcription?.processingDir ?? TakeMarker.defaultDirectory }
   /// Marker dirs already swept for a previous run's leftovers.
   private var sweptMarkerDirectories: Set<String> = []
+  /// Keeps the daemon warm (3c); nil until the CLI is found.
+  private var supervisor: DaemonSupervisor?
+  /// Why supervision is off, as last logged ("" = on).
+  private var supervisionNote: String?
+  private var supervisedTarget: DaemonSupervisor.Target?
+  /// A hotkey change read while a take was recording, applied when it ends.
+  private var pendingHotkey: HotkeySpec?
+  /// Takes whose transcription timed out, for Retry/Discard.
+  private let timedOut = TimedOutTakes.standard
+  private var retrying = false
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     buildMenu()
@@ -100,8 +114,21 @@ final class AppController: NSObject, NSApplicationDelegate {
       return
     }
     self.cli = cli
+    supervisor = DaemonSupervisor(
+      environment: DaemonSupervisor.Environment(
+        probe: { path, timeout in DaemonClient(socketPath: path).status(timeout: timeout) },
+        warmup: { try cli.warmup() },
+        schedule: { delay, work in DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + delay, execute: work) }),
+      onChange: { [weak self] state, line in
+        Log.write("supervisor: \(line)")
+        DispatchQueue.main.async { self?.showDaemonState(state) }
+      })
+    NSWorkspace.shared.notificationCenter.addObserver(
+      forName: NSWorkspace.didWakeNotification, object: nil, queue: .main
+    ) { [weak self] _ in self?.supervisor?.trigger(.wake) }
     reloadSettings()
     replayPendingRecords(cli: cli)
+    refreshTimedOutItems()
   }
 
   /// Quit never discards a dictation. A take still recording is saved to
@@ -355,6 +382,9 @@ final class AppController: NSObject, NSApplicationDelegate {
       phase = .recording
       Log.write(String(format: "start: engine.start %.1fms, hotkey→capturing %.1fms, app=%@",
                        engineMs, startedAt - hotkeyAt, original?.localizedName ?? "-"))
+      // While you speak: make sure the daemon is up with the model loaded
+      // (a ping when it is; the CLI's warmup when it isn't).
+      supervisor?.trigger(.recordingStart)
     case .busy:
       Log.write("start: ignored a press while the microphone was still starting")
     case .failed(let error):
@@ -375,11 +405,13 @@ final class AppController: NSObject, NSApplicationDelegate {
     }
     guard !samples.isEmpty else {
       take.marker?.remove()
+      applyPendingHotkey()
       sounds.play(.error)
       fail("no audio captured (microphone permission?)")
       return
     }
     take.marker?.update(.queued)
+    applyPendingHotkey()
     if config?.inline.processSound ?? true {
       sounds.play(.process)
     }
@@ -396,6 +428,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     sounds.play(.cancel)
     phase = processing > 0 ? .processing : .ready
     Log.write("cancel: recording discarded")
+    applyPendingHotkey()
   }
 
   private func handleDeviceChange() {
@@ -466,6 +499,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     recoverLeftoverTakes(config: fresh)
     config = fresh
     sweepStaleMarkers()
+    configureSupervision(fresh, trigger: .settings)
     sounds.load(from: fresh)
     if pipelineChanged {
       Log.write("settings: pipeline " + (fresh.nativePipelineBlocker.map { "CLI (\($0))" } ?? "native"))
@@ -504,17 +538,35 @@ final class AppController: NSObject, NSApplicationDelegate {
     } catch let failure as NativeTranscriber.Failure {
       if case DaemonClient.ClientError.timedOut(let seconds) = failure.underlying {
         // Re-running through the CLI would wait on the same daemon again.
+        // No automatic retry: keep the audio for an hour for Retry/Discard.
         record.status = "transcribe_failed"
         record.wavPath = failure.keptWAV?.path
         record.transcribeMs = Int(monotonicMs() - startedAt)
         record.totalMs = recordMs + Int(monotonicMs() - stopAt)
         persist(record, cli: cli)
+        let status = client.status(timeout: 1)
+        Log.write("pipeline: transcription timed out after \(Int(seconds))s; daemon "
+                  + (status.map { "still answers pings (generation \($0.generation ?? "?"), \($0.activeRequests ?? -1) in flight)" }
+                     ?? "does not answer pings"))
+        let saved: Bool
+        do {
+          try timedOut.save(samples: samples, info: TimedOutTakes.Info(
+            takeId: takeId, app: appName, recordMs: recordMs, startupMs: take.startupMs,
+            startedAtMs: take.startedEpochMs, generation: status?.generation))
+          saved = true
+        } catch {
+          saved = false
+          Log.write("pipeline: could not keep the timed-out take for Retry: \(error.localizedDescription)")
+        }
         DispatchQueue.main.async {
           self.sounds.play(.error)
-          self.finishProcessing(error: "transcription timed out after \(Int(seconds))s")
+          self.refreshTimedOutItems()
+          self.finishProcessing(error: "transcription timed out after \(Int(seconds))s"
+                                + (saved ? " (Retry in the menu)" : ""))
         }
         return true
       }
+      if case DaemonClient.ClientError.unreachable = failure.underlying { supervisor?.trigger(.unreachable) }
       if let kept = failure.keptWAV { try? FileManager.default.removeItem(at: kept) }
       Log.write("pipeline: native transcription unavailable (\(failure.underlying.localizedDescription)); using the CLI path")
       return false
@@ -746,22 +798,309 @@ final class AppController: NSObject, NSApplicationDelegate {
   }
 
   private func apply(_ config: AppConfig) {
+    let firstSettings = self.config == nil
     self.config = config
     sweepStaleMarkers()
     sounds.load(from: config)
     showConfigStatus(config)
     recoverLeftoverTakes(config: config)
+    configureSupervision(config, trigger: firstSettings ? .launch : .settings)
     do {
       let spec = try HotkeySpec.parse(config.hotkey)
-      try hotkey.register(spec)
-      hotkeyLine.title = "Hotkey: \(spec.display)"
       Log.write("settings: hotkey \(spec.display), cli \(config.cliVersion), pipeline "
                 + (config.nativePipelineBlocker.map { "CLI (\($0))" } ?? "native"
                    + ((config.pipeline?.verify ?? false) ? " + verify" : "")))
-      if case .error = phase { phase = .ready } else { refreshStatus() }
+      if take != nil || starter.isStarting {
+        // Re-registering now could drop the press that stops this take. The
+        // latest settings win: a change back to the current key clears it.
+        pendingHotkey = spec != hotkey.binding ? spec : nil
+        if let pendingHotkey {
+          Log.write("settings: hotkey change to \(pendingHotkey.display) waits for the current take to end")
+        }
+        return
+      }
+      pendingHotkey = nil
+      if registerHotkey(spec) {
+        if case .error = phase { phase = .ready } else { refreshStatus() }
+      }
     } catch {
-      hotkeyLine.title = "Hotkey: invalid (\(config.hotkey))"
+      pendingHotkey = nil
+      hotkeyLine.title = "Hotkey: invalid (\(config.hotkey))" + (hotkey.binding.map { ", still \($0.display)" } ?? "")
       fail("hotkey \"\(config.hotkey)\": \(error)")
+    }
+  }
+
+  /// Binds the hotkey; if the new one can't be registered, the old binding
+  /// stays in effect. Returns whether `spec` is now bound.
+  @discardableResult
+  private func registerHotkey(_ spec: HotkeySpec) -> Bool {
+    do {
+      try hotkey.register(spec)
+      hotkeyLine.title = "Hotkey: \(spec.display)"
+      return true
+    } catch {
+      let kept = hotkey.binding.map { "; keeping \($0.display)" } ?? ""
+      hotkeyLine.title = "Hotkey: \(hotkey.binding?.display ?? "none") (\(spec.display) unavailable)"
+      fail("\(error.localizedDescription)\(kept)")
+      return false
+    }
+  }
+
+  private func applyPendingHotkey() {
+    guard let spec = pendingHotkey, take == nil, !starter.isStarting else { return }
+    pendingHotkey = nil
+    if registerHotkey(spec) { Log.write("settings: hotkey changed to \(spec.display)") }
+  }
+
+  // MARK: - Daemon supervision
+
+  /// Points the supervisor at the configured daemon and model (or turns it
+  /// off), checking right away when that target changed.
+  private func configureSupervision(_ config: AppConfig, trigger: DaemonSupervisor.Trigger) {
+    let target = DaemonSupervisor.Target(config: config)
+    let note = config.supervisionBlocker ?? ""
+    if note != supervisionNote {
+      Log.write("supervisor: " + (note.isEmpty ? "keeping the daemon warm" : "off (\(note))"))
+      supervisionNote = note
+    }
+    guard target != supervisedTarget else { return }
+    supervisedTarget = target
+    supervisor?.configure(target)
+    if target == nil {
+      daemonLine.isHidden = true
+    } else {
+      supervisor?.trigger(trigger)
+    }
+  }
+
+  private func showDaemonState(_ state: DaemonSupervisor.State) {
+    switch state {
+    case .unknown:
+      daemonLine.isHidden = true
+      return
+    case .ready:
+      daemonLine.title = "Parakeet: ready"
+    case .warming(let reason):
+      daemonLine.title = "Parakeet: warming up (\(reason))"
+    case .unavailable(let reason):
+      daemonLine.title = "Parakeet: unavailable (\(reason))"
+    }
+    daemonLine.isHidden = false
+  }
+
+  // MARK: - Timed-out takes
+
+  /// A retried take's text, waiting for the user to paste it.
+  private struct RetriedText {
+    let entry: TimedOutTakes.Entry
+    let text: String
+    /// The native path's record, persisted once the text is pasted (the CLI
+    /// path's `inline process` has already recorded the take).
+    let record: TakeRecord?
+  }
+  private var retried: RetriedText?
+  /// A paste of the retried text is under way.
+  private var pastingRetry = false
+  /// Retried pastes run here, not behind other takes on `work`: they must
+  /// happen while the app the user chose is still in front.
+  private let pasteQueue = DispatchQueue(label: "lowkey.paste", qos: .userInitiated)
+
+  func menuWillOpen(_ menu: NSMenu) {
+    refreshTimedOutItems()
+  }
+
+  /// Shows Retry / Paste / Discard while a timed-out take is kept (expired
+  /// ones are deleted here).
+  private func refreshTimedOutItems() {
+    let entries = timedOut.all()
+    if let pending = retried, !entries.contains(pending.entry) {
+      retried = nil // expired or removed
+    }
+    retryItem.isHidden = entries.isEmpty || retrying || retried != nil
+    pasteRetriedItem.isHidden = retried == nil || retrying || pastingRetry
+    discardTimedOutItem.isHidden = entries.isEmpty || retrying || pastingRetry
+    if let retried {
+      pasteRetriedItem.title = "Paste retried dictation (\(retried.text.count) chars, doesn't send)"
+    }
+    if let newest = entries.last {
+      retryItem.title = "Retry timed-out recording (\(newest.info.recordMs / 1000)s"
+        + (entries.count > 1 ? ", \(entries.count) kept" : "") + ")"
+    }
+    discardTimedOutItem.title = entries.count > 1 ? "Discard \(entries.count) timed-out recordings" : "Discard timed-out recording"
+  }
+
+  @objc private func discardTimedOut() {
+    guard !pastingRetry else { return }
+    let entries = timedOut.all()
+    entries.forEach(timedOut.remove)
+    retried = nil
+    Log.write("retry: discarded \(entries.count) timed-out recording(s)")
+    refreshTimedOutItems()
+  }
+
+  /// Transcribes the newest timed-out take again (natively when the daemon
+  /// holds the model now, else through `inline process`). Nothing is pasted
+  /// until the user chooses "Paste retried dictation" in the app they want
+  /// it in: by now, focus may be anywhere.
+  @objc private func retryTimedOut() {
+    guard let cli, let entry = timedOut.all().last, !retrying, retried == nil else { return }
+    retrying = true
+    refreshTimedOutItems()
+    processing += 1
+    phase = .processing
+    let marker = TakeMarker.create(directory: markerDirectory, takeId: entry.info.takeId + "-retry", phase: .processing)
+    work.async { [weak self] in
+      defer { marker?.remove() }
+      guard let self else { return }
+      let outcome = self.retranscribe(entry, cli: cli)
+      DispatchQueue.main.async {
+        self.retrying = false
+        switch outcome {
+        case .ready(let result):
+          self.retried = result
+          Log.write("retry: transcribed a timed-out recording (\(result.text.count) chars); waiting for Paste")
+          self.sounds.play(.stop)
+          self.finishProcessing(error: nil, note: "Retried dictation ready: choose Paste in the menu")
+        case .noSpeech:
+          self.finishProcessing(error: nil, note: "No speech detected")
+        case .failed(let message):
+          self.sounds.play(.error)
+          self.finishProcessing(error: message)
+        }
+        self.refreshTimedOutItems()
+      }
+    }
+  }
+
+  /// Pastes the retried text into the app in front (never sends). The
+  /// recording is dropped only once the paste went through.
+  @objc private func pasteRetried() {
+    guard let pending = retried, let cli, !pastingRetry else { return }
+    pastingRetry = true
+    refreshTimedOutItems()
+    // Lowkey never takes focus, so this is the app the user chose Paste in.
+    let chosen = NSWorkspace.shared.frontmostApplication
+    let delivery = Delivery(autosend: false, sendMode: "enter", pasteTarget: "current", activateDelayMs: 0, sendDelayMs: 0)
+    pasteQueue.async { [weak self] in
+      defer {
+        DispatchQueue.main.async {
+          self?.pastingRetry = false
+          self?.refreshTimedOutItems()
+        }
+      }
+      // Let the menu close so the paste reaches the app underneath.
+      usleep(200_000)
+      let front = DispatchQueue.main.sync { NSWorkspace.shared.frontmostApplication }
+      guard front?.processIdentifier == chosen?.processIdentifier else {
+        DispatchQueue.main.async {
+          self?.fail("didn't paste: \(front?.localizedName ?? "another app") came to the front; choose Paste again")
+        }
+        return
+      }
+      do {
+        let target = try Deliverer.perform(DeliveryPlan.steps(text: pending.text, delivery: delivery, hasOriginalApp: false),
+                                           originalApp: nil)
+        if var record = pending.record {
+          record.delivered = true
+          record.deliveredAtMs = Int(Date().timeIntervalSince1970 * 1000)
+          self?.persist(record, cli: cli)
+        }
+        self?.timedOut.remove(pending.entry)
+        Log.write("retry: pasted a retried dictation (\(pending.text.count) chars, target=\(target ?? "-"))")
+        DispatchQueue.main.async {
+          self?.retried = nil
+          self?.refreshTimedOutItems()
+        }
+      } catch {
+        DispatchQueue.main.async {
+          self?.sounds.play(.error)
+          self?.fail("paste failed (the text is on the clipboard; the recording is kept): \(error.localizedDescription)")
+        }
+      }
+    }
+  }
+
+  private enum RetryOutcome {
+    case ready(RetriedText)
+    case noSpeech
+    case failed(String)
+  }
+
+  private func retranscribe(_ entry: TimedOutTakes.Entry, cli: CLIBridge) -> RetryOutcome {
+    let info = entry.info
+    let startedAt = monotonicMs()
+    let config: AppConfig
+    do {
+      config = try cli.appConfig()
+    } catch {
+      return .failed("retry: cannot read settings: \(error.localizedDescription)")
+    }
+    // Natively only if the daemon is warm now; otherwise the CLI starts it.
+    guard config.nativePipelineBlocker == nil, let transcription = config.transcription, let cleanup = config.cleanup,
+          let modelPath = transcription.modelPath,
+          DaemonClient(socketPath: transcription.socketPath).status(timeout: 1)?
+            .holds(path: modelPath, version: transcription.modelVersion ?? "v3") == true else {
+      return retranscribeWithCLI(entry, cli: cli)
+    }
+    let samples: [Float]
+    do {
+      samples = try RecoveredTakes.samples(at: entry.wav)
+    } catch {
+      return .failed("retry: the kept recording is unreadable")
+    }
+    let client = DaemonClient(socketPath: transcription.socketPath)
+    let timeout = min(transcription.maxTimeout, 30 + 2 * Double(samples.count) / Double(AudioPrep.sampleRate))
+    let transcript: String
+    do {
+      transcript = try NativeTranscriber(settings: transcription).transcribe(samples: samples) { wav, flow in
+        try client.transcribe(wav: wav, language: transcription.language, flow: flow, modelPath: modelPath,
+                              modelVersion: transcription.modelVersion, timeout: timeout)
+      }.transcript
+    } catch {
+      return .failed("retry failed (recording kept): \(error.localizedDescription)")
+    }
+    // A new take id: the timed-out attempt is already recorded under the old one.
+    var record = TakeRecord(takeId: UUID().uuidString.lowercased(), status: "ok", delivered: false)
+    record.app = info.app
+    record.model = transcription.modelLabel
+    record.recordMs = info.recordMs
+    record.startupMs = info.startupMs
+    record.startedAtMs = info.startedAtMs
+    record.captureWavMs = AudioPrep.ffprobeDurationMs(sampleCount: samples.count)
+    record.captureWavBytes = 44 + 2 * samples.count
+    record.transcribeMs = Int(monotonicMs() - startedAt)
+    switch TextPipeline(settings: cleanup).process(transcript: transcript, app: info.app) {
+    case .needsCLI:
+      return retranscribeWithCLI(entry, cli: cli)
+    case .noSpeech:
+      record.status = "no_speech"
+      persist(record, cli: cli)
+      timedOut.remove(entry)
+      return .noSpeech
+    case .text(let raw, let text, let mode):
+      record.rawText = raw
+      record.text = text
+      record.mode = mode
+      return .ready(RetriedText(entry: entry, text: text, record: record))
+    }
+  }
+
+  /// `inline process` on the kept WAV (it records history and usage itself).
+  private func retranscribeWithCLI(_ entry: TimedOutTakes.Entry, cli: CLIBridge) -> RetryOutcome {
+    let info = entry.info
+    do {
+      let result = try cli.process(wav: entry.wav, app: info.app, recordMs: info.recordMs,
+                                   startupMs: info.startupMs, startedAtEpochMs: info.startedAtMs)
+      guard result.ok else {
+        if result.status == "no_speech" {
+          timedOut.remove(entry)
+          return .noSpeech
+        }
+        return .failed("retry failed (recording kept): \(result.message ?? result.status)")
+      }
+      return .ready(RetriedText(entry: entry, text: result.text, record: nil))
+    } catch {
+      return .failed("retry failed (recording kept): \(error.localizedDescription)")
     }
   }
 
@@ -795,6 +1134,18 @@ final class AppController: NSObject, NSApplicationDelegate {
     menu.addItem(hotkeyLine)
     menu.addItem(configLine)
     menu.addItem(recoveredLine)
+    daemonLine.isEnabled = false
+    daemonLine.isHidden = true
+    menu.addItem(daemonLine)
+    retryItem.target = self
+    retryItem.isHidden = true
+    menu.addItem(retryItem)
+    pasteRetriedItem.target = self
+    pasteRetriedItem.isHidden = true
+    menu.addItem(pasteRetriedItem)
+    discardTimedOutItem.target = self
+    discardTimedOutItem.isHidden = true
+    menu.addItem(discardTimedOutItem)
     discardItem.target = self
     discardItem.isHidden = true
     menu.addItem(discardItem)
@@ -808,6 +1159,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     menu.addItem(log)
     menu.addItem(.separator())
     menu.addItem(NSMenuItem(title: "Quit Lowkey", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+    menu.delegate = self
     statusItem.menu = menu
     refreshStatus()
   }

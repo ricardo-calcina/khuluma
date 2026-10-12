@@ -18,10 +18,34 @@ final class HotkeyMonitor {
     unregister()
   }
 
-  func register(_ spec: HotkeySpec) throws {
-    unregister()
-    HotkeyMonitor.current = self
+  /// The binding in effect, if any.
+  private(set) var binding: HotkeySpec?
+  private var nextID: UInt32 = 0
 
+  /// Binds `spec`. The new hot key is registered before the old one is
+  /// released, so if it's unavailable (taken by another app) the old one
+  /// keeps working and this throws.
+  func register(_ spec: HotkeySpec) throws {
+    if spec == binding, hotKeyRef != nil { return }
+    try installHandlerIfNeeded()
+    nextID += 1
+    var newRef: EventHotKeyRef?
+    let hotKeyID = EventHotKeyID(signature: OSType(0x4C4F574B), id: nextID) // 'LOWK'
+    let status = RegisterEventHotKey(spec.keyCode, spec.carbonModifiers, hotKeyID, GetApplicationEventTarget(), 0, &newRef)
+    guard status == noErr, let newRef else {
+      if hotKeyRef == nil { unregister() }
+      throw NSError(domain: "Lowkey", code: Int(status), userInfo: [
+        NSLocalizedDescriptionKey: "hotkey \(spec.display) is unavailable (already used by another app?) [\(status)]",
+      ])
+    }
+    if let old = hotKeyRef { UnregisterEventHotKey(old) }
+    hotKeyRef = newRef
+    binding = spec
+  }
+
+  private func installHandlerIfNeeded() throws {
+    HotkeyMonitor.current = self
+    guard handlerRef == nil else { return }
     var eventType = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
     let installStatus = InstallEventHandler(GetApplicationEventTarget(), { _, _, _ in
       // Carbon delivers hot keys on the main thread. HIToolbox swallows an
@@ -36,15 +60,6 @@ final class HotkeyMonitor {
     guard installStatus == noErr else {
       throw NSError(domain: "Lowkey", code: Int(installStatus), userInfo: [NSLocalizedDescriptionKey: "cannot install hotkey handler (\(installStatus))"])
     }
-
-    let hotKeyID = EventHotKeyID(signature: OSType(0x4C4F574B), id: 1) // 'LOWK'
-    let status = RegisterEventHotKey(spec.keyCode, spec.carbonModifiers, hotKeyID, GetApplicationEventTarget(), 0, &hotKeyRef)
-    guard status == noErr else {
-      unregister()
-      throw NSError(domain: "Lowkey", code: Int(status), userInfo: [
-        NSLocalizedDescriptionKey: "hotkey \(spec.display) is unavailable (already used by another app?) [\(status)]",
-      ])
-    }
   }
 
   func unregister() {
@@ -52,6 +67,7 @@ final class HotkeyMonitor {
       UnregisterEventHotKey(hotKeyRef)
       self.hotKeyRef = nil
     }
+    binding = nil
     if let handlerRef {
       RemoveEventHandler(handlerRef)
       self.handlerRef = nil

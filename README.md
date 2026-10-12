@@ -379,7 +379,7 @@ verify_pipeline = true         # also run the CLI cleanup in the background and 
 supervise_daemon = true        # keep the Parakeet daemon warm (launch, wake, recording start)
 ```
 
-Then choose **Reload Settings** from the menu. Timings, errors and `verify:` results are in `~/Library/Logs/Lowkey/app.log`.
+Then choose **Reload Settings** from the menu. Timings, errors, `supervisor:` and `verify:` results are in `~/Library/Logs/Lowkey/app.log`. The menu shows whether the Parakeet daemon is ready, and offers **Retry**/**Discard** for a take whose transcription timed out (its audio is kept privately for an hour; Retry transcribes, then **Paste retried dictation** pastes it where you are, without sending).
 
 ## Repo Layout
 
