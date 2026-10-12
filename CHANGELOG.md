@@ -14,6 +14,7 @@
   - A device change while idle now replaces the engine with a fresh one for the new default input, and logs the device and its format. A start that still fails is retried once on a fresh engine, then fails loudly (error sound, menu, log).
   - AVAudioEngine's Objective-C exceptions are caught and reported as errors (new `LowkeyObjC` target). A failed start always removes its marker, and a press during a start is ignored instead of stacking a second start.
   - Delivery logs which app was frontmost when the paste was posted (`target=` on the `done` line), and warns if macOS reports no permission to post key events.
+- **Lowkey: autosend no longer sometimes pastes without sending in the Claude desktop app**: Lowkey posted Return 35 ms after Cmd+V (`send_delay_ms`). The CLI's two `osascript` runs had added ~80 ms of launch time on top of that. Back to back, Electron apps sometimes handle Return before the paste (Cmd+V goes through their Edit menu), so the text was pasted but not sent. The gap is now at least 150 ms; longer `send_delay_ms` values are kept.
 
 ## v0.10.0 — Unreleased
 
