@@ -82,6 +82,11 @@ public final class DaemonSupervisor: @unchecked Sendable {
   private var failures = 0
   private var retryAt: Date?
   private var rechecks = 0
+  /// One scheduled recheck at most, however many triggers see "warming".
+  private var recheckPending = false
+  /// Bumped by `configure`: results of a check started before a change
+  /// are dropped.
+  private var configuration = 0
   /// Called on the supervision queue with the new state and a log line.
   private let onChange: @Sendable (State, String) -> Void
 
@@ -102,10 +107,11 @@ public final class DaemonSupervisor: @unchecked Sendable {
     lock.withLock {
       guard target != self.target else { return }
       self.target = target
+      configuration += 1
       failures = 0
       retryAt = nil
       rechecks = 0
-      if target == nil { state = .unknown }
+      state = .unknown
     }
   }
 
@@ -113,7 +119,11 @@ public final class DaemonSupervisor: @unchecked Sendable {
   /// check is already running.
   public func trigger(_ trigger: Trigger) {
     let start = lock.withLock { () -> Bool in
-      guard target != nil, !inFlight else { return false }
+      guard target != nil, !inFlight else {
+        // A dropped recheck must not leave the next one blocked.
+        if trigger == .recheck { recheckPending = false }
+        return false
+      }
       inFlight = true
       return true
     }
@@ -126,21 +136,22 @@ public final class DaemonSupervisor: @unchecked Sendable {
 
   /// One check, synchronously (the queue's body; tests call it directly).
   func run(_ trigger: Trigger) {
-    guard let target = lock.withLock({ self.target }) else { return }
-    if trigger != .recheck { lock.withLock { rechecks = 0 } }
+    guard let (target, configuration) = lock.withLock({ () -> (Target, Int)? in
+      if trigger == .recheck { recheckPending = false }
+      return self.target.map { ($0, self.configuration) }
+    }) else { return }
 
-    if let status = environment.probe(target.socketPath, Self.probeTimeout),
-       status.holds(path: target.modelPath, version: target.modelVersion) {
-      lock.withLock {
+    if let status = probe(target) {
+      settle(configuration) {
         failures = 0
         retryAt = nil
+        rechecks = 0
       }
-      update(.ready(generation: status.generation), "daemon ready (\(trigger.rawValue))")
+      update(.ready(generation: status.generation), "daemon ready (\(trigger.rawValue))", configuration)
       return
     }
 
-    let now = environment.now()
-    if let retryAt = lock.withLock({ self.retryAt }), now < retryAt {
+    if let retryAt = lock.withLock({ self.retryAt }), environment.now() < retryAt {
       // Backing off: keep the last state (the take falls back to the CLI,
       // which starts the daemon itself if it can).
       return
@@ -150,49 +161,80 @@ public final class DaemonSupervisor: @unchecked Sendable {
     do {
       report = try environment.warmup()
     } catch {
-      fail("warmup failed: \(error.localizedDescription)", trigger: trigger, now: now)
+      fail("warmup failed: \(error.localizedDescription)", trigger: trigger, configuration: configuration)
       return
     }
     switch report.state {
     case .ready:
-      lock.withLock {
+      // The CLI read its own settings: confirm it warmed *our* target.
+      guard let status = probe(target) else {
+        warming("the daemon doesn't report the configured model yet", trigger: trigger, configuration: configuration)
+        return
+      }
+      settle(configuration) {
         failures = 0
         retryAt = nil
+        rechecks = 0
       }
       let took = report.durationMs.map { " in \($0)ms" } ?? ""
-      update(.ready(generation: report.generation), "daemon warmed\(took) (\(trigger.rawValue))")
+      update(.ready(generation: status.generation), "daemon warmed\(took) (\(trigger.rawValue))", configuration)
     case .warming:
-      let reason = report.message ?? report.reason ?? "warming"
-      let recheck = lock.withLock { () -> Bool in
-        retryAt = nil
-        guard rechecks < Self.maxRechecks else { return false }
-        rechecks += 1
-        return true
-      }
-      update(.warming(reason), "daemon warming: \(reason) (\(trigger.rawValue))")
-      if recheck {
-        environment.schedule(Self.recheckDelay) { [weak self] in self?.trigger(.recheck) }
-      }
+      warming(report.message ?? report.reason ?? "warming", trigger: trigger, configuration: configuration)
     case .unavailable:
-      fail(report.message ?? report.reason ?? "unavailable", trigger: trigger, now: now)
+      fail(report.message ?? report.reason ?? "unavailable", trigger: trigger, configuration: configuration)
     }
   }
 
-  private func fail(_ reason: String, trigger: Trigger, now: Date) {
-    let delay = lock.withLock { () -> TimeInterval in
+  /// The daemon's status when it holds the target's model, else nil.
+  private func probe(_ target: Target) -> DaemonStatus? {
+    guard let status = environment.probe(target.socketPath, Self.probeTimeout),
+          status.holds(path: target.modelPath, version: target.modelVersion) else { return nil }
+    return status
+  }
+
+  private func warming(_ reason: String, trigger: Trigger, configuration: Int) {
+    let recheck = settle(configuration) { () -> Bool in
+      retryAt = nil
+      guard !recheckPending, rechecks < Self.maxRechecks else { return false }
+      rechecks += 1
+      recheckPending = true
+      return true
+    } ?? false
+    update(.warming(reason), "daemon warming: \(reason) (\(trigger.rawValue))", configuration)
+    if recheck {
+      environment.schedule(Self.recheckDelay) { [weak self] in self?.trigger(.recheck) }
+    }
+  }
+
+  private func fail(_ reason: String, trigger: Trigger, configuration: Int) {
+    // From now, not from when the check began: a slow failure must not
+    // use up its own backoff.
+    let now = environment.now()
+    guard let delay = settle(configuration, { () -> TimeInterval in
       failures += 1
+      rechecks = 0
       let delay = Self.backoff[min(failures, Self.backoff.count) - 1]
       retryAt = now.addingTimeInterval(delay)
       return delay
-    }
-    update(.unavailable(reason), "daemon unavailable: \(reason) (\(trigger.rawValue)); next try in \(Int(delay))s or later")
+    }) else { return }
+    update(.unavailable(reason), "daemon unavailable: \(reason) (\(trigger.rawValue)); next try in \(Int(delay))s or later",
+           configuration)
   }
 
-  private func update(_ new: State, _ line: String) {
-    let changed = lock.withLock { () -> Bool in
+  /// Runs `body` under the lock unless the configuration changed since the
+  /// check began (then the result is stale and nil is returned).
+  @discardableResult
+  private func settle<T>(_ configuration: Int, _ body: () -> T) -> T? {
+    lock.withLock { self.configuration == configuration ? body() : nil }
+  }
+
+  private func update(_ new: State, _ line: String, _ configuration: Int) {
+    let changed = lock.withLock { () -> Bool? in
+      guard self.configuration == configuration else { return nil }
       defer { state = new }
       return state != new
     }
+    guard let changed else { return }
     // Repeated "ready" checks stay quiet; anything else is worth a line.
     if changed || !(new.isReady) { onChange(new, line) }
   }

@@ -15,12 +15,15 @@ private final class World: @unchecked Sendable {
   var states: [DaemonSupervisor.State] = []
   /// Blocks warmup until signalled (single-flight test).
   var gate: DispatchSemaphore?
+  /// Runs inside warmup (e.g. to change settings or the clock meanwhile).
+  var duringWarmup: (() -> Void)?
 
   func environment() -> DaemonSupervisor.Environment {
     DaemonSupervisor.Environment(
       probe: { _, _ in self.lock.withLock { self.status } },
       warmup: {
         self.gate?.wait()
+        self.duringWarmup?()
         return try self.lock.withLock { () -> Result<WarmupReport, Error> in
           self.warmups += 1
           return self.reports.isEmpty ? .success(WarmupReport(state: .ready)) : self.reports.removeFirst()
@@ -63,6 +66,8 @@ struct DaemonSupervisorTests {
     let world = World()
     world.status = DaemonStatus(version: "0.3.0", generation: "g1", modelLoaded: .init(path: "/m", version: "v2"))
     world.reports = [.success(WarmupReport(state: .ready, generation: "g1", durationMs: 812))]
+    let warm = DaemonStatus(version: "0.3.0", generation: "g1", modelLoaded: .init(path: "/m", version: "v3"))
+    world.duringWarmup = { world.status = warm }
     let supervisor = world.supervisor()
     supervisor.configure(target)
     supervisor.run(.wake)
@@ -70,9 +75,12 @@ struct DaemonSupervisorTests {
     #expect(supervisor.currentState == .ready(generation: "g1"))
     #expect(world.lines.last == "daemon warmed in 812ms (wake)")
     // No daemon at all: same path.
+    world.duringWarmup = nil
     world.status = nil
     supervisor.run(.unreachable)
     #expect(world.warmups == 2)
+    // "ready" from a CLI that warmed some other model isn't ready for us.
+    #expect(supervisor.currentState == .warming("the daemon doesn't report the configured model yet"))
   }
 
   @Test func failuresBackOffAndSuccessResets() {
@@ -115,17 +123,53 @@ struct DaemonSupervisorTests {
   @Test func warmingRechecksForABoundedTime() {
     let world = World()
     world.reports = Array(repeating: .success(WarmupReport(state: .warming, reason: "building", message: "building tmux-whisperd")),
-                          count: 30)
+                          count: 40)
     let supervisor = world.supervisor()
     supervisor.configure(target)
     supervisor.run(.launch)
     #expect(supervisor.currentState == .warming("building tmux-whisperd"))
     #expect(world.scheduled.count == 1 && world.scheduled[0].0 == DaemonSupervisor.recheckDelay)
+    // More takes during the build don't start more recheck chains.
+    supervisor.run(.recordingStart)
+    supervisor.run(.wake)
+    #expect(world.scheduled.count == 1)
     for _ in 0..<25 { supervisor.run(.recheck) }
     #expect(world.scheduled.count == DaemonSupervisor.maxRechecks, "stops rechecking after 10 minutes")
-    // A real trigger starts a fresh recheck budget.
     supervisor.run(.recordingStart)
-    #expect(world.scheduled.count == DaemonSupervisor.maxRechecks + 1)
+    #expect(world.scheduled.count == DaemonSupervisor.maxRechecks, "the budget resets only after ready or a failure")
+  }
+
+  @Test func aCheckStartedBeforeASettingsChangeIsDropped() {
+    let world = World()
+    let supervisor = world.supervisor()
+    supervisor.configure(target)
+    world.reports = [.success(WarmupReport(state: .unavailable, reason: "x", message: "old model missing"))]
+    world.duringWarmup = {
+      supervisor.configure(DaemonSupervisor.Target(socketPath: "/s.sock", modelPath: "/other", modelVersion: "v3"))
+    }
+    supervisor.run(.launch)
+    #expect(supervisor.currentState == .unknown)
+    #expect(world.lines.isEmpty)
+    // ...and leaves no backoff behind for the new target.
+    world.duringWarmup = nil
+    supervisor.run(.settings)
+    #expect(world.warmups == 2)
+  }
+
+  @Test func backoffCountsFromWhenAFailureFinished() {
+    let world = World()
+    world.reports = [.failure(Boom()), .success(WarmupReport(state: .unavailable, reason: "x"))]
+    world.duringWarmup = { world.advance(120) } // a CLI that took 2 minutes to fail
+    let supervisor = world.supervisor()
+    supervisor.configure(target)
+    supervisor.run(.launch)
+    world.duringWarmup = nil
+    world.advance(29)
+    supervisor.run(.recordingStart)
+    #expect(world.warmups == 1, "still within 30 s of the failure")
+    world.advance(1)
+    supervisor.run(.recordingStart)
+    #expect(world.warmups == 2)
   }
 
   @Test func oneCheckAtATimeAndOffWhenUnconfigured() async throws {
@@ -138,6 +182,7 @@ struct DaemonSupervisorTests {
     #expect(world.warmups == 0, "no target: nothing runs")
 
     supervisor.configure(target)
+    world.duringWarmup = { world.status = DaemonStatus(version: "0.3.0", modelLoaded: .init(path: "/m", version: "v3")) }
     supervisor.trigger(.launch)
     supervisor.trigger(.wake)
     supervisor.trigger(.recordingStart)

@@ -56,6 +56,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
   private let recoveredLine = NSMenuItem(title: "", action: nil, keyEquivalent: "")
   private let daemonLine = NSMenuItem(title: "", action: nil, keyEquivalent: "")
   private let retryItem = NSMenuItem(title: "", action: #selector(retryTimedOut), keyEquivalent: "")
+  private let pasteRetriedItem = NSMenuItem(title: "", action: #selector(pasteRetried), keyEquivalent: "")
   private let discardTimedOutItem = NSMenuItem(title: "Discard timed-out recording", action: #selector(discardTimedOut), keyEquivalent: "")
   private let cancelItem = NSMenuItem(title: "Cancel Recording", action: #selector(cancelRecording), keyEquivalent: "")
 
@@ -810,10 +811,11 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 + (config.nativePipelineBlocker.map { "CLI (\($0))" } ?? "native"
                    + ((config.pipeline?.verify ?? false) ? " + verify" : "")))
       if take != nil || starter.isStarting {
-        // Re-registering now could drop the press that stops this take.
-        if spec != hotkey.binding {
-          pendingHotkey = spec
-          Log.write("settings: hotkey change to \(spec.display) waits for the current take to end")
+        // Re-registering now could drop the press that stops this take. The
+        // latest settings win: a change back to the current key clears it.
+        pendingHotkey = spec != hotkey.binding ? spec : nil
+        if let pendingHotkey {
+          Log.write("settings: hotkey change to \(pendingHotkey.display) waits for the current take to end")
         }
         return
       }
@@ -822,6 +824,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if case .error = phase { phase = .ready } else { refreshStatus() }
       }
     } catch {
+      pendingHotkey = nil
       hotkeyLine.title = "Hotkey: invalid (\(config.hotkey))" + (hotkey.binding.map { ", still \($0.display)" } ?? "")
       fail("hotkey \"\(config.hotkey)\": \(error)")
     }
@@ -887,37 +890,54 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
   // MARK: - Timed-out takes
 
+  /// A retried take's text, waiting for the user to paste it.
+  private struct RetriedText {
+    let entry: TimedOutTakes.Entry
+    let text: String
+    /// The native path's record, persisted once the text is pasted (the CLI
+    /// path's `inline process` has already recorded the take).
+    let record: TakeRecord?
+  }
+  private var retried: RetriedText?
+
   func menuWillOpen(_ menu: NSMenu) {
     refreshTimedOutItems()
   }
 
-  /// Shows Retry/Discard while a timed-out take is kept (expired ones are
-  /// deleted here).
+  /// Shows Retry / Paste / Discard while a timed-out take is kept (expired
+  /// ones are deleted here).
   private func refreshTimedOutItems() {
     let entries = timedOut.all()
-    let hidden = entries.isEmpty || retrying
-    retryItem.isHidden = hidden
-    discardTimedOutItem.isHidden = hidden
-    guard let newest = entries.last else { return }
-    let seconds = newest.info.recordMs / 1000
-    retryItem.title = "Retry timed-out recording (\(seconds)s" + (entries.count > 1 ? ", \(entries.count) kept" : "")
-      + "): pastes here, doesn't send"
+    if let pending = retried, !entries.contains(pending.entry) {
+      retried = nil // expired or removed
+    }
+    retryItem.isHidden = entries.isEmpty || retrying || retried != nil
+    pasteRetriedItem.isHidden = retried == nil || retrying
+    discardTimedOutItem.isHidden = entries.isEmpty || retrying
+    if let retried {
+      pasteRetriedItem.title = "Paste retried dictation (\(retried.text.count) chars, doesn't send)"
+    }
+    if let newest = entries.last {
+      retryItem.title = "Retry timed-out recording (\(newest.info.recordMs / 1000)s"
+        + (entries.count > 1 ? ", \(entries.count) kept" : "") + ")"
+    }
     discardTimedOutItem.title = entries.count > 1 ? "Discard \(entries.count) timed-out recordings" : "Discard timed-out recording"
   }
 
   @objc private func discardTimedOut() {
     let entries = timedOut.all()
     entries.forEach(timedOut.remove)
+    retried = nil
     Log.write("retry: discarded \(entries.count) timed-out recording(s)")
     refreshTimedOutItems()
   }
 
   /// Transcribes the newest timed-out take again (natively when the daemon
-  /// path is usable, else through `inline process`) and pastes it into the
-  /// app in front now, without sending: it's no longer the moment it was
-  /// dictated for.
+  /// holds the model now, else through `inline process`). Nothing is pasted
+  /// until the user chooses "Paste retried dictation" in the app they want
+  /// it in: by now, focus may be anywhere.
   @objc private func retryTimedOut() {
-    guard let cli, let entry = timedOut.all().last, !retrying else { return }
+    guard let cli, let entry = timedOut.all().last, !retrying, retried == nil else { return }
     retrying = true
     refreshTimedOutItems()
     processing += 1
@@ -926,33 +946,65 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     work.async { [weak self] in
       defer { marker?.remove() }
       guard let self else { return }
-      let outcome = self.retry(entry, cli: cli)
+      let outcome = self.retranscribe(entry, cli: cli)
       DispatchQueue.main.async {
         self.retrying = false
-        self.refreshTimedOutItems()
         switch outcome {
-        case .delivered:
+        case .ready(let result):
+          self.retried = result
+          Log.write("retry: transcribed a timed-out recording (\(result.text.count) chars); waiting for Paste")
           self.sounds.play(.stop)
-          self.finishProcessing(error: nil)
+          self.finishProcessing(error: nil, note: "Retried dictation ready: choose Paste in the menu")
         case .noSpeech:
           self.finishProcessing(error: nil, note: "No speech detected")
         case .failed(let message):
           self.sounds.play(.error)
           self.finishProcessing(error: message)
         }
+        self.refreshTimedOutItems()
+      }
+    }
+  }
+
+  /// Pastes the retried text into the app in front (never sends). The
+  /// recording is dropped only once the paste went through.
+  @objc private func pasteRetried() {
+    guard let pending = retried, let cli else { return }
+    let delivery = Delivery(autosend: false, sendMode: "enter", pasteTarget: "current", activateDelayMs: 0, sendDelayMs: 0)
+    work.async { [weak self] in
+      // Let the menu close so the paste reaches the app underneath.
+      usleep(200_000)
+      do {
+        let target = try Deliverer.perform(DeliveryPlan.steps(text: pending.text, delivery: delivery, hasOriginalApp: false),
+                                           originalApp: nil)
+        if var record = pending.record {
+          record.delivered = true
+          record.deliveredAtMs = Int(Date().timeIntervalSince1970 * 1000)
+          self?.persist(record, cli: cli)
+        }
+        self?.timedOut.remove(pending.entry)
+        Log.write("retry: pasted a retried dictation (\(pending.text.count) chars, target=\(target ?? "-"))")
+        DispatchQueue.main.async {
+          self?.retried = nil
+          self?.refreshTimedOutItems()
+        }
+      } catch {
+        DispatchQueue.main.async {
+          self?.sounds.play(.error)
+          self?.fail("paste failed (the text is on the clipboard; the recording is kept): \(error.localizedDescription)")
+        }
       }
     }
   }
 
   private enum RetryOutcome {
-    case delivered, noSpeech
+    case ready(RetriedText)
+    case noSpeech
     case failed(String)
   }
 
-  private func retry(_ entry: TimedOutTakes.Entry, cli: CLIBridge) -> RetryOutcome {
+  private func retranscribe(_ entry: TimedOutTakes.Entry, cli: CLIBridge) -> RetryOutcome {
     let info = entry.info
-    // A new take id: the timed-out attempt is already recorded under the old one.
-    let takeId = UUID().uuidString.lowercased()
     let startedAt = monotonicMs()
     let config: AppConfig
     do {
@@ -960,78 +1012,58 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     } catch {
       return .failed("retry: cannot read settings: \(error.localizedDescription)")
     }
-    let delivery = Delivery(autosend: false, sendMode: config.delivery.sendMode, pasteTarget: "current",
-                            activateDelayMs: 0, sendDelayMs: 0)
-    let text: String
     // Natively only if the daemon is warm now; otherwise the CLI starts it.
-    if config.nativePipelineBlocker == nil, let transcription = config.transcription, let cleanup = config.cleanup,
-       let modelPath = transcription.modelPath,
-       DaemonClient(socketPath: transcription.socketPath).status(timeout: 1)?
-         .holds(path: modelPath, version: transcription.modelVersion ?? "v3") == true {
-      let samples: [Float]
-      do {
-        samples = try RecoveredTakes.samples(at: entry.wav)
-      } catch {
-        timedOut.remove(entry)
-        return .failed("retry: the kept recording is unreadable")
-      }
-      let client = DaemonClient(socketPath: transcription.socketPath)
-      let timeout = min(transcription.maxTimeout, 30 + 2 * Double(samples.count) / Double(AudioPrep.sampleRate))
-      let transcript: String
-      do {
-        transcript = try NativeTranscriber(settings: transcription).transcribe(samples: samples) { wav, flow in
-          try client.transcribe(wav: wav, language: transcription.language, flow: flow, modelPath: modelPath,
-                                modelVersion: transcription.modelVersion, timeout: timeout)
-        }.transcript
-      } catch {
-        return .failed("retry failed (recording kept): \(error.localizedDescription)")
-      }
-      var record = TakeRecord(takeId: takeId, status: "ok", delivered: false)
-      record.app = info.app
-      record.model = transcription.modelLabel
-      record.recordMs = info.recordMs
-      record.startupMs = info.startupMs
-      record.startedAtMs = info.startedAtMs
-      record.captureWavMs = AudioPrep.ffprobeDurationMs(sampleCount: samples.count)
-      record.captureWavBytes = 44 + 2 * samples.count
-      record.transcribeMs = Int(monotonicMs() - startedAt)
-      switch TextPipeline(settings: cleanup).process(transcript: transcript, app: info.app) {
-      case .needsCLI:
-        return retryWithCLI(entry, cli: cli, delivery: delivery)
-      case .noSpeech:
-        record.status = "no_speech"
-        persist(record, cli: cli)
-        timedOut.remove(entry)
-        return .noSpeech
-      case .text(let raw, let cleaned, let mode):
-        record.rawText = raw
-        record.text = cleaned
-        record.mode = mode
-        text = cleaned
-        do {
-          _ = try Deliverer.perform(DeliveryPlan.steps(text: cleaned, delivery: delivery, hasOriginalApp: false),
-                                    originalApp: nil)
-          record.delivered = true
-          record.deliveredAtMs = Int(Date().timeIntervalSince1970 * 1000)
-        } catch {
-          record.status = "paste_failed"
-          persist(record, cli: cli)
-          timedOut.remove(entry)
-          return .failed(error.localizedDescription)
-        }
-        record.totalMs = Int(monotonicMs() - startedAt)
-        persist(record, cli: cli)
-      }
-    } else {
-      return retryWithCLI(entry, cli: cli, delivery: delivery)
+    guard config.nativePipelineBlocker == nil, let transcription = config.transcription, let cleanup = config.cleanup,
+          let modelPath = transcription.modelPath,
+          DaemonClient(socketPath: transcription.socketPath).status(timeout: 1)?
+            .holds(path: modelPath, version: transcription.modelVersion ?? "v3") == true else {
+      return retranscribeWithCLI(entry, cli: cli)
     }
-    timedOut.remove(entry)
-    Log.write("retry: delivered a timed-out recording (\(text.count) chars, pasted without sending)")
-    return .delivered
+    let samples: [Float]
+    do {
+      samples = try RecoveredTakes.samples(at: entry.wav)
+    } catch {
+      return .failed("retry: the kept recording is unreadable")
+    }
+    let client = DaemonClient(socketPath: transcription.socketPath)
+    let timeout = min(transcription.maxTimeout, 30 + 2 * Double(samples.count) / Double(AudioPrep.sampleRate))
+    let transcript: String
+    do {
+      transcript = try NativeTranscriber(settings: transcription).transcribe(samples: samples) { wav, flow in
+        try client.transcribe(wav: wav, language: transcription.language, flow: flow, modelPath: modelPath,
+                              modelVersion: transcription.modelVersion, timeout: timeout)
+      }.transcript
+    } catch {
+      return .failed("retry failed (recording kept): \(error.localizedDescription)")
+    }
+    // A new take id: the timed-out attempt is already recorded under the old one.
+    var record = TakeRecord(takeId: UUID().uuidString.lowercased(), status: "ok", delivered: false)
+    record.app = info.app
+    record.model = transcription.modelLabel
+    record.recordMs = info.recordMs
+    record.startupMs = info.startupMs
+    record.startedAtMs = info.startedAtMs
+    record.captureWavMs = AudioPrep.ffprobeDurationMs(sampleCount: samples.count)
+    record.captureWavBytes = 44 + 2 * samples.count
+    record.transcribeMs = Int(monotonicMs() - startedAt)
+    switch TextPipeline(settings: cleanup).process(transcript: transcript, app: info.app) {
+    case .needsCLI:
+      return retranscribeWithCLI(entry, cli: cli)
+    case .noSpeech:
+      record.status = "no_speech"
+      persist(record, cli: cli)
+      timedOut.remove(entry)
+      return .noSpeech
+    case .text(let raw, let text, let mode):
+      record.rawText = raw
+      record.text = text
+      record.mode = mode
+      return .ready(RetriedText(entry: entry, text: text, record: record))
+    }
   }
 
   /// `inline process` on the kept WAV (it records history and usage itself).
-  private func retryWithCLI(_ entry: TimedOutTakes.Entry, cli: CLIBridge, delivery: Delivery) -> RetryOutcome {
+  private func retranscribeWithCLI(_ entry: TimedOutTakes.Entry, cli: CLIBridge) -> RetryOutcome {
     let info = entry.info
     do {
       let result = try cli.process(wav: entry.wav, app: info.app, recordMs: info.recordMs,
@@ -1043,11 +1075,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         return .failed("retry failed (recording kept): \(result.message ?? result.status)")
       }
-      timedOut.remove(entry)
-      _ = try Deliverer.perform(DeliveryPlan.steps(text: result.text, delivery: delivery, hasOriginalApp: false),
-                                originalApp: nil)
-      Log.write("retry: delivered a timed-out recording through the CLI (\(result.text.count) chars, pasted without sending)")
-      return .delivered
+      return .ready(RetriedText(entry: entry, text: result.text, record: nil))
     } catch {
       return .failed("retry failed (recording kept): \(error.localizedDescription)")
     }
@@ -1089,6 +1117,9 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     retryItem.target = self
     retryItem.isHidden = true
     menu.addItem(retryItem)
+    pasteRetriedItem.target = self
+    pasteRetriedItem.isHidden = true
+    menu.addItem(pasteRetriedItem)
     discardTimedOutItem.target = self
     discardTimedOutItem.isHidden = true
     menu.addItem(discardTimedOutItem)

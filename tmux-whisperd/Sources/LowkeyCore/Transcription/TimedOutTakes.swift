@@ -34,6 +34,9 @@ public struct TimedOutTakes: Sendable {
   }
 
   public static let lifetime: TimeInterval = 3600
+  /// Saving, listing and removing take turns (the work queue saves while
+  /// the menu lists), so a listing never sees a half-saved take.
+  private static let lock = NSLock()
 
   public let directory: URL
 
@@ -48,6 +51,10 @@ public struct TimedOutTakes: Sendable {
 
   @discardableResult
   public func save(samples: [Float], info: Info) throws -> Entry {
+    try Self.lock.withLock { try saveLocked(samples: samples, info: info) }
+  }
+
+  private func saveLocked(samples: [Float], info: Info) throws -> Entry {
     try FileManager.default.createDirectory(
       at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
     let entry = self.entry(for: info)
@@ -59,7 +66,7 @@ public struct TimedOutTakes: Sendable {
             attributes: [.posixPermissions: 0o600]),
           FileManager.default.createFile(
             atPath: sidecar.path, contents: try encoder.encode(info), attributes: [.posixPermissions: 0o600]) else {
-      remove(entry)
+      removeLocked(entry)
       throw CocoaError(.fileWriteUnknown, userInfo: [NSFilePathErrorKey: entry.wav.path])
     }
     return entry
@@ -68,6 +75,10 @@ public struct TimedOutTakes: Sendable {
   /// Takes still within their lifetime, oldest first. Expired or broken
   /// ones are deleted.
   public func all(now: Date = Date()) -> [Entry] {
+    Self.lock.withLock { allLocked(now: now) }
+  }
+
+  private func allLocked(now: Date) -> [Entry] {
     guard let names = try? FileManager.default.contentsOfDirectory(atPath: directory.path) else { return [] }
     let decoder = JSONDecoder()
     decoder.dateDecodingStrategy = .millisecondsSince1970
@@ -83,7 +94,7 @@ public struct TimedOutTakes: Sendable {
       }
       let entry = Entry(info: info, wav: wav)
       if now.timeIntervalSince(info.savedAt) >= Self.lifetime {
-        remove(entry)
+        removeLocked(entry)
       } else {
         entries.append(entry)
       }
@@ -99,6 +110,10 @@ public struct TimedOutTakes: Sendable {
   }
 
   public func remove(_ entry: Entry) {
+    Self.lock.withLock { removeLocked(entry) }
+  }
+
+  private func removeLocked(_ entry: Entry) {
     try? FileManager.default.removeItem(at: entry.wav)
     try? FileManager.default.removeItem(at: entry.wav.deletingPathExtension().appendingPathExtension("json"))
   }
