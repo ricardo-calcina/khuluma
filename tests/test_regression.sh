@@ -2000,4 +2000,44 @@ audiocache_debug_json="$(HOME="$AUDIOCACHE_HOME" PATH="$AUDIOCACHE_BIN:/usr/bin:
 assert_json_equals "audio_cache_json_index" "$audiocache_debug_json" "audio_resolution.index" "0"
 assert_json_equals "audio_cache_json_note" "$audiocache_debug_json" "audio_resolution.cache_note" "stale cache invalidated: cached idx=1 name=MacBook Air Microphone match=mac at=2026-03-20T08:47:56Z; re-resolved idx=0 match=mac name=MacBook Air Microphone"
 
+# tools/lowkey-report.sh: app.log summary (transcript-free) and the gates.
+REPORT_LOG="$TMP_ROOT/lowkey-app.log"
+cat >"$REPORT_LOG" <<'EOF'
+[2026-10-10T09:00:00.000Z] done(native): stop→delivered 700ms: queue 2, asr 520, clean 5.0, deliver 170; mode=base, chars=10, target=Claude
+[2026-10-10T09:00:01.000Z] verify: take aaa transcript mismatch native="x" cli="y" transcript="SECRET dictated words"
+[2026-10-11T09:00:00.000Z] start: engine.start 50.0ms, hotkey→capturing 110.0ms, app=Claude
+[2026-10-11T09:00:05.000Z] stop: record 4000ms, hotkey→first audio 210.0ms, samples 64000
+[2026-10-11T09:00:05.500Z] take: path=native outcome=delivered state=warm record=4000 total=500 queue=2 prep=3 probe=0 full=310 full_daemon=300 asr=315 clean=5 deliver=170 waits=150 mode=base chars=12 target="Google Chrome"
+[2026-10-11T09:01:00.000Z] take: path=native outcome=delivered state=cold record=20000 total=900 queue=2 prep=4 probe=1 full=520 full_daemon=500 tail_window=8000 tail=110 tail_daemon=100 asr=640 clean=8 deliver=160 waits=150 mode=base chars=40 target=Claude
+[2026-10-11T09:02:00.000Z] take: path=native outcome=delivered state=warm record=6000 total=460 queue=1 prep=3 probe=0 full=255 full_daemon=250 asr=260 clean=4 deliver=165 waits=150 mode=base chars=20 target=Claude
+[2026-10-11T09:03:00.000Z] take: path=fallback reason="daemon unreachable" outcome=delivered record=3000 total=1200 queue=1 cli=1000 transcribe=800 deliver=170 waits=150 mode=base chars=9 target=Claude
+[2026-10-11T09:04:00.000Z] take: path=native outcome=timed_out state=unknown record=3000 total=31000 queue=1 asr=30000 kept=1
+[2026-10-11T09:05:00.000Z] supervisor: daemon warmed in 1800ms (launch)
+[2026-10-11T09:05:01.000Z] verify: take bbb matches the CLI
+[2026-10-11T09:06:00.000Z] error: could not start recording: format mismatch
+EOF
+report_text="$(TZ=UTC "$ROOT/tools/lowkey-report.sh" --log "$REPORT_LOG")"
+assert_contains "lowkey_report_take_counts" "$report_text" "Takes (instrumented): 5 (native 4, fallback 1)"
+assert_contains "lowkey_report_fallback_rate" "$report_text" "fallback rate: 20.0% (1 of 5 tried natively); daemon unreachable x1"
+assert_contains "lowkey_report_failure_rate" "$report_text" "failure rate: 20.0% (1 of 5)"
+assert_contains "lowkey_report_failure_kinds" "$report_text" "    timed_out x1"
+assert_contains "lowkey_report_overhead" "$report_text" "minus Parakeet and delivery waits): median 55ms, p90 60ms (n=2)"
+assert_contains "lowkey_report_overhead_bucket" "$report_text" "5-15s: median 60ms, p90 60ms (n=1)"
+assert_contains "lowkey_report_overhead_cold" "$report_text" "overhead, not warm (cold): median 150ms"
+assert_contains "lowkey_report_transport" "$report_text" "transport (warm): median 8ms"
+assert_contains "lowkey_report_legacy" "$report_text" "before instrumentation: 1 native takes"
+assert_contains "lowkey_report_start_failures" "$report_text" "recordings that failed to start: 1"
+assert_contains "lowkey_report_warmups" "$report_text" "cold-start recoveries (warmed by Lowkey): median 1800ms"
+assert_contains "lowkey_report_overhead_gate" "$report_text" "[NOT YET] 20+ warm native takes"
+assert_contains "lowkey_report_verify_gate" "$report_text" "[FAIL] 2+ days of verified takes with no verify mismatches: 1 clean day(s), mismatches on 2026-10-10"
+assert_not_contains "lowkey_report_transcript_free" "$report_text" "SECRET"
+report_since="$(TZ=UTC "$ROOT/tools/lowkey-report.sh" --log "$REPORT_LOG" --since 2026-10-11)"
+assert_contains "lowkey_report_since_drops_old_mismatch" "$report_since" "Verify (native cleanup vs the CLI): 1 match, 0 mismatch"
+assert_not_contains "lowkey_report_since_drops_legacy" "$report_since" "before instrumentation"
+if "$ROOT/tools/lowkey-report.sh" --log "$REPORT_LOG" --days x >/dev/null 2>&1; then
+  echo "FAIL: lowkey_report_rejects_bad_days" >&2
+  exit 1
+fi
+echo "PASS: lowkey_report_rejects_bad_days"
+
 echo "Regression tests passed."

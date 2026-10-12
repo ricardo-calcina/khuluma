@@ -241,7 +241,7 @@ private actor FakeDaemon: DaemonRequestHandling {
       if request.flow == "fail" {
         return .failure(id: request.id, code: "model_path_invalid", message: "bad model")
       }
-      return DaemonResponse(id: request.id, ok: true, text: "café \u{1F600} transcript")
+      return DaemonResponse(id: request.id, ok: true, text: "café \u{1F600} transcript", durationMs: 42)
     case .warmup:
       return DaemonResponse(id: request.id, ok: true)
     }
@@ -279,6 +279,12 @@ struct DaemonClientTests {
         modelPath: "/models/parakeet", modelVersion: "v3", timeout: 5)
     }
     #expect(Array(text.utf8) == Array("café \u{1F600} transcript".utf8))
+    let pass = try await offPool {
+      try client.transcribePass(
+        wav: URL(fileURLWithPath: "/tmp/take.wav"), language: "en", flow: "inline",
+        modelPath: "/models/parakeet", modelVersion: "v3", timeout: 5)
+    }
+    #expect(pass == NativeTranscriber.Pass(text: "café \u{1F600} transcript", daemonMs: 42))
 
     let request = try #require(await daemon.requests.last)
     #expect(request.op == .transcribe)

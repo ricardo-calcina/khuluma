@@ -55,10 +55,12 @@ public struct DaemonClient: Sendable {
     let generation: String?
     let modelLoaded: DaemonStatus.LoadedModel?
     let activeRequests: Int?
+    let durationMs: Int?
 
     enum CodingKeys: String, CodingKey {
       case id, ok, text, message, version, pid, generation
       case errorCode = "error_code"
+      case durationMs = "duration_ms"
       case modelLoaded = "model_loaded"
       case activeRequests = "active_requests"
     }
@@ -91,6 +93,14 @@ public struct DaemonClient: Sendable {
   public func transcribe(
     wav: URL, language: String, flow: String, modelPath: String, modelVersion: String?, timeout: TimeInterval
   ) throws -> String {
+    try transcribePass(wav: wav, language: language, flow: flow, modelPath: modelPath, modelVersion: modelVersion,
+                       timeout: timeout).text
+  }
+
+  /// `transcribe`, with the daemon's own timing.
+  public func transcribePass(
+    wav: URL, language: String, flow: String, modelPath: String, modelVersion: String?, timeout: TimeInterval
+  ) throws -> NativeTranscriber.Pass {
     let request = Request(
       id: UUID().uuidString, op: "transcribe", wavPath: wav.path, language: language, flow: flow,
       modelPath: modelPath, modelVersion: modelVersion)
@@ -98,7 +108,7 @@ public struct DaemonClient: Sendable {
     guard response.ok else {
       throw ClientError.daemon(code: response.errorCode ?? "unknown", message: response.message ?? "unknown error")
     }
-    return response.text ?? ""
+    return NativeTranscriber.Pass(text: response.text ?? "", daemonMs: response.durationMs)
   }
 
   /// One request; reconnects once if the socket was unreachable.

@@ -1,0 +1,356 @@
+#!/usr/bin/env bash
+# Summarise Lowkey's app.log: take outcomes, where the time goes, daemon
+# warmups and verify results, against the release gates. Transcript-free:
+# it prints counts and timings only, never dictated text.
+#
+#   tools/lowkey-report.sh                  # the whole log
+#   tools/lowkey-report.sh --days 2         # today and yesterday
+#   tools/lowkey-report.sh --since 2026-10-12 --system
+set -euo pipefail
+
+LOG="${LOWKEY_LOG:-$HOME/Library/Logs/Lowkey/app.log}"
+SINCE=""
+DAYS=""
+SYSTEM=0
+
+usage() {
+  echo "usage: $0 [--log PATH] [--since YYYY-MM-DD | --days N] [--system]" >&2
+  exit 2
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --log) [[ $# -ge 2 ]] || usage; LOG="$2"; shift ;;
+    --since) [[ $# -ge 2 ]] || usage; SINCE="$2"; shift ;;
+    --days) [[ $# -ge 2 && "$2" =~ ^[0-9]+$ ]] || usage; DAYS="$2"; shift ;;
+    --system) SYSTEM=1 ;;
+    -h|--help) usage ;;
+    *) usage ;;
+  esac
+  shift
+done
+
+[[ -r "$LOG" ]] || { echo "no log at $LOG" >&2; exit 1; }
+command -v python3 >/dev/null 2>&1 || { echo "python3 is required" >&2; exit 1; }
+
+python3 -I - "$LOG" "$SINCE" "$DAYS" <<'PY'
+import datetime as dt
+import re
+import statistics
+import sys
+from collections import Counter, defaultdict
+
+log_path, since_arg, days_arg = sys.argv[1], sys.argv[2], sys.argv[3]
+
+today = dt.date.today()
+since = None
+if since_arg:
+    try:
+        since = dt.date.fromisoformat(since_arg)
+    except ValueError:
+        sys.exit(f"--since wants YYYY-MM-DD, got {since_arg!r}")
+elif days_arg:
+    since = today - dt.timedelta(days=max(int(days_arg), 1) - 1)
+
+LINE = re.compile(r"^\[([^\]]+)\] (.*)$")
+PAIR = re.compile(r'([A-Za-z_]+)=("((?:[^"\\]|\\.)*)"|\S*)')
+
+
+def parse_pairs(text):
+    fields = {}
+    for match in PAIR.finditer(text):
+        key, raw, quoted = match.group(1), match.group(2), match.group(3)
+        if raw.startswith('"'):
+            fields[key] = re.sub(r"\\(.)", r"\1", quoted)
+        else:
+            fields[key] = raw
+    return fields
+
+
+def num(fields, key):
+    try:
+        return float(fields[key])
+    except (KeyError, ValueError):
+        return None
+
+
+def local_day(stamp):
+    try:
+        moment = dt.datetime.fromisoformat(stamp.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return moment.astimezone().date()
+
+
+takes = []          # instrumented `take:` lines
+legacy = []         # 3b-era `done(native)` lines: (total, asr)
+legacy_cli = 0
+first_audio = []
+capturing = []
+start_failures = 0
+warmups = []        # (ms, trigger)
+unavailable = Counter()
+verify = Counter()
+verify_days = defaultdict(Counter)
+retries = Counter()
+first_day = last_day = None
+
+with open(log_path, encoding="utf-8", errors="replace") as handle:
+    for raw in handle:
+        match = LINE.match(raw.rstrip("\n"))
+        if not match:
+            continue
+        day = local_day(match.group(1))
+        if day is None or (since and day < since):
+            continue
+        message = match.group(2)
+        first_day = first_day or day
+        last_day = day
+
+        if message.startswith("take: "):
+            fields = parse_pairs(message[6:])
+            fields["_day"] = day
+            takes.append(fields)
+        elif message.startswith("done(native): "):
+            total = re.search(r"stop→delivered (\d+)ms", message)
+            asr = re.search(r"asr (\d+)", message)
+            if total and asr:
+                legacy.append((float(total.group(1)), float(asr.group(1))))
+        elif message.startswith("done(cli): "):
+            legacy_cli += 1
+        elif message.startswith("stop: "):
+            found = re.search(r"hotkey→first audio ([\d.]+)ms", message)
+            if found:
+                first_audio.append(float(found.group(1)))
+        elif message.startswith("start: engine.start"):
+            found = re.search(r"hotkey→capturing ([\d.]+)ms", message)
+            if found:
+                capturing.append(float(found.group(1)))
+        elif message.startswith("error: could not start recording"):
+            start_failures += 1
+        elif message.startswith("supervisor: daemon warmed"):
+            found = re.search(r"warmed in (\d+)ms \(([^)]*)\)", message)
+            if found:
+                warmups.append((float(found.group(1)), found.group(2)))
+        elif message.startswith("supervisor: daemon unavailable"):
+            found = re.search(r"unavailable: (.*?) \(", message)
+            unavailable[found.group(1) if found else "?"] += 1
+        elif message.startswith("verify: "):
+            if " matches the CLI" in message:
+                kind = "match"
+            elif " skipped:" in message:
+                kind = "skipped"
+            elif " could not run" in message:
+                kind = "error"
+            else:
+                kind = "mismatch"
+            verify[kind] += 1
+            verify_days[day][kind] += 1
+        elif message.startswith("retry: "):
+            if "transcribed a timed-out" in message:
+                retries["transcribed"] += 1
+            elif "pasted a retried" in message:
+                retries["pasted"] += 1
+            elif "discarded" in message:
+                retries["discarded"] += 1
+
+
+def median(values):
+    return statistics.median(values) if values else None
+
+
+def p90(values):
+    if not values:
+        return None
+    ordered = sorted(values)
+    return ordered[max(0, -(-len(ordered) * 9 // 10) - 1)]
+
+
+def ms(value):
+    return "-" if value is None else f"{value:.0f}ms"
+
+
+def spread(values):
+    return f"median {ms(median(values))}, p90 {ms(p90(values))} (n={len(values)})"
+
+
+def pct(part, whole):
+    return f"{100 * part / whole:.1f}%" if whole else "-"
+
+
+window = f"{first_day} to {last_day}" if first_day else "no entries"
+if since:
+    window += f" (since {since})"
+print(f"Lowkey report: {log_path}")
+print(f"Window: {window}, local time")
+
+# --- Takes ------------------------------------------------------------------
+print()
+paths = Counter(t.get("path", "?") for t in takes)
+outcomes = Counter(t.get("outcome", "?") for t in takes)
+print(f"Takes (instrumented): {len(takes)}"
+      + (" (" + ", ".join(f"{k} {v}" for k, v in paths.most_common()) + ")" if takes else ""))
+if takes:
+    print("  outcomes: " + ", ".join(f"{k} {v}" for k, v in outcomes.most_common()))
+    tried_native = paths["native"] + paths["fallback"]
+    fallback_reasons = Counter(t.get("reason", "?") for t in takes if t.get("path") == "fallback")
+    print(f"  fallback rate: {pct(paths['fallback'], tried_native)} ({paths['fallback']} of {tried_native} tried natively)"
+          + ("; " + ", ".join(f"{r} x{n}" for r, n in fallback_reasons.most_common()) if fallback_reasons else ""))
+    cli_reasons = Counter(t.get("reason", "?") for t in takes if t.get("path") == "cli")
+    if cli_reasons:
+        print("  CLI by settings: " + ", ".join(f"{r} x{n}" for r, n in cli_reasons.most_common()))
+    failed = [t for t in takes if t.get("outcome") in ("failed", "timed_out", "paste_failed", "no_audio")]
+    print(f"  failure rate: {pct(len(failed), len(takes))} ({len(failed)} of {len(takes)})")
+    errors = Counter(t.get("outcome") + (f": {t['error']}" if "error" in t else "") for t in failed)
+    for error, count in errors.most_common(5):
+        print(f"    {error} x{count}")
+states = Counter(t.get("state", "?") for t in takes if t.get("path") == "native")
+if states:
+    print("  daemon at stop (native): " + ", ".join(f"{k} {v}" for k, v in states.most_common()))
+if start_failures:
+    print(f"  recordings that failed to start: {start_failures}")
+if retries:
+    print("  timed-out retries: " + ", ".join(f"{k} {v}" for k, v in retries.most_common()))
+
+# --- Native timing ------------------------------------------------------------
+BUCKETS = [("under 5s", 0, 5_000), ("5-15s", 5_000, 15_000), ("15-60s", 15_000, 60_000),
+           ("60s and over", 60_000, float("inf"))]
+
+
+def overhead(take):
+    """Stop to delivered, minus the model's own time and the deliberate
+    delivery waits: what Lowkey, the socket and the OS add."""
+    total, waits = num(take, "total"), num(take, "waits")
+    daemon = [num(take, k) for k in ("full_daemon", "tail_daemon") if k in take]
+    if total is None or waits is None or "full_daemon" not in take or None in daemon:
+        return None
+    return total - sum(daemon) - waits
+
+
+def transport(take):
+    parts = []
+    for elapsed, daemon in (("full", "full_daemon"), ("tail", "tail_daemon")):
+        if elapsed in take:
+            if daemon not in take:
+                return None
+            parts.append(num(take, elapsed) - num(take, daemon))
+    return sum(parts) if parts else None
+
+
+delivered = [t for t in takes if t.get("path") == "native" and t.get("outcome") == "delivered"]
+timed = [t for t in delivered if overhead(t) is not None]
+# Cold takes include the model load, which the daemon's time leaves out, and
+# contended ones a wait behind another request: judge overhead on warm takes.
+warm = [t for t in timed if t.get("state") == "warm"]
+print()
+print(f"Native takes delivered: {len(delivered)} ({len(timed)} with daemon timings, {len(warm)} warm)")
+if warm:
+    print(f"  overhead, warm (stop to delivered, minus Parakeet and delivery waits): {spread([overhead(t) for t in warm])}")
+    for label, low, high in BUCKETS:
+        bucket = [overhead(t) for t in warm if low <= (num(t, "record") or 0) < high]
+        if bucket:
+            print(f"    {label:>13}: {spread(bucket)}")
+not_warm = [t for t in timed if t.get("state") != "warm"]
+if not_warm:
+    states_seen = ", ".join(sorted({t.get("state", "?") for t in not_warm}))
+    print(f"  overhead, not warm ({states_seen}): {spread([overhead(t) for t in not_warm])}")
+if timed:
+    print(f"  stop to delivered: {spread([num(t, 'total') for t in timed])}")
+    print(f"  Parakeet (daemon): {spread([num(t, 'full_daemon') + (num(t, 'tail_daemon') or 0) for t in timed])}")
+    for label, values in (
+        ("queue", [num(t, "queue") for t in timed]),
+        ("WAV prep", [num(t, "prep") for t in timed if "prep" in t]),
+        ("probe wait", [num(t, "probe") for t in timed if "probe" in t]),
+        ("transport (warm)", [transport(t) for t in warm if transport(t) is not None]),
+        ("cleanup", [num(t, "clean") for t in timed if "clean" in t]),
+        ("delivery minus waits", [num(t, "deliver") - num(t, "waits") for t in timed if "deliver" in t]),
+    ):
+        if values:
+            print(f"    {label}: {spread(values)}")
+    rescued = [t for t in timed if "tail_window" in t]
+    if rescued:
+        failed_tails = sum(1 for t in rescued if t.get("tail_failed") == "1")
+        print(f"  tail rescue: {len(rescued)} takes, {failed_tails} tail passes failed")
+cold = [t for t in delivered if t.get("state") == "cold"]
+if cold:
+    print(f"  cold takes, stop to delivered: {spread([num(t, 'total') for t in cold])}")
+if legacy:
+    print(f"  before instrumentation: {len(legacy)} native takes, stop to delivered minus asr"
+          f" (send waits included): {spread([total - asr for total, asr in legacy])}")
+if legacy_cli:
+    print(f"  before instrumentation: {legacy_cli} CLI-path takes")
+
+# --- Capture start ------------------------------------------------------------
+if first_audio or capturing:
+    print()
+    print("Recording start")
+    if capturing:
+        print(f"  hotkey to capturing: {spread(capturing)}")
+    if first_audio:
+        print(f"  hotkey to first audio: {spread(first_audio)}")
+
+# --- Daemon -------------------------------------------------------------------
+print()
+print("Daemon")
+if warmups:
+    triggers = Counter(trigger for _, trigger in warmups)
+    print(f"  cold-start recoveries (warmed by Lowkey): {spread([w for w, _ in warmups])}, max {ms(max(w for w, _ in warmups))}"
+          + "; " + ", ".join(f"{k} {v}" for k, v in triggers.most_common()))
+else:
+    print("  cold-start recoveries: none")
+if unavailable:
+    print("  unavailable: " + ", ".join(f"{k} x{v}" for k, v in unavailable.most_common(5)))
+
+# --- Verify -------------------------------------------------------------------
+print()
+checked = verify["match"] + verify["mismatch"]
+print(f"Verify (native cleanup vs the CLI): {verify['match']} match, {verify['mismatch']} mismatch, "
+      f"{verify['skipped']} skipped, {verify['error']} errors")
+clean_days = sorted(d for d, c in verify_days.items() if c["match"] and not c["mismatch"])
+mismatch_days = sorted(d for d, c in verify_days.items() if c["mismatch"])
+for day in sorted(verify_days):
+    counts = verify_days[day]
+    print(f"  {day}: {counts['match']} match, {counts['mismatch']} mismatch")
+
+# --- Gates --------------------------------------------------------------------
+print()
+print("v0.10.0 gates")
+overheads = [overhead(t) for t in warm]
+if len(overheads) >= 20 and median(overheads) < 100:
+    verdict = "PASS"
+elif len(overheads) >= 20:
+    verdict = "FAIL"
+else:
+    verdict = "NOT YET"
+print(f"  [{verdict}] 20+ warm native takes, median overhead under 100ms: "
+      f"n={len(overheads)}, median {ms(median(overheads))}")
+if mismatch_days:
+    verdict = "FAIL"
+elif len(clean_days) >= 2:
+    verdict = "PASS"
+else:
+    verdict = "NOT YET"
+detail = f"{len(clean_days)} clean day(s)"
+if mismatch_days:
+    detail += ", mismatches on " + ", ".join(str(d) for d in mismatch_days) + " (narrow with --since once fixed)"
+print(f"  [{verdict}] 2+ days of verified takes with no verify mismatches: {detail}")
+PY
+
+if [[ "$SYSTEM" == "1" ]]; then
+  echo
+  echo "System (memory spot check)"
+  level="$(sysctl -n kern.memorystatus_vm_pressure_level 2>/dev/null || echo "?")"
+  case "$level" in
+    1) level="normal" ;; 2) level="warn" ;; 4) level="critical" ;;
+  esac
+  echo "  memory pressure: $level"
+  echo "  swap: $(sysctl -n vm.swapusage 2>/dev/null || echo "?")"
+  # Counts since boot (pages).
+  vm_stat 2>/dev/null | awk -F: '/Swapins|Swapouts|Pages stored in compressor|Pages occupied by compressor/ {
+    gsub(/[ .]/, "", $2); printf "  %s: %s\n", $1, $2
+  }'
+  ps -axo rss=,comm= 2>/dev/null | awk '
+    $2 ~ /tmux-whisperd$/ || $2 ~ /Lowkey$/ {
+      n = split($2, part, "/"); printf "  %s RSS: %.0f MB\n", part[n], $1 / 1024
+    }'
+fi

@@ -57,6 +57,8 @@ Shipped ahead of 3c: the CLI falls back to the last valid `config.toml` copy, `a
 - `tools/lowkey-report.sh`: transcript-free summary of app.log. Median/p90 overhead split by take length (short everyday takes matter most), fallback and failure rates, verify mismatches, cold-start recovery times. This replaces eyeballing the log for the v0.10.0/v0.11.0 gates.
 - A memory-pressure/swap spot check (`memory_pressure`, `vm_stat`) during a normal working day with the daemon warm.
 
+Done (feat/lowkey-instrumentation): one `take:` line per take (path, outcome, warm/cold/contended/unknown from a ping that runs alongside WAV prep, and per-stage timings with daemon `duration_ms` per pass). `tools/lowkey-report.sh` covers the gates, and its `--system` option is the spot check. It reads the pressure level from `sysctl` rather than running `memory_pressure`, which applies pressure. First spot check (2026-10-12, normal working day, daemon warm): pressure normal, but swap 5.5 of 6 GB used. tmux-whisperd and Lowkey were 3 MB and 5 MB resident, so the swap comes from other apps, not the dictation stack.
+
 ### 7. Device change while idle
 On `AVAudioEngineConfigurationChange` with no take: rebuild the input graph for the new default device (`stop`, `reset`, `prepare`), recreate the converter on next start, and log the device. Mid-take behaviour stays (keep the partial take). Manual test: switch mics while idle, then dictate.
 
