@@ -321,6 +321,28 @@ struct DaemonClientTests {
     #expect(try await offPool { (0..<200).allSatisfy { _ in client.ping(timeout: 5) != nil } })
   }
 
+  @Test func statusReportsTheDaemonsIdentity() async throws {
+    let path = socketPath()
+    let server = UnixSocketServer(socketPath: path, handler: TranscriptionService())
+    try server.start()
+    defer { server.stop() }
+    let client = DaemonClient(socketPath: path)
+    let status = try #require(try await offPool { client.status(timeout: 5) })
+    #expect(status.version == DaemonInfo.daemonVersion)
+    #expect(status.pid == Int(getpid()))
+    #expect(status.generation?.isEmpty == false)
+    #expect(status.activeRequests == 0)
+    // Nothing loaded yet: not ready for any model.
+    #expect(status.modelLoaded == nil)
+    #expect(!status.holds(path: "/m", version: "v3"))
+    let loaded = DaemonStatus(version: "0.3.0", modelLoaded: .init(path: "/m", version: "v3"))
+    #expect(loaded.holds(path: "/m", version: "v3"))
+    #expect(!loaded.holds(path: "/m", version: "v2"))
+    #expect(!loaded.holds(path: "/m/", version: "v3"))
+    #expect(client.status(timeout: 0.2) != nil)
+    #expect(DaemonClient(socketPath: socketPath()).status(timeout: 0.2) == nil)
+  }
+
   @Test func reportsAnUnreachableDaemonAfterOneRetry() {
     var client = DaemonClient(socketPath: socketPath())
     client.retryDelay = 0.01

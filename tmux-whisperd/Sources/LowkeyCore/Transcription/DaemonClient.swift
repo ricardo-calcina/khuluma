@@ -51,10 +51,16 @@ public struct DaemonClient: Sendable {
     let errorCode: String?
     let message: String?
     let version: String?
+    let pid: Int?
+    let generation: String?
+    let modelLoaded: DaemonStatus.LoadedModel?
+    let activeRequests: Int?
 
     enum CodingKeys: String, CodingKey {
-      case id, ok, text, message, version
+      case id, ok, text, message, version, pid, generation
       case errorCode = "error_code"
+      case modelLoaded = "model_loaded"
+      case activeRequests = "active_requests"
     }
   }
 
@@ -69,8 +75,16 @@ public struct DaemonClient: Sendable {
 
   /// Daemon version, or nil when it does not answer within `timeout`.
   public func ping(timeout: TimeInterval = 1) -> String? {
-    let response = try? send(Request(id: UUID().uuidString, op: "ping"), timeout: timeout)
-    return response?.ok == true ? (response?.version ?? "") : nil
+    status(timeout: timeout)?.version
+  }
+
+  /// What the daemon reports about itself, or nil when it does not answer
+  /// within `timeout`. One attempt: a probe must stay bounded.
+  public func status(timeout: TimeInterval) -> DaemonStatus? {
+    guard let response = try? sendOnce(Request(id: UUID().uuidString, op: "ping"), timeout: timeout),
+          response.ok else { return nil }
+    return DaemonStatus(version: response.version ?? "", pid: response.pid, generation: response.generation,
+                        modelLoaded: response.modelLoaded, activeRequests: response.activeRequests)
   }
 
   /// Transcribes a 16 kHz mono 16-bit WAV the daemon can read.
@@ -181,5 +195,40 @@ public struct DaemonClient: Sendable {
       if errno == EINVAL && tolerateClosed { return }
       throw ClientError.protocolError("setsockopt: \(String(cString: strerror(errno)))")
     }
+  }
+}
+
+/// A ping's answer. Daemons before 0.3.0 report only the version.
+public struct DaemonStatus: Equatable, Sendable {
+  public struct LoadedModel: Decodable, Equatable, Sendable {
+    public let path: String
+    public let version: String
+
+    public init(path: String, version: String) {
+      self.path = path
+      self.version = version
+    }
+  }
+
+  public let version: String
+  public let pid: Int?
+  /// Per-process id: a new value means a new, cold daemon.
+  public let generation: String?
+  public let modelLoaded: LoadedModel?
+  public let activeRequests: Int?
+
+  public init(version: String, pid: Int? = nil, generation: String? = nil, modelLoaded: LoadedModel? = nil,
+              activeRequests: Int? = nil) {
+    self.version = version
+    self.pid = pid
+    self.generation = generation
+    self.modelLoaded = modelLoaded
+    self.activeRequests = activeRequests
+  }
+
+  /// This daemon reports having exactly this model loaded. False for older
+  /// daemons, which don't say.
+  public func holds(path: String, version: String) -> Bool {
+    modelLoaded == LoadedModel(path: path, version: version)
   }
 }
