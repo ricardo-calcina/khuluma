@@ -62,6 +62,17 @@ struct CLIBridge {
     }
   }
 
+  /// `warmup --json`: starts the daemon if needed (under the CLI's
+  /// lifecycle lock) and loads the model, reporting ready/warming/unavailable.
+  func warmup() throws -> WarmupReport {
+    let data = try run(["warmup", "--json"], timeout: 120)
+    do {
+      return try JSONDecoder().decode(WarmupReport.self, from: data)
+    } catch {
+      throw BridgeError.badOutput(String(decoding: data.prefix(200), as: UTF8.self))
+    }
+  }
+
   /// Persists a native take (history, bench, usage) with the CLI's writers.
   func record(_ take: TakeRecord) throws -> RecordResult {
     let data = try run(["inline", "record", "--json"], timeout: 30, input: try JSONEncoder().encode(take))
