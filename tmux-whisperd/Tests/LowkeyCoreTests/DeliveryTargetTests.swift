@@ -38,3 +38,12 @@ struct UsageCapabilityTests {
     #expect(try JSONDecoder().decode(ProcessResult.self, from: Data(old.utf8)).usageDeferred == nil)
   }
 }
+
+struct RetargetedDeliveryTests {
+  @Test func aRetargetedTakeReactivatesItsAppWhateverThePasteTarget() {
+    let current = Delivery(autosend: true, sendMode: "enter", pasteTarget: "current", activateDelayMs: 90, sendDelayMs: 35)
+    let steps = DeliveryPlan.steps(text: "hi", delivery: current.restoringOriginalApp(), hasOriginalApp: true)
+    #expect(steps.prefix(3) == [.setClipboard("hi"), .activateOriginalApp, .wait(milliseconds: 90)])
+    #expect(current.restoringOriginalApp().autosend && current.restoringOriginalApp().sendDelayMs == 35)
+  }
+}

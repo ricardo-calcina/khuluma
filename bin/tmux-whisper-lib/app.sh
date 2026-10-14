@@ -425,9 +425,11 @@ PYEOF
   # timeout or crash), so the same take can arrive twice: record it once.
   # `recorded-takes` lists takes fully handled (its meaning before usage was
   # deduplicated in the ledger, so older entries stay final);
-  # `recorded-takes-history` lists takes whose history and bench are saved.
+  # `recorded-takes-bench` and `recorded-takes-history` list takes whose bench
+  # row and history are saved.
   local ledger="$AUDIO_CACHE_DIR/recorded-takes"
   local history_ledger="$AUDIO_CACHE_DIR/recorded-takes-history"
+  local bench_ledger="$AUDIO_CACHE_DIR/recorded-takes-bench"
   if [[ -n "$REC_TAKE_ID" && -f "$ledger" ]] && grep -qxF -- "$REC_TAKE_ID" "$ledger" 2>/dev/null; then
     APPREC_TAKE_ID="$REC_TAKE_ID" python3 -c '
 import json, os
@@ -446,10 +448,31 @@ print(json.dumps({"ok": True, "take_id": os.environ["APPREC_TAKE_ID"], "duplicat
   paste_ms="${REC_PASTE_MS:-0}"
   total_ms="${REC_TOTAL_MS:-0}"
 
-  local wants_usage="0" history_done="0"
+  # Three parts, each done once: bench row (+ debug archive), history, usage.
+  # A replay redoes only the parts that are not marked done.
+  local wants_usage="0" needs_history="0" bench_done="0" history_done="0"
   [[ "$REC_STATUS" == "ok" && "$REC_DELIVERED" == "1" ]] && wants_usage="1"
-  if [[ "$REC_USAGE_ONLY" == "1" ]] || { [[ -n "$REC_TAKE_ID" && -f "$history_ledger" ]] \
-      && grep -qxF -- "$REC_TAKE_ID" "$history_ledger" 2>/dev/null; }; then
+  # A take recovered at quit was never pasted: history, but no usage.
+  if [[ "$REC_USAGE_ONLY" != "1" && ( "$wants_usage" == "1" || "$REC_STATUS" == "recovered" ) ]]; then
+    needs_history="1"
+  fi
+  inline_record_marked() {
+    [[ -n "$REC_TAKE_ID" && -f "$1" ]] && grep -qxF -- "$REC_TAKE_ID" "$1" 2>/dev/null
+  }
+  inline_record_mark() {
+    [[ -n "$REC_TAKE_ID" ]] || return 0
+    mkdir -p "$AUDIO_CACHE_DIR" 2>/dev/null || true
+    printf '%s\n' "$REC_TAKE_ID" >>"$1" 2>/dev/null || true
+    if [[ "$(wc -l <"$1" 2>/dev/null | tr -d ' ')" -gt 1000 ]]; then
+      tail -n 500 "$1" >"${1}.tmp.$$" 2>/dev/null && mv -f "${1}.tmp.$$" "$1" 2>/dev/null || true
+    fi
+  }
+  # `inline process --defer-usage` already wrote this take's bench row and
+  # history.
+  if [[ "$REC_USAGE_ONLY" == "1" ]] || inline_record_marked "$bench_ledger"; then
+    bench_done="1"
+  fi
+  if [[ "$needs_history" != "1" ]] || inline_record_marked "$history_ledger"; then
     history_done="1"
   fi
 
@@ -459,82 +482,62 @@ print(json.dumps({"ok": True, "take_id": os.environ["APPREC_TAKE_ID"], "duplicat
       usage_full_elapsed_ms=$(( REC_DELIVERED_AT_MS - REC_STARTED_AT_MS ))
       (( usage_full_elapsed_ms < 0 )) && usage_full_elapsed_ms=0
     fi
-    local -a usage_opts=()
-    [[ -n "$REC_TAKE_ID" ]] && usage_opts+=(--take-id "$REC_TAKE_ID")
-    [[ -n "$REC_LOCAL_DATE" ]] && usage_opts+=(--local-date "$REC_LOCAL_DATE")
-    if usage_record_delivery "inline" "$REC_TEXT" "$record_ms" "$usage_full_elapsed_ms" "${usage_opts[@]}"; then
+    # Not an array: an empty one is "unbound" under set -u in bash 3.2.
+    if usage_record_delivery "inline" "$REC_TEXT" "$record_ms" "$usage_full_elapsed_ms" \
+        ${REC_TAKE_ID:+--take-id "$REC_TAKE_ID"} ${REC_LOCAL_DATE:+--local-date "$REC_LOCAL_DATE"}; then
       usage_recorded="1"
+      [[ "$REC_USAGE_ONLY" == "1" ]] && signal_just_processed
     else
       echo "[usage] unable to record delivered dictation summary" >&2
     fi
   fi
 
+  if [[ "$bench_done" != "1" ]]; then
+    append_bench_entry "inline" "$REC_STATUS" "$model_id" "$mode" "0" "${#REC_RAW}" "${#REC_TEXT}" \
+      "$record_ms" "$transcribe_ms" "$clean_ms" "0" "$paste_ms" "$total_ms" \
+      "${REC_STARTUP_MS:-0}" "0" "0" "0" "$REC_STARTUP_SOURCE"
+
+    case "$REC_STATUS" in
+      ok|no_speech|recovered) signal_just_processed ;;
+      *)
+        touch "$ERROR_FLAG" 2>/dev/null || true
+        swiftbar_refresh
+        ;;
+    esac
+
+    # Debug archive ([debug] keep_logs), as inline process writes it: the
+    # padded WAV the app transcribed plus a .meta file. The app hands the WAV
+    # over; archiving removes it.
+    INLINE_CAPTURE_WAV_MS="$REC_CAPTURE_WAV_MS"
+    INLINE_CAPTURE_WAV_BYTES="$REC_CAPTURE_WAV_BYTES"
+    INLINE_CAPTURE_GAP_TO_RECORD_MS=""
+    if [[ "$REC_CAPTURE_WAV_MS" =~ ^[0-9]+$ && "$record_ms" =~ ^[0-9]+$ ]]; then
+      INLINE_CAPTURE_GAP_TO_RECORD_MS=$(( REC_CAPTURE_WAV_MS - record_ms ))
+    fi
+    if [[ -n "$REC_WAV_PATH" ]]; then
+      local archive_prefix=""
+      archive_prefix="$(inline_archive_prefix "${REC_TAKE_ID:-lowkey}" 2>/dev/null || true)"
+      archive_inline_debug_artifacts "$archive_prefix" "$REC_WAV_PATH" "" "" "$REC_STATUS" \
+        "$record_ms" "$transcribe_ms" "$clean_ms" "0" "$paste_ms" "$total_ms" "$REC_TAKE_ID"
+    fi
+    inline_record_mark "$bench_ledger"
+  fi
+
   if [[ "$history_done" == "1" ]]; then
-    # History and bench were saved by an earlier attempt (or by `inline
-    # process` for a usage-only record): only usage was left to do.
-    [[ "$REC_USAGE_ONLY" == "1" ]] || history_saved="1"
-    [[ "$REC_USAGE_ONLY" == "1" && "$usage_recorded" == "1" ]] && signal_just_processed
-    if [[ -n "$REC_TAKE_ID" && ( "$wants_usage" != "1" || "$usage_recorded" == "1" ) ]]; then
-      mkdir -p "$AUDIO_CACHE_DIR" 2>/dev/null || true
-      printf '%s\n' "$REC_TAKE_ID" >>"$ledger" 2>/dev/null || true
-    fi
-    inline_record_result "$REC_TAKE_ID" "$usage_recorded" "$history_saved"
-    return 0
-  fi
-
-  append_bench_entry "inline" "$REC_STATUS" "$model_id" "$mode" "0" "${#REC_RAW}" "${#REC_TEXT}" \
-    "$record_ms" "$transcribe_ms" "$clean_ms" "0" "$paste_ms" "$total_ms" \
-    "${REC_STARTUP_MS:-0}" "0" "0" "0" "$REC_STARTUP_SOURCE"
-
-  case "$REC_STATUS" in
-    ok|no_speech|recovered) signal_just_processed ;;
-    *)
-      touch "$ERROR_FLAG" 2>/dev/null || true
-      swiftbar_refresh
-      ;;
-  esac
-
-  # Debug archive ([debug] keep_logs), as inline process writes it: the padded
-  # WAV the app transcribed plus a .meta file. The app hands the WAV over;
-  # archiving removes it.
-  INLINE_CAPTURE_WAV_MS="$REC_CAPTURE_WAV_MS"
-  INLINE_CAPTURE_WAV_BYTES="$REC_CAPTURE_WAV_BYTES"
-  INLINE_CAPTURE_GAP_TO_RECORD_MS=""
-  if [[ "$REC_CAPTURE_WAV_MS" =~ ^[0-9]+$ && "$record_ms" =~ ^[0-9]+$ ]]; then
-    INLINE_CAPTURE_GAP_TO_RECORD_MS=$(( REC_CAPTURE_WAV_MS - record_ms ))
-  fi
-  if [[ -n "$REC_WAV_PATH" ]]; then
-    local archive_prefix=""
-    archive_prefix="$(inline_archive_prefix "${REC_TAKE_ID:-lowkey}" 2>/dev/null || true)"
-    archive_inline_debug_artifacts "$archive_prefix" "$REC_WAV_PATH" "" "" "$REC_STATUS" \
-      "$record_ms" "$transcribe_ms" "$clean_ms" "0" "$paste_ms" "$total_ms" "$REC_TAKE_ID"
-  fi
-
-  # A take recovered at quit was never pasted: history, but no usage.
-  if [[ ( "$REC_STATUS" == "ok" && "$REC_DELIVERED" == "1" ) || "$REC_STATUS" == "recovered" ]]; then
+    [[ "$needs_history" == "1" ]] && history_saved="1"
+  else
     local history_app="${REC_APP:-current}"
-    save_history "$REC_RAW" "$REC_TEXT" "$mode" "$history_app" "$record_ms" "$transcribe_ms" "$clean_ms" "0" "$paste_ms" "$total_ms" \
-      && history_saved="1"
+    if save_history "$REC_RAW" "$REC_TEXT" "$mode" "$history_app" "$record_ms" "$transcribe_ms" "$clean_ms" "0" "$paste_ms" "$total_ms"; then
+      history_saved="1"
+      history_done="1"
+      inline_record_mark "$history_ledger"
+    fi
   fi
 
-  # Mark history/bench done so a replay doesn't write them again, and the
-  # take fully handled once its usage (if any) is counted too. A recovered
-  # take (no usage) whose history failed stays unmarked so a replay retries
-  # it; a delivered take whose usage failed is retried for usage only.
-  if [[ -n "$REC_TAKE_ID" ]]; then
-    mkdir -p "$AUDIO_CACHE_DIR" 2>/dev/null || true
-    if [[ "$REC_STATUS" != "recovered" || "$history_saved" == "1" ]]; then
-      printf '%s\n' "$REC_TAKE_ID" >>"$history_ledger" 2>/dev/null || true
-      if [[ "$wants_usage" != "1" || "$usage_recorded" == "1" ]]; then
-        printf '%s\n' "$REC_TAKE_ID" >>"$ledger" 2>/dev/null || true
-      fi
-    fi
-    local trim_ledger
-    for trim_ledger in "$ledger" "$history_ledger"; do
-      if [[ "$(wc -l <"$trim_ledger" 2>/dev/null | tr -d ' ')" -gt 1000 ]]; then
-        tail -n 500 "$trim_ledger" >"${trim_ledger}.tmp.$$" 2>/dev/null && mv -f "${trim_ledger}.tmp.$$" "$trim_ledger" 2>/dev/null || true
-      fi
-    done
+  # Fully handled: a replay is then a plain duplicate. Otherwise the app keeps
+  # the take and a replay retries the history or usage that failed.
+  if [[ "$history_done" == "1" && ( "$wants_usage" != "1" || "$usage_recorded" == "1" ) ]]; then
+    inline_record_mark "$ledger"
   fi
 
   inline_record_result "$REC_TAKE_ID" "$usage_recorded" "$history_saved"

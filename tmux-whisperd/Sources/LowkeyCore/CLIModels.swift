@@ -190,6 +190,13 @@ public struct Delivery: Decodable, Equatable, Sendable {
     case activateDelayMs = "activate_delay_ms"
     case sendDelayMs = "send_delay_ms"
   }
+
+  /// The same delivery, re-activating the take's original app first (e.g.
+  /// a take started with Lowkey itself in front, whatever `paste_target` is).
+  public func restoringOriginalApp() -> Delivery {
+    Delivery(autosend: autosend, sendMode: sendMode, pasteTarget: "restore",
+             activateDelayMs: activateDelayMs, sendDelayMs: sendDelayMs)
+  }
 }
 
 /// `tmux-whisper warmup --json` (0.11+).

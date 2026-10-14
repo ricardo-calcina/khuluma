@@ -1973,6 +1973,32 @@ run_inline_record_usage_retry_round() {
     | "$DICTATE_BIN" inline record --json >"$CASE_DIR/retry-3.json"
   assert_file_contains "inline_record_usage_retry_then_final" "$CASE_DIR/retry-3.json" '"duplicate": true'
 
+  # A history write that fails: usage is counted, the take isn't final, and a
+  # replay saves the history without a second bench row or usage count.
+  local bench_rows
+  bench_rows="$(wc -l <"$DICTATE_CONFIG_DIR/history/bench.tsv" | tr -d ' ')"
+  chmod 500 "$DICTATE_CONFIG_DIR/history"
+  printf '%s' '{"take_id":"t-hist","status":"ok","delivered":true,"raw_text":"f g","text":"f g","mode":"code","record_ms":700}' \
+    | "$DICTATE_BIN" inline record --json >"$CASE_DIR/hist-1.json" 2>/dev/null
+  chmod 700 "$DICTATE_CONFIG_DIR/history"
+  assert_file_contains "inline_record_history_failed" "$CASE_DIR/hist-1.json" '"history_saved": false'
+  if grep -qxF t-hist "$cache/recorded-takes"; then fail "inline_record_history_failed_not_final"; fi
+  pass "inline_record_history_failed_not_final"
+  history_files="$(ls "$DICTATE_CONFIG_DIR/history"/*.json 2>/dev/null | wc -l | tr -d ' ')"
+  printf '%s' '{"take_id":"t-hist","status":"ok","delivered":true,"raw_text":"f g","text":"f g","mode":"code","record_ms":700}' \
+    | "$DICTATE_BIN" inline record --json >"$CASE_DIR/hist-2.json"
+  assert_file_contains "inline_record_history_retried" "$CASE_DIR/hist-2.json" '"history_saved": true'
+  assert_equals "inline_record_history_retry_saved" "$(ls "$DICTATE_CONFIG_DIR/history"/*.json | wc -l | tr -d ' ')" "$((history_files + 1))"
+  assert_equals "inline_record_history_retry_one_bench_row" "$(wc -l <"$DICTATE_CONFIG_DIR/history/bench.tsv" | tr -d ' ')" "$((bench_rows + 1))"
+  assert_equals "inline_record_history_retry_usage_once" \
+    "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["delivered_dictations"]["count"])' "$ledger")" "3"
+  grep -qxF t-hist "$cache/recorded-takes" || fail "inline_record_history_retry_final"
+  pass "inline_record_history_retry_final"
+
+  # No take id or delivery date (older apps): counted, on bash 3.2 too.
+  printf '%s' '{"status":"ok","delivered":true,"text":"no id"}' | "$DICTATE_BIN" inline record --json >"$CASE_DIR/no-id.json"
+  assert_file_contains "inline_record_without_take_id" "$CASE_DIR/no-id.json" '"usage_recorded": true'
+
   # The delivery date Lowkey sends wins over the date the record is written.
   printf '%s' '{"take_id":"t-late","status":"ok","delivered":true,"text":"late","record_ms":500,"delivered_local_date":"2026-01-02"}' \
     | "$DICTATE_BIN" inline record --json >/dev/null
@@ -2091,7 +2117,24 @@ PYEOF
   pass "usage_daily_malformed_keeps_totals"
   assert_file_contains "usage_daily_malformed_warns" "$CASE_DIR/bad.err" "daily usage is unreadable"
   out="$(TZ=Asia/Dubai DICTATE_USAGE_NOW=2026-10-16T10:00:00Z "$DICTATE_BIN" usage --json --days 7)"
-  assert_equals "usage_days_skips_bad_bucket" "$(printf '%s' "$out" | python3 -c 'import json,sys; print([x["date"] for x in json.load(sys.stdin)["daily"]["days"]])')" "['2026-10-15']"
+  # A bad bucket makes the whole section unreadable, never silently partial.
+  assert_equals "usage_days_bad_bucket_unreadable" "$(printf '%s' "$out" | python3 -c 'import json,sys; d=json.load(sys.stdin)["daily"]; print(d["status"], d["days"], d["started_at"])')" "unreadable [] None"
+  python3 - "$ledger" <<'PYEOF'
+import json, sys
+p = json.load(open(sys.argv[1]))
+p["daily"]["days"]["2026-10-16"] = {"count": 1}
+json.dump(p, open(sys.argv[1], "w"))
+PYEOF
+  assert_equals "usage_days_missing_fields_unreadable" "$(json_field "$("$DICTATE_BIN" usage --json --days 7)" daily.status)" "unreadable"
+  python3 - "$ledger" <<'PYEOF'
+import json, sys
+p = json.load(open(sys.argv[1]))
+del p["daily"]["days"]["2026-10-16"]
+p["daily"]["started_at"] = "zqxleak said this"
+json.dump(p, open(sys.argv[1], "w"))
+PYEOF
+  out="$("$DICTATE_BIN" usage --json --days 7)$("$DICTATE_BIN" usage --json)"
+  assert_equals "usage_days_bad_started_at_never_leaks" "$(printf '%s' "$out" | grep -c 'zqx' || true)" "0"
   python3 - "$ledger" <<'PYEOF'
 import json, sys
 p = json.load(open(sys.argv[1]))

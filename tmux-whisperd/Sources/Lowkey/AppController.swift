@@ -12,12 +12,19 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     let startedEpochMs: Int
     let startupMs: Int
     let originalApp: NSRunningApplication?
+    /// Lowkey was in front at the hotkey, so `originalApp` is the app before
+    /// it and must be re-activated for delivery.
+    let retargeted: Bool
     /// Settings read while recording, so each take uses what the CLI would
     /// use now (e.g. after `tmux-whisper autosend off`), not launch-time values.
     let settings: SettingsFetch?
     /// Published before capture starts and removed when the take ends, so
     /// the CLI never swaps the daemon out mid-take.
     let marker: TakeMarker?
+
+    func delivery(_ base: Delivery) -> Delivery {
+      retargeted ? base.restoringOriginalApp() : base
+    }
   }
 
   /// `tmux-whisper app-config --json`, fetched in the background.
@@ -360,10 +367,12 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     sounds.play(.start) { playMs in
       Log.write(String(format: "start: chime play() %.1fms (hotkey→chime ≈ %.1fms)", playMs, monotonicMs() - hotkeyAt))
     }
+    let frontmost = NSWorkspace.shared.frontmostApplication
     let original = DeliveryTarget.original(
-      frontmost: NSWorkspace.shared.frontmostApplication,
+      frontmost: frontmost,
       lastExternal: lastExternalApp.flatMap { $0.isTerminated ? nil : $0 },
       isSelf: { $0.processIdentifier == getpid() })
+    let retargeted = frontmost?.processIdentifier == getpid() && original != nil
     let directory = markerDirectory
     let outcome = starter.start(marker: {
       let marker = TakeMarker.create(directory: directory, takeId: UUID().uuidString.lowercased(), phase: .recording)
@@ -383,6 +392,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         startedEpochMs: Int(Date().timeIntervalSince1970 * 1000),
         startupMs: Int((startedAt - hotkeyAt).rounded()),
         originalApp: original,
+        retargeted: retargeted,
         settings: cli.map { SettingsFetch(cli: $0, queue: settingsQueue) },
         marker: marker
       )
@@ -718,7 +728,8 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
       record.rawText = raw
       record.text = text
       record.mode = mode
-      let steps = DeliveryPlan.steps(text: text, delivery: config.delivery, hasOriginalApp: take.originalApp != nil)
+      let steps = DeliveryPlan.steps(text: text, delivery: take.delivery(config.delivery),
+                                     hasOriginalApp: take.originalApp != nil)
       let target: String?
       do {
         target = try Deliverer.perform(steps, originalApp: take.originalApp)
@@ -795,10 +806,11 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
       if wantsUsage && !(result.usageRecorded && result.historySaved) {
         Log.write("persist: take \(record.takeId) partly recorded (usage \(result.usageRecorded), history \(result.historySaved))")
       }
-      // A CLI that deduplicates take ids can retry the usage safely; an
-      // older one could count it twice, so it isn't retried.
-      if wantsUsage && !result.usageRecorded && result.usageDeduplicated == true {
-        Log.write("persist: take \(record.takeId) usage not counted yet (kept for the next launch)")
+      // A CLI that deduplicates take ids retries only what failed (usage or
+      // history), so the take is kept; an older one could count usage twice.
+      if wantsUsage && !(result.usageRecorded && (result.historySaved || record.usageOnly == true))
+          && result.usageDeduplicated == true {
+        Log.write("persist: take \(record.takeId) not fully recorded yet (kept for the next launch)")
         return false
       }
       // A recovered take exists only in history: keep it spooled until saved.
@@ -870,10 +882,11 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     do {
       try WAVEncoder.encode(samples: samples).write(to: wav, options: [.atomic])
       chmod(wav.path, 0o600)
-      let deferUsage = config?.supports("deferred_usage") ?? false
-      let result = try cli.process(wav: wav, app: appName, recordMs: recordMs,
-                                   startupMs: take.startupMs, startedAtEpochMs: take.startedEpochMs,
-                                   deferUsage: deferUsage)
+      let result = try Self.processDeferringUsage(cli: cli, config: config) { deferUsage in
+        try cli.process(wav: wav, app: appName, recordMs: recordMs,
+                        startupMs: take.startupMs, startedAtEpochMs: take.startedEpochMs,
+                        deferUsage: deferUsage)
+      }
       processedAt = monotonicMs()
       guard result.ok else {
         logTake(result.status == "no_speech" ? "no_speech" : "failed") { line in
@@ -894,7 +907,8 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
       let delivery = config.map { $0.safeDelivery(result.delivery) }
         ?? Delivery(autosend: false, sendMode: result.delivery.sendMode, pasteTarget: result.delivery.pasteTarget,
                     activateDelayMs: result.delivery.activateDelayMs, sendDelayMs: result.delivery.sendDelayMs)
-      let steps = DeliveryPlan.steps(text: result.text, delivery: delivery, hasOriginalApp: take.originalApp != nil)
+      let steps = DeliveryPlan.steps(text: result.text, delivery: take.delivery(delivery),
+                                     hasOriginalApp: take.originalApp != nil)
       let delivering = monotonicMs()
       let target = try Deliverer.perform(steps, originalApp: take.originalApp)
       if result.usageDeferred == true {
@@ -1304,6 +1318,20 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     configLine.title = "⚠︎ config.toml invalid: \(using)"
     configLine.isHidden = false
     Log.write("settings: config.toml invalid (\(error)); \(using)")
+  }
+
+  /// Runs `inline process`, deferring usage until delivery when the CLI can.
+  /// With settings unknown (fetch failed), it asks anyway: a CLI without
+  /// `--defer-usage` rejects the option before doing any work, and the take
+  /// then runs without it (that CLI counts usage itself, as before).
+  private static func processDeferringUsage(cli: CLIBridge, config: AppConfig?,
+                                            _ run: (Bool) throws -> ProcessResult) throws -> ProcessResult {
+    if let config, !config.supports("deferred_usage") { return try run(false) }
+    do {
+      return try run(true)
+    } catch CLIBridge.BridgeError.failed(let message) where message.contains("unknown option: --defer-usage") {
+      return try run(false)
+    }
   }
 
   /// Remembers the last active app other than Lowkey (see `startRecording`).

@@ -424,10 +424,10 @@ with open(lock_path, "a+", encoding="utf-8") as lock:
     day_fields = ("count", "inline", "tmux", "words", "recording_ms", "full_elapsed_ms",
                   "longest_recording_ms", "most_words")
     days = daily.get("days") if isinstance(daily, dict) else None
-    bucket = days.get(day.isoformat(), {}) if isinstance(days, dict) else None
+    bucket = days.get(day.isoformat(), dict.fromkeys(day_fields, 0)) if isinstance(days, dict) else None
     if (isinstance(daily, dict) and plain_int(daily.get("baseline_count")) and isinstance(bucket, dict)
-            and all(plain_int(bucket.get(k, 0)) for k in day_fields)):
-        bucket = {k: bucket.get(k, 0) for k in day_fields}
+            and all(plain_int(bucket.get(k)) for k in day_fields)):
+        bucket = {k: bucket[k] for k in day_fields}
         bucket["count"] += 1
         bucket[flow] += 1
         bucket["words"] += words
@@ -549,27 +549,31 @@ daily_started_at = None
 daily_status = "not_started"
 daily_baseline = 0
 daily_days = []
+TIMESTAMP = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})")
 if daily_section is not None:
+    # All or nothing: a section with any bad value is reported unreadable
+    # rather than shown with missing or invented days.
     days_obj = daily_section.get("days") if isinstance(daily_section, dict) else None
     started = daily_section.get("started_at") if isinstance(daily_section, dict) else None
-    if (isinstance(days_obj, dict) and isinstance(started, str) and started
+    daily_status = "unreadable"
+    if (isinstance(days_obj, dict) and isinstance(started, str) and TIMESTAMP.fullmatch(started)
             and plain_int(daily_section.get("baseline_count"))):
-        daily_status = "active"
-        daily_started_at = started
-        daily_baseline = daily_section["baseline_count"]
+        parsed = []
         for key, bucket in days_obj.items():
             date = civil_date(key)
             if date is None or not isinstance(bucket, dict):
-                continue
-            if not all(plain_int(bucket.get(k, 0)) for k in DAY_FIELDS + ("inline", "tmux")):
-                continue
+                break
+            if not all(plain_int(bucket.get(k)) for k in DAY_FIELDS + ("inline", "tmux")):
+                break
             entry = {"date": date.isoformat()}
-            entry.update({k: bucket.get(k, 0) for k in DAY_FIELDS})
-            entry["by_flow"] = {"inline": bucket.get("inline", 0), "tmux": bucket.get("tmux", 0)}
-            daily_days.append(entry)
-        daily_days.sort(key=lambda d: d["date"])
-    else:
-        daily_status = "unreadable"
+            entry.update({k: bucket[k] for k in DAY_FIELDS})
+            entry["by_flow"] = {"inline": bucket["inline"], "tmux": bucket["tmux"]}
+            parsed.append(entry)
+        else:
+            daily_status = "active"
+            daily_started_at = started
+            daily_baseline = daily_section["baseline_count"]
+            daily_days = sorted(parsed, key=lambda d: d["date"])
 
 typing_equivalent_ms = int(round((words * 60000) / wpm)) if words else 0
 estimated_time_difference_ms = typing_equivalent_ms - full_elapsed_ms
