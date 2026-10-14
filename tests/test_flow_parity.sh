@@ -582,9 +582,6 @@ setup_case() {
   export DICTATE_STATE_FILE="$CASE_DIR/tmux.state"
   export DICTATE_INLINE_STATE_FILE="$CASE_DIR/inline.state"
   export DICTATE_PROCESSING_DIR="$CASE_DIR/processing"
-  export DICTATE_PROCESSED_FLAG="$CASE_DIR/processed.flag"
-  export DICTATE_CANCEL_FLAG="$CASE_DIR/cancelled.flag"
-  export DICTATE_PROCESSING_LONG_FLAG="$CASE_DIR/processing-long.flag"
   export DICTATE_TMPDIR="$CASE_DIR/tmp"
   export DICTATE_RECORD_LOG="$CASE_DIR/logs/record.log"
   export DICTATE_TRANSCRIBE_LOG="$CASE_DIR/logs/transcribe.log"
@@ -827,8 +824,6 @@ run_inline_cancel_refresh_round() {
   assert_contains "inline_cancel_refresh_cancelled" "$cancel_out" "CANCELLED"
   usage_after="$("$DICTATE_BIN" usage --json)"
   assert_equals "inline_cancel_usage_unchanged" "$usage_after" "$usage_before"
-  [[ -f "${DICTATE_CANCEL_FLAG:-/tmp/dictate-cancelled.flag}" ]] || fail "inline_cancel_refresh_flag"
-  pass "inline_cancel_refresh_flag"
 }
 
 run_inline_processing_marker_until_paste_round() {
@@ -855,8 +850,6 @@ run_inline_processing_marker_until_paste_round() {
 
   wait_for_file_contains "$DICTATE_TEST_PBCOPY_OUT" "inline marker transcript" 240 || fail "inline_processing_marker_paste_done"
   wait_for_no_matching_file "$DICTATE_PROCESSING_DIR" 'inline-*' || fail "inline_processing_marker_removed_after_paste"
-  [[ -f "$DICTATE_PROCESSED_FLAG" ]] || fail "inline_processing_marker_processed_flag"
-  pass "inline_processing_marker_processed_flag"
 }
 
 run_inline_processing_marker_immediate_after_stop_round() {
@@ -2135,7 +2128,6 @@ assert r["raw_text"] == "stage failure transcript", r
 # only for delivered takes, and the [debug] keep_logs archive.
 run_inline_record_round() {
   setup_case "inline-record"
-  export DICTATE_ERROR_FLAG="$CASE_DIR/error.flag"
   local out bench
 
   out="$("$DICTATE_BIN" app-config --json)"
@@ -2175,8 +2167,6 @@ assert c["pipeline"] == {"native": True, "verify": True, "supervise": True}, c["
   bench="$(tail -n 1 "$DICTATE_CONFIG_DIR/history/bench.tsv")"
   assert_contains "inline_record_bench_row" "$bench" $'\tinline\tok\t'
   assert_contains "inline_record_bench_source" "$bench" $'\t3000\t400\t3\t0\t50\t3500\t12\t0\t0\t0\tapp:native'
-  [[ -f "$DICTATE_PROCESSED_FLAG" ]] || fail "inline_record_signals_processed"
-  pass "inline_record_signals_processed"
   python3 - "$DICTATE_CONFIG_DIR/history" <<'PYEOF' || fail "inline_record_history"
 import glob, json, os, sys
 files = sorted(glob.glob(os.path.join(sys.argv[1], "*.json")))
@@ -2207,7 +2197,7 @@ assert sorted(json.load(open(f))["processed"] for f in files) == ["OpenAI", "b",
 PYEOF
   pass "inline_record_history_unique_names"
 
-  # Failed delivery: bench row and error flag, but no usage and no history.
+  # Failed delivery: a bench row, but no usage and no history.
   printf '%s' '{"take_id":"t-fail","status":"paste_failed","delivered":false,"raw_text":"x","text":"x","mode":"code"}' \
     | "$DICTATE_BIN" inline record --json >"$CASE_DIR/record-fail.json"
   assert_file_contains "inline_record_failed_no_usage" "$CASE_DIR/record-fail.json" '"usage_recorded": false'
@@ -2215,8 +2205,6 @@ PYEOF
   [[ "$(ls "$DICTATE_CONFIG_DIR/history"/*.json | wc -l | tr -d ' ')" == "3" ]] || fail "inline_record_failed_no_history"
   pass "inline_record_failed_no_history"
   assert_contains "inline_record_failed_bench" "$(tail -n 1 "$DICTATE_CONFIG_DIR/history/bench.tsv")" $'\tpaste_failed\t'
-  [[ -f "$DICTATE_ERROR_FLAG" ]] || fail "inline_record_failed_error_flag"
-  pass "inline_record_failed_error_flag"
 
   printf '%s' '{"take_id":"t-none","status":"no_speech","delivered":false}' | "$DICTATE_BIN" inline record --json >/dev/null
   assert_contains "inline_record_no_speech_bench" "$(tail -n 1 "$DICTATE_CONFIG_DIR/history/bench.tsv")" $'\tno_speech\t'
@@ -2269,7 +2257,6 @@ PYEOF
   printf 'not json' | "$DICTATE_BIN" inline record --json >/dev/null 2>&1 || rc=$?
   [[ "$rc" != "0" ]] || fail "inline_record_rejects_bad_payload"
   pass "inline_record_rejects_bad_payload"
-  unset DICTATE_ERROR_FLAG
 }
 
 # A malformed config.toml (e.g. half-saved mid-edit) falls back to the last
