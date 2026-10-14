@@ -6331,8 +6331,8 @@ process_inline_recording() {
   delivery_completed_ms="$(now_ms)"
   total_ms=$(( $(now_ms) - flow_started_ms ))
   # Persist the small, transcript-free ledger while this confirmed delivery is
-  # still in hand. It must be visible before the processed signal, while the
-  # larger transcript history write remains safely asynchronous below.
+  # still in hand. Usage is persisted synchronously, while the larger
+  # transcript history write remains safely asynchronous below.
   local usage_full_elapsed_ms="$total_ms"
   if [[ "$usage_started_ms" =~ ^[0-9]+$ ]]; then
     usage_full_elapsed_ms=$(( delivery_completed_ms - usage_started_ms ))
