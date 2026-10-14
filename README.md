@@ -369,6 +369,8 @@ supervise_daemon = true        # keep the Parakeet daemon warm (launch, wake, re
 
 Then choose **Reload Settings** from the menu. Timings, errors, `supervisor:` and `verify:` results are in `~/Library/Logs/Lowkey/app.log`; `tools/lowkey-report.sh` summarises it (outcomes, fallback and failure rates, where the time goes, verify results) without printing any dictated text. The menu shows whether the Parakeet daemon is ready, and offers **Retry**/**Discard** for a take whose transcription timed out (its audio is kept privately for an hour; Retry transcribes, then **Paste retried dictation** pastes it where you are, without sending).
 
+**Stats…** in the menu opens a window with your lifetime words, words per minute, the estimated time saved against typing (labelled as an estimate), a 30/60/90-day activity heatmap, your streak and recorded bests. It reads `tmux-whisper usage --json --days all`, which holds counts and durations only, never what you said.
+
 ## Repo Layout
 
 - `bin/tmux-whisper` is the main product orchestration layer.
