@@ -19,7 +19,7 @@ body:
         - tmux
         - inline
         - raycast
-        - swiftbar
+        - lowkey
         - install/bootstrap
         - homebrew
     validations:

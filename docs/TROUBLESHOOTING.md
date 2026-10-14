@@ -175,17 +175,11 @@ tmux-whisper vocab rm --regex "pattern"
 
 ## 5) Integration optionality
 
-Tmux Whisper remains usable without Raycast/SwiftBar.
+Tmux Whisper remains usable without Raycast or Lowkey.
 
 - Missing integration scripts appear as warnings in `tmux-whisper doctor`, not hard failures.
-- Raycast and SwiftBar run in a minimal environment. If postprocess or custom PATH overrides work in your shell but not in integrations, put them in `~/.zshenv`.
-- Runtime SwiftBar toggle:
-
-```bash
-tmux-whisper swiftbar        # show state
-tmux-whisper swiftbar off    # disable SwiftBar runtime integration
-tmux-whisper swiftbar on
-```
+- Raycast runs in a minimal environment. If postprocess or custom PATH overrides work in your shell but not in integrations, put them in `~/.zshenv`.
+- The SwiftBar plugin was retired in v0.11 (Lowkey replaces it). If SwiftBar still shows a Tmux Whisper item, move `~/.config/swiftbar/plugins/tmux-whisper-status.0.2s.sh` to the Trash.
 
 Raycast paths installed by the app:
 

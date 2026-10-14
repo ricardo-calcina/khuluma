@@ -22,7 +22,7 @@ cd tmux-whisper
 - Create feature branches from `main`.
 - Keep one coherent task per branch.
 - Include rationale and risk in PR description.
-- Reference affected flows explicitly (`tmux`, `inline`, `raycast`, `swiftbar`).
+- Reference affected flows explicitly (`tmux`, `inline`, `raycast`, `lowkey`).
 
 ## Validation Requirements
 

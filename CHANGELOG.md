@@ -2,6 +2,13 @@
 
 ## v0.11.0 — Unreleased
 
+- **The SwiftBar plugin is retired; Lowkey is the menu-bar app** (breaking for JSON readers of the plugin's state):
+  - The plugin (`integrations/tmux-whisper-status.0.2s.sh`) is no longer shipped or installed, and `DICTATE_INSTALL_SWIFTBAR` is gone. `install.sh` doesn't delete an old copy; it tells you where it is so you can move it to the Trash.
+  - Lowkey's menu shows recording and processing state and offers Cancel, and its Stats window replaces the plugin's usage line. Settings the plugin toggled (modes, autosend, paste target, send mode, postprocess, process sound, mic source, repeats) are still `tmux-whisper` commands or `config.toml` keys. Tmux recordings no longer have a menu-bar indicator: use `tmux-whisper status`.
+  - The CLI no longer asks SwiftBar to refresh on every recording, processing, cancel and error transition, and the Raycast scripts no longer call `tmux-whisper swiftbar refresh` (adapter version 2). `tmux-whisper swiftbar` now only prints a notice and exits 0, so older copies of the Raycast scripts keep working.
+  - `integrations.swiftbar.enabled` is no longer read. An old `[integrations.swiftbar]` table in `config.toml` is ignored and kept as is.
+  - **JSON:** the `swiftbar` section is removed from `integrations --json`, `install_sanity.swiftbar` from `doctor --json`, `effective_settings.integrations` from `status --json`, and `paths.swiftbar_plugin` and `config.integrations` from `debug --json`. Integration doctor and repair no longer check or reinstall the plugin. `usage --json` is unchanged (`schema_version` 1).
+
 - **Daily usage, counted honestly** (groundwork for Lowkey's stats window):
   - **Per-day buckets.** Each delivery also counts under its local calendar date: deliveries, words, recording time, longest take and most words in one take. `tmux-whisper usage --json --days N|all` returns them (only validated numbers, never text). The default `usage --json` is unchanged apart from `coverage.daily_tracking_started_at`, and `schema_version` stays 1, so SwiftBar and older CLIs keep working. An older CLI writing the same ledger keeps the new sections intact; its deliveries show up as `untracked_deliveries`. A malformed daily section never costs a delivery: the totals are still recorded. Daily counting starts at upgrade, with no backfill.
   - **The right day for late records.** Lowkey sends the local date at delivery, so a take replayed at the next launch counts toward the day it was dictated, not the day it was written.
