@@ -41,18 +41,16 @@ final class StatsWindowController: NSWindowController, NSWindowDelegate {
   }
 
   func show() {
-    // Becoming key reloads; a window that already is key doesn't become it again.
-    let wasKey = window?.isKeyWindow == true
     NSApp.activate()
     showWindow(nil)
     window?.makeKeyAndOrderFront(nil)
-    if wasKey {
-      model.windowOpened()
-    }
+    // Not left to becoming key: activation can be refused, and the window
+    // then shows without ever becoming key.
+    model.windowOpened()
   }
 
   func windowDidBecomeKey(_ notification: Notification) {
-    model.windowOpened()
+    model.windowBecameKey()
   }
 
   func windowWillClose(_ notification: Notification) {

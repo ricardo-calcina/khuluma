@@ -69,6 +69,13 @@ final class StatsModel: ObservableObject {
     reload()
   }
 
+  /// Coming back to the window: fresh numbers, unless a load is already
+  /// on its way (as when the window has just opened).
+  func windowBecameKey() {
+    guard open, !refresh.running else { return }
+    reload()
+  }
+
   func windowClosed() {
     open = false
     refresh.invalidate()
@@ -112,6 +119,7 @@ final class StatsModel: ObservableObject {
       case .success(let report):
         let calendar = Calendar.current
         let stats = UsageStats(report: report, today: CivilDate(Date()), firstWeekday: calendar.firstWeekday)
+        Log.write("stats: refreshed (daily \(report.daily?.status ?? "absent"), \(report.daily?.days.count ?? 0) days)")
         noteMilestone(words: stats.lifetime.words)
         self.stats = stats
         updatedAt = Date()

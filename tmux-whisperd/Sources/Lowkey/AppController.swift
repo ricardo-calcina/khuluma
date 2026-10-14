@@ -157,6 +157,10 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     reloadSettings()
     replayPendingRecords(cli: cli)
     refreshTimedOutItems()
+    // `-LowkeyOpenStats YES`: open Stats at launch (for checking the window).
+    if UserDefaults.standard.bool(forKey: "LowkeyOpenStats") {
+      showStats()
+    }
   }
 
   /// Quit never discards a dictation. A take still recording is saved to
