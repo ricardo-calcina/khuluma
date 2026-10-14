@@ -501,7 +501,6 @@ print(json.dumps({"ok": True, "take_id": os.environ["APPREC_TAKE_ID"], "duplicat
       ok|no_speech|recovered) signal_just_processed ;;
       *)
         touch "$ERROR_FLAG" 2>/dev/null || true
-        swiftbar_refresh
         ;;
     esac
 

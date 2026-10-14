@@ -528,21 +528,24 @@ assert_contains "budget_threshold_set" "$modecheck_budget_threshold" "budget aut
 assert_file_contains "raycast_inline_binary_resolution" "$ROOT/integrations/raycast/tmux-whisper-inline.sh" "command -v tmux-whisper"
 assert_file_contains "raycast_inline_toggle_delegate" "$ROOT/integrations/raycast/tmux-whisper-inline.sh" 'inline toggle'
 assert_file_contains "raycast_toggle_dictate_resolution" "$ROOT/integrations/raycast/tmux-whisper-toggle.sh" "command -v tmux-whisper"
-assert_file_contains "swiftbar_dictate_resolution" "$ROOT/integrations/tmux-whisper-status.0.2s.sh" "command -v tmux-whisper"
 assert_file_contains "raycast_inline_path_hardening" "$ROOT/integrations/raycast/tmux-whisper-inline.sh" "/usr/local/bin"
 assert_file_contains "raycast_toggle_path_hardening" "$ROOT/integrations/raycast/tmux-whisper-toggle.sh" "/usr/local/bin"
 assert_file_contains "raycast_cancel_path_hardening" "$ROOT/integrations/raycast/tmux-whisper-cancel.sh" "/usr/local/bin"
-assert_file_contains "swiftbar_path_hardening" "$ROOT/integrations/tmux-whisper-status.0.2s.sh" "/usr/local/bin"
 assert_file_contains "raycast_inline_binary_notice" "$ROOT/integrations/raycast/tmux-whisper-inline.sh" "Tmux Whisper binary not found."
 assert_file_contains "raycast_toggle_binary_notice" "$ROOT/integrations/raycast/tmux-whisper-toggle.sh" "Tmux Whisper binary not found."
-assert_file_contains "swiftbar_missing_binary_notice" "$ROOT/integrations/tmux-whisper-status.0.2s.sh" "Tmux Whisper binary not found | color=red"
-assert_file_contains "swiftbar_enabled_config_parse" "$ROOT/integrations/tmux-whisper-status.0.2s.sh" "integrations.swiftbar.enabled"
-assert_file_contains "raycast_inline_adapter_version_source" "$ROOT/integrations/raycast/tmux-whisper-inline.sh" "tmux-whisper.adapter-version: 1"
-assert_file_contains "raycast_toggle_adapter_version_source" "$ROOT/integrations/raycast/tmux-whisper-toggle.sh" "tmux-whisper.adapter-version: 1"
-assert_file_contains "raycast_cancel_adapter_version_source" "$ROOT/integrations/raycast/tmux-whisper-cancel.sh" "tmux-whisper.adapter-version: 1"
-assert_file_contains "swiftbar_adapter_version_source" "$ROOT/integrations/tmux-whisper-status.0.2s.sh" "tmux-whisper.adapter-version: 2"
+assert_file_contains "raycast_inline_adapter_version_source" "$ROOT/integrations/raycast/tmux-whisper-inline.sh" "tmux-whisper.adapter-version: 2"
+assert_file_contains "raycast_toggle_adapter_version_source" "$ROOT/integrations/raycast/tmux-whisper-toggle.sh" "tmux-whisper.adapter-version: 2"
+assert_file_contains "raycast_cancel_adapter_version_source" "$ROOT/integrations/raycast/tmux-whisper-cancel.sh" "tmux-whisper.adapter-version: 2"
 
-# --- Regression 8b: integration status inspects installed adapter paths. ---
+if [[ -e "$ROOT/integrations/tmux-whisper-status.0.2s.sh" ]]; then
+  echo "FAIL: swiftbar_plugin_retired" >&2
+  exit 1
+fi
+echo "PASS: swiftbar_plugin_retired"
+
+# --- Regression 8b: integration status inspects installed adapter paths. A
+# leftover SwiftBar plugin, receipt key and config table from an install made
+# before the plugin was retired are ignored. ---
 INTEGRATIONS_HOME="$TMP_ROOT/home-integrations"
 INTEGRATIONS_BIN="$INTEGRATIONS_HOME/.local/bin"
 INTEGRATIONS_CFG="$INTEGRATIONS_HOME/.config/dictate"
@@ -552,7 +555,7 @@ install_test_runtime "$INTEGRATIONS_BIN"
 cp "$ROOT/integrations/raycast/tmux-whisper-inline.sh" "$INTEGRATIONS_CFG/integrations/raycast/tmux-whisper-inline.sh"
 cp "$ROOT/integrations/raycast/tmux-whisper-toggle.sh" "$INTEGRATIONS_CFG/integrations/raycast/tmux-whisper-toggle.sh"
 cp "$ROOT/integrations/raycast/tmux-whisper-cancel.sh" "$INTEGRATIONS_CFG/integrations/raycast/tmux-whisper-cancel.sh"
-cp "$ROOT/integrations/tmux-whisper-status.0.2s.sh" "$INTEGRATIONS_SWIFTBAR/tmux-whisper-status.0.2s.sh"
+printf '%s\n' "# leftover swiftbar plugin" >"$INTEGRATIONS_SWIFTBAR/tmux-whisper-status.0.2s.sh"
 chmod +x "$INTEGRATIONS_CFG/integrations/raycast/"*.sh "$INTEGRATIONS_SWIFTBAR/tmux-whisper-status.0.2s.sh"
 cat >"$INTEGRATIONS_CFG/config.toml" <<'EOF'
 [meta]
@@ -577,13 +580,10 @@ EOF
 integrations_text="$(HOME="$INTEGRATIONS_HOME" PATH="$INTEGRATIONS_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$INTEGRATIONS_CFG" DICTATE_CONFIG_FILE="$INTEGRATIONS_CFG/config.toml" tmux-whisper integrations)"
 assert_contains "integrations_status_header" "$integrations_text" "Integrations:"
 assert_contains "integrations_status_receipt" "$integrations_text" "install receipt: $INTEGRATIONS_CFG/install-receipt.env (present)"
-assert_contains "integrations_status_swiftbar_off" "$integrations_text" "enabled: OFF"
-assert_contains "integrations_status_swiftbar_path" "$integrations_text" "plugin: $INTEGRATIONS_SWIFTBAR/tmux-whisper-status.0.2s.sh (executable)"
-assert_contains "integrations_status_swiftbar_state" "$integrations_text" "plugin state: current"
-assert_contains "integrations_status_swiftbar_version" "$integrations_text" "plugin version: 2 (source: 2)"
+assert_not_contains "integrations_status_no_swiftbar" "$integrations_text" "SwiftBar"
 assert_contains "integrations_status_raycast_inline" "$integrations_text" "inline: $INTEGRATIONS_CFG/integrations/raycast/tmux-whisper-inline.sh (executable)"
 assert_contains "integrations_status_raycast_inline_state" "$integrations_text" "inline state: current"
-assert_contains "integrations_status_raycast_inline_version" "$integrations_text" "inline version: 1 (source: 1)"
+assert_contains "integrations_status_raycast_inline_version" "$integrations_text" "inline version: 2 (source: 2)"
 assert_contains "integrations_status_source" "$integrations_text" "source: $ROOT"
 assert_contains "integrations_status_next_doctor" "$integrations_text" "tmux-whisper integrations doctor"
 integrations_json="$(HOME="$INTEGRATIONS_HOME" PATH="$INTEGRATIONS_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$INTEGRATIONS_CFG" DICTATE_CONFIG_FILE="$INTEGRATIONS_CFG/config.toml" tmux-whisper integrations --json)"
@@ -591,38 +591,31 @@ assert_json_equals "integrations_json_command" "$integrations_json" "command" "i
 assert_json_equals "integrations_json_source_root" "$integrations_json" "source.root" "$ROOT"
 assert_json_equals "integrations_json_receipt_exists" "$integrations_json" "receipt.exists" "true"
 assert_json_equals "integrations_json_receipt_ref" "$integrations_json" "receipt.repo_git_ref" "architecture-test"
-assert_json_equals "integrations_json_swiftbar_enabled" "$integrations_json" "swiftbar.enabled" "false"
-assert_json_equals "integrations_json_swiftbar_executable" "$integrations_json" "swiftbar.plugin.executable" "true"
-assert_json_equals "integrations_json_swiftbar_state" "$integrations_json" "swiftbar.plugin.state" "current"
-assert_json_equals "integrations_json_swiftbar_version" "$integrations_json" "swiftbar.plugin.version" "2"
-assert_json_equals "integrations_json_swiftbar_source_version" "$integrations_json" "swiftbar.plugin.source_version" "2"
-assert_json_equals "integrations_json_swiftbar_source" "$integrations_json" "swiftbar.plugin.source_path" "$ROOT/integrations/tmux-whisper-status.0.2s.sh"
+assert_not_contains "integrations_json_no_swiftbar" "$integrations_json" "swiftbar"
 assert_json_equals "integrations_json_raycast_inline" "$integrations_json" "raycast.scripts.0.name" "inline"
 assert_json_equals "integrations_json_raycast_inline_executable" "$integrations_json" "raycast.scripts.0.executable" "true"
 assert_json_equals "integrations_json_raycast_inline_state" "$integrations_json" "raycast.scripts.0.state" "current"
-assert_json_equals "integrations_json_raycast_inline_version" "$integrations_json" "raycast.scripts.0.version" "1"
-assert_json_equals "integrations_json_raycast_inline_source_version" "$integrations_json" "raycast.scripts.0.source_version" "1"
+assert_json_equals "integrations_json_raycast_inline_version" "$integrations_json" "raycast.scripts.0.version" "2"
+assert_json_equals "integrations_json_raycast_inline_source_version" "$integrations_json" "raycast.scripts.0.source_version" "2"
 assert_json_equals "integrations_json_raycast_toggle_state" "$integrations_json" "raycast.scripts.1.state" "current"
-assert_json_equals "integrations_json_raycast_toggle_version" "$integrations_json" "raycast.scripts.1.version" "1"
+assert_json_equals "integrations_json_raycast_toggle_version" "$integrations_json" "raycast.scripts.1.version" "2"
 assert_json_equals "integrations_json_raycast_cancel_state" "$integrations_json" "raycast.scripts.2.state" "current"
-assert_json_equals "integrations_json_raycast_cancel_version" "$integrations_json" "raycast.scripts.2.version" "1"
+assert_json_equals "integrations_json_raycast_cancel_version" "$integrations_json" "raycast.scripts.2.version" "2"
 assert_json_equals "integrations_json_next_doctor" "$integrations_json" "next.0" "run tmux-whisper integrations doctor to diagnose adapter lifecycle drift"
 integrations_doctor="$(HOME="$INTEGRATIONS_HOME" PATH="$INTEGRATIONS_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$INTEGRATIONS_CFG" DICTATE_CONFIG_FILE="$INTEGRATIONS_CFG/config.toml" tmux-whisper integrations doctor)"
 assert_contains "integrations_doctor_header" "$integrations_doctor" "Integration doctor:"
 assert_contains "integrations_doctor_ok" "$integrations_doctor" "status: ok (0 warnings)"
 assert_contains "integrations_doctor_source" "$integrations_doctor" "source: $ROOT"
-assert_contains "integrations_doctor_swiftbar" "$integrations_doctor" "plugin: $INTEGRATIONS_SWIFTBAR/tmux-whisper-status.0.2s.sh (executable)"
-assert_contains "integrations_doctor_swiftbar_state" "$integrations_doctor" "plugin state: current"
-assert_contains "integrations_doctor_swiftbar_version" "$integrations_doctor" "plugin version: 2 (source: 2)"
+assert_not_contains "integrations_doctor_no_swiftbar" "$integrations_doctor" "SwiftBar"
 assert_contains "integrations_doctor_raycast_inline_state" "$integrations_doctor" "inline state: current"
-assert_contains "integrations_doctor_raycast_inline_version" "$integrations_doctor" "inline version: 1 (source: 1)"
+assert_contains "integrations_doctor_raycast_inline_version" "$integrations_doctor" "inline version: 2 (source: 2)"
 assert_contains "integrations_doctor_next_repair" "$integrations_doctor" "tmux-whisper integrations repair --dry-run"
 assert_contains "integrations_doctor_next_repair_apply" "$integrations_doctor" "tmux-whisper integrations repair"
 integrations_repair_dry_run="$(HOME="$INTEGRATIONS_HOME" PATH="$INTEGRATIONS_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$INTEGRATIONS_CFG" DICTATE_CONFIG_FILE="$INTEGRATIONS_CFG/config.toml" tmux-whisper integrations repair --dry-run)"
 assert_contains "integrations_repair_dry_run_header" "$integrations_repair_dry_run" "Integration repair dry run:"
 assert_contains "integrations_repair_dry_run_no_mutation" "$integrations_repair_dry_run" "files changed: 0"
 assert_contains "integrations_repair_dry_run_raycast_plan" "$integrations_repair_dry_run" "would install Raycast inline: $ROOT/integrations/raycast/tmux-whisper-inline.sh -> $INTEGRATIONS_CFG/integrations/raycast/tmux-whisper-inline.sh"
-assert_contains "integrations_repair_dry_run_swiftbar_plan" "$integrations_repair_dry_run" "would install SwiftBar plugin: $ROOT/integrations/tmux-whisper-status.0.2s.sh -> $INTEGRATIONS_SWIFTBAR/tmux-whisper-status.0.2s.sh"
+assert_not_contains "integrations_repair_dry_run_no_swiftbar" "$integrations_repair_dry_run" "SwiftBar"
 chmod -x "$INTEGRATIONS_CFG/integrations/raycast/tmux-whisper-cancel.sh"
 integrations_doctor_raycast_nonexec="$(HOME="$INTEGRATIONS_HOME" PATH="$INTEGRATIONS_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$INTEGRATIONS_CFG" DICTATE_CONFIG_FILE="$INTEGRATIONS_CFG/config.toml" tmux-whisper integrations doctor)"
 assert_contains "integrations_doctor_raycast_nonexec_status" "$integrations_doctor_raycast_nonexec" "status: needs repair"
@@ -637,31 +630,32 @@ assert_contains "integrations_doctor_drift_state" "$integrations_doctor_drift" "
 assert_contains "integrations_doctor_drift_warning" "$integrations_doctor_drift" "Raycast inline script differs from source"
 cp "$ROOT/integrations/raycast/tmux-whisper-inline.sh" "$INTEGRATIONS_CFG/integrations/raycast/tmux-whisper-inline.sh"
 chmod +x "$INTEGRATIONS_CFG/integrations/raycast/tmux-whisper-inline.sh"
-rm -rf "$INTEGRATIONS_CFG/integrations/raycast"
-printf '%s\n' "# stale swiftbar plugin" >"$INTEGRATIONS_SWIFTBAR/tmux-whisper-status.0.2s.sh"
-chmod -x "$INTEGRATIONS_SWIFTBAR/tmux-whisper-status.0.2s.sh"
+rm -f "$INTEGRATIONS_CFG/integrations/raycast/tmux-whisper-inline.sh"
+printf '%s\n' "# stale raycast toggle" >"$INTEGRATIONS_CFG/integrations/raycast/tmux-whisper-toggle.sh"
+chmod -x "$INTEGRATIONS_CFG/integrations/raycast/tmux-whisper-toggle.sh"
 integrations_doctor_broken="$(HOME="$INTEGRATIONS_HOME" PATH="$INTEGRATIONS_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$INTEGRATIONS_CFG" DICTATE_CONFIG_FILE="$INTEGRATIONS_CFG/config.toml" tmux-whisper integrations doctor)"
 assert_contains "integrations_doctor_broken_status" "$integrations_doctor_broken" "status: needs repair"
 assert_contains "integrations_doctor_broken_inline" "$integrations_doctor_broken" "Raycast inline script is missing"
 assert_contains "integrations_doctor_broken_inline_state" "$integrations_doctor_broken" "inline state: missing"
-assert_contains "integrations_doctor_broken_swiftbar" "$integrations_doctor_broken" "SwiftBar plugin is not executable"
-assert_contains "integrations_doctor_broken_swiftbar_state" "$integrations_doctor_broken" "plugin state: non-executable"
+assert_contains "integrations_doctor_broken_toggle" "$integrations_doctor_broken" "Raycast tmux-toggle script is not executable"
+assert_contains "integrations_doctor_broken_toggle_state" "$integrations_doctor_broken" "tmux-toggle state: non-executable"
 integrations_repair_broken_dry_run="$(HOME="$INTEGRATIONS_HOME" PATH="$INTEGRATIONS_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$INTEGRATIONS_CFG" DICTATE_CONFIG_FILE="$INTEGRATIONS_CFG/config.toml" tmux-whisper integrations repair --dry-run)"
 assert_contains "integrations_repair_broken_dry_run_no_mutation" "$integrations_repair_broken_dry_run" "files changed: 0"
 assert_file_not_exists "integrations_repair_dry_run_missing_kept" "$INTEGRATIONS_CFG/integrations/raycast/tmux-whisper-inline.sh"
-assert_file_not_executable "integrations_repair_dry_run_mode_kept" "$INTEGRATIONS_SWIFTBAR/tmux-whisper-status.0.2s.sh"
-assert_file_contains "integrations_repair_dry_run_content_kept" "$INTEGRATIONS_SWIFTBAR/tmux-whisper-status.0.2s.sh" "stale swiftbar"
+assert_file_not_executable "integrations_repair_dry_run_mode_kept" "$INTEGRATIONS_CFG/integrations/raycast/tmux-whisper-toggle.sh"
+assert_file_contains "integrations_repair_dry_run_content_kept" "$INTEGRATIONS_CFG/integrations/raycast/tmux-whisper-toggle.sh" "stale raycast toggle"
 integrations_repair_apply="$(HOME="$INTEGRATIONS_HOME" PATH="$INTEGRATIONS_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$INTEGRATIONS_CFG" DICTATE_CONFIG_FILE="$INTEGRATIONS_CFG/config.toml" tmux-whisper integrations repair)"
 assert_contains "integrations_repair_apply_header" "$integrations_repair_apply" "Integration repair:"
-assert_contains "integrations_repair_apply_changed" "$integrations_repair_apply" "files changed: 4"
+assert_contains "integrations_repair_apply_changed" "$integrations_repair_apply" "files changed: 2"
 assert_contains "integrations_repair_apply_inline" "$integrations_repair_apply" "changed Raycast inline: installed"
-assert_contains "integrations_repair_apply_swiftbar_backup" "$integrations_repair_apply" "changed SwiftBar plugin: replaced"
+assert_contains "integrations_repair_apply_toggle_backup" "$integrations_repair_apply" "changed Raycast tmux-toggle: replaced"
+assert_not_contains "integrations_repair_apply_no_swiftbar" "$integrations_repair_apply" "SwiftBar"
 assert_file_executable "integrations_repair_apply_inline_executable" "$INTEGRATIONS_CFG/integrations/raycast/tmux-whisper-inline.sh"
 assert_file_executable "integrations_repair_apply_toggle_executable" "$INTEGRATIONS_CFG/integrations/raycast/tmux-whisper-toggle.sh"
 assert_file_executable "integrations_repair_apply_cancel_executable" "$INTEGRATIONS_CFG/integrations/raycast/tmux-whisper-cancel.sh"
-assert_file_executable "integrations_repair_apply_swiftbar_executable" "$INTEGRATIONS_SWIFTBAR/tmux-whisper-status.0.2s.sh"
-assert_glob_exists "integrations_repair_apply_swiftbar_backup" "$INTEGRATIONS_CFG/backups/integrations/tmux-whisper-status.0.2s.sh.*"
-if compgen -G "$INTEGRATIONS_SWIFTBAR/tmux-whisper-status.0.2s.sh.*" >/dev/null; then
+assert_glob_exists "integrations_repair_apply_toggle_backup" "$INTEGRATIONS_CFG/backups/integrations/tmux-whisper-toggle.sh.*"
+assert_file_contains "integrations_repair_leaves_retired_plugin" "$INTEGRATIONS_SWIFTBAR/tmux-whisper-status.0.2s.sh" "leftover swiftbar plugin"
+if compgen -G "$INTEGRATIONS_CFG/integrations/raycast/tmux-whisper-toggle.sh.*" >/dev/null; then
   echo "FAIL: integrations_repair_backup_outside_plugin_dir" >&2
   exit 1
 fi
@@ -702,12 +696,11 @@ assert_contains "integrations_brew_source_pkgshare" "$brew_int_doctor" "source: 
 assert_not_contains "integrations_brew_ignores_stale_receipt_root" "$brew_int_doctor" "source: $ROOT"
 assert_contains "integrations_brew_optional_missing_ok" "$brew_int_doctor" "status: ok"
 assert_contains "integrations_brew_raycast_missing_warn" "$brew_int_doctor" "warn/raycast: Raycast inline script is missing"
-assert_not_contains "integrations_brew_swiftbar_skipped_quiet" "$brew_int_doctor" "SwiftBar plugin is not installed"
+assert_not_contains "integrations_brew_no_swiftbar" "$brew_int_doctor" "SwiftBar"
 brew_int_dry_run="$(brew_int_run repair --dry-run)"
-assert_contains "integrations_brew_dry_run_skips_swiftbar" "$brew_int_dry_run" "would skip SwiftBar plugin"
+assert_not_contains "integrations_brew_dry_run_no_swiftbar" "$brew_int_dry_run" "SwiftBar"
 brew_int_repair="$(brew_int_run repair)"
 assert_contains "integrations_brew_repair_changed" "$brew_int_repair" "files changed: 3"
-assert_contains "integrations_brew_repair_swiftbar_skipped" "$brew_int_repair" "unchanged SwiftBar plugin: skipped at install"
 assert_file_executable "integrations_brew_repair_inline_installed" "$BREW_INT_CFG/integrations/raycast/tmux-whisper-inline.sh"
 assert_file_not_exists "integrations_brew_repair_no_swiftbar" "$BREW_INT_HOME/.config/swiftbar/plugins/tmux-whisper-status.0.2s.sh"
 
@@ -723,29 +716,25 @@ mkdir -p "$TOGGLE_HOME"
 toggle_out="$(HOME="$TOGGLE_HOME" PATH="$STUB_BIN:/usr/bin:/bin" DICTATE_BIN="$TMP_ROOT/not-found-dictate" bash "$ROOT/integrations/raycast/tmux-whisper-toggle.sh" 2>&1 || true)"
 assert_contains "raycast_toggle_missing_binary_runtime" "$toggle_out" "tmux-whisper-toggle: Tmux Whisper binary not found."
 
-RAYCAST_REFRESH_HOME="$TMP_ROOT/home-raycast-refresh"
-RAYCAST_REFRESH_BIN="$RAYCAST_REFRESH_HOME/.local/bin"
-RAYCAST_REFRESH_LOG="$TMP_ROOT/raycast-refresh.log"
-mkdir -p "$RAYCAST_REFRESH_BIN" "$RAYCAST_REFRESH_HOME/.config"
-cat >"$RAYCAST_REFRESH_BIN/tmux-whisper" <<'EOF'
+RAYCAST_CALLS_HOME="$TMP_ROOT/home-raycast-calls"
+RAYCAST_CALLS_BIN="$RAYCAST_CALLS_HOME/.local/bin"
+RAYCAST_CALLS_LOG="$TMP_ROOT/raycast-calls.log"
+mkdir -p "$RAYCAST_CALLS_BIN" "$RAYCAST_CALLS_HOME/.config"
+cat >"$RAYCAST_CALLS_BIN/tmux-whisper" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
-printf '%s\n' "$*" >>"${DICTATE_TEST_RAYCAST_REFRESH_LOG:?}"
+printf '%s\n' "$*" >>"${DICTATE_TEST_RAYCAST_CALLS_LOG:?}"
 exit 0
 EOF
-chmod +x "$RAYCAST_REFRESH_BIN/tmux-whisper"
-HOME="$RAYCAST_REFRESH_HOME" PATH="$RAYCAST_REFRESH_BIN:$STUB_BIN:/usr/bin:/bin" DICTATE_BIN="$RAYCAST_REFRESH_BIN/tmux-whisper" DICTATE_TEST_RAYCAST_REFRESH_LOG="$RAYCAST_REFRESH_LOG" bash "$ROOT/integrations/raycast/tmux-whisper-inline.sh" >/dev/null 2>&1
-assert_file_contains "raycast_inline_uses_cli_refresh" "$RAYCAST_REFRESH_LOG" "swiftbar refresh"
+chmod +x "$RAYCAST_CALLS_BIN/tmux-whisper"
+HOME="$RAYCAST_CALLS_HOME" PATH="$RAYCAST_CALLS_BIN:$STUB_BIN:/usr/bin:/bin" DICTATE_BIN="$RAYCAST_CALLS_BIN/tmux-whisper" DICTATE_TEST_RAYCAST_CALLS_LOG="$RAYCAST_CALLS_LOG" bash "$ROOT/integrations/raycast/tmux-whisper-inline.sh" >/dev/null 2>&1
+assert_file_contains "raycast_inline_calls_cli" "$RAYCAST_CALLS_LOG" "inline toggle"
+assert_not_contains "raycast_inline_no_swiftbar_refresh" "$(cat "$RAYCAST_CALLS_LOG")" "swiftbar"
 
 RAYCAST_CANCEL_STATE="$TMP_ROOT/raycast-cancel-inline.state"
 printf 'pid=\nwav=%q\n' "$TMP_ROOT/raycast-cancel.wav" >"$RAYCAST_CANCEL_STATE"
-HOME="$RAYCAST_REFRESH_HOME" PATH="$RAYCAST_REFRESH_BIN:$STUB_BIN:/usr/bin:/bin" DICTATE_BIN="$RAYCAST_REFRESH_BIN/tmux-whisper" DICTATE_INLINE_STATE_FILE="$RAYCAST_CANCEL_STATE" DICTATE_STATE_FILE="$TMP_ROOT/raycast-cancel-tmux.state" DICTATE_CANCEL_FLAG="$TMP_ROOT/raycast-cancel.flag" DICTATE_PROCESSING_DIR="$TMP_ROOT/raycast-processing" DICTATE_TEST_RAYCAST_REFRESH_LOG="$RAYCAST_REFRESH_LOG" bash "$ROOT/integrations/raycast/tmux-whisper-cancel.sh" >/dev/null 2>&1 || true
-assert_file_contains "raycast_cancel_uses_cli_refresh" "$RAYCAST_REFRESH_LOG" "swiftbar refresh"
-
-SWIFTBAR_HOME="$TMP_ROOT/home-swiftbar"
-mkdir -p "$SWIFTBAR_HOME"
-swiftbar_out="$(HOME="$SWIFTBAR_HOME" PATH="$STUB_BIN:/usr/bin:/bin" DICTATE_BIN="$TMP_ROOT/not-found-dictate" DICTATE_STATE_FILE="$SWIFTBAR_HOME/swiftbar.state" DICTATE_INLINE_STATE_FILE="$SWIFTBAR_HOME/swiftbar-inline.state" DICTATE_PROCESSING_DIR="$SWIFTBAR_HOME/dictate-processing" DICTATE_PROCESSED_FLAG="$SWIFTBAR_HOME/dictate-just-processed" DICTATE_CANCEL_FLAG="$SWIFTBAR_HOME/dictate-cancelled.flag" DICTATE_PROCESSING_LONG_FLAG="$SWIFTBAR_HOME/dictate-inline-processing-long.flag" DICTATE_TMUX_JOBS_DIR="$SWIFTBAR_HOME/dictate-tmux-jobs" bash "$ROOT/integrations/tmux-whisper-status.0.2s.sh")"
-assert_contains "swiftbar_missing_binary_runtime" "$swiftbar_out" "Tmux Whisper binary not found"
+HOME="$RAYCAST_CALLS_HOME" PATH="$RAYCAST_CALLS_BIN:$STUB_BIN:/usr/bin:/bin" DICTATE_BIN="$RAYCAST_CALLS_BIN/tmux-whisper" DICTATE_INLINE_STATE_FILE="$RAYCAST_CANCEL_STATE" DICTATE_STATE_FILE="$TMP_ROOT/raycast-cancel-tmux.state" DICTATE_CANCEL_FLAG="$TMP_ROOT/raycast-cancel.flag" DICTATE_PROCESSING_DIR="$TMP_ROOT/raycast-processing" DICTATE_TEST_RAYCAST_CALLS_LOG="$RAYCAST_CALLS_LOG" bash "$ROOT/integrations/raycast/tmux-whisper-cancel.sh" >/dev/null 2>&1 || true
+assert_not_contains "raycast_cancel_no_swiftbar_refresh" "$(cat "$RAYCAST_CALLS_LOG")" "swiftbar"
 
 IDLE_STOP_HOME="$TMP_ROOT/home-idle-stop"
 IDLE_STOP_BIN="$IDLE_STOP_HOME/.local/bin"
@@ -763,34 +752,15 @@ config_version = 1
 
 [audio]
 source = "auto"
-
-[integrations.swiftbar]
-enabled = true
 EOF
 
-idle_stop_out="$(HOME="$IDLE_STOP_HOME" PATH="$IDLE_STOP_BIN:$STUB_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$IDLE_STOP_CFG" DICTATE_CONFIG_FILE="$IDLE_STOP_CFG/config.toml" DICTATE_STATE_FILE="$IDLE_STOP_HOME/tmux.state" DICTATE_INLINE_STATE_FILE="$IDLE_STOP_HOME/inline.state" DICTATE_ERROR_FLAG="$IDLE_STOP_HOME/error.flag" DICTATE_SWIFTBAR_REFRESH_LOG="$IDLE_STOP_HOME/refresh.log" tmux-whisper stop 2>&1 || true)"
+idle_stop_out="$(HOME="$IDLE_STOP_HOME" PATH="$IDLE_STOP_BIN:$STUB_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$IDLE_STOP_CFG" DICTATE_CONFIG_FILE="$IDLE_STOP_CFG/config.toml" DICTATE_STATE_FILE="$IDLE_STOP_HOME/tmux.state" DICTATE_INLINE_STATE_FILE="$IDLE_STOP_HOME/inline.state" DICTATE_ERROR_FLAG="$IDLE_STOP_HOME/error.flag" tmux-whisper stop 2>&1 || true)"
 assert_contains "idle_tmux_stop_reports_not_recording" "$idle_stop_out" "not recording. Run: tmux-whisper start"
 assert_file_not_exists "idle_tmux_stop_no_error_flag" "$IDLE_STOP_HOME/error.flag"
-assert_file_not_exists "idle_tmux_stop_no_swiftbar_refresh" "$IDLE_STOP_HOME/refresh.log"
 
-idle_inline_stop_out="$(HOME="$IDLE_STOP_HOME" PATH="$IDLE_STOP_BIN:$STUB_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$IDLE_STOP_CFG" DICTATE_CONFIG_FILE="$IDLE_STOP_CFG/config.toml" DICTATE_STATE_FILE="$IDLE_STOP_HOME/tmux.state" DICTATE_INLINE_STATE_FILE="$IDLE_STOP_HOME/inline.state" DICTATE_ERROR_FLAG="$IDLE_STOP_HOME/error.flag" DICTATE_SWIFTBAR_REFRESH_LOG="$IDLE_STOP_HOME/refresh.log" tmux-whisper inline stop 2>&1 || true)"
+idle_inline_stop_out="$(HOME="$IDLE_STOP_HOME" PATH="$IDLE_STOP_BIN:$STUB_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$IDLE_STOP_CFG" DICTATE_CONFIG_FILE="$IDLE_STOP_CFG/config.toml" DICTATE_STATE_FILE="$IDLE_STOP_HOME/tmux.state" DICTATE_INLINE_STATE_FILE="$IDLE_STOP_HOME/inline.state" DICTATE_ERROR_FLAG="$IDLE_STOP_HOME/error.flag" tmux-whisper inline stop 2>&1 || true)"
 assert_contains "idle_inline_stop_reports_not_recording" "$idle_inline_stop_out" "not recording. Run: tmux-whisper inline start"
 assert_file_not_exists "idle_inline_stop_no_error_flag" "$IDLE_STOP_HOME/error.flag"
-assert_file_not_exists "idle_inline_stop_no_swiftbar_refresh" "$IDLE_STOP_HOME/refresh.log"
-
-# Lifecycle refreshes are skipped when the SwiftBar integration is disabled,
-# while an explicit `swiftbar refresh` still requests one.
-GATED_REFRESH_LOG="$IDLE_STOP_HOME/gated-refresh.log"
-CFG_SWIFTBAR_ENABLED=0 DICTATE_SWIFTBAR_REFRESH_LOG="$GATED_REFRESH_LOG" \
-  bash -c 'source "$1"; swiftbar_refresh' _ "$ROOT/bin/tmux-whisper-lib/integrations.sh"
-assert_file_not_exists "swiftbar_refresh_disabled_noop" "$GATED_REFRESH_LOG"
-CFG_SWIFTBAR_ENABLED=1 DICTATE_SWIFTBAR_REFRESH_LOG="$GATED_REFRESH_LOG" \
-  bash -c 'source "$1"; swiftbar_refresh' _ "$ROOT/bin/tmux-whisper-lib/integrations.sh"
-assert_file_contains "swiftbar_refresh_enabled_requests" "$GATED_REFRESH_LOG" "refresh plugin=tmux-whisper-status.0.2s.sh"
-rm -f "$GATED_REFRESH_LOG"
-CFG_SWIFTBAR_ENABLED=0 DICTATE_SWIFTBAR_REFRESH_LOG="$GATED_REFRESH_LOG" \
-  bash -c 'source "$1"; swiftbar_refresh_now' _ "$ROOT/bin/tmux-whisper-lib/integrations.sh"
-assert_file_contains "swiftbar_refresh_now_ignores_toggle" "$GATED_REFRESH_LOG" "refresh plugin=tmux-whisper-status.0.2s.sh"
 
 # A freshly truncated marker can be an active writer between open and publish.
 # Doctor must leave it alone so the recording control is not lost.
@@ -819,243 +789,13 @@ wait "$concurrent_writer_pid"
 assert_file_exists "status_concurrent_state_not_pruned_before_publish" "$CONCURRENT_STATE_SEEN"
 assert_file_contains "status_concurrent_state_published" "$CONCURRENT_INLINE_STATE" "pid=$$"
 
-# --- Regression 10: SwiftBar runtime integration toggle works end-to-end. ---
-SWIFTBAR_TOGGLE_HOME="$TMP_ROOT/home-swiftbar-toggle"
-SWIFTBAR_TOGGLE_BIN="$SWIFTBAR_TOGGLE_HOME/.local/bin"
-SWIFTBAR_TOGGLE_CFG="$SWIFTBAR_TOGGLE_HOME/.config/dictate"
-mkdir -p "$SWIFTBAR_TOGGLE_BIN" "$SWIFTBAR_TOGGLE_CFG"
-install_test_runtime "$SWIFTBAR_TOGGLE_BIN"
-cat >"$SWIFTBAR_TOGGLE_CFG/config.toml" <<'EOF'
-[meta]
-config_version = 1
-
-[audio]
-source = "auto"
-
-[integrations.swiftbar]
-enabled = false
-EOF
-
-swiftbar_show_off="$(HOME="$SWIFTBAR_TOGGLE_HOME" PATH="$SWIFTBAR_TOGGLE_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$SWIFTBAR_TOGGLE_CFG" DICTATE_CONFIG_FILE="$SWIFTBAR_TOGGLE_CFG/config.toml" tmux-whisper swiftbar)"
-assert_contains "swiftbar_cli_show_off" "$swiftbar_show_off" "SwiftBar integration: OFF"
-
-swiftbar_cli_on="$(HOME="$SWIFTBAR_TOGGLE_HOME" PATH="$SWIFTBAR_TOGGLE_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$SWIFTBAR_TOGGLE_CFG" DICTATE_CONFIG_FILE="$SWIFTBAR_TOGGLE_CFG/config.toml" tmux-whisper swiftbar on)"
-assert_contains "swiftbar_cli_on" "$swiftbar_cli_on" "SwiftBar integration: ON"
-
-swiftbar_cli_toggle="$(HOME="$SWIFTBAR_TOGGLE_HOME" PATH="$SWIFTBAR_TOGGLE_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$SWIFTBAR_TOGGLE_CFG" DICTATE_CONFIG_FILE="$SWIFTBAR_TOGGLE_CFG/config.toml" tmux-whisper swiftbar toggle)"
-assert_contains "swiftbar_cli_toggle" "$swiftbar_cli_toggle" "SwiftBar integration: OFF"
-
-swiftbar_toggle_out="$(HOME="$SWIFTBAR_TOGGLE_HOME" XDG_CONFIG_HOME="$SWIFTBAR_TOGGLE_HOME/.config" PATH="$SWIFTBAR_TOGGLE_BIN:$STUB_BIN:/usr/bin:/bin" SWIFTBAR_PLUGIN_CACHE_PATH="$SWIFTBAR_TOGGLE_HOME/.cache/swiftbar" DICTATE_BIN="$SWIFTBAR_TOGGLE_BIN/tmux-whisper" DICTATE_STATE_FILE="$SWIFTBAR_TOGGLE_HOME/swiftbar.state" DICTATE_INLINE_STATE_FILE="$SWIFTBAR_TOGGLE_HOME/swiftbar-inline.state" DICTATE_PROCESSING_DIR="$SWIFTBAR_TOGGLE_HOME/dictate-processing" DICTATE_PROCESSED_FLAG="$SWIFTBAR_TOGGLE_HOME/dictate-just-processed" DICTATE_CANCEL_FLAG="$SWIFTBAR_TOGGLE_HOME/dictate-cancelled.flag" DICTATE_PROCESSING_LONG_FLAG="$SWIFTBAR_TOGGLE_HOME/dictate-inline-processing-long.flag" DICTATE_TMUX_JOBS_DIR="$SWIFTBAR_TOGGLE_HOME/dictate-tmux-jobs" bash "$ROOT/integrations/tmux-whisper-status.0.2s.sh")"
-assert_contains "swiftbar_plugin_off_state" "$swiftbar_toggle_out" "SwiftBar integration: OFF"
-assert_contains "swiftbar_plugin_off_enable_action" "$swiftbar_toggle_out" "Enable SwiftBar integration"
-
-# --- Regression 11: SwiftBar mode menus are folder-driven and respect flow filters. ---
-SWIFTBAR_MODES_HOME="$TMP_ROOT/home-swiftbar-modes"
-SWIFTBAR_MODES_BIN="$SWIFTBAR_MODES_HOME/.local/bin"
-SWIFTBAR_MODES_CFG="$SWIFTBAR_MODES_HOME/.config/dictate"
-mkdir -p "$SWIFTBAR_MODES_BIN" "$SWIFTBAR_MODES_CFG/modes/base" "$SWIFTBAR_MODES_CFG/modes/code" "$SWIFTBAR_MODES_CFG/modes/email" "$SWIFTBAR_MODES_CFG/modes/long"
-install_test_runtime "$SWIFTBAR_MODES_BIN"
-cat >"$SWIFTBAR_MODES_CFG/config.toml" <<'EOF'
-[meta]
-config_version = 1
-
-[audio]
-source = "auto"
-
-[integrations.swiftbar]
-enabled = true
-
-[ui.icons]
-email = ""
-EOF
-printf '%s\n' "auto" >"$SWIFTBAR_MODES_CFG/current-mode"
-printf '%s\n' "Context: base mode." >"$SWIFTBAR_MODES_CFG/modes/base/prompt"
-printf '%s\n' "inline" >"$SWIFTBAR_MODES_CFG/modes/base/flows"
-printf '%s\n' "Context: code mode." >"$SWIFTBAR_MODES_CFG/modes/code/prompt"
-printf '%s\n' "tmux" "inline" >"$SWIFTBAR_MODES_CFG/modes/code/flows"
-printf '%s\n' "Context: email mode." >"$SWIFTBAR_MODES_CFG/modes/email/prompt"
-printf '%s\n' "Mail" >"$SWIFTBAR_MODES_CFG/modes/email/apps"
-printf '%s\n' "inline" >"$SWIFTBAR_MODES_CFG/modes/email/flows"
-printf '%s\n' "Context: long mode." >"$SWIFTBAR_MODES_CFG/modes/long/prompt"
-printf '%s\n' "inline" >"$SWIFTBAR_MODES_CFG/modes/long/flows"
-
-swiftbar_modes_out="$(HOME="$SWIFTBAR_MODES_HOME" XDG_CONFIG_HOME="$SWIFTBAR_MODES_HOME/.config" PATH="$SWIFTBAR_MODES_BIN:$STUB_BIN:/usr/bin:/bin" SWIFTBAR_PLUGIN_CACHE_PATH="$SWIFTBAR_MODES_HOME/.cache/swiftbar" DICTATE_BIN="$SWIFTBAR_MODES_BIN/tmux-whisper" DICTATE_TEST_FRONT_APP=Mail DICTATE_STATE_FILE="$SWIFTBAR_MODES_HOME/swiftbar.state" DICTATE_INLINE_STATE_FILE="$SWIFTBAR_MODES_HOME/swiftbar-inline.state" DICTATE_PROCESSING_DIR="$SWIFTBAR_MODES_HOME/dictate-processing" DICTATE_PROCESSED_FLAG="$SWIFTBAR_MODES_HOME/dictate-just-processed" DICTATE_CANCEL_FLAG="$SWIFTBAR_MODES_HOME/dictate-cancelled.flag" DICTATE_PROCESSING_LONG_FLAG="$SWIFTBAR_MODES_HOME/dictate-inline-processing-long.flag" DICTATE_TMUX_JOBS_DIR="$SWIFTBAR_MODES_HOME/dictate-tmux-jobs" bash "$ROOT/integrations/tmux-whisper-status.0.2s.sh")"
-swiftbar_modes_first_line="$(printf '%s\n' "$swiftbar_modes_out" | sed -n '1p')"
-assert_equals "swiftbar_inline_blank_mode_icon_ready_line" "$swiftbar_modes_first_line" "🎙️"
-assert_contains "swiftbar_inline_mode_auto_display" "$swiftbar_modes_out" "Mode: email"
-assert_not_contains "swiftbar_inline_menu_auto_hidden" "$swiftbar_modes_out" "param1=mode param2=auto"
-assert_not_contains "swiftbar_inline_menu_email_hidden" "$swiftbar_modes_out" "param1=mode param2=email"
-assert_contains "swiftbar_inline_process_sound_present" "$swiftbar_modes_out" "param1=inline param2=process-sound"
-assert_contains "swiftbar_tmux_menu_code" "$swiftbar_modes_out" "param1=tmux param2=mode param3=code"
-assert_not_contains "swiftbar_tmux_menu_email_hidden" "$swiftbar_modes_out" "param1=tmux param2=mode param3=email"
-assert_not_contains "swiftbar_tmux_menu_long_hidden" "$swiftbar_modes_out" "param1=tmux param2=mode param3=long"
-assert_not_contains "swiftbar_inline_model_menu_removed" "$swiftbar_modes_out" "param1=model"
-assert_not_contains "swiftbar_tmux_model_menu_removed" "$swiftbar_modes_out" "param2=model param3="
-assert_not_contains "swiftbar_inline_silence_trim_removed" "$swiftbar_modes_out" "Silence trim:"
-assert_contains "swiftbar_inline_repeats_present" "$swiftbar_modes_out" "Repeats level"
-assert_contains "swiftbar_inline_repeats_action" "$swiftbar_modes_out" "param1=repeats param2=1"
-assert_not_contains "swiftbar_inline_backend_removed" "$swiftbar_modes_out" "Backend:"
-
-mkdir -p "$SWIFTBAR_MODES_HOME/dictate-processing"
-printf 'pid=%s\nkind=inline\n' "$$" >"$SWIFTBAR_MODES_HOME/dictate-processing/inline-test"
-swiftbar_processing_out="$(HOME="$SWIFTBAR_MODES_HOME" XDG_CONFIG_HOME="$SWIFTBAR_MODES_HOME/.config" PATH="$SWIFTBAR_MODES_BIN:$STUB_BIN:/usr/bin:/bin" SWIFTBAR_PLUGIN_CACHE_PATH="$SWIFTBAR_MODES_HOME/.cache/swiftbar" DICTATE_BIN="$SWIFTBAR_MODES_BIN/tmux-whisper" DICTATE_TEST_FRONT_APP=Mail DICTATE_STATE_FILE="$SWIFTBAR_MODES_HOME/swiftbar.state" DICTATE_INLINE_STATE_FILE="$SWIFTBAR_MODES_HOME/swiftbar-inline.state" DICTATE_PROCESSING_DIR="$SWIFTBAR_MODES_HOME/dictate-processing" DICTATE_PROCESSED_FLAG="$SWIFTBAR_MODES_HOME/dictate-just-processed" DICTATE_CANCEL_FLAG="$SWIFTBAR_MODES_HOME/dictate-cancelled.flag" DICTATE_PROCESSING_LONG_FLAG="$SWIFTBAR_MODES_HOME/dictate-inline-processing-long.flag" DICTATE_TMUX_JOBS_DIR="$SWIFTBAR_MODES_HOME/dictate-tmux-jobs" bash "$ROOT/integrations/tmux-whisper-status.0.2s.sh")"
-assert_contains "swiftbar_inline_processing_marker_state" "$swiftbar_processing_out" "Processing (1)"
-rm -f "$SWIFTBAR_MODES_HOME/dictate-processing/inline-test"
-# Lowkey's markers span the whole take: only queued/processing count, and a
-# take handed to the CLI (phase=cli) is counted by the CLI's own marker.
-for lowkey_phase in recording queued processing cli; do
-  printf 'pid=%s\nkind=inline\nsession_id=%s\nphase=%s\n' "$$" "$lowkey_phase" "$lowkey_phase" \
-    >"$SWIFTBAR_MODES_HOME/dictate-processing/inline-lowkey-$lowkey_phase"
+# --- Regression 10: the retired `swiftbar` command stays a harmless no-op so
+# older Raycast copies and scripts keep exiting 0. ---
+for swiftbar_args in "" "refresh" "on"; do
+  # shellcheck disable=SC2086
+  swiftbar_retired_out="$(HOME="$IDLE_STOP_HOME" PATH="$IDLE_STOP_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$IDLE_STOP_CFG" DICTATE_CONFIG_FILE="$IDLE_STOP_CFG/config.toml" tmux-whisper swiftbar $swiftbar_args)"
+  assert_contains "swiftbar_command_retired_${swiftbar_args:-show}" "$swiftbar_retired_out" "SwiftBar plugin has been retired"
 done
-swiftbar_lowkey_out="$(HOME="$SWIFTBAR_MODES_HOME" XDG_CONFIG_HOME="$SWIFTBAR_MODES_HOME/.config" PATH="$SWIFTBAR_MODES_BIN:$STUB_BIN:/usr/bin:/bin" SWIFTBAR_PLUGIN_CACHE_PATH="$SWIFTBAR_MODES_HOME/.cache/swiftbar" DICTATE_BIN="$SWIFTBAR_MODES_BIN/tmux-whisper" DICTATE_TEST_FRONT_APP=Mail DICTATE_STATE_FILE="$SWIFTBAR_MODES_HOME/swiftbar.state" DICTATE_INLINE_STATE_FILE="$SWIFTBAR_MODES_HOME/swiftbar-inline.state" DICTATE_PROCESSING_DIR="$SWIFTBAR_MODES_HOME/dictate-processing" DICTATE_PROCESSED_FLAG="$SWIFTBAR_MODES_HOME/dictate-just-processed" DICTATE_CANCEL_FLAG="$SWIFTBAR_MODES_HOME/dictate-cancelled.flag" DICTATE_PROCESSING_LONG_FLAG="$SWIFTBAR_MODES_HOME/dictate-inline-processing-long.flag" DICTATE_TMUX_JOBS_DIR="$SWIFTBAR_MODES_HOME/dictate-tmux-jobs" bash "$ROOT/integrations/tmux-whisper-status.0.2s.sh")"
-assert_contains "swiftbar_lowkey_counts_processing_phases" "$swiftbar_lowkey_out" "Processing (2)"
-rm -f "$SWIFTBAR_MODES_HOME/dictate-processing"/inline-lowkey-*
-assert_contains "swiftbar_tmux_target_present" "$swiftbar_modes_out" "param1=tmux param2=target"
-
-touch "$SWIFTBAR_MODES_HOME/stale.wav"
-printf 'pid=999999\nwav=%q\n' "$SWIFTBAR_MODES_HOME/stale.wav" >"$SWIFTBAR_MODES_HOME/swiftbar-inline.state"
-touch -t 202001010000 "$SWIFTBAR_MODES_HOME/swiftbar-inline.state" 2>/dev/null || true
-swiftbar_stale_recording_out="$(HOME="$SWIFTBAR_MODES_HOME" XDG_CONFIG_HOME="$SWIFTBAR_MODES_HOME/.config" PATH="$SWIFTBAR_MODES_BIN:$STUB_BIN:/usr/bin:/bin" SWIFTBAR_PLUGIN_CACHE_PATH="$SWIFTBAR_MODES_HOME/.cache/swiftbar" DICTATE_BIN="$SWIFTBAR_MODES_BIN/tmux-whisper" DICTATE_TEST_FRONT_APP=Mail DICTATE_STATE_FILE="$SWIFTBAR_MODES_HOME/swiftbar.state" DICTATE_INLINE_STATE_FILE="$SWIFTBAR_MODES_HOME/swiftbar-inline.state" DICTATE_PROCESSING_DIR="$SWIFTBAR_MODES_HOME/dictate-processing" DICTATE_PROCESSED_FLAG="$SWIFTBAR_MODES_HOME/dictate-just-processed" DICTATE_CANCEL_FLAG="$SWIFTBAR_MODES_HOME/dictate-cancelled.flag" DICTATE_PROCESSING_LONG_FLAG="$SWIFTBAR_MODES_HOME/dictate-inline-processing-long.flag" DICTATE_TMUX_JOBS_DIR="$SWIFTBAR_MODES_HOME/dictate-tmux-jobs" bash "$ROOT/integrations/tmux-whisper-status.0.2s.sh")"
-assert_contains "swiftbar_stale_recording_ready" "$swiftbar_stale_recording_out" "Ready"
-assert_file_not_exists "swiftbar_stale_recording_cleaned" "$SWIFTBAR_MODES_HOME/swiftbar-inline.state"
-assert_file_exists "swiftbar_stale_recording_wav_preserved" "$SWIFTBAR_MODES_HOME/stale.wav"
-
-printf 'pid=%s\n' "$$" >"$SWIFTBAR_MODES_HOME/swiftbar-inline.state"
-touch "$SWIFTBAR_MODES_HOME/dictate-error.flag"
-swiftbar_live_recording_out="$(HOME="$SWIFTBAR_MODES_HOME" XDG_CONFIG_HOME="$SWIFTBAR_MODES_HOME/.config" PATH="$SWIFTBAR_MODES_BIN:$STUB_BIN:/usr/bin:/bin" SWIFTBAR_PLUGIN_CACHE_PATH="$SWIFTBAR_MODES_HOME/.cache/swiftbar" DICTATE_BIN="$SWIFTBAR_MODES_BIN/tmux-whisper" DICTATE_TEST_FRONT_APP=Mail DICTATE_STATE_FILE="$SWIFTBAR_MODES_HOME/swiftbar.state" DICTATE_INLINE_STATE_FILE="$SWIFTBAR_MODES_HOME/swiftbar-inline.state" DICTATE_ERROR_FLAG="$SWIFTBAR_MODES_HOME/dictate-error.flag" DICTATE_PROCESSING_DIR="$SWIFTBAR_MODES_HOME/dictate-processing" DICTATE_PROCESSED_FLAG="$SWIFTBAR_MODES_HOME/dictate-just-processed" DICTATE_CANCEL_FLAG="$SWIFTBAR_MODES_HOME/dictate-cancelled.flag" DICTATE_PROCESSING_LONG_FLAG="$SWIFTBAR_MODES_HOME/dictate-inline-processing-long.flag" DICTATE_TMUX_JOBS_DIR="$SWIFTBAR_MODES_HOME/dictate-tmux-jobs" bash "$ROOT/integrations/tmux-whisper-status.0.2s.sh")"
-assert_contains "swiftbar_live_recording_precedes_recent_error" "$swiftbar_live_recording_out" "Recording..."
-assert_not_contains "swiftbar_live_recording_hides_recent_error" "$swiftbar_live_recording_out" "Error occurred"
-rm -f "$SWIFTBAR_MODES_HOME/swiftbar-inline.state" "$SWIFTBAR_MODES_HOME/dictate-error.flag"
-
-mkdir -p "$SWIFTBAR_MODES_HOME/dictate-processing"
-printf 'pid=999999\nkind=inline\n' >"$SWIFTBAR_MODES_HOME/dictate-processing/inline-stale"
-touch "$SWIFTBAR_MODES_HOME/dictate-cancelled.flag"
-swiftbar_cancel_out="$(HOME="$SWIFTBAR_MODES_HOME" XDG_CONFIG_HOME="$SWIFTBAR_MODES_HOME/.config" PATH="$SWIFTBAR_MODES_BIN:$STUB_BIN:/usr/bin:/bin" SWIFTBAR_PLUGIN_CACHE_PATH="$SWIFTBAR_MODES_HOME/.cache/swiftbar" DICTATE_BIN="$SWIFTBAR_MODES_BIN/tmux-whisper" DICTATE_TEST_FRONT_APP=Mail DICTATE_STATE_FILE="$SWIFTBAR_MODES_HOME/swiftbar.state" DICTATE_INLINE_STATE_FILE="$SWIFTBAR_MODES_HOME/swiftbar-inline.state" DICTATE_PROCESSING_DIR="$SWIFTBAR_MODES_HOME/dictate-processing" DICTATE_PROCESSED_FLAG="$SWIFTBAR_MODES_HOME/dictate-just-processed" DICTATE_CANCEL_FLAG="$SWIFTBAR_MODES_HOME/dictate-cancelled.flag" DICTATE_PROCESSING_LONG_FLAG="$SWIFTBAR_MODES_HOME/dictate-inline-processing-long.flag" DICTATE_TMUX_JOBS_DIR="$SWIFTBAR_MODES_HOME/dictate-tmux-jobs" bash "$ROOT/integrations/tmux-whisper-status.0.2s.sh")"
-assert_contains "swiftbar_recent_cancel_visible" "$swiftbar_cancel_out" "Cancelled"
-touch -t 202001010000 "$SWIFTBAR_MODES_HOME/dictate-cancelled.flag" "$SWIFTBAR_MODES_HOME/dictate-just-processed" 2>/dev/null || true
-swiftbar_stale_marker_out="$(HOME="$SWIFTBAR_MODES_HOME" XDG_CONFIG_HOME="$SWIFTBAR_MODES_HOME/.config" PATH="$SWIFTBAR_MODES_BIN:$STUB_BIN:/usr/bin:/bin" SWIFTBAR_PLUGIN_CACHE_PATH="$SWIFTBAR_MODES_HOME/.cache/swiftbar" DICTATE_BIN="$SWIFTBAR_MODES_BIN/tmux-whisper" DICTATE_TEST_FRONT_APP=Mail DICTATE_STATE_FILE="$SWIFTBAR_MODES_HOME/swiftbar.state" DICTATE_INLINE_STATE_FILE="$SWIFTBAR_MODES_HOME/swiftbar-inline.state" DICTATE_PROCESSING_DIR="$SWIFTBAR_MODES_HOME/dictate-processing" DICTATE_PROCESSED_FLAG="$SWIFTBAR_MODES_HOME/dictate-just-processed" DICTATE_CANCEL_FLAG="$SWIFTBAR_MODES_HOME/dictate-cancelled.flag" DICTATE_PROCESSING_LONG_FLAG="$SWIFTBAR_MODES_HOME/dictate-inline-processing-long.flag" DICTATE_TMUX_JOBS_DIR="$SWIFTBAR_MODES_HOME/dictate-tmux-jobs" bash "$ROOT/integrations/tmux-whisper-status.0.2s.sh")"
-assert_contains "swiftbar_stale_processing_ready" "$swiftbar_stale_marker_out" "Ready"
-assert_file_not_exists "swiftbar_stale_processing_cleaned" "$SWIFTBAR_MODES_HOME/dictate-processing/inline-stale"
-assert_file_not_exists "swiftbar_old_cancel_cleaned" "$SWIFTBAR_MODES_HOME/dictate-cancelled.flag"
-assert_file_not_exists "swiftbar_old_processed_cleaned" "$SWIFTBAR_MODES_HOME/dictate-just-processed"
-
-# --- Regression 12: SwiftBar consumes cached stable CLI usage JSON. ---
-SWIFTBAR_USAGE_HOME="$TMP_ROOT/home-swiftbar-usage"
-SWIFTBAR_USAGE_BIN="$SWIFTBAR_USAGE_HOME/.local/bin"
-SWIFTBAR_USAGE_CFG="$SWIFTBAR_USAGE_HOME/.config/dictate"
-SWIFTBAR_USAGE_CACHE="$SWIFTBAR_USAGE_HOME/.cache/swiftbar"
-SWIFTBAR_USAGE_CALL_LOG="$SWIFTBAR_USAGE_HOME/usage-calls.log"
-SWIFTBAR_USAGE_JSON="$SWIFTBAR_USAGE_HOME/usage-response.json"
-mkdir -p "$SWIFTBAR_USAGE_BIN" "$SWIFTBAR_USAGE_CFG" "$SWIFTBAR_USAGE_CACHE"
-cat >"$SWIFTBAR_USAGE_CFG/config.toml" <<'EOF'
-[meta]
-config_version = 1
-
-[audio]
-source = "auto"
-
-[integrations.swiftbar]
-enabled = true
-EOF
-cat >"$SWIFTBAR_USAGE_BIN/tmux-whisper" <<'EOF'
-#!/usr/bin/env bash
-if [[ "${1:-}" == "usage" && "${2:-}" == "--json" ]]; then
-  printf 'usage\n' >>"${DICTATE_USAGE_CALL_LOG:?}"
-  cat "${DICTATE_USAGE_STUB_JSON:?}"
-  exit 0
-fi
-exit 1
-EOF
-chmod +x "$SWIFTBAR_USAGE_BIN/tmux-whisper"
-# Includes the additive daily_tracking_started_at (0.11): SwiftBar reads
-# named fields, so newer output must keep working.
-cat >"$SWIFTBAR_USAGE_JSON" <<'EOF'
-{"command":"usage","schema_version":1,"coverage":{"status":"active","tracking_started_at":"2026-09-17T09:00:00Z","daily_tracking_started_at":"2026-10-15T08:00:00Z"},"delivered_dictations":{"count":4},"processed_words":1234,"estimated_time_difference_ms":150000}
-EOF
-swiftbar_usage_env=(
-  HOME="$SWIFTBAR_USAGE_HOME"
-  XDG_CONFIG_HOME="$SWIFTBAR_USAGE_HOME/.config"
-  PATH="$SWIFTBAR_USAGE_BIN:$STUB_BIN:/usr/bin:/bin"
-  SWIFTBAR_PLUGIN_CACHE_PATH="$SWIFTBAR_USAGE_CACHE"
-  DICTATE_BIN="$SWIFTBAR_USAGE_BIN/tmux-whisper"
-  DICTATE_INTERNAL_LIB_DIR="$ROOT/bin/tmux-whisper-lib"
-  DICTATE_USAGE_CALL_LOG="$SWIFTBAR_USAGE_CALL_LOG"
-  DICTATE_USAGE_STUB_JSON="$SWIFTBAR_USAGE_JSON"
-  DICTATE_USAGE_SUMMARY_FILE="$SWIFTBAR_USAGE_HOME/usage.json"
-  DICTATE_STATE_FILE="$SWIFTBAR_USAGE_HOME/tmux.state"
-  DICTATE_INLINE_STATE_FILE="$SWIFTBAR_USAGE_HOME/inline.state"
-  DICTATE_PROCESSING_DIR="$SWIFTBAR_USAGE_HOME/dictate-processing"
-  DICTATE_PROCESSED_FLAG="$SWIFTBAR_USAGE_HOME/dictate-just-processed"
-  DICTATE_CANCEL_FLAG="$SWIFTBAR_USAGE_HOME/dictate-cancelled.flag"
-  DICTATE_PROCESSING_LONG_FLAG="$SWIFTBAR_USAGE_HOME/dictate-inline-processing-long.flag"
-  DICTATE_TMUX_JOBS_DIR="$SWIFTBAR_USAGE_HOME/dictate-tmux-jobs"
-)
-swiftbar_usage_out="$(env "${swiftbar_usage_env[@]}" bash "$ROOT/integrations/tmux-whisper-status.0.2s.sh")"
-assert_contains "swiftbar_usage_words" "$swiftbar_usage_out" "Usage (tracked): 1234 words · 4 deliveries"
-assert_contains "swiftbar_usage_tracking_period" "$swiftbar_usage_out" "Tracking since: 2026-09-17T09:00:00Z"
-assert_contains "swiftbar_usage_labeled_difference" "$swiftbar_usage_out" "Estimated typing-time difference: +2m 30s (typing - dictation)"
-assert_file_contains "swiftbar_usage_cli_contract_called" "$SWIFTBAR_USAGE_CALL_LOG" "usage"
-assert_file_exists "swiftbar_config_private_cache_created" "$SWIFTBAR_USAGE_CACHE/dictate-config.cache"
-assert_file_exists "swiftbar_usage_private_cache_created" "$SWIFTBAR_USAGE_CACHE/tmux-whisper-usage.cache"
-swiftbar_cache_mode="$(stat -c '%a' "$SWIFTBAR_USAGE_CACHE" 2>/dev/null || stat -f '%Lp' "$SWIFTBAR_USAGE_CACHE" 2>/dev/null)"
-assert_equals "swiftbar_sourced_caches_private_permissions" "$swiftbar_cache_mode" "700"
-swiftbar_usage_cached_out="$(env "${swiftbar_usage_env[@]}" bash "$ROOT/integrations/tmux-whisper-status.0.2s.sh")"
-assert_contains "swiftbar_usage_cache_keeps_menu" "$swiftbar_usage_cached_out" "Usage (tracked): 1234 words"
-usage_call_count="$(wc -l <"$SWIFTBAR_USAGE_CALL_LOG" | tr -d ' ')"
-assert_equals "swiftbar_usage_cache_avoids_hot_path_cli" "$usage_call_count" "1"
-
-# A cache file left behind from a formerly shared directory must never be
-# sourced. The plugin ignores it and atomically replaces it with a regular,
-# private cache file after reading the CLI contract again.
-printf '%s\n' 'USAGE_MENU_STATE=not_started' >"$SWIFTBAR_USAGE_HOME/untrusted-cache"
-ln -sf "$SWIFTBAR_USAGE_HOME/untrusted-cache" "$SWIFTBAR_USAGE_CACHE/tmux-whisper-usage.cache"
-swiftbar_usage_symlink_out="$(env "${swiftbar_usage_env[@]}" bash "$ROOT/integrations/tmux-whisper-status.0.2s.sh")"
-assert_contains "swiftbar_usage_symlink_not_sourced" "$swiftbar_usage_symlink_out" "Usage (tracked): 1234 words"
-assert_not_symlink "swiftbar_usage_symlink_replaced" "$SWIFTBAR_USAGE_CACHE/tmux-whisper-usage.cache"
-usage_call_count="$(wc -l <"$SWIFTBAR_USAGE_CALL_LOG" | tr -d ' ')"
-assert_equals "swiftbar_usage_symlink_refreshes_contract" "$usage_call_count" "2"
-
-# Atomic usage-ledger replacements can share a whole-second mtime and byte
-# length. The inode in the cache signature still makes the new total visible.
-printf '%s' 'old' >"$SWIFTBAR_USAGE_HOME/usage.json"
-touch -t 202609170900 "$SWIFTBAR_USAGE_HOME/usage.json"
-swiftbar_usage_ledger_out="$(env "${swiftbar_usage_env[@]}" bash "$ROOT/integrations/tmux-whisper-status.0.2s.sh")"
-assert_contains "swiftbar_usage_ledger_first_signature" "$swiftbar_usage_ledger_out" "Usage (tracked): 1234 words"
-printf '%s' 'new' >"$SWIFTBAR_USAGE_HOME/usage.json.replacement"
-touch -t 202609170900 "$SWIFTBAR_USAGE_HOME/usage.json.replacement"
-mv -f "$SWIFTBAR_USAGE_HOME/usage.json.replacement" "$SWIFTBAR_USAGE_HOME/usage.json"
-swiftbar_usage_ledger_replaced_out="$(env "${swiftbar_usage_env[@]}" bash "$ROOT/integrations/tmux-whisper-status.0.2s.sh")"
-assert_contains "swiftbar_usage_ledger_same_tick_replaced" "$swiftbar_usage_ledger_replaced_out" "Usage (tracked): 1234 words"
-usage_call_count="$(wc -l <"$SWIFTBAR_USAGE_CALL_LOG" | tr -d ' ')"
-assert_equals "swiftbar_usage_ledger_inode_invalidates_cache" "$usage_call_count" "4"
-
-# The just-processed handoff bypasses the cache so an event refresh reports a
-# newly completed dictation immediately, even inside the normal cache window.
-touch "$SWIFTBAR_USAGE_HOME/dictate-just-processed"
-swiftbar_usage_fresh_out="$(env "${swiftbar_usage_env[@]}" bash "$ROOT/integrations/tmux-whisper-status.0.2s.sh")"
-assert_contains "swiftbar_usage_post_delivery_refresh" "$swiftbar_usage_fresh_out" "Usage (tracked): 1234 words"
-usage_call_count="$(wc -l <"$SWIFTBAR_USAGE_CALL_LOG" | tr -d ' ')"
-assert_equals "swiftbar_usage_post_delivery_bypasses_cache" "$usage_call_count" "5"
-# A cache-directory write is unrelated to the usage ledger or completion
-# marker. It must not alter their signatures and force another CLI read.
-printf '%s\n' 'unrelated cache write' >"$SWIFTBAR_USAGE_CACHE/unrelated-cache-file"
-swiftbar_usage_post_delivery_cached_out="$(env "${swiftbar_usage_env[@]}" bash "$ROOT/integrations/tmux-whisper-status.0.2s.sh")"
-assert_contains "swiftbar_usage_post_delivery_cache_keeps_menu" "$swiftbar_usage_post_delivery_cached_out" "Usage (tracked): 1234 words"
-usage_call_count="$(wc -l <"$SWIFTBAR_USAGE_CALL_LOG" | tr -d ' ')"
-assert_equals "swiftbar_usage_unrelated_cache_write_keeps_completion_cache" "$usage_call_count" "5"
-
-# Missing and malformed summaries are non-fatal and leave the rest of the
-# ready-state controls visible. A failed refresh must replace older cached
-# metrics, and is briefly cached so polling does not hammer the CLI.
-printf '%s\n' '{"command":"usage","schema_version":1,"coverage":{"status":"future"},"delivered_dictations":{"count":true},"processed_words":1.5,"estimated_time_difference_ms":0}' >"$SWIFTBAR_USAGE_JSON"
-touch "$SWIFTBAR_USAGE_HOME/usage.json"
-swiftbar_usage_bad_out="$(env "${swiftbar_usage_env[@]}" bash "$ROOT/integrations/tmux-whisper-status.0.2s.sh")"
-assert_contains "swiftbar_usage_malformed_nonfatal" "$swiftbar_usage_bad_out" "Usage summary unavailable (will retry)"
-assert_contains "swiftbar_usage_malformed_keeps_controls" "$swiftbar_usage_bad_out" "Inline"
-swiftbar_usage_bad_cached_out="$(env "${swiftbar_usage_env[@]}" bash "$ROOT/integrations/tmux-whisper-status.0.2s.sh")"
-assert_contains "swiftbar_usage_failure_cache_keeps_fallback" "$swiftbar_usage_bad_cached_out" "Usage summary unavailable (will retry)"
-usage_call_count="$(wc -l <"$SWIFTBAR_USAGE_CALL_LOG" | tr -d ' ')"
-assert_equals "swiftbar_usage_failure_cache_avoids_hot_path_cli" "$usage_call_count" "6"
 
 # --- Regression 13: budget profile auto-selection is based on transcript length, not mode name. ---
 BUDGET_HOME="$TMP_ROOT/home-budget"

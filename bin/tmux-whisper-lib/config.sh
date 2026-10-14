@@ -55,9 +55,6 @@ send_mode = "auto"
 [debug]
 keep_logs = false
 
-[integrations.swiftbar]
-enabled = true
-
 [ui.keybinds]
 tmux = "F12"
 inline = "F11"
@@ -126,7 +123,7 @@ BOOL_KEYS = (
   "audio.silence_trim", "audio.sounds.enabled", "audio.sounds.start_enabled", "audio.sounds.stop_enabled",
   "audio.sounds.process_enabled", "audio.sounds.error_enabled", "audio.sounds.cancel_enabled",
   "postprocess.enabled", "inline.autosend", "inline.process_sound", "tmux.autosend", "tmux.postprocess",
-  "tmux.process_sound", "debug.keep_logs", "integrations.swiftbar.enabled", "app.native_pipeline",
+  "tmux.process_sound", "debug.keep_logs", "app.native_pipeline",
   "app.verify_pipeline", "app.supervise_daemon",
 )
 
@@ -275,7 +272,6 @@ out = {
   "CFG_TMUX_MODE": str(get("tmux.mode", "code")),
   "CFG_TMUX_SEND_MODE": str(get("tmux.send_mode", "auto")),
   "CFG_DEBUG_KEEP_LOGS": "1" if b(get("debug.keep_logs", False), False) else "0",
-  "CFG_SWIFTBAR_ENABLED": "1" if b(get("integrations.swiftbar.enabled", True), True) else "0",
   "CFG_UI_KEYBIND_TMUX": str(get("ui.keybinds.tmux", "F12")),
   "CFG_UI_KEYBIND_INLINE": str(get("ui.keybinds.inline", "F11")),
   "CFG_APP_HOTKEY": str(get("app.hotkey", "ctrl+option+space")),

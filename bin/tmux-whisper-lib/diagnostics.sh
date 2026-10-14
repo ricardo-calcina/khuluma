@@ -190,7 +190,6 @@ debug() {
       JSON_PARAKEET_MODEL="$swift_model_path" \
       JSON_PARAKEET_MODEL_VERSION="$swift_model_version" \
       JSON_RAYCAST_DIR="$DICTATE_CONFIG_DIR/integrations/raycast" \
-      JSON_SWIFTBAR_PLUGIN="$HOME/.config/swiftbar/plugins/tmux-whisper-status.0.2s.sh" \
       JSON_BACKEND_MODEL="${DICTATE_LAST_BACKEND_MODEL:-$(current_transcribe_model_label)}" \
       JSON_ENV_OVERRIDES="$env_override_lines" \
       JSON_CFG_AUDIO_SOURCE="${CFG_AUDIO_SOURCE:-auto}" \
@@ -226,7 +225,6 @@ debug() {
       JSON_CFG_TMUX_PROCESS_SOUND="${CFG_TMUX_PROCESS_SOUND:-0}" \
       JSON_CFG_TMUX_MODE="${CFG_TMUX_MODE:-code}" \
       JSON_CFG_TMUX_SEND_MODE="${CFG_TMUX_SEND_MODE:-auto}" \
-      JSON_CFG_SWIFTBAR_ENABLED="${CFG_SWIFTBAR_ENABLED:-1}" \
       JSON_CFG_DEBUG_KEEP_LOGS="${CFG_DEBUG_KEEP_LOGS:-0}" \
       JSON_AUDIO_INDEX="$idx" \
       JSON_AUDIO_SOURCE_RESOLVED="$src" \
@@ -283,7 +281,6 @@ data = {
         "whisperd_socket": {"path": maybe("JSON_WHISPERD_SOCKET"), "live": bool(s("JSON_WHISPERD_SOCKET")) and os.path.exists(s("JSON_WHISPERD_SOCKET"))},
         "parakeet_model": {"path": maybe("JSON_PARAKEET_MODEL"), "ok": bool(s("JSON_PARAKEET_MODEL")) and os.path.isdir(s("JSON_PARAKEET_MODEL")), "version": maybe("JSON_PARAKEET_MODEL_VERSION")},
         "raycast_dir": {"path": s("JSON_RAYCAST_DIR"), "ok": os.path.isdir(s("JSON_RAYCAST_DIR"))},
-        "swiftbar_plugin": {"path": s("JSON_SWIFTBAR_PLUGIN"), "ok": os.path.isfile(s("JSON_SWIFTBAR_PLUGIN"))},
         "backend_model": maybe("JSON_BACKEND_MODEL"),
     },
     "env_overrides": overrides,
@@ -334,7 +331,6 @@ data = {
             "mode": maybe("JSON_CFG_TMUX_MODE"),
             "send_mode": maybe("JSON_CFG_TMUX_SEND_MODE"),
         },
-        "integrations": {"swiftbar_enabled": to_bool_flag("JSON_CFG_SWIFTBAR_ENABLED")},
         "debug": {"keep_logs": to_bool_flag("JSON_CFG_DEBUG_KEEP_LOGS")},
     },
     "audio_resolution": {
@@ -378,7 +374,6 @@ PYEOF
   echo "  whisperd_sock:${swift_socket_path:-<none>} $([[ -S "$swift_socket_path" ]] && echo '(live)' || echo '(offline)')"
   echo "  parakeet_mod: ${swift_model_path:-<none>} $([[ -n "$swift_model_path" && -d "$swift_model_path" ]] && echo "(ok, ${swift_model_version})" || echo '(missing)')"
   echo "  raycast_dir:  $DICTATE_CONFIG_DIR/integrations/raycast $([[ -d "$DICTATE_CONFIG_DIR/integrations/raycast" ]] && echo '(ok)' || echo '(missing)')"
-  echo "  swiftbar_plg: $HOME/.config/swiftbar/plugins/tmux-whisper-status.0.2s.sh $([[ -f "$HOME/.config/swiftbar/plugins/tmux-whisper-status.0.2s.sh" ]] && echo '(ok)' || echo '(missing)')"
   echo "  backend_model:${DICTATE_LAST_BACKEND_MODEL:-$(current_transcribe_model_label)}"
   echo ""
 
@@ -450,7 +445,6 @@ PYEOF
   echo "  tmux.process_sound=${CFG_TMUX_PROCESS_SOUND:-0}"
   echo "  tmux.mode=${CFG_TMUX_MODE:-code}"
   echo "  tmux.send_mode=${CFG_TMUX_SEND_MODE:-auto}"
-  echo "  integrations.swiftbar.enabled=${CFG_SWIFTBAR_ENABLED:-1}"
   echo "  debug.keep_logs=${CFG_DEBUG_KEEP_LOGS:-0}"
   echo ""
 
@@ -656,27 +650,6 @@ doctor_json() {
   local raycast_inline_path
   raycast_inline_path="$DICTATE_CONFIG_DIR/integrations/raycast/tmux-whisper-inline.sh"
   [[ -f "$raycast_inline_path" ]] && raycast_inline_ok="1"
-
-  local swiftbar_plugin swiftbar_enabled swiftbar_state swiftbar_present="0"
-  swiftbar_plugin="$HOME/.config/swiftbar/plugins/tmux-whisper-status.0.2s.sh"
-  swiftbar_enabled="${CFG_SWIFTBAR_ENABLED:-1}"
-  [[ -f "$swiftbar_plugin" ]] && swiftbar_present="1"
-  if [[ "$swiftbar_enabled" == "1" ]]; then
-    if [[ "$swiftbar_present" == "1" ]]; then
-      swiftbar_state="ok, enabled"
-    else
-      swiftbar_state="missing, enabled"
-      warnings=$((warnings + 1))
-      doctor_json_add_suggestion "Install SwiftBar plugin: ./install.sh --force"
-      doctor_json_add_suggestion "Or disable SwiftBar integration: tmux-whisper swiftbar off"
-    fi
-  else
-    if [[ "$swiftbar_present" == "1" ]]; then
-      swiftbar_state="ok, disabled"
-    else
-      swiftbar_state="missing, disabled"
-    fi
-  fi
 
   local swift_root swift_binary swift_socket_path swift_model_path swift_model_version swift_models_dir
   swift_root="$(resolve_tmux_whisperd_root 2>/dev/null || true)"
@@ -954,10 +927,6 @@ doctor_json() {
     JSON_CONFIG_SCHEMA_PARSE_ERROR="$cfg_parse_error" \
     JSON_RAYCAST_INLINE_PATH="$raycast_inline_path" \
     JSON_RAYCAST_INLINE_OK="$raycast_inline_ok" \
-    JSON_SWIFTBAR_PLUGIN_PATH="$swiftbar_plugin" \
-    JSON_SWIFTBAR_ENABLED="$swiftbar_enabled" \
-    JSON_SWIFTBAR_PRESENT="$swiftbar_present" \
-    JSON_SWIFTBAR_STATE="$swiftbar_state" \
     JSON_BACKEND="swift_parakeet" \
     JSON_TMUX_WHISPERD_SOURCE="$swift_root" \
     JSON_TMUX_WHISPERD_SOURCE_OK="$swift_root_ok" \
@@ -1124,12 +1093,6 @@ data = {
             "parse_error": maybe("JSON_CONFIG_SCHEMA_PARSE_ERROR"),
         },
         "raycast_inline": {"path": s("JSON_RAYCAST_INLINE_PATH"), "ok": to_bool_flag("JSON_RAYCAST_INLINE_OK")},
-        "swiftbar": {
-            "path": s("JSON_SWIFTBAR_PLUGIN_PATH"),
-            "enabled": to_bool_flag("JSON_SWIFTBAR_ENABLED"),
-            "present": to_bool_flag("JSON_SWIFTBAR_PRESENT"),
-            "state": s("JSON_SWIFTBAR_STATE"),
-        },
         "backend": s("JSON_BACKEND"),
         "tmux_whisperd_source": {"path": maybe("JSON_TMUX_WHISPERD_SOURCE"), "ok": to_bool_flag("JSON_TMUX_WHISPERD_SOURCE_OK")},
         "tmux_whisperd_binary": {"path": maybe("JSON_TMUX_WHISPERD_BIN"), "ok": to_bool_flag("JSON_TMUX_WHISPERD_BIN_OK")},
@@ -1307,26 +1270,6 @@ doctor() {
       ;;
   esac
   echo "  - raycast inline: $DICTATE_CONFIG_DIR/integrations/raycast/tmux-whisper-inline.sh $([[ -f "$DICTATE_CONFIG_DIR/integrations/raycast/tmux-whisper-inline.sh" ]] && echo '(ok)' || echo '(missing)')"
-  local swiftbar_plugin swiftbar_enabled swiftbar_state
-  swiftbar_plugin="$HOME/.config/swiftbar/plugins/tmux-whisper-status.0.2s.sh"
-  swiftbar_enabled="${CFG_SWIFTBAR_ENABLED:-1}"
-  if [[ "$swiftbar_enabled" == "1" ]]; then
-    if [[ -f "$swiftbar_plugin" ]]; then
-      swiftbar_state="ok, enabled"
-    else
-      swiftbar_state="missing, enabled"
-      warnings=$((warnings + 1))
-      add_suggestion "Install SwiftBar plugin: ./install.sh --force"
-      add_suggestion "Or disable SwiftBar integration: tmux-whisper swiftbar off"
-    fi
-  else
-    if [[ -f "$swiftbar_plugin" ]]; then
-      swiftbar_state="ok, disabled"
-    else
-      swiftbar_state="missing, disabled"
-    fi
-  fi
-  echo "  - swiftbar plugin: $swiftbar_plugin ($swiftbar_state)"
   local swift_root swift_binary swift_socket_path swift_model_path swift_model_version swift_models_dir
   swift_root="$(resolve_tmux_whisperd_root 2>/dev/null || true)"
   swift_binary="${DICTATE_TMUX_WHISPERD_BIN:-${swift_root:+$(tmux_whisperd_build_root)/.build/release/tmux-whisperd}}"
@@ -2171,7 +2114,6 @@ status() {
       JSON_TMUX_TARGET="$tmux_target" \
       JSON_TMUX_PROCESS_SOUND="$tmux_process_sound" \
       JSON_TMUX_SEND_MODE="$tmux_send_mode" \
-      JSON_SWIFTBAR_ENABLED="${CFG_SWIFTBAR_ENABLED:-1}" \
       JSON_KEEP_LOGS="$keep_logs_val" \
       JSON_AUDIO_SOURCE="$audio_source_mode" \
       JSON_AUDIO_DEVICE_NAME="$audio_name" \
@@ -2348,7 +2290,6 @@ data = {
             "process_sound": to_bool_flag("JSON_TMUX_PROCESS_SOUND"),
             "send_mode": maybe("JSON_TMUX_SEND_MODE"),
         },
-        "integrations": {"swiftbar_enabled": to_bool_flag("JSON_SWIFTBAR_ENABLED")},
         "debug": {"keep_logs": to_bool_flag("JSON_KEEP_LOGS")},
         "audio": {
             "source": maybe("JSON_AUDIO_SOURCE"),
@@ -2475,7 +2416,6 @@ PYEOF
   echo "  tmux.target: $tmux_target"
   echo "  tmux.process_sound: $(onoff "$tmux_process_sound")"
   echo "  tmux.send_mode: $tmux_send_mode"
-  echo "  integrations.swiftbar.enabled: $(onoff "${CFG_SWIFTBAR_ENABLED:-1}")"
   echo "  debug.keep_logs: $(onoff "$keep_logs_val")"
   echo "  audio.source: ${audio_source_mode}"
   echo "  audio.device_name: ${audio_name:-<none>}"

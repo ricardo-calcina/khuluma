@@ -6,7 +6,7 @@
 # @raycast.packageName Tmux Whisper
 # @raycast.description Toggle recording → paste into frontmost app
 # tmux-whisper.adapter: raycast-inline
-# tmux-whisper.adapter-version: 1
+# tmux-whisper.adapter-version: 2
 
 set -euo pipefail
 
@@ -81,10 +81,6 @@ notify_inline_error() {
   osascript -e "display notification \"$escaped\" with title \"Tmux Whisper Inline\"" 2>/dev/null || true
 }
 
-refresh_swiftbar() {
-  "$DICTATE_BIN" swiftbar refresh >/dev/null 2>&1 || true
-}
-
 if [[ ! -x "$DICTATE_BIN" ]]; then
   notify_inline_error "Tmux Whisper binary not found. Install via brew or ./install.sh --force."
   exit 1
@@ -92,8 +88,5 @@ fi
 
 if ! "$DICTATE_BIN" inline toggle; then
   notify_inline_error "Tmux Whisper inline failed. Check $LOG."
-  refresh_swiftbar
   exit 1
 fi
-
-refresh_swiftbar

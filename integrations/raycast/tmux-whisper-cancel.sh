@@ -6,7 +6,7 @@
 # @raycast.packageName Tmux Whisper
 # @raycast.description Cancel current recording (discard without pasting)
 # tmux-whisper.adapter: raycast-cancel
-# tmux-whisper.adapter-version: 1
+# tmux-whisper.adapter-version: 2
 
 export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:${PATH:-/usr/bin:/bin}"
 
@@ -20,13 +20,6 @@ TMUX_STATE="${DICTATE_STATE_FILE:-/tmp/whisper-dictate.state}"
 CANCEL_FLAG="${DICTATE_CANCEL_FLAG:-/tmp/dictate-cancelled.flag}"
 PROCESSING_DIR="${DICTATE_PROCESSING_DIR:-/tmp/dictate-processing}"
 SOUNDS_DIR="${SOUNDS_DIR:-$HOME/.local/share/sounds}"
-
-refresh_swiftbar() {
-  local dictate_bin="${DICTATE_BIN:-$(command -v tmux-whisper 2>/dev/null || true)}"
-  dictate_bin="${dictate_bin:-$HOME/.local/bin/tmux-whisper}"
-  [[ -x "$dictate_bin" ]] || return 0
-  "$dictate_bin" swiftbar refresh >/dev/null 2>&1 || true
-}
 
 cancel_recording() {
   local state_file="$1"
@@ -53,9 +46,7 @@ cancel_recording() {
   # Clear any processing markers
   rm -f "$PROCESSING_DIR"/* 2>/dev/null || true
   
-  # Set cancel flag for SwiftBar (shows cancel icon briefly)
   touch "$CANCEL_FLAG"
-  refresh_swiftbar
   
   # Play cancel sound
   local cancel_sound="$SOUNDS_DIR/dictate/cancel.wav"

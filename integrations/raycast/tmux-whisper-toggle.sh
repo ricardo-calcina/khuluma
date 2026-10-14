@@ -6,7 +6,7 @@
 # @raycast.packageName Tmux Whisper
 # @raycast.description Toggle recording → paste+Enter into tmux pane
 # tmux-whisper.adapter: raycast-toggle
-# tmux-whisper.adapter-version: 1
+# tmux-whisper.adapter-version: 2
 
 export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:${PATH:-/usr/bin:/bin}"
 export DICTATE_CLEAN=1
@@ -17,7 +17,7 @@ if [[ -f "$HOME/.zshenv" ]]; then
 fi
 
 # Raycast often runs without interactive shell env; load API key similarly
-# to inline/SwiftBar paths so tmux postprocess can run reliably.
+# to the inline path so tmux postprocess can run reliably.
 if [[ -z "${CEREBRAS_API_KEY:-}" && -f "${ZDOTDIR:-$HOME}/.zshrc" ]]; then
   eval "$(grep '^export CEREBRAS_API_KEY=' "${ZDOTDIR:-$HOME}/.zshrc" 2>/dev/null || true)"
 fi
@@ -39,10 +39,6 @@ die_with_notice() {
   echo "tmux-whisper-toggle: $msg" >&2
   notify "$msg"
   exit 1
-}
-
-refresh_swiftbar() {
-  "$DICTATE_BIN" swiftbar refresh >/dev/null 2>&1 || true
 }
 
 expand_sound_path() {
@@ -155,12 +151,10 @@ export DICTATE_TARGET_PANE="$PANE"
 if [[ -f "$STATE_FILE" ]]; then
   # Stopping - just play sound
   "$DICTATE_BIN" toggle 2>/tmp/dictate-raycast.log
-  refresh_swiftbar
   # Stop sound is played by Tmux Whisper after transcription/paste completes.
 else
   # Starting - just play sound
   "$DICTATE_BIN" toggle 2>/tmp/dictate-raycast.log
-  refresh_swiftbar
   p="$(sound_path start)"
   # Raycast can terminate background children when the script exits; play synchronously.
   [[ -n "$p" ]] && afplay "$p" 2>/dev/null

@@ -48,9 +48,6 @@ send_mode = "auto"
 [debug]
 keep_logs = false
 
-[integrations.swiftbar]
-enabled = true
-
 [ui.keybinds]
 tmux = "F12"
 inline = "F11"

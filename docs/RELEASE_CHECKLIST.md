@@ -15,7 +15,7 @@
 - [ ] Confirm changelog is updated (`CHANGELOG.md`).
 - [ ] Confirm roadmap alignment (`ROADMAP.md`) if scope changed.
 - [ ] Verify integration lifecycle and adapter versions on the installed runtime:
-  - [ ] `tmux-whisper integrations --json` reports the installed binary/receipt and each Raycast/SwiftBar adapter's source and installed version.
+  - [ ] `tmux-whisper integrations --json` reports the installed binary/receipt and each Raycast adapter's source and installed version.
   - [ ] `tmux-whisper integrations doctor` reports no unexpected `missing`, `non-executable`, or `different` adapter state.
   - [ ] `tmux-whisper integrations repair --dry-run` shows the expected adapter-only plan before any repair.
   - [ ] If repair is needed, run `tmux-whisper integrations repair`, then repeat `integrations --json` and `integrations doctor`.
@@ -23,10 +23,10 @@
   - [ ] Record and successfully deliver one inline dictation and one tmux dictation.
   - [ ] Confirm `tmux-whisper usage --json` advances the relevant delivery/word totals without exposing transcript text, and reports its coverage start and typing-time assumption.
   - [ ] Capture `tmux-whisper usage --json`, cancel an inline or tmux recording, then confirm the delivery and word totals did not advance.
-- [ ] Verify SwiftBar in the installed environment:
-  - [ ] Confirm ready-state usage metrics match `tmux-whisper usage --json` after its normal cache interval.
-  - [ ] Watch an inline recording through recording, processing, and ready transitions; confirm the frontmost app is not considered safe to move away from until paste/autosend completes.
-  - [ ] Exercise a cancel and a controlled error path; confirm SwiftBar returns to ready rather than retaining a stale recording or processing state.
+- [ ] Verify Lowkey in the installed environment:
+  - [ ] Confirm the Stats window matches `tmux-whisper usage --json`.
+  - [ ] Watch a take through recording, processing, and ready in the menu; confirm the frontmost app is not considered safe to move away from until paste/autosend completes.
+  - [ ] Exercise a cancel and a controlled error path; confirm the menu returns to ready rather than retaining a stale recording or processing state.
 - [ ] Confirm daily behavior with a real spoken inline delivery and a real spoken tmux delivery. Inline is the primary daily path; tmux remains the pane-targeted asynchronous workflow.
 
 ## Tag and Publish

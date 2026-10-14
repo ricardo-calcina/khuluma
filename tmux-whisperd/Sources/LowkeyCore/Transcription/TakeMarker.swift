@@ -3,9 +3,9 @@ import Foundation
 
 /// Marks one Lowkey take as in progress, from before capture starts until
 /// it is delivered, fails or is cancelled. The CLI's idle check reads it
-/// (so a daemon upgrade never lands mid-take) and SwiftBar shows the
-/// processing part: a file in the processing dir named `inline-lowkey-<id>`
-/// whose first line is `pid=<Lowkey's pid>`, like the CLI's own markers.
+/// (so a daemon upgrade never lands mid-take): a file in the processing dir
+/// named `inline-lowkey-<id>` whose first line is `pid=<Lowkey's pid>`, like
+/// the CLI's own markers.
 public final class TakeMarker: @unchecked Sendable {
   public enum Phase: String, Sendable {
     /// Capturing audio.
@@ -15,7 +15,7 @@ public final class TakeMarker: @unchecked Sendable {
     /// Transcribing, cleaning up or delivering in Lowkey.
     case processing
     /// Handed to `tmux-whisper inline process`, which has its own marker;
-    /// still busy for the idle check, not counted twice by SwiftBar.
+    /// still busy for the idle check.
     case cli
   }
 
@@ -73,7 +73,7 @@ public final class TakeMarker: @unchecked Sendable {
     return writeLocked(phase)
   }
 
-  /// Written to a dot-file (which the CLI's and SwiftBar's globs skip) and
+  /// Written to a dot-file (which the CLI's globs skip) and
   /// renamed into place, so readers never see a half-written marker.
   private func writeLocked(_ phase: Phase) -> Bool {
     let body = "pid=\(pid)\nkind=inline\nsession_id=\(takeId)\nphase=\(phase.rawValue)\nstarted_at=\(startedAt)\n"

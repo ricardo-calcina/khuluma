@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Integration helpers report the installed adapter surface in one place so
-# Raycast, SwiftBar, and install receipt drift can be inspected without hunting.
+# Raycast scripts and install receipt drift can be inspected without hunting.
 
 integration_path_exists_label() {
   [[ -e "${1:-}" ]] && printf '%s\n' "present" || printf '%s\n' "missing"
@@ -33,7 +33,6 @@ integration_receipt_value() {
       repo_git_commit) printf '%s\n' "${repo_git_commit:-}" ;;
       repo_root) printf '%s\n' "${repo_root:-}" ;;
       bin_path) printf '%s\n' "${bin_path:-}" ;;
-      swiftbar_plugin) printf '%s\n' "${swiftbar_plugin:-}" ;;
       *) ;;
     esac
   )
@@ -49,48 +48,6 @@ integration_current_binary_path() {
   else
     printf '%s\n' "$SCRIPT_DIR/tmux-whisper"
   fi
-}
-
-integration_swiftbar_plugin_path() {
-  local receipt_plugin
-  receipt_plugin="$(integration_receipt_value swiftbar_plugin)"
-  if [[ -n "$receipt_plugin" && "$receipt_plugin" != "skipped" ]]; then
-    printf '%s\n' "$receipt_plugin"
-  else
-    printf '%s\n' "${DICTATE_SWIFTBAR_PLUGIN_PATH:-$HOME/.config/swiftbar/plugins/tmux-whisper-status.0.2s.sh}"
-  fi
-}
-
-# Lifecycle refresh hook used on every state transition. It is a no-op when the
-# SwiftBar integration is disabled, so dictation never launches a quit SwiftBar.
-swiftbar_refresh() {
-  [[ "${CFG_SWIFTBAR_ENABLED:-1}" == "1" ]] || return 0
-  swiftbar_refresh_now "$@"
-}
-
-swiftbar_refresh_now() {
-  local plugin_id="${1:-tmux-whisper-status.0.2s.sh}"
-  [[ -n "$plugin_id" ]] || plugin_id="tmux-whisper-status.0.2s.sh"
-
-  if [[ -n "${DICTATE_SWIFTBAR_REFRESH_LOG:-}" ]]; then
-    mkdir -p "$(dirname "$DICTATE_SWIFTBAR_REFRESH_LOG")" 2>/dev/null || true
-    printf 'refresh plugin=%s at=%s\n' "$plugin_id" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" >>"$DICTATE_SWIFTBAR_REFRESH_LOG" 2>/dev/null || true
-    return 0
-  fi
-
-  if [[ -n "${DICTATE_SWIFTBAR_REFRESH_CMD:-}" ]]; then
-    nohup sh -c "$DICTATE_SWIFTBAR_REFRESH_CMD" >/dev/null 2>&1 &
-    return 0
-  fi
-
-  [[ -x /usr/bin/open ]] || return 0
-  # `open swiftbar://` would launch SwiftBar if it is installed but quit.
-  /usr/bin/pgrep -xq SwiftBar 2>/dev/null || return 0
-  nohup /usr/bin/open -g "swiftbar://refreshplugin?plugin=${plugin_id}" >/dev/null 2>&1 &
-}
-
-integration_swiftbar_opted_out() {
-  [[ "$(integration_receipt_value swiftbar_plugin)" == "skipped" ]]
 }
 
 # Adapter sources, in priority order:
@@ -133,7 +90,6 @@ integration_expected_source() {
     raycast-inline) printf '%s\n' "$source_root/integrations/raycast/tmux-whisper-inline.sh" ;;
     raycast-toggle) printf '%s\n' "$source_root/integrations/raycast/tmux-whisper-toggle.sh" ;;
     raycast-cancel) printf '%s\n' "$source_root/integrations/raycast/tmux-whisper-cancel.sh" ;;
-    swiftbar) printf '%s\n' "$source_root/integrations/tmux-whisper-status.0.2s.sh" ;;
     *) ;;
   esac
 }
@@ -144,7 +100,6 @@ integration_adapter_source_label() {
     raycast-inline) printf '%s\n' "Raycast inline" ;;
     raycast-toggle) printf '%s\n' "Raycast tmux-toggle" ;;
     raycast-cancel) printf '%s\n' "Raycast cancel" ;;
-    swiftbar) printf '%s\n' "SwiftBar plugin" ;;
     *) printf '%s\n' "$adapter" ;;
   esac
 }
@@ -226,12 +181,11 @@ integration_adapter_version_label() {
 integration_check_lines() {
   local binary_path="$1"
   local receipt_path="$2"
-  local swiftbar_path="$3"
-  local raycast_inline="$4"
-  local raycast_toggle="$5"
-  local raycast_cancel="$6"
-  local receipt_bin_path="$7"
-  local source_root="$8"
+  local raycast_inline="$3"
+  local raycast_toggle="$4"
+  local raycast_cancel="$5"
+  local receipt_bin_path="$6"
+  local source_root="$7"
 
   if [[ ! -x "$binary_path" ]]; then
     printf '%s\n' "issue|binary|tmux-whisper binary is not executable at $binary_path"
@@ -241,21 +195,6 @@ integration_check_lines() {
   fi
   if [[ -n "$receipt_bin_path" && "$receipt_bin_path" != "$binary_path" ]]; then
     printf '%s\n' "warn|receipt|install receipt binary points at $receipt_bin_path but PATH resolves $binary_path"
-  fi
-
-  if [[ ! -f "$swiftbar_path" ]]; then
-    if ! integration_swiftbar_opted_out; then
-      printf '%s\n' "warn|swiftbar|SwiftBar plugin is not installed at $swiftbar_path"
-    fi
-  elif [[ ! -x "$swiftbar_path" ]]; then
-    printf '%s\n' "issue|swiftbar|SwiftBar plugin is not executable at $swiftbar_path"
-  fi
-  if [[ -n "$source_root" && -f "$swiftbar_path" ]]; then
-    local swiftbar_src
-    swiftbar_src="$(integration_expected_source "$source_root" swiftbar)"
-    if [[ -f "$swiftbar_src" ]] && ! cmp -s "$swiftbar_src" "$swiftbar_path"; then
-      printf '%s\n' "warn|swiftbar|SwiftBar plugin differs from source at $swiftbar_src"
-    fi
   fi
 
   local name path adapter src label
@@ -298,11 +237,10 @@ integration_emit_doctor_text() {
   local lines="$1"
   local binary_path="$2"
   local receipt_path="$3"
-  local swiftbar_path="$4"
-  local raycast_inline="$5"
-  local raycast_toggle="$6"
-  local raycast_cancel="$7"
-  local source_root="$8"
+  local raycast_inline="$4"
+  local raycast_toggle="$5"
+  local raycast_cancel="$6"
+  local source_root="$7"
   local issue_count warn_count
   issue_count="$(integration_issue_count "$lines")"
   warn_count="$(integration_warn_count "$lines")"
@@ -316,13 +254,6 @@ integration_emit_doctor_text() {
   echo "  binary: $binary_path ($(integration_path_executable_label "$binary_path"))"
   echo "  install receipt: $receipt_path ($(integration_path_exists_label "$receipt_path"))"
   echo "  source: ${source_root:-unavailable}"
-  echo ""
-  echo "SwiftBar:"
-  echo "  enabled: $([[ "${CFG_SWIFTBAR_ENABLED:-1}" == "1" ]] && echo "ON" || echo "OFF")"
-  echo "  plugin: $swiftbar_path ($(integration_path_executable_label "$swiftbar_path"))"
-  echo "  plugin state: $(integration_adapter_state "$source_root" swiftbar "$swiftbar_path")"
-  echo "  plugin version: $(integration_adapter_version_label "$swiftbar_path" "$source_root" swiftbar)"
-  echo "  plugin source: $(integration_adapter_source_path_label "$source_root" swiftbar)"
   echo ""
   echo "Raycast:"
   echo "  inline: $raycast_inline ($(integration_path_executable_label "$raycast_inline"))"
@@ -357,11 +288,10 @@ integration_emit_doctor_text() {
 
 integration_emit_repair_dry_run_text() {
   local lines="$1"
-  local swiftbar_path="$2"
-  local raycast_inline="$3"
-  local raycast_toggle="$4"
-  local raycast_cancel="$5"
-  local source_root="$6"
+  local raycast_inline="$2"
+  local raycast_toggle="$3"
+  local raycast_cancel="$4"
+  local source_root="$5"
   local issue_count warn_count
   issue_count="$(integration_issue_count "$lines")"
   warn_count="$(integration_warn_count "$lines")"
@@ -380,12 +310,6 @@ integration_emit_repair_dry_run_text() {
   echo "  - would install Raycast tmux-toggle: ${src:-<source unavailable>} -> $raycast_toggle"
   src="$(integration_expected_source "$source_root" raycast-cancel)"
   echo "  - would install Raycast cancel: ${src:-<source unavailable>} -> $raycast_cancel"
-  src="$(integration_expected_source "$source_root" swiftbar)"
-  if integration_swiftbar_opted_out && [[ ! -e "$swiftbar_path" ]]; then
-    echo "  - would skip SwiftBar plugin: skipped at install (DICTATE_INSTALL_SWIFTBAR=0)"
-  else
-    echo "  - would install SwiftBar plugin: ${src:-<source unavailable>} -> $swiftbar_path"
-  fi
   echo "  - would back up replaced adapters to: $(integration_backup_dir)"
   echo "  - would ensure executable bits on installed adapter scripts"
   echo ""
@@ -437,8 +361,8 @@ integration_repair_one_adapter() {
   fi
 
   if [[ -e "$dest" ]]; then
-    # Keep backups out of adapter directories: SwiftBar loads every file in its
-    # plugin folder, so an executable backup there becomes a second menu item.
+    # Keep backups out of adapter directories: Raycast loads every script in
+    # its folder, so an executable backup there becomes a second command.
     backup_path="$(integration_backup_dir)/$(basename "$dest").$backup_stamp"
     if ! mkdir -p "$(dirname "$backup_path")" || ! cp "$dest" "$backup_path" || ! chmod -x "$backup_path"; then
       printf '%s\n' "failed|$label|could not create backup: $backup_path" >>"$log_file"
@@ -483,14 +407,13 @@ integration_repair_failed_count() {
 
 integration_emit_repair_text() {
   local lines="$1"
-  local swiftbar_path="$2"
-  local raycast_inline="$3"
-  local raycast_toggle="$4"
-  local raycast_cancel="$5"
-  local source_root="$6"
-  local binary_path="$7"
-  local receipt_path="$8"
-  local receipt_bin_path="$9"
+  local raycast_inline="$2"
+  local raycast_toggle="$3"
+  local raycast_cancel="$4"
+  local source_root="$5"
+  local binary_path="$6"
+  local receipt_path="$7"
+  local receipt_bin_path="$8"
   local issue_count warn_count backup_stamp log_file changed_count failed_count
   issue_count="$(integration_issue_count "$lines")"
   warn_count="$(integration_warn_count "$lines")"
@@ -504,18 +427,12 @@ integration_emit_repair_text() {
     "$(integration_expected_source "$source_root" raycast-toggle)" "$raycast_toggle" "$log_file" "$backup_stamp" || true
   integration_repair_one_adapter "Raycast cancel" \
     "$(integration_expected_source "$source_root" raycast-cancel)" "$raycast_cancel" "$log_file" "$backup_stamp" || true
-  if integration_swiftbar_opted_out && [[ ! -e "$swiftbar_path" ]]; then
-    printf '%s\n' "unchanged|SwiftBar plugin|skipped at install (DICTATE_INSTALL_SWIFTBAR=0)" >>"$log_file"
-  else
-    integration_repair_one_adapter "SwiftBar plugin" \
-      "$(integration_expected_source "$source_root" swiftbar)" "$swiftbar_path" "$log_file" "$backup_stamp" || true
-  fi
 
   changed_count="$(integration_repair_action_count "$log_file")"
   failed_count="$(integration_repair_failed_count "$log_file")"
 
   local post_lines post_issues post_warnings
-  post_lines="$(integration_check_lines "$binary_path" "$receipt_path" "$swiftbar_path" \
+  post_lines="$(integration_check_lines "$binary_path" "$receipt_path" \
     "$raycast_inline" "$raycast_toggle" "$raycast_cancel" "$receipt_bin_path" "$source_root")"
   post_issues="$(integration_issue_count "$post_lines")"
   post_warnings="$(integration_warn_count "$post_lines")"
@@ -543,15 +460,14 @@ integration_emit_repair_text() {
 integrations_status_json() {
   local binary_path="$1"
   local receipt_path="$2"
-  local swiftbar_path="$3"
-  local raycast_inline="$4"
-  local raycast_toggle="$5"
-  local raycast_cancel="$6"
-  local receipt_installed_at="$7"
-  local receipt_source="$8"
-  local receipt_ref="$9"
-  local receipt_commit="${10}"
-  local source_root="${11}"
+  local raycast_inline="$3"
+  local raycast_toggle="$4"
+  local raycast_cancel="$5"
+  local receipt_installed_at="$6"
+  local receipt_source="$7"
+  local receipt_ref="$8"
+  local receipt_commit="$9"
+  local source_root="${10}"
 
   INTEGRATIONS_BINARY_PATH="$binary_path" \
   INTEGRATIONS_BINARY_EXISTS="$([[ -x "$binary_path" ]] && echo true || echo false)" \
@@ -563,15 +479,6 @@ integrations_status_json() {
   INTEGRATIONS_RECEIPT_SOURCE="$receipt_source" \
   INTEGRATIONS_RECEIPT_REF="$receipt_ref" \
   INTEGRATIONS_RECEIPT_COMMIT="$receipt_commit" \
-  INTEGRATIONS_SWIFTBAR_ENABLED="$([[ "${CFG_SWIFTBAR_ENABLED:-1}" == "1" ]] && echo true || echo false)" \
-  INTEGRATIONS_SWIFTBAR_PATH="$swiftbar_path" \
-  INTEGRATIONS_SWIFTBAR_EXISTS="$([[ -f "$swiftbar_path" ]] && echo true || echo false)" \
-  INTEGRATIONS_SWIFTBAR_EXECUTABLE="$([[ -x "$swiftbar_path" ]] && echo true || echo false)" \
-  INTEGRATIONS_SWIFTBAR_STATE="$(integration_adapter_state "$source_root" swiftbar "$swiftbar_path")" \
-  INTEGRATIONS_SWIFTBAR_VERSION="$(integration_adapter_version "$swiftbar_path")" \
-  INTEGRATIONS_SWIFTBAR_SOURCE="$(integration_adapter_source_path_label "$source_root" swiftbar)" \
-  INTEGRATIONS_SWIFTBAR_SOURCE_VERSION="$(integration_adapter_source_version "$source_root" swiftbar)" \
-  INTEGRATIONS_SWIFTBAR_SOURCE_EXISTS="$([[ -f "$(integration_expected_source "$source_root" swiftbar)" ]] && echo true || echo false)" \
   INTEGRATIONS_RAYCAST_INLINE="$raycast_inline" \
   INTEGRATIONS_RAYCAST_INLINE_EXISTS="$([[ -f "$raycast_inline" ]] && echo true || echo false)" \
   INTEGRATIONS_RAYCAST_INLINE_EXECUTABLE="$([[ -x "$raycast_inline" ]] && echo true || echo false)" \
@@ -620,19 +527,6 @@ payload = {
         "install_source": os.environ.get("INTEGRATIONS_RECEIPT_SOURCE", ""),
         "repo_git_ref": os.environ.get("INTEGRATIONS_RECEIPT_REF", ""),
         "repo_git_commit": os.environ.get("INTEGRATIONS_RECEIPT_COMMIT", ""),
-    },
-    "swiftbar": {
-        "enabled": b("INTEGRATIONS_SWIFTBAR_ENABLED"),
-        "plugin": {
-            "path": os.environ.get("INTEGRATIONS_SWIFTBAR_PATH", ""),
-            "exists": b("INTEGRATIONS_SWIFTBAR_EXISTS"),
-            "executable": b("INTEGRATIONS_SWIFTBAR_EXECUTABLE"),
-            "state": os.environ.get("INTEGRATIONS_SWIFTBAR_STATE", ""),
-            "version": os.environ.get("INTEGRATIONS_SWIFTBAR_VERSION", ""),
-            "source_path": os.environ.get("INTEGRATIONS_SWIFTBAR_SOURCE", ""),
-            "source_version": os.environ.get("INTEGRATIONS_SWIFTBAR_SOURCE_VERSION", ""),
-            "source_exists": b("INTEGRATIONS_SWIFTBAR_SOURCE_EXISTS"),
-        },
     },
     "raycast": {
         "scripts": [
@@ -710,11 +604,10 @@ manage_integrations() {
     die "usage: tmux-whisper integrations [status|--json]"
   fi
 
-  local binary_path receipt_path swiftbar_path
+  local binary_path receipt_path
   local raycast_inline raycast_toggle raycast_cancel
   binary_path="$(integration_current_binary_path)"
   receipt_path="$DICTATE_CONFIG_DIR/install-receipt.env"
-  swiftbar_path="$(integration_swiftbar_plugin_path)"
   raycast_inline="$DICTATE_CONFIG_DIR/integrations/raycast/tmux-whisper-inline.sh"
   raycast_toggle="$DICTATE_CONFIG_DIR/integrations/raycast/tmux-whisper-toggle.sh"
   raycast_cancel="$DICTATE_CONFIG_DIR/integrations/raycast/tmux-whisper-cancel.sh"
@@ -730,26 +623,26 @@ manage_integrations() {
 
   if [[ "$action" == "doctor" || "$action" == "repair" ]]; then
     local findings
-    findings="$(integration_check_lines "$binary_path" "$receipt_path" "$swiftbar_path" \
+    findings="$(integration_check_lines "$binary_path" "$receipt_path" \
       "$raycast_inline" "$raycast_toggle" "$raycast_cancel" "$receipt_bin_path" "$source_root")"
     if [[ "$action" == "repair" ]]; then
       if [[ "$dry_run" == "1" ]]; then
-        integration_emit_repair_dry_run_text "$findings" "$swiftbar_path" \
+        integration_emit_repair_dry_run_text "$findings" \
           "$raycast_inline" "$raycast_toggle" "$raycast_cancel" "$source_root"
       else
-        integration_emit_repair_text "$findings" "$swiftbar_path" \
+        integration_emit_repair_text "$findings" \
           "$raycast_inline" "$raycast_toggle" "$raycast_cancel" "$source_root" \
           "$binary_path" "$receipt_path" "$receipt_bin_path"
       fi
     else
-      integration_emit_doctor_text "$findings" "$binary_path" "$receipt_path" "$swiftbar_path" \
+      integration_emit_doctor_text "$findings" "$binary_path" "$receipt_path" \
         "$raycast_inline" "$raycast_toggle" "$raycast_cancel" "$source_root"
     fi
     return 0
   fi
 
   if [[ "$json_output" == "1" ]]; then
-    integrations_status_json "$binary_path" "$receipt_path" "$swiftbar_path" \
+    integrations_status_json "$binary_path" "$receipt_path" \
       "$raycast_inline" "$raycast_toggle" "$raycast_cancel" \
       "$receipt_installed_at" "$receipt_source" "$receipt_ref" "$receipt_commit" "$source_root"
     return 0
@@ -766,13 +659,6 @@ manage_integrations() {
     echo "  installed_ref: ${receipt_ref:-unknown} ${receipt_commit:-}"
   fi
   echo "  source: ${source_root:-unavailable}"
-  echo ""
-  echo "SwiftBar:"
-  echo "  enabled: $([[ "${CFG_SWIFTBAR_ENABLED:-1}" == "1" ]] && echo "ON" || echo "OFF")"
-  echo "  plugin: $swiftbar_path ($(integration_path_executable_label "$swiftbar_path"))"
-  echo "  plugin state: $(integration_adapter_state "$source_root" swiftbar "$swiftbar_path")"
-  echo "  plugin version: $(integration_adapter_version_label "$swiftbar_path" "$source_root" swiftbar)"
-  echo "  plugin source: $(integration_adapter_source_path_label "$source_root" swiftbar)"
   echo ""
   echo "Raycast:"
   echo "  inline: $raycast_inline ($(integration_path_executable_label "$raycast_inline"))"

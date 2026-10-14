@@ -17,7 +17,6 @@ Tmux Whisper is **inline-first for daily dictation, with tmux as a first-class d
 - `tmux-whisperd/`: local Swift daemon package used by the default backend
 - `config/`: default config, modes, and vocab
 - `integrations/raycast/`: Raycast scripts (`inline`, `toggle`, `cancel`)
-- `integrations/tmux-whisper-status.0.2s.sh`: SwiftBar plugin
 - `assets/sounds/dictate/`: tiny sample WAV sound pack
 - `install.sh`: local installer
 - `docs/plans/`: planning/history notes kept separate from active operator docs
@@ -31,7 +30,7 @@ Tmux Whisper is **inline-first for daily dictation, with tmux as a first-class d
 - `python3` (with `tomllib`, Python 3.11+ recommended)
 - `swift` + Xcode toolchain (for building the local `tmux-whisperd` backend)
 - a local Parakeet model directory, either at `~/.local/share/tmux-whisper/models/...` or via `swift_parakeet.model_path`
-- Optional: `tmux`, Raycast, SwiftBar
+- Optional: `tmux`, Raycast, Lowkey (the native menu-bar app in `tmux-whisperd/`)
 - Optional for LLM postprocess: `CEREBRAS_API_KEY`
 
 ## Install Channels
@@ -107,7 +106,7 @@ Install behavior:
 - Preserves existing config, modes, and vocab by default, including when `--force` is used.
 - `--force` refreshes binaries/integrations and seeds missing defaults; it does not replace your live config file.
 - Installs Raycast scripts to `~/.config/dictate/integrations/raycast`.
-- Installs SwiftBar plugin to `~/.config/swiftbar/plugins/tmux-whisper-status.0.2s.sh`.
+- No longer installs a SwiftBar plugin (retired in v0.11; Lowkey's menu-bar item replaces it). If an older install left `~/.config/swiftbar/plugins/tmux-whisper-status.0.2s.sh` behind, the installer points at it so you can move it to the Trash.
 - Installs sample sounds to `~/.local/share/sounds/dictate`.
 - Runs a best-effort backend warm-up after install/update, including a tiny synthetic prime transcription so the next real dictation is closer to warm.
 - Writes an install receipt to `~/.config/dictate/install-receipt.env` with the install source, archive URL when bootstrapped, repo ref/commit when available, and resolved runtime paths.
@@ -187,10 +186,8 @@ It writes `<name>.txt` next to each selected audio file, copies the transcript t
 ### Durable usage summary
 
 `tmux-whisper usage` reports a small local, transcript-free aggregate for
-successful deliveries; `tmux-whisper usage --json` is the stable surface for a
-SwiftBar menu and for the experimental native companion. SwiftBar already
-consumes this contract; the native companion remains outside the stable release
-scope. The aggregate survives normal transcript-history pruning, but begins
+successful deliveries; `tmux-whisper usage --json` is the stable surface for
+Lowkey's Stats window and other readers. The aggregate survives normal transcript-history pruning, but begins
 only after the feature is installed and never backfills old or pruned history.
 
 The estimate shows the typing pace assumption (`DICTATE_HISTORY_TYPING_WPM`,
@@ -262,7 +259,7 @@ tmux-whisper config repair
 - `tmux-whisper bench-matrix [N] [phrase_file]` runs a quick matrix over postprocess/vocab toggles (and LLM models when API key is set) on fixed phrases.
   - Phrase file format: one phrase per line (blank lines and `#` comments ignored). Optional `label<TAB>phrase` is supported.
   - Set `DICTATE_BENCH_MATRIX_PROGRESS=0` for summary-only output (no per-combo progress lines).
-- Stable CLI JSON surfaces are tracked in [`docs/CLI_CONTRACTS.md`](docs/CLI_CONTRACTS.md); prefer those contracts for scripts, agents, SwiftBar/native wrappers, and future UI layers.
+- Stable CLI JSON surfaces are tracked in [`docs/CLI_CONTRACTS.md`](docs/CLI_CONTRACTS.md); prefer those contracts for scripts, agents, Lowkey, and future UI layers.
 
 ## Troubleshooting
 
@@ -279,12 +276,12 @@ Common real-world fixes are documented in [docs/TROUBLESHOOTING.md](docs/TROUBLE
 - install-channel refresh and upgrade drift
 - invalid config repair
 - tmux vs inline usage errors
-- Raycast/SwiftBar environment issues
+- Raycast environment issues
 - vocab and mode recovery flows
 
 ## Integrations
 
-Raycast and SwiftBar are optional adapters around the CLI. Tmux Whisper remains usable without either one. For the supported integration matrix, install-channel expectations, environment boundaries, and stable-vs-experimental surface definitions, see [`docs/INTEGRATIONS.md`](docs/INTEGRATIONS.md).
+Raycast is an optional adapter around the CLI, and Lowkey is the native menu-bar app. Tmux Whisper remains usable without either one. For the supported integration matrix, install-channel expectations, environment boundaries, and stable-vs-experimental surface definitions, see [`docs/INTEGRATIONS.md`](docs/INTEGRATIONS.md).
 
 ### Raycast
 
@@ -301,31 +298,13 @@ Recommended setup:
 - use `tmux-whisper-toggle.sh` for pane-targeted tmux recording from a hotkey
 - use `tmux-whisper-cancel.sh` for discard/cancel behavior
 
-### SwiftBar
+### Menu bar
 
-Installer-managed plugin path:
-
-- `~/.config/swiftbar/plugins/tmux-whisper-status.0.2s.sh`
-
-Runtime toggle (without uninstalling plugin file):
-
-```bash
-tmux-whisper swiftbar        # show ON/OFF
-tmux-whisper swiftbar off    # keep plugin loaded but show OFF state
-tmux-whisper swiftbar on
-```
-
-If needed, set `DICTATE_INSTALL_SWIFTBAR=0` to skip plugin install.
-
-When usage tracking has started, the ready-state menu shows delivered words,
-the tracking start time, and a signed **estimated typing-time difference**
-(`typing equivalent - dictation elapsed`). SwiftBar reads the stable
-`tmux-whisper usage --json` contract and caches it between redraws; recording
-and processing states stay focused on their controls.
+The SwiftBar plugin was retired in v0.11. [Lowkey](#lowkey-experimental-native-app) is the menu-bar app now: recording and processing state, cancel, and the Stats window for usage. Settings the plugin used to toggle are still available as `tmux-whisper` commands (`tmux-whisper help`) or in `~/.config/dictate/config.toml`. `tmux-whisper swiftbar` is kept as a no-op that says so. An old `[integrations.swiftbar]` table in your config is ignored.
 
 ### Integration environment note
 
-Raycast and SwiftBar often run with a minimal shell environment. If you rely on `CEREBRAS_API_KEY`, custom PATH entries, or env-based overrides, put them in `~/.zshenv` so the integrations can see them consistently.
+Raycast often runs with a minimal shell environment. If you rely on `CEREBRAS_API_KEY`, custom PATH entries, or env-based overrides, put them in `~/.zshenv` so the integrations can see them consistently.
 
 ### Integration lifecycle checks
 
@@ -337,7 +316,7 @@ tmux-whisper integrations repair --dry-run
 tmux-whisper integrations repair
 ```
 
-`doctor` checks the installed binary, install receipt, Raycast scripts, SwiftBar plugin, executable bits, and adapter drift from the recorded source tree. `integrations` and `doctor` report each adapter as `current`, `missing`, `non-executable`, or `different` from source so update provenance is visible before repair. `repair --dry-run` shows the adapter-only refresh plan without changing files. `repair` refreshes only the installed Raycast scripts and SwiftBar plugin, creates missing adapter directories, fixes executable bits, and backs up replaced adapter files to `~/.config/dictate/backups/integrations/`. It works on Homebrew, bootstrap, and local installs; use `./install.sh --force` only when you need a full local runtime refresh.
+`doctor` checks the installed binary, install receipt, Raycast scripts, executable bits, and adapter drift from the recorded source tree. `integrations` and `doctor` report each adapter as `current`, `missing`, `non-executable`, or `different` from source so update provenance is visible before repair. `repair --dry-run` shows the adapter-only refresh plan without changing files. `repair` refreshes only the installed Raycast scripts, creates missing adapter directories, fixes executable bits, and backs up replaced adapter files to `~/.config/dictate/backups/integrations/`. It works on Homebrew, bootstrap, and local installs; use `./install.sh --force` only when you need a full local runtime refresh.
 
 ## Sounds
 
