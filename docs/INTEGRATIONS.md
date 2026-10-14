@@ -10,7 +10,7 @@ Use this document to decide whether an integration issue belongs in the supporte
 - Supported install channels: Homebrew stable, bootstrap from GitHub, and local clone installs via `./install.sh`.
 - Supported integration adapters: the installer-managed Raycast scripts shipped in this repo. The SwiftBar plugin was retired in v0.11; Lowkey's menu-bar item replaces it.
 - Supported runtime source of truth: the CLI, config under `~/.config/dictate`, install receipt, state files, processing markers, and CLI status/diagnostic commands.
-- Unsupported as production surfaces today: a native macOS companion app, alternate backend experiments, dashboard/TUI wrappers, and direct edits to installed adapter files without repair/install follow-up.
+- Unsupported as production surfaces today: alternate backend experiments, dashboard/TUI wrappers, and direct edits to installed adapter files without repair/install follow-up.
 
 ## Compatibility Matrix
 
@@ -24,7 +24,7 @@ Use this document to decide whether an integration issue belongs in the supporte
 | Raycast cancel script | Supported adapter | `./install.sh --force` or `tmux-whisper integrations repair` | Cancels active tmux or inline state through the shared runtime markers. |
 | SwiftBar plugin | Retired (v0.11) | None | Lowkey's menu-bar item replaces it. `tmux-whisper swiftbar` remains as a no-op notice; integration checks ignore a leftover plugin file, receipt key or config table. |
 | Finder Quick Action (transcribe files) | Experimental adapter | `tmux-whisper finder install` | Runs `integrations/finder/tmux-whisper-transcribe.sh`, which calls `tmux-whisper transcribe --beside --clipboard`. Not yet covered by `integrations doctor`. |
-| Native macOS app | Planned | None yet | See issue #30: a native app that owns capture, Parakeet, and paste, serving the existing daemon socket so the CLI and tmux flow stay clients. |
+| Lowkey (native menu-bar app) | Experimental, daily-driven | `tools/build-lowkey-app.sh` (see the README) | Owns the hotkey, capture, sounds, paste and the Stats window, and uses the installed CLI for transcription, cleanup, history and usage. Replaces the SwiftBar plugin. Tracked in issue #30. |
 | Alternate backend experiments | Experimental/future | None supported | Parakeet/CoreML is the active runtime path; alternate engines belong outside the near-term support boundary. |
 
 ## Environment Expectations

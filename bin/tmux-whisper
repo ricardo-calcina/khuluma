@@ -4688,7 +4688,7 @@ bench_matrix() {
       "colour behaviour and organise should stay in british spelling"
       "please summarise this in two short paragraphs and keep it concise"
       "i need a follow up pr for cleanup after this bench matrix run"
-      "switch swiftbar off then on and confirm the plugin state"
+      "open the lowkey menu and check the stats window"
     )
   fi
 
