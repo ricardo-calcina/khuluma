@@ -51,8 +51,8 @@ done
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BIN_DIR="${DICTATE_BIN_DIR:-$HOME/.local/bin}"
 CONFIG_DIR="${DICTATE_CONFIG_DIR:-$HOME/.config/dictate}"
+# Retired; only used to point at a leftover plugin from an older install.
 SWIFTBAR_DIR="${DICTATE_SWIFTBAR_DIR:-$HOME/.config/swiftbar/plugins}"
-INSTALL_SWIFTBAR="${DICTATE_INSTALL_SWIFTBAR:-1}"
 SOUND_DIR="${DICTATE_SOUNDS_DIR:-$HOME/.local/share/sounds/dictate}"
 XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
 NATIVE_DIR="${DICTATE_NATIVE_DIR:-$XDG_DATA_HOME/tmux-whisper/native}"
@@ -87,11 +87,6 @@ write_install_receipt() {
     printf 'bin_path=%q\n' "$BIN_DIR/tmux-whisper"
     printf 'config_dir=%q\n' "$CONFIG_DIR"
     printf 'native_dir=%q\n' "$NATIVE_DIR/tmux-whisperd"
-    if [[ "$INSTALL_SWIFTBAR" == "1" ]]; then
-      printf 'swiftbar_plugin=%q\n' "$SWIFTBAR_DIR/tmux-whisper-status.0.2s.sh"
-    else
-      printf 'swiftbar_plugin=%q\n' "skipped"
-    fi
     if [[ "$INSTALL_SOUNDS" == "1" ]]; then
       printf 'sounds_dir=%q\n' "$SOUND_DIR"
     else
@@ -211,14 +206,8 @@ ADAPTER_SHARE_DIR="$(dirname "$BIN_DIR")/share/tmux-whisper"
 rm -rf "$ADAPTER_SHARE_DIR/integrations"
 mkdir -p "$ADAPTER_SHARE_DIR/integrations/raycast"
 install -m 0755 "$REPO_ROOT/integrations/raycast/"*.sh "$ADAPTER_SHARE_DIR/integrations/raycast/"
-install -m 0755 "$REPO_ROOT/integrations/tmux-whisper-status.0.2s.sh" "$ADAPTER_SHARE_DIR/integrations/tmux-whisper-status.0.2s.sh"
 mkdir -p "$ADAPTER_SHARE_DIR/integrations/finder"
 install -m 0755 "$REPO_ROOT/integrations/finder/tmux-whisper-transcribe.sh" "$ADAPTER_SHARE_DIR/integrations/finder/tmux-whisper-transcribe.sh"
-
-if [[ "$INSTALL_SWIFTBAR" == "1" ]]; then
-  mkdir -p "$SWIFTBAR_DIR"
-  install -m 0755 "$REPO_ROOT/integrations/tmux-whisper-status.0.2s.sh" "$SWIFTBAR_DIR/tmux-whisper-status.0.2s.sh"
-fi
 
 if [[ "$INSTALL_SOUNDS" == "1" && -d "$REPO_ROOT/assets/sounds/dictate" ]]; then
   mkdir -p "$SOUND_DIR"
@@ -237,10 +226,8 @@ echo "Installed tmux-whisper to: $BIN_DIR/tmux-whisper"
 echo "Config path: $CONFIG_DIR"
 echo "Native backend source: $NATIVE_DIR/tmux-whisperd"
 echo "Parakeet models dir: $PARAKEET_MODELS_DIR"
-if [[ "$INSTALL_SWIFTBAR" == "1" ]]; then
-  echo "SwiftBar plugin: $SWIFTBAR_DIR/tmux-whisper-status.0.2s.sh"
-else
-  echo "SwiftBar plugin: skipped (DICTATE_INSTALL_SWIFTBAR=0)"
+if [[ -e "$SWIFTBAR_DIR/tmux-whisper-status.0.2s.sh" ]]; then
+  echo "SwiftBar plugin is retired (Lowkey replaces it); move the old copy to the Trash: $SWIFTBAR_DIR/tmux-whisper-status.0.2s.sh"
 fi
 if [[ "$INSTALL_SOUNDS" == "1" ]]; then
   echo "Sample sounds: $SOUND_DIR"

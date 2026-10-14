@@ -164,33 +164,6 @@ assert_number_ge() {
   pass "$name"
 }
 
-assert_refresh_count_at_least() {
-  local name="$1"
-  local expected="$2"
-  local actual=0
-  if [[ -f "${DICTATE_SWIFTBAR_REFRESH_LOG:-}" ]]; then
-    actual="$(grep -c 'refresh plugin=tmux-whisper-status.0.2s.sh' "$DICTATE_SWIFTBAR_REFRESH_LOG" 2>/dev/null || true)"
-  fi
-  assert_number_ge "$name" "$actual" "$expected"
-}
-
-wait_for_refresh_count_at_least() {
-  local expected="$1"
-  local tries="${2:-120}"
-  local i actual
-  for ((i = 0; i < tries; i++)); do
-    actual=0
-    if [[ -f "${DICTATE_SWIFTBAR_REFRESH_LOG:-}" ]]; then
-      actual="$(grep -c 'refresh plugin=tmux-whisper-status.0.2s.sh' "$DICTATE_SWIFTBAR_REFRESH_LOG" 2>/dev/null || true)"
-    fi
-    if (( actual >= expected )); then
-      return 0
-    fi
-    sleep 0.05
-  done
-  return 1
-}
-
 wait_for_file_contains() {
   local file="$1"
   local needle="$2"
@@ -616,7 +589,6 @@ setup_case() {
   export DICTATE_RECORD_LOG="$CASE_DIR/logs/record.log"
   export DICTATE_TRANSCRIBE_LOG="$CASE_DIR/logs/transcribe.log"
   export DICTATE_TMUX_JOBS_DIR="$CASE_DIR/tmux-jobs"
-  export DICTATE_SWIFTBAR_REFRESH_LOG="$CASE_DIR/logs/swiftbar-refresh.log"
   export DICTATE_TMUX_WHISPERD_BIN="$STUB_DIR/tmux-whisperd"
   export DICTATE_TEST_STUB_REGISTRY_DIR="$STUB_REGISTRY_DIR"
   export DICTATE_SWIFT_PARAKEET_MODEL_PATH="$CASE_DIR/swift-model"
@@ -672,7 +644,6 @@ run_tmux_round() {
   local start_out
   start_out="$("$DICTATE_BIN" toggle)"
   assert_contains "tmux_start_${mode}" "$start_out" "RECORDING"
-  assert_refresh_count_at_least "tmux_start_refresh_${mode}" 1
   wait_for_file_contains "$DICTATE_TEST_FFMPEG_LOG" "aresample=async=1000:first_pts=0" || fail "tmux_capture_async_resampler_${mode}"
   pass "tmux_capture_async_resampler_${mode}"
 
@@ -688,11 +659,8 @@ run_tmux_round() {
   local stop_out
   stop_out="$("$DICTATE_BIN" stop)"
   assert_contains "tmux_stop_${mode}" "$stop_out" "STOPPED"
-  assert_refresh_count_at_least "tmux_stop_refresh_${mode}" 3
 
   wait_for_file_contains "$DICTATE_TEST_TMUX_LOG" "tmux delete-buffer" || fail "tmux_background_complete_${mode}"
-  wait_for_refresh_count_at_least 4 || fail "tmux_complete_refresh_wait_${mode}"
-  assert_refresh_count_at_least "tmux_complete_refresh_${mode}" 4
   wait_for_absent "$job_file" || fail "tmux_job_removed_${mode}"
 
   assert_file_contains "tmux_paste_${mode}" "$DICTATE_TEST_TMUX_LOG" "tmux paste-buffer"
@@ -779,7 +747,6 @@ run_inline_toggle_round() {
   local start_out
   start_out="$("$DICTATE_BIN" inline toggle)"
   assert_contains "inline_toggle_start" "$start_out" "RECORDING"
-  assert_refresh_count_at_least "inline_toggle_start_refresh" 1
   wait_for_file_contains "$DICTATE_TEST_FFMPEG_LOG" "aresample=async=1000:first_pts=0" || fail "inline_toggle_async_resampler"
   pass "inline_toggle_async_resampler"
 
@@ -789,12 +756,9 @@ run_inline_toggle_round() {
   local stop_out
   stop_out="$("$DICTATE_BIN" inline toggle)"
   assert_contains "inline_toggle_stop" "$stop_out" "STOPPED"
-  assert_refresh_count_at_least "inline_toggle_stop_refresh" 3
 
   wait_for_absent "$DICTATE_INLINE_STATE_FILE" || fail "inline_toggle_state_removed"
   wait_for_file_contains "$DICTATE_TEST_PBCOPY_OUT" "inline background transcript" || fail "inline_toggle_background_complete"
-  wait_for_refresh_count_at_least 4 || fail "inline_toggle_complete_refresh_wait"
-  assert_refresh_count_at_least "inline_toggle_complete_refresh" 4
   wait_for_file_contains "$DICTATE_TEST_OSASCRIPT_LOG" 'keystroke "v" using command down' || fail "inline_toggle_osascript_paste"
   pass "inline_toggle_osascript_paste"
   wait_for_file_contains "$DICTATE_TEST_OSASCRIPT_LOG" 'key code 36' || fail "inline_toggle_send_enter"
@@ -865,7 +829,6 @@ run_inline_cancel_refresh_round() {
   assert_equals "inline_cancel_usage_unchanged" "$usage_after" "$usage_before"
   [[ -f "${DICTATE_CANCEL_FLAG:-/tmp/dictate-cancelled.flag}" ]] || fail "inline_cancel_refresh_flag"
   pass "inline_cancel_refresh_flag"
-  assert_refresh_count_at_least "inline_cancel_refresh_requested" 2
 }
 
 run_inline_processing_marker_until_paste_round() {
@@ -875,7 +838,7 @@ run_inline_processing_marker_until_paste_round() {
   export DICTATE_TEST_SWIFT_DELAY_SEQUENCE="1.5"
   export DICTATE_AUTOSEND=1
 
-  local start_out stop_out marker marker_pid swiftbar_out
+  local start_out stop_out marker marker_pid
   start_out="$("$DICTATE_BIN" inline toggle)"
   assert_contains "inline_processing_marker_start" "$start_out" "RECORDING"
 
@@ -889,8 +852,6 @@ run_inline_processing_marker_until_paste_round() {
   [[ "$marker_pid" =~ ^[0-9]+$ ]] || fail "inline_processing_marker_pid_present"
   kill -0 "$marker_pid" 2>/dev/null || fail "inline_processing_marker_pid_live"
   pass "inline_processing_marker_pid_live"
-  swiftbar_out="$(DICTATE_BIN="$DICTATE_BIN" bash "$ROOT/integrations/tmux-whisper-status.0.2s.sh")"
-  assert_contains "inline_processing_marker_swiftbar_state" "$swiftbar_out" "Processing (1)"
 
   wait_for_file_contains "$DICTATE_TEST_PBCOPY_OUT" "inline marker transcript" 240 || fail "inline_processing_marker_paste_done"
   wait_for_no_matching_file "$DICTATE_PROCESSING_DIR" 'inline-*' || fail "inline_processing_marker_removed_after_paste"
@@ -906,7 +867,7 @@ run_inline_processing_marker_immediate_after_stop_round() {
   export DICTATE_INLINE_STOP_GRACE_MS=1200
   export DICTATE_AUTOSEND=1
 
-  local start_out stop_out_file stop_pid marker marker_pid swiftbar_out
+  local start_out stop_out_file stop_pid marker marker_pid
   stop_out_file="$CASE_DIR/logs/stop.out"
   start_out="$("$DICTATE_BIN" inline toggle)"
   assert_contains "inline_processing_immediate_start" "$start_out" "RECORDING"
@@ -922,8 +883,6 @@ run_inline_processing_marker_immediate_after_stop_round() {
   [[ "$marker_pid" =~ ^[0-9]+$ ]] || fail "inline_processing_immediate_marker_pid_present"
   kill -0 "$marker_pid" 2>/dev/null || fail "inline_processing_immediate_marker_pid_live"
   pass "inline_processing_immediate_marker_pid_live"
-  swiftbar_out="$(DICTATE_BIN="$DICTATE_BIN" bash "$ROOT/integrations/tmux-whisper-status.0.2s.sh")"
-  assert_contains "inline_processing_immediate_swiftbar_state" "$swiftbar_out" "Processing"
 
   wait "$stop_pid"
   assert_file_contains "inline_processing_immediate_stop_output" "$stop_out_file" "STOPPED"
@@ -1312,7 +1271,6 @@ run_transcribe_file_raw_round() {
   assert_path_absent "transcribe_raw_no_usage_ledger" "$DICTATE_CONFIG_DIR/usage.json"
   assert_path_absent "transcribe_raw_no_history" "$DICTATE_CONFIG_DIR/history"
   assert_path_absent "transcribe_raw_no_sounds" "$DICTATE_TEST_SOUND_LOG"
-  assert_path_absent "transcribe_raw_no_swiftbar_refresh" "$DICTATE_SWIFTBAR_REFRESH_LOG"
   assert_path_absent "transcribe_raw_no_osascript" "$DICTATE_TEST_OSASCRIPT_LOG"
   if compgen -G "$CASE_DIR/tmp/tmux-whisper-transcribe.*" >/dev/null; then
     fail "transcribe_raw_temp_cleaned"
