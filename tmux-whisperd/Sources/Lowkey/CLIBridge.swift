@@ -89,6 +89,17 @@ struct CLIBridge {
     }
   }
 
+  /// `usage --json`, with per-day buckets when the CLI has `usage_days`.
+  /// Counts and durations only: no transcript text is ever in it.
+  func usage(daily: Bool) throws -> UsageReport {
+    let data = try run(["usage", "--json"] + (daily ? ["--days", "all"] : []), timeout: 10)
+    do {
+      return try JSONDecoder().decode(UsageReport.self, from: data)
+    } catch {
+      throw BridgeError.badOutput("usage report did not decode")
+    }
+  }
+
   /// Text-only cleanup of a raw transcript, for the shadow compare.
   func cleanup(transcript: String, app: String?) throws -> CleanupResult {
     var args = ["inline", "cleanup", "--json"]

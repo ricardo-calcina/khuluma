@@ -93,6 +93,7 @@ public struct UsageStats: Equatable, Sendable {
   public let untrackedDeliveries: Int
   public let todayDictations: Int
   public let todayWords: Int
+  public let todayRecordingMs: Int
   public let streak: Streak
   public let records: Records
 
@@ -123,6 +124,7 @@ public struct UsageStats: Equatable, Sendable {
     let today = self.today
     todayDictations = byDate[today]?.count ?? 0
     todayWords = byDate[today]?.words ?? 0
+    todayRecordingMs = byDate[today]?.recordingMs ?? 0
     let streak = Self.streak(dates: Set(byDate.keys), today: today)
     self.streak = streak
     records = Records(

@@ -144,7 +144,7 @@ public struct UsageReport: Decodable, Equatable, Sendable {
     daily = try c.decodeIfPresent(Daily.self, forKey: .daily)
   }
 
-  static func parseTimestamp(_ value: String) -> Date? {
+  public static func parseTimestamp(_ value: String) -> Date? {
     let plain = ISO8601DateFormatter()
     if let date = plain.date(from: value) { return date }
     let fractional = ISO8601DateFormatter()
