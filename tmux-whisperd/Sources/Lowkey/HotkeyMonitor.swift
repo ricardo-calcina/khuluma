@@ -3,14 +3,17 @@ import Foundation
 import LowkeyCore
 
 /// A system-wide hotkey via Carbon `RegisterEventHotKey`, which needs no
-/// Accessibility or Input Monitoring permission.
+/// Accessibility or Input Monitoring permission. Several monitors can live
+/// side by side (the toggle and the cancel key): each handles only presses
+/// of its own hot keys, told apart by `signature`.
 final class HotkeyMonitor {
   private var hotKeyRef: EventHotKeyRef?
   private var handlerRef: EventHandlerRef?
   private let action: () -> Void
-  private static weak var current: HotkeyMonitor?
+  private let signature: OSType
 
-  init(action: @escaping () -> Void) {
+  init(signature: OSType = 0x4C4F574B /* 'LOWK' */, action: @escaping () -> Void) {
+    self.signature = signature
     self.action = action
   }
 
@@ -30,7 +33,7 @@ final class HotkeyMonitor {
     try installHandlerIfNeeded()
     nextID += 1
     var newRef: EventHotKeyRef?
-    let hotKeyID = EventHotKeyID(signature: OSType(0x4C4F574B), id: nextID) // 'LOWK'
+    let hotKeyID = EventHotKeyID(signature: signature, id: nextID)
     let status = RegisterEventHotKey(spec.keyCode, spec.carbonModifiers, hotKeyID, GetApplicationEventTarget(), 0, &newRef)
     guard status == noErr, let newRef else {
       if hotKeyRef == nil { unregister() }
@@ -44,19 +47,27 @@ final class HotkeyMonitor {
   }
 
   private func installHandlerIfNeeded() throws {
-    HotkeyMonitor.current = self
     guard handlerRef == nil else { return }
     var eventType = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
-    let installStatus = InstallEventHandler(GetApplicationEventTarget(), { _, _, _ in
+    // Unretained: the handler is removed (unregister, deinit) before self goes.
+    let userData = Unmanaged.passUnretained(self).toOpaque()
+    let installStatus = InstallEventHandler(GetApplicationEventTarget(), { _, event, userData in
+      guard let event, let userData else { return OSStatus(eventNotHandledErr) }
+      let monitor = Unmanaged<HotkeyMonitor>.fromOpaque(userData).takeUnretainedValue()
+      var pressed = EventHotKeyID()
+      let status = GetEventParameter(event, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID),
+                                     nil, MemoryLayout<EventHotKeyID>.size, nil, &pressed)
+      // Another monitor's key: let the next handler have it.
+      guard status == noErr, pressed.signature == monitor.signature else { return OSStatus(eventNotHandledErr) }
       // Carbon delivers hot keys on the main thread. HIToolbox swallows an
       // Objective-C exception raised in here without a trace: log it.
       do {
-        try ObjCException.catching { HotkeyMonitor.current?.action() }
+        try ObjCException.catching { monitor.action() }
       } catch {
         Log.write("hotkey: the action raised \(error.localizedDescription)")
       }
       return noErr
-    }, 1, &eventType, nil, &handlerRef)
+    }, 1, &eventType, userData, &handlerRef)
     guard installStatus == noErr else {
       throw NSError(domain: "Lowkey", code: Int(installStatus), userInfo: [NSLocalizedDescriptionKey: "cannot install hotkey handler (\(installStatus))"])
     }
@@ -71,9 +82,6 @@ final class HotkeyMonitor {
     if let handlerRef {
       RemoveEventHandler(handlerRef)
       self.handlerRef = nil
-    }
-    if HotkeyMonitor.current === self {
-      HotkeyMonitor.current = nil
     }
   }
 }

@@ -80,3 +80,25 @@ public enum RetryOnce {
     }
   }
 }
+
+/// Something that should happen at most once, from whichever thread gets
+/// there first: the start chime fires on the first audio buffer (audio
+/// thread) or a fallback timer (main), and never after the take stopped.
+public final class OneShot: @unchecked Sendable {
+  private let lock = NSLock()
+  private var done = false
+
+  public init() {}
+
+  /// True for the first caller only (and never after `cancel`).
+  public func fire() -> Bool {
+    lock.withLock {
+      defer { done = true }
+      return !done
+    }
+  }
+
+  public func cancel() {
+    lock.withLock { done = true }
+  }
+}

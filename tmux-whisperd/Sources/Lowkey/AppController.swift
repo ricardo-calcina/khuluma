@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import LowkeyCore
+import ServiceManagement
 
 /// Menu-bar app: hotkey → chime + capture → transcription and cleanup →
 /// paste/send. Takes go through the native pipeline (daemon socket + Swift
@@ -21,11 +22,17 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// Published before capture starts and removed when the take ends, so
     /// the CLI never swaps the daemon out mid-take.
     let marker: TakeMarker?
+    /// The start chime: played once, when capture is confirmed.
+    let chime: OneShot
 
     func delivery(_ base: Delivery) -> Delivery {
       retargeted ? base.restoringOriginalApp() : base
     }
   }
+
+  /// If no audio has arrived this long after the engine started, chime
+  /// anyway (and log it) rather than leave the press unanswered.
+  private static let chimeFallback: TimeInterval = 0.75
 
   /// `tmux-whisper app-config --json`, fetched in the background.
   final class SettingsFetch: @unchecked Sendable {
@@ -66,10 +73,17 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
   private let pasteRetriedItem = NSMenuItem(title: "", action: #selector(pasteRetried), keyEquivalent: "")
   private let discardTimedOutItem = NSMenuItem(title: "Discard timed-out recording", action: #selector(discardTimedOut), keyEquivalent: "")
   private let cancelItem = NSMenuItem(title: "Cancel Recording", action: #selector(cancelRecording), keyEquivalent: "")
+  private let loginItem = NSMenuItem(title: "Start at Login", action: #selector(toggleStartAtLogin), keyEquivalent: "")
 
   private let recorder = AudioRecorder()
   private let sounds = SoundPlayer()
   private lazy var hotkey = HotkeyMonitor { [weak self] in self?.toggle() }
+  /// Ctrl+Esc cancels a recording, as in the Raycast setup. Bound only while
+  /// recording, so the combination stays free for other apps otherwise.
+  private lazy var cancelHotkey = HotkeyMonitor(signature: 0x4C4B434E /* 'LKCN' */) { [weak self] in
+    self?.cancelRecording()
+  }
+  private static let cancelKey = try! HotkeySpec.parse("ctrl+escape")
   /// One start at a time; a failed start never leaves its marker behind.
   private let starter = TakeStarter()
   private var cli: CLIBridge?
@@ -108,7 +122,8 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
   func applicationDidFinishLaunching(_ notification: Notification) {
     buildMenu()
     sweepStaleMarkers()
-    Log.write("launch: Lowkey \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev")")
+    Log.write("launch: Lowkey \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev")"
+              + ", start at login \(Self.loginStatusText(SMAppService.mainApp.status))")
 
     recorder.prepare()
     recorder.onConfigurationChange = { [weak self] in self?.handleDeviceChange() }
@@ -362,10 +377,17 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
   }
 
   private func startRecording(hotkeyAt: Double) {
-    // Chime first: it's the cue to speak. It plays on its own queue, so the
-    // microphone starts in parallel instead of waiting for the audio device.
-    sounds.play(.start) { playMs in
-      Log.write(String(format: "start: chime play() %.1fms (hotkey→chime ≈ %.1fms)", playMs, monotonicMs() - hotkeyAt))
+    // The chime is the cue to speak, so it plays only once the first audio
+    // buffer has arrived: words spoken at the chime are always captured.
+    // (It used to play before the engine started, ~120 ms before capture.)
+    let chime = OneShot()
+    let sounds = self.sounds
+    let playChime: (String) -> Void = { how in
+      guard chime.fire() else { return }
+      sounds.play(.start) { playMs in
+        Log.write(String(format: "start: chime %@, hotkey→chime ≈ %.1fms (play() %.1fms)",
+                         how, monotonicMs() - hotkeyAt, playMs))
+      }
     }
     let frontmost = NSWorkspace.shared.frontmostApplication
     let original = DeliveryTarget.original(
@@ -382,7 +404,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         Log.write("markers: could not publish a take marker in \(directory); recording anyway")
       }
       return marker
-    }, capture: { try recorder.start() })
+    }, capture: { try recorder.start(onFirstAudio: { playChime("at first audio") }) })
     switch outcome {
     case .started(let engineMs, let marker):
       let startedAt = monotonicMs()
@@ -394,9 +416,19 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         originalApp: original,
         retargeted: retargeted,
         settings: cli.map { SettingsFetch(cli: $0, queue: settingsQueue) },
-        marker: marker
+        marker: marker,
+        chime: chime
       )
+      DispatchQueue.main.asyncAfter(deadline: .now() + Self.chimeFallback) {
+        playChime("with no audio yet after \(Int(Self.chimeFallback * 1000))ms")
+      }
       phase = .recording
+      do {
+        // A toggle bound to the same keys already stops the take.
+        if hotkey.binding != Self.cancelKey { try cancelHotkey.register(Self.cancelKey) }
+      } catch {
+        Log.write("hotkey: \(Self.cancelKey.display) to cancel is unavailable this take: \(error.localizedDescription)")
+      }
       Log.write(String(format: "start: engine.start %.1fms, hotkey→capturing %.1fms, app=%@",
                        engineMs, startedAt - hotkeyAt, original?.localizedName ?? "-"))
       // While you speak: make sure the daemon is up with the model loaded
@@ -406,6 +438,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
       Log.write("start: ignored a press while the microphone was still starting")
     case .failed(let error):
       // The marker is already gone, so the CLI's idle check isn't blocked.
+      chime.cancel()
       sounds.play(.error)
       fail("could not start recording: \(error.localizedDescription)")
     }
@@ -415,12 +448,16 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     guard let take else { return }
     // "Stop → delivered" starts here, before the engine is torn down.
     let stopAt = monotonicMs()
+    take.chime.cancel()
+    cancelHotkey.unregister()
     let firstBuffer = recorder.firstBufferTime
     let samples = recorder.stop()
+    let engineStopMs = monotonicMs() - stopAt
     self.take = nil
     let recordMs = Int((stopAt - take.startedAt).rounded())
     if let firstBuffer {
-      Log.write(String(format: "stop: record %dms, hotkey→first audio %.1fms, samples %d", recordMs, firstBuffer - take.hotkeyAt, samples.count))
+      Log.write(String(format: "stop: record %dms, hotkey→first audio %.1fms, samples %d, capture stop %.1fms",
+                       recordMs, firstBuffer - take.hotkeyAt, samples.count, engineStopMs))
     }
     guard !samples.isEmpty else {
       take.marker?.remove()
@@ -446,6 +483,8 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
   @objc private func cancelRecording() {
     guard let take else { return }
+    take.chime.cancel()
+    cancelHotkey.unregister()
     _ = recorder.stop()
     take.marker?.remove()
     self.take = nil
@@ -1095,6 +1134,49 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
   func menuWillOpen(_ menu: NSMenu) {
     refreshTimedOutItems()
+    refreshLoginItem()
+  }
+
+  // MARK: - Start at login
+
+  private static func loginStatusText(_ status: SMAppService.Status) -> String {
+    switch status {
+    case .enabled: return "on"
+    case .requiresApproval: return "waiting for approval in System Settings"
+    case .notRegistered: return "off"
+    case .notFound: return "off (not found)"
+    @unknown default: return "unknown (\(status.rawValue))"
+    }
+  }
+
+  /// Opt-in, and macOS keeps the setting (System Settings → General →
+  /// Login Items), so there's nothing in config.toml. Registered by bundle,
+  /// so a rebuild in place keeps it; moving the app needs a re-toggle.
+  private func refreshLoginItem() {
+    let status = SMAppService.mainApp.status
+    loginItem.state = status == .enabled ? .on : (status == .requiresApproval ? .mixed : .off)
+    loginItem.title = status == .requiresApproval ? "Start at Login (approve in System Settings)" : "Start at Login"
+  }
+
+  @objc private func toggleStartAtLogin() {
+    let service = SMAppService.mainApp
+    do {
+      switch service.status {
+      case .enabled:
+        try service.unregister()
+      case .requiresApproval:
+        // Registered, but macOS wants the user's say-so: show where.
+        SMAppService.openSystemSettingsLoginItems()
+      default:
+        try service.register()
+        if service.status == .requiresApproval { SMAppService.openSystemSettingsLoginItems() }
+      }
+      Log.write("login: start at login \(Self.loginStatusText(service.status))")
+    } catch {
+      Log.write("login: could not change start at login: \(error.localizedDescription)")
+      fail("could not change Start at Login: \(error.localizedDescription)")
+    }
+    refreshLoginItem()
   }
 
   /// Shows Retry / Paste / Discard while a timed-out take is kept (expired
@@ -1389,6 +1471,8 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     let log = NSMenuItem(title: "Open Log", action: #selector(openLog), keyEquivalent: "l")
     log.target = self
     menu.addItem(log)
+    loginItem.target = self
+    menu.addItem(loginItem)
     menu.addItem(.separator())
     menu.addItem(NSMenuItem(title: "Quit Lowkey", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
     menu.delegate = self
