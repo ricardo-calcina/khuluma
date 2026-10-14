@@ -1,3 +1,5 @@
+import Foundation
+
 /// The steps that put a transcript into the target app, mirroring the CLI's
 /// osascript delivery (bin/tmux-whisper process_inline_recording).
 public enum DeliveryStep: Equatable, Sendable {
@@ -11,6 +13,42 @@ public enum DeliveryStep: Equatable, Sendable {
   case shortcut(character: Character, command: Bool, control: Bool)
   /// A layout-independent key (Return), as an ANSI virtual key code.
   case key(code: UInt16, command: Bool, control: Bool)
+}
+
+/// Which app a take is delivered to.
+public enum DeliveryTarget {
+  /// Lowkey never pastes into itself (e.g. with its own window in front):
+  /// the text would land nowhere yet count as delivered.
+  public static func isSelf(frontmostPID: Int32?, ownPID: Int32) -> Bool {
+    frontmostPID == ownPID
+  }
+
+  /// The take's original app: the frontmost one, or the last other app that
+  /// was active when Lowkey itself is in front at the hotkey.
+  public static func original<App>(frontmost: App?, lastExternal: App?, isSelf: (App) -> Bool) -> App? {
+    guard let frontmost, isSelf(frontmost) else { return frontmost }
+    return lastExternal.flatMap { isSelf($0) ? nil : $0 }
+  }
+
+  /// The app whose cleanup mode applies (and is recorded in history): the
+  /// one the text is delivered to. "restore" and retargeted takes go to the
+  /// app from recording start; "current" to whatever is frontmost at stop.
+  public static func modeApp(pasteTarget: String?, retargeted: Bool, original: String?,
+                             frontmostAtStop: String?) -> String? {
+    pasteTarget == "restore" || retargeted ? original : frontmostAtStop
+  }
+}
+
+/// The local calendar date usage is counted under.
+public enum LocalDate {
+  /// YYYY-MM-DD in the Gregorian calendar, whatever calendar the user has
+  /// chosen, in `timeZone`.
+  public static func string(for date: Date, timeZone: TimeZone = .current) -> String {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = timeZone
+    let parts = calendar.dateComponents([.year, .month, .day], from: date)
+    return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
+  }
 }
 
 public enum DeliveryPlan {
