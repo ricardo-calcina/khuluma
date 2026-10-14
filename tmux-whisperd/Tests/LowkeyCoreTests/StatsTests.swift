@@ -135,7 +135,8 @@ struct UsageStatsTests {
     let grid = stats.heatmap(days: 30)
     #expect(grid.allSatisfy { $0.count == 7 })
     #expect(grid.first?.first?.date.weekday == 2) // Monday rows first
-    #expect(grid.flatMap { $0 }.filter { $0.state != .outsideRange && $0.state != .future }.count == 30)
+    let cellsInRange = grid.flatMap { $0 }.filter { $0.state != .outsideRange && $0.state != .future }
+    #expect(cellsInRange.count == 30)
     let cells = Dictionary(uniqueKeysWithValues: grid.flatMap { $0 }.map { ($0.date, $0.state) })
     #expect(cells[date("2026-10-14")] == .level(1))
     #expect(cells[date("2026-10-13")] == .level(2))
@@ -146,8 +147,12 @@ struct UsageStatsTests {
     let sunday = UsageStats(report: report(days: days, today: "2026-10-14"), today: date("2026-10-14"),
                             firstWeekday: 1, timeZone: utc)
     #expect(sunday.heatmap(days: 90).first?.first?.date.weekday == 1)
-    #expect(sunday.heatmap(days: 90).flatMap { $0 }.filter { $0.state != .outsideRange && $0.state != .future }.count == 90)
-    #expect(stats.heatmap(days: 60).flatMap { $0 }.contains { $0.date == date("2026-10-14").adding(days: -59) && $0.state != .outsideRange })
+    let sundayInRange = sunday.heatmap(days: 90).flatMap { $0 }.filter { $0.state != .outsideRange && $0.state != .future }
+    #expect(sundayInRange.count == 90)
+    let sixtyDaysAgo = date("2026-10-14").adding(days: -59)
+    let sixtyDayCells = stats.heatmap(days: 60).flatMap { $0 }
+    let firstDayShown = sixtyDayCells.contains { $0.date == sixtyDaysAgo && $0.state != .outsideRange }
+    #expect(firstDayShown)
   }
 
   @Test func levelsFollowTheDictationCount() {
