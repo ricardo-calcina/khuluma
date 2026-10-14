@@ -39,11 +39,12 @@ public struct StatsRefresh: Sendable {
     return (show, generation)
   }
 
-  /// The window closed: drop what's running and anything queued.
+  /// The window closed: what's running will be ignored and anything queued
+  /// is dropped. A load still in flight stays `running` until it finishes,
+  /// so a reopen meanwhile queues behind it instead of starting a second.
   public mutating func invalidate() {
     generation += 1
     pending = false
-    running = false
     burstStart = nil
   }
 

@@ -214,9 +214,32 @@ struct StatsRefreshTests {
     var refresh = StatsRefresh()
     #expect(refresh.request() == 0)
     refresh.invalidate()
-    #expect(refresh.request() == 1)
-    #expect(!refresh.finished(generation: 0).show)
-    #expect(refresh.finished(generation: 1).show)
+    let stale = refresh.finished(generation: 0)
+    #expect(!stale.show && stale.again == nil && !refresh.running)
+  }
+
+  @Test func aReopenWaitsForTheLoadStillInFlight() {
+    var refresh = StatsRefresh()
+    #expect(refresh.request() == 0)
+    refresh.invalidate()
+    // Reopened while the old load runs: queued, not a second load.
+    #expect(refresh.request() == nil)
+    #expect(refresh.request() == nil)
+    let stale = refresh.finished(generation: 0)
+    #expect(!stale.show && stale.again == 1)
+    #expect(refresh.request() == nil)
+    let fresh = refresh.finished(generation: 1)
+    #expect(fresh.show && fresh.again == 1)
+    #expect(refresh.finished(generation: 1).again == nil && !refresh.running)
+  }
+
+  @Test func closingDropsAQueuedReload() {
+    var refresh = StatsRefresh()
+    #expect(refresh.request() == 0)
+    #expect(refresh.request() == nil)
+    refresh.invalidate()
+    let stale = refresh.finished(generation: 0)
+    #expect(!stale.show && stale.again == nil && !refresh.running)
   }
 
   @Test func debounceNeverPostponesPastTheCap() {

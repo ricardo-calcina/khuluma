@@ -99,20 +99,26 @@ final class StatsModel: ObservableObject {
   private func load(_ generation: Int) {
     let source = source()
     guard let cli = source.cli else {
-      return finished(.failure(CLIBridge.BridgeError.notInstalled), generation: generation, config: nil)
+      return finished(.failure(CLIBridge.BridgeError.notInstalled), generation: generation,
+                      ledger: Self.ledgerPath(nil), before: nil)
     }
     let cached = source.config
     queue.async { [weak self] in
       // Settings may not have loaded yet (Lowkey just launched).
       let config = cached ?? (try? cli.appConfig())
+      // The ledger as it was before the read: a write after this point is
+      // seen as a change once the watcher is up.
+      let path = Self.ledgerPath(config)
+      let before = FileSignature(path: path)
       let result = Result { try cli.usage(daily: config?.supports("usage_days") ?? false) }
       DispatchQueue.main.async {
-        self?.finished(result, generation: generation, config: config)
+        self?.finished(result, generation: generation, ledger: path, before: before)
       }
     }
   }
 
-  private func finished(_ result: Result<UsageReport, Error>, generation: Int, config: AppConfig?) {
+  private func finished(_ result: Result<UsageReport, Error>, generation: Int, ledger: String,
+                        before: FileSignature?) {
     let (show, again) = refresh.finished(generation: generation)
     if show {
       switch result {
@@ -128,7 +134,7 @@ final class StatsModel: ObservableObject {
         Log.write("stats: refresh failed: \(error.localizedDescription)")
         refreshFailed = true
       }
-      watch(ledgerPath(config))
+      watch(ledger, baseline: before)
     }
     if let again {
       load(again)
@@ -147,14 +153,14 @@ final class StatsModel: ObservableObject {
 
   // MARK: - Ledger watcher
 
-  private func ledgerPath(_ config: AppConfig?) -> String {
+  nonisolated private static func ledgerPath(_ config: AppConfig?) -> String {
     if let path = config?.usage?.summaryPath, !path.isEmpty { return path }
     return FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".config/dictate/usage.json").path
   }
 
   /// Watches the ledger's directory: the CLI replaces the file atomically, so
   /// the file itself is a new inode after each write.
-  private func watch(_ path: String) {
+  private func watch(_ path: String, baseline: FileSignature?) {
     guard open, path != watchedPath else { return }
     stopWatching()
     let directory = (path as NSString).deletingLastPathComponent
@@ -171,9 +177,9 @@ final class StatsModel: ObservableObject {
     source.setCancelHandler { close(fd) }
     watcher = source
     watchedPath = path
-    ledgerSignature = FileSignature(path: path)
+    ledgerSignature = baseline
     source.resume()
-    // A write that landed while the watcher was being set up.
+    // A write that landed after the read, before the watcher was up.
     ledgerEvent()
   }
 
@@ -201,7 +207,7 @@ final class StatsModel: ObservableObject {
 }
 
 /// Enough of `stat` to tell that a file changed.
-private struct FileSignature: Equatable {
+struct FileSignature: Equatable, Sendable {
   let inode: UInt64
   let size: Int64
   let modified: timespec

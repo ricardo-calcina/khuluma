@@ -196,9 +196,9 @@ private struct Activity: View {
       Text(Format.rangeLine(range, since: stats.dailySince))
         .font(.callout)
         .foregroundStyle(.secondary)
-      Heatmap(weeks: weeks, today: stats.today, hovered: $hover.cell)
+      Heatmap(weeks: weeks, today: stats.today, coverageComplete: stats.coverageComplete, hovered: $hover.cell)
       HStack(alignment: .center) {
-        Text(hover.cell.map(Format.cellLine) ?? " ")
+        Text(hover.cell.map { Format.cellLine($0, coverageComplete: stats.coverageComplete) } ?? " ")
           .font(.callout)
           .monospacedDigit()
         Spacer()
@@ -216,6 +216,7 @@ private final class Hover: ObservableObject {
 private struct Heatmap: View {
   let weeks: [[UsageStats.Cell]]
   let today: CivilDate
+  let coverageComplete: Bool
   @Binding var hovered: UsageStats.Cell?
 
   static let cell: CGFloat = 24
@@ -240,7 +241,7 @@ private struct Heatmap: View {
             .fixedSize()
             .frame(width: Self.cell, alignment: .leading)
           ForEach(weeks[index], id: \.date) { cell in
-            HeatCell(cell: cell, isToday: cell.date == today)
+            HeatCell(cell: cell, isToday: cell.date == today, coverageComplete: coverageComplete)
               .onHover { inside in
                 if inside {
                   hovered = cell
@@ -258,6 +259,7 @@ private struct Heatmap: View {
 private struct HeatCell: View {
   let cell: UsageStats.Cell
   let isToday: Bool
+  let coverageComplete: Bool
 
   var body: some View {
     let shape = RoundedRectangle(cornerRadius: 4, style: .continuous)
@@ -278,7 +280,7 @@ private struct HeatCell: View {
     }
     .frame(width: Heatmap.cell, height: Heatmap.cell)
     .accessibilityElement()
-    .accessibilityLabel(Format.cellLine(cell))
+    .accessibilityLabel(Format.cellLine(cell, coverageComplete: coverageComplete))
   }
 }
 
@@ -501,12 +503,14 @@ enum Format {
     return head + ": " + parts.joined(separator: " · ")
   }
 
-  static func cellLine(_ cell: UsageStats.Cell) -> String {
+  /// With incomplete coverage a day may have had dictations recorded
+  /// without a day, so an empty day only had none *recorded*.
+  static func cellLine(_ cell: UsageStats.Cell, coverageComplete: Bool) -> String {
     let day = longDate(cell.date)
     switch cell.state {
     case .untracked: return "\(day): not tracked"
     case .future, .outsideRange: return day
-    case .empty: return "\(day): no dictations"
+    case .empty: return "\(day): no \(coverageComplete ? "" : "recorded ")dictations"
     case .level:
       var parts = ["\(cell.dictations) dictation\(cell.dictations == 1 ? "" : "s")", "\(cell.words.formatted()) words"]
       if let wpm = cell.wordsPerMinute {
