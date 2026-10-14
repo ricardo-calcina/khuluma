@@ -277,12 +277,31 @@ usage_summary_file() {
 # Record exactly one completed delivery. Python's advisory lock serializes
 # concurrent inline/tmux workers; writing a fsynced temporary file and replacing
 # it means readers only ever see a complete previous or next JSON document.
+#
+# Each delivery also lands in a per-day bucket (`daily.days`, keyed by the
+# local calendar date of the delivery) for streaks, records and activity.
+# `daily.baseline_count` is the total before the delivery that created the
+# section, so deliveries an older writer recorded without a bucket stay
+# visible as untracked. A malformed `daily` never costs a delivery: totals
+# are still recorded and the section is left alone. A take id makes the
+# write exactly-once: ids live in `recent_take_ids` (pruned after 14 days),
+# checked and updated in the same locked write as the totals.
 # Usage: usage_record_delivery <inline|tmux> <processed_text> <record_ms> <full_elapsed_ms>
+#          [--take-id ID] [--local-date YYYY-MM-DD]
 usage_record_delivery() {
   local flow="${1:-}"
   local processed="${2:-}"
   local record_ms="${3:-0}"
   local full_elapsed_ms="${4:-0}"
+  local take_id="" local_date=""
+  if [[ $# -ge 4 ]]; then shift 4; else set --; fi
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --take-id) [[ $# -ge 2 ]] || return 1; take_id="$2"; shift 2 ;;
+      --local-date) [[ $# -ge 2 ]] || return 1; local_date="$2"; shift 2 ;;
+      *) return 1 ;;
+    esac
+  done
   [[ "$flow" == "inline" || "$flow" == "tmux" ]] || return 1
   [[ "$record_ms" =~ ^[0-9]+$ ]] || return 1
   [[ "$full_elapsed_ms" =~ ^[0-9]+$ ]] || return 1
@@ -299,14 +318,36 @@ import sys
 import tempfile
 import time
 
-path, flow, record_ms, full_elapsed_ms = sys.argv[1:]
+path, flow, record_ms, full_elapsed_ms, take_id, local_date = sys.argv[1:]
 processed = sys.stdin.read()
+TAKE_ID_DAYS = 14
+TAKE_ID_MAX = 5000
 
 def now_iso():
     override = os.environ.get("DICTATE_USAGE_NOW", "").strip()
     if override:
         return override
     return datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+def local_today(stamp):
+    # The local calendar date of the same instant as `stamp` (system time
+    # zone; TZ in tests).
+    try:
+        parsed = datetime.datetime.fromisoformat(stamp.replace("Z", "+00:00"))
+    except ValueError:
+        parsed = datetime.datetime.now(datetime.timezone.utc)
+    return parsed.astimezone().date()
+
+def civil_date(value):
+    if not isinstance(value, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+        return None
+    try:
+        return datetime.date.fromisoformat(value)
+    except ValueError:
+        return None
+
+def plain_int(value):
+    return isinstance(value, int) and not isinstance(value, bool) and value >= 0
 
 def as_nonnegative_int(value, name):
     if isinstance(value, bool):
@@ -352,7 +393,22 @@ with open(lock_path, "a+", encoding="utf-8") as lock:
     if not isinstance(by_flow, dict):
         raise SystemExit("tmux-whisper: usage summary is missing flow counts; refusing to overwrite it")
 
-    deliveries["count"] = as_nonnegative_int(deliveries.get("count", 0), "delivered_dictations.count") + 1
+    stamp = now_iso()
+    today = local_today(stamp)
+    day = civil_date(local_date) or today
+    if not re.fullmatch(r"[A-Za-z0-9._-]{1,128}", take_id):
+        take_id = ""
+    take_ids = payload.get("recent_take_ids")
+    if take_ids is not None and not isinstance(take_ids, dict):
+        print("tmux-whisper: usage take ids are unreadable; starting them again", file=sys.stderr)
+        take_ids = None
+    take_ids = dict(take_ids or {})
+    if take_id and take_id in take_ids:
+        # Already counted (a replay): nothing to change.
+        raise SystemExit(0)
+
+    count_before = as_nonnegative_int(deliveries.get("count", 0), "delivered_dictations.count")
+    deliveries["count"] = count_before + 1
     by_flow["inline"] = as_nonnegative_int(by_flow.get("inline", 0), "delivered_dictations.by_flow.inline")
     by_flow["tmux"] = as_nonnegative_int(by_flow.get("tmux", 0), "delivered_dictations.by_flow.tmux")
     by_flow[flow] += 1
@@ -360,6 +416,36 @@ with open(lock_path, "a+", encoding="utf-8") as lock:
     payload["processed_words"] = as_nonnegative_int(payload.get("processed_words", 0), "processed_words") + words
     payload["recording_duration_ms"] = as_nonnegative_int(payload.get("recording_duration_ms", 0), "recording_duration_ms") + int(record_ms)
     payload["full_elapsed_duration_ms"] = as_nonnegative_int(payload.get("full_elapsed_duration_ms", 0), "full_elapsed_duration_ms") + int(full_elapsed_ms)
+
+    daily = payload.get("daily")
+    if daily is None:
+        daily = {"started_at": stamp, "baseline_count": count_before, "days": {}}
+        payload["daily"] = daily
+    day_fields = ("count", "inline", "tmux", "words", "recording_ms", "full_elapsed_ms",
+                  "longest_recording_ms", "most_words")
+    days = daily.get("days") if isinstance(daily, dict) else None
+    bucket = days.get(day.isoformat(), {}) if isinstance(days, dict) else None
+    if (isinstance(daily, dict) and plain_int(daily.get("baseline_count")) and isinstance(bucket, dict)
+            and all(plain_int(bucket.get(k, 0)) for k in day_fields)):
+        bucket = {k: bucket.get(k, 0) for k in day_fields}
+        bucket["count"] += 1
+        bucket[flow] += 1
+        bucket["words"] += words
+        bucket["recording_ms"] += int(record_ms)
+        bucket["full_elapsed_ms"] += int(full_elapsed_ms)
+        bucket["longest_recording_ms"] = max(bucket["longest_recording_ms"], int(record_ms))
+        bucket["most_words"] = max(bucket["most_words"], words)
+        days[day.isoformat()] = bucket
+    else:
+        print("tmux-whisper: daily usage is unreadable; recorded the totals only", file=sys.stderr)
+
+    if take_id:
+        cutoff = today - datetime.timedelta(days=TAKE_ID_DAYS)
+        take_ids = {k: v for k, v in take_ids.items() if (civil_date(v) or cutoff) > cutoff}
+        take_ids[take_id] = day.isoformat()
+        if len(take_ids) > TAKE_ID_MAX:
+            take_ids = dict(sorted(take_ids.items(), key=lambda item: item[1])[-TAKE_ID_MAX:])
+        payload["recent_take_ids"] = take_ids
 
     fd, tmp_path = tempfile.mkstemp(prefix=os.path.basename(path) + ".tmp-", dir=os.path.dirname(path) or ".")
     try:
@@ -380,26 +466,33 @@ with open(lock_path, "a+", encoding="utf-8") as lock:
     finally:
         if os.path.exists(tmp_path):
             os.unlink(tmp_path)
-' "$(usage_summary_file)" "$flow" "$record_ms" "$full_elapsed_ms" <<<"$processed"
+' "$(usage_summary_file)" "$flow" "$record_ms" "$full_elapsed_ms" "$take_id" "$local_date" <<<"$processed"
 }
 
 # Print a stable, content-free usage summary suitable for a menu-bar wrapper.
+# Usage: usage_summary [json_output] [days]   days: "" (none), N or "all";
+# with days, the JSON gains a `daily` section (per-day buckets for the last N
+# local calendar dates including today) built from validated numbers only.
 usage_summary() {
   local json_output="${1:-0}"
+  local days_arg="${2:-}"
   local summary_file
   summary_file="$(usage_summary_file)"
   local typing_wpm
   typing_wpm="$(history_typing_wpm_assumed)"
   need python3
 
-  python3 - "$summary_file" "$typing_wpm" "$json_output" <<'PYEOF'
+  python3 - "$summary_file" "$typing_wpm" "$json_output" "$days_arg" <<'PYEOF'
+import datetime
 import json
 import os
+import re
 import sys
 
-path, wpm_raw, json_raw = sys.argv[1:]
+path, wpm_raw, json_raw, days_raw = sys.argv[1:]
 wpm = int(wpm_raw)
 json_output = json_raw == "1"
+stored = None
 
 def nonnegative(value, default=0):
     try:
@@ -429,6 +522,55 @@ else:
     tracking_started_at = None
     count = inline = tmux = words = recording_ms = full_elapsed_ms = 0
 
+def plain_int(value):
+    return isinstance(value, int) and not isinstance(value, bool) and value >= 0
+
+def civil_date(value):
+    if not isinstance(value, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+        return None
+    try:
+        return datetime.date.fromisoformat(value)
+    except ValueError:
+        return None
+
+def local_today():
+    override = os.environ.get("DICTATE_USAGE_NOW", "").strip()
+    try:
+        parsed = datetime.datetime.fromisoformat(override.replace("Z", "+00:00")) if override else None
+    except ValueError:
+        parsed = None
+    return (parsed or datetime.datetime.now(datetime.timezone.utc)).astimezone().date()
+
+# Only the allow-listed numbers of each bucket leave this function; the stored
+# section is never passed through.
+DAY_FIELDS = ("count", "words", "recording_ms", "full_elapsed_ms", "longest_recording_ms", "most_words")
+daily_section = stored.get("daily") if isinstance(stored, dict) else None
+daily_started_at = None
+daily_status = "not_started"
+daily_baseline = 0
+daily_days = []
+if daily_section is not None:
+    days_obj = daily_section.get("days") if isinstance(daily_section, dict) else None
+    started = daily_section.get("started_at") if isinstance(daily_section, dict) else None
+    if (isinstance(days_obj, dict) and isinstance(started, str) and started
+            and plain_int(daily_section.get("baseline_count"))):
+        daily_status = "active"
+        daily_started_at = started
+        daily_baseline = daily_section["baseline_count"]
+        for key, bucket in days_obj.items():
+            date = civil_date(key)
+            if date is None or not isinstance(bucket, dict):
+                continue
+            if not all(plain_int(bucket.get(k, 0)) for k in DAY_FIELDS + ("inline", "tmux")):
+                continue
+            entry = {"date": date.isoformat()}
+            entry.update({k: bucket.get(k, 0) for k in DAY_FIELDS})
+            entry["by_flow"] = {"inline": bucket.get("inline", 0), "tmux": bucket.get("tmux", 0)}
+            daily_days.append(entry)
+        daily_days.sort(key=lambda d: d["date"])
+    else:
+        daily_status = "unreadable"
+
 typing_equivalent_ms = int(round((words * 60000) / wpm)) if words else 0
 estimated_time_difference_ms = typing_equivalent_ms - full_elapsed_ms
 payload = {
@@ -440,6 +582,7 @@ payload = {
         "scope": "successful_delivered_dictations_recorded_since_tracking_started",
         "history_backfill": False,
         "retention_independent": True,
+        "daily_tracking_started_at": daily_started_at,
     },
     "delivered_dictations": {"count": count, "by_flow": {"inline": inline, "tmux": tmux}},
     "processed_words": words,
@@ -448,6 +591,25 @@ payload = {
     "typing_assumption": {"wpm": wpm, "typing_equivalent_duration_ms": typing_equivalent_ms},
     "estimated_time_difference_ms": estimated_time_difference_ms,
 }
+
+if days_raw:
+    today = local_today()
+    # Over all stored buckets, never the returned slice.
+    untracked = max(0, count - daily_baseline - sum(d["count"] for d in daily_days)) if daily_status == "active" else 0
+    if days_raw == "all":
+        start = min([civil_date(d["date"]) for d in daily_days] + [today])
+        end = max([civil_date(d["date"]) for d in daily_days] + [today])
+    else:
+        start = today - datetime.timedelta(days=int(days_raw) - 1)
+        end = today
+    payload["daily"] = {
+        "status": daily_status,
+        "started_at": daily_started_at,
+        "as_of_local_date": today.isoformat(),
+        "range": {"from": start.isoformat(), "to": end.isoformat()},
+        "untracked_deliveries": untracked,
+        "days": [d for d in daily_days if start.isoformat() <= d["date"] <= end.isoformat()],
+    }
 
 def fmt(ms):
     sign = "-" if ms < 0 else ""

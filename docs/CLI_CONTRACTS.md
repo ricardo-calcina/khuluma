@@ -47,6 +47,23 @@ These commands are safe to build integrations on:
     delivery, word, or duration totals.
   - Only successful delivered inline and tmux dictations are counted. Failed,
     cancelled, no-speech, superseded, and replay runs are excluded.
+  - `coverage.daily_tracking_started_at` (string or null, 0.11+): when per-day
+    counting began.
+- `tmux-whisper usage --json --days N|all`
+  - The same object plus `daily`: `status` (`active`, `not_started`,
+    `unreadable`), `started_at`, `as_of_local_date`, `range` (`from`/`to`, the
+    last N local calendar dates including today; N is 1–3660), and
+    `untracked_deliveries` (deliveries recorded without a day, e.g. by an older
+    CLI, counted over all stored days).
+  - `days` lists only active days, ascending: `date` (YYYY-MM-DD, the local
+    date at delivery), `count`, `by_flow`, `words`, `recording_ms`,
+    `full_elapsed_ms`, `longest_recording_ms`, `most_words`. Only these
+    validated numbers are emitted.
+- `tmux-whisper inline process <wav> --json [--defer-usage]` (app integration)
+  - `--defer-usage` (capability `deferred_usage`) leaves the take out of the
+    usage ledger (`usage_deferred: true`); the caller records it after
+    delivering with `inline record` and `usage_only: true`. Take ids are
+    deduplicated in the ledger, so a replayed record never counts twice.
 - `tmux-whisper logs --json`
 - `tmux-whisper logs path|tail [stream] [--lines N] --json`
   - Object with `streams` and `next_commands`.

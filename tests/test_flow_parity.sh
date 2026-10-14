@@ -1909,6 +1909,197 @@ assert r["timings"]["record_ms"] == 3000, r["timings"]
   assert_file_contains "app_process_bench_source" "$DICTATE_CONFIG_DIR/history/bench.tsv" "app:avaudioengine"
   [[ -f "$CASE_DIR/take.wav" ]] || fail "app_process_keeps_callers_wav"
   pass "app_process_keeps_callers_wav"
+
+  # --defer-usage: history and bench as usual, but usage waits for the app to
+  # report the delivery (`inline record` usage_only), so a failed paste is
+  # never counted.
+  local bench_rows history_files
+  bench_rows="$(wc -l <"$DICTATE_CONFIG_DIR/history/bench.tsv" | tr -d ' ')"
+  out="$("$DICTATE_BIN" inline process "$CASE_DIR/take.wav" --app Safari --record-ms 3000 --defer-usage --json)"
+  assert_equals "app_process_defer_usage_flag" "$(json_field "$out" usage_deferred)" "True"
+  assert_equals "app_process_defer_usage_not_counted" "$(json_field "$("$DICTATE_BIN" usage --json)" delivered_dictations.count)" "1"
+  assert_equals "app_process_defer_usage_bench" "$(wc -l <"$DICTATE_CONFIG_DIR/history/bench.tsv" | tr -d ' ')" "$((bench_rows + 1))"
+  history_files="$(ls "$DICTATE_CONFIG_DIR/history"/*.json | wc -l | tr -d ' ')"
+  printf '%s' '{"take_id":"deferred-1","status":"ok","delivered":true,"usage_only":true,"text":"Codex app transcript",
+    "record_ms":3000,"started_at_ms":1000,"delivered_at_ms":5000,"delivered_local_date":"2026-10-15"}' \
+    | "$DICTATE_BIN" inline record --json >"$CASE_DIR/usage-only.json"
+  assert_file_contains "app_usage_only_recorded" "$CASE_DIR/usage-only.json" '"usage_recorded": true'
+  assert_equals "app_usage_only_counted_once" "$(json_field "$("$DICTATE_BIN" usage --json)" delivered_dictations.count)" "2"
+  assert_equals "app_usage_only_no_bench_row" "$(wc -l <"$DICTATE_CONFIG_DIR/history/bench.tsv" | tr -d ' ')" "$((bench_rows + 1))"
+  assert_equals "app_usage_only_no_history" "$(ls "$DICTATE_CONFIG_DIR/history"/*.json | wc -l | tr -d ' ')" "$history_files"
+  assert_file_contains "app_usage_only_day" "$DICTATE_CONFIG_DIR/usage.json" '"2026-10-15"'
+  printf '%s' '{"take_id":"deferred-1","status":"ok","delivered":true,"usage_only":true,"text":"Codex app transcript"}' \
+    | "$DICTATE_BIN" inline record --json >/dev/null
+  assert_equals "app_usage_only_replay_once" "$(json_field "$("$DICTATE_BIN" usage --json)" delivered_dictations.count)" "2"
+}
+
+# `inline record` dedups history/bench and usage separately: a replay after
+# a crash between them never counts usage twice, and a usage write that
+# failed is retried without writing history again.
+run_inline_record_usage_retry_round() {
+  setup_case "inline-record-usage"
+  local cache="$DICTATE_CONFIG_DIR/.cache" ledger="$DICTATE_CONFIG_DIR/usage.json" history_files
+
+  printf '%s' '{"take_id":"t-crash","status":"ok","delivered":true,"raw_text":"a b","text":"a b","mode":"code","record_ms":1000}' \
+    | "$DICTATE_BIN" inline record --json >/dev/null
+  # Crash after the usage write, before the take was marked recorded.
+  : >"$cache/recorded-takes"
+  : >"$cache/recorded-takes-history"
+  printf '%s' '{"take_id":"t-crash","status":"ok","delivered":true,"raw_text":"a b","text":"a b","mode":"code","record_ms":1000}' \
+    | "$DICTATE_BIN" inline record --json >"$CASE_DIR/replay.json"
+  assert_file_contains "inline_record_crash_replay_usage_ok" "$CASE_DIR/replay.json" '"usage_recorded": true'
+  assert_equals "inline_record_crash_replay_counted_once" \
+    "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["delivered_dictations"]["count"])' "$ledger")" "1"
+
+  # A usage write that fails (unreadable ledger): history is saved, usage is
+  # retried on replay once the ledger is readable again.
+  cp "$ledger" "$CASE_DIR/ledger.good"
+  printf 'not json' >"$ledger"
+  printf '%s' '{"take_id":"t-retry","status":"ok","delivered":true,"raw_text":"c d e","text":"c d e","mode":"code","record_ms":2000}' \
+    | "$DICTATE_BIN" inline record --json >"$CASE_DIR/retry-1.json" 2>/dev/null
+  assert_file_contains "inline_record_usage_failed" "$CASE_DIR/retry-1.json" '"usage_recorded": false'
+  assert_file_contains "inline_record_usage_failed_history" "$CASE_DIR/retry-1.json" '"history_saved": true'
+  assert_file_contains "inline_record_usage_dedup_flag" "$CASE_DIR/retry-1.json" '"usage_dedup": true'
+  history_files="$(ls "$DICTATE_CONFIG_DIR/history"/*.json | wc -l | tr -d ' ')"
+  mv -f "$CASE_DIR/ledger.good" "$ledger"
+  printf '%s' '{"take_id":"t-retry","status":"ok","delivered":true,"raw_text":"c d e","text":"c d e","mode":"code","record_ms":2000}' \
+    | "$DICTATE_BIN" inline record --json >"$CASE_DIR/retry-2.json"
+  assert_file_contains "inline_record_usage_retried" "$CASE_DIR/retry-2.json" '"usage_recorded": true'
+  assert_equals "inline_record_usage_retry_counted" \
+    "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["delivered_dictations"]["count"])' "$ledger")" "2"
+  assert_equals "inline_record_usage_retry_no_second_history" \
+    "$(ls "$DICTATE_CONFIG_DIR/history"/*.json | wc -l | tr -d ' ')" "$history_files"
+  printf '%s' '{"take_id":"t-retry","status":"ok","delivered":true,"text":"c d e"}' \
+    | "$DICTATE_BIN" inline record --json >"$CASE_DIR/retry-3.json"
+  assert_file_contains "inline_record_usage_retry_then_final" "$CASE_DIR/retry-3.json" '"duplicate": true'
+
+  # The delivery date Lowkey sends wins over the date the record is written.
+  printf '%s' '{"take_id":"t-late","status":"ok","delivered":true,"text":"late","record_ms":500,"delivered_local_date":"2026-01-02"}' \
+    | "$DICTATE_BIN" inline record --json >/dev/null
+  assert_file_contains "inline_record_delivery_date_bucket" "$ledger" '"2026-01-02"'
+}
+
+# Per-day usage buckets: local-date keys, coverage when an older writer also
+# records, exactly-once take ids, and `usage --json --days`.
+run_usage_daily_round() {
+  setup_case "usage-daily"
+  local ledger="$DICTATE_CONFIG_DIR/usage.json" out before
+  usage_rec() { bash -c 'source "$1"; shift; usage_record_delivery "$@"' _ "$ROOT/bin/tmux-whisper-lib/history.sh" "$@"; }
+  ledger_check() { python3 -c "import json,sys; p=json.load(open(sys.argv[1])); $2" "$ledger" || fail "$1"; pass "$1"; }
+
+  # A ledger from before daily buckets is upgraded on the next delivery.
+  printf '%s\n' '{"schema_version":1,"tracking_started_at":"2026-09-19T06:30:53Z","delivered_dictations":{"count":80,"by_flow":{"inline":80,"tmux":0}},"processed_words":24306,"recording_duration_ms":8112000,"full_elapsed_duration_ms":8484000}' >"$ledger"
+  # 21:30 UTC is already the 15th in Dubai.
+  TZ=Asia/Dubai DICTATE_USAGE_NOW=2026-10-14T21:30:00Z usage_rec inline "hello there zqxsentinel" 3000 3500 --take-id take-1 \
+    || fail "usage_daily_record"
+  ledger_check "usage_daily_upgrade" '
+assert p["delivered_dictations"]["count"] == 81 and p["processed_words"] == 24309, p
+d = p["daily"]
+assert d["baseline_count"] == 80 and d["started_at"] == "2026-10-14T21:30:00Z", d
+assert d["days"] == {"2026-10-15": {"count": 1, "inline": 1, "tmux": 0, "words": 3, "recording_ms": 3000,
+    "full_elapsed_ms": 3500, "longest_recording_ms": 3000, "most_words": 3}}, d
+assert p["recent_take_ids"] == {"take-1": "2026-10-15"}, p'
+
+  before="$(cksum <"$ledger")"
+  TZ=Asia/Dubai DICTATE_USAGE_NOW=2026-10-14T21:31:00Z usage_rec inline "hello there zqxsentinel" 3000 3500 --take-id take-1 \
+    || fail "usage_daily_replay_rc"
+  assert_equals "usage_daily_replay_is_noop" "$(cksum <"$ledger")" "$before"
+
+  # Replayed the next day with its delivery date; then a tmux take today.
+  TZ=Asia/Dubai DICTATE_USAGE_NOW=2026-10-16T08:00:00Z usage_rec inline "one two" 1000 1200 --take-id take-2 --local-date 2026-10-15
+  TZ=Asia/Dubai DICTATE_USAGE_NOW=2026-10-16T08:00:00Z usage_rec tmux "a b c d" 5000 5400
+  ledger_check "usage_daily_buckets" '
+days = p["daily"]["days"]
+assert days["2026-10-15"]["count"] == 2 and days["2026-10-15"]["words"] == 5, days
+assert days["2026-10-15"]["longest_recording_ms"] == 3000 and days["2026-10-15"]["most_words"] == 3, days
+assert days["2026-10-16"] == {"count": 1, "inline": 0, "tmux": 1, "words": 4, "recording_ms": 5000,
+    "full_elapsed_ms": 5400, "longest_recording_ms": 5000, "most_words": 4}, days
+assert set(p["recent_take_ids"]) == {"take-1", "take-2"}, p'
+
+  # An older CLI writing the same ledger keeps the new sections intact; its
+  # delivery has no day and shows up as untracked.
+  cp "$ledger" "$CASE_DIR/before-v1.json"
+  bash -c 'source "$1"; source "$2"; usage_record_delivery_v1 inline "older cli" 1000 1100' _ \
+    "$ROOT/bin/tmux-whisper-lib/history.sh" "$ROOT/tests/fixtures/usage_writer_v1.sh" || fail "usage_daily_v1_writer"
+  python3 - "$CASE_DIR/before-v1.json" "$ledger" <<'PYEOF' || fail "usage_daily_v1_writer_preserves"
+import json, sys
+a, b = (json.load(open(f)) for f in sys.argv[1:])
+assert b["delivered_dictations"]["count"] == a["delivered_dictations"]["count"] + 1, b
+assert b["daily"] == a["daily"] and b["recent_take_ids"] == a["recent_take_ids"], b
+PYEOF
+  pass "usage_daily_v1_writer_preserves"
+
+  out="$(TZ=Asia/Dubai DICTATE_USAGE_NOW=2026-10-16T09:00:00Z "$DICTATE_BIN" usage --json --days 7)"
+  printf '%s' "$out" | python3 -c '
+import json, sys
+r = json.load(sys.stdin)
+assert r["command"] == "usage" and r["schema_version"] == 1, r
+assert r["coverage"]["status"] == "active" and r["coverage"]["daily_tracking_started_at"] == "2026-10-14T21:30:00Z", r
+d = r["daily"]
+assert d["status"] == "active" and d["as_of_local_date"] == "2026-10-16", d
+assert d["range"] == {"from": "2026-10-10", "to": "2026-10-16"}, d
+assert d["untracked_deliveries"] == 1, d
+assert [x["date"] for x in d["days"]] == ["2026-10-15", "2026-10-16"], d
+assert d["days"][1] == {"date": "2026-10-16", "count": 1, "words": 4, "recording_ms": 5000, "full_elapsed_ms": 5400,
+    "longest_recording_ms": 5000, "most_words": 4, "by_flow": {"inline": 0, "tmux": 1}}, d
+' || { echo "$out" >&2; fail "usage_days_json"; }
+  pass "usage_days_json"
+  out="$(TZ=Asia/Dubai DICTATE_USAGE_NOW=2026-10-16T09:00:00Z "$DICTATE_BIN" usage --days 1 --json)"
+  assert_equals "usage_days_slice" "$(printf '%s' "$out" | python3 -c 'import json,sys; d=json.load(sys.stdin)["daily"]; print([x["date"] for x in d["days"]], d["untracked_deliveries"])')" "['2026-10-16'] 1"
+  out="$(TZ=Asia/Dubai DICTATE_USAGE_NOW=2026-10-16T09:00:00Z "$DICTATE_BIN" usage --json --days all)"
+  assert_equals "usage_days_all_range" "$(json_field "$out" daily.range.from)" "2026-10-15"
+  out="$("$DICTATE_BIN" usage --json)"
+  assert_equals "usage_default_has_no_days" "$(json_field "$out" daily)" ""
+  assert_equals "usage_default_daily_started" "$(json_field "$out" coverage.daily_tracking_started_at)" "2026-10-14T21:30:00Z"
+  local bad
+  for bad in "--json --days 0" "--json --days 3661" "--json --days abc" "--days 3" "--json --days"; do
+    # shellcheck disable=SC2086
+    if "$DICTATE_BIN" usage $bad >/dev/null 2>&1; then fail "usage_days_rejects: $bad"; fi
+  done
+  pass "usage_days_rejects_bad_args"
+
+  # Transcript-free: nothing dictated, and no stray stored key, ever leaves.
+  python3 - "$ledger" <<'PYEOF'
+import json, sys
+p = json.load(open(sys.argv[1]))
+p["daily"]["days"]["2026-10-16"]["text"] = "zqxleak"
+p["daily"]["notes"] = "zqxleak"
+p["history"] = "zqxleak"
+json.dump(p, open(sys.argv[1], "w"))
+PYEOF
+  out="$("$DICTATE_BIN" usage --json --days all)$("$DICTATE_BIN" usage --json)"
+  assert_equals "usage_days_never_leaks" "$(printf '%s' "$out" | grep -c 'zqx' || true)" "0"
+  if grep -q zqxsentinel "$ledger"; then fail "usage_ledger_never_stores_text"; fi
+  pass "usage_ledger_never_stores_text"
+
+  # A malformed daily section never costs a delivery.
+  python3 - "$ledger" <<'PYEOF'
+import json, sys
+p = json.load(open(sys.argv[1]))
+p["daily"]["days"]["2026-10-16"]["count"] = "lots"
+json.dump(p, open(sys.argv[1], "w"))
+PYEOF
+  cp "$ledger" "$CASE_DIR/before-bad.json"
+  TZ=Asia/Dubai DICTATE_USAGE_NOW=2026-10-16T10:00:00Z usage_rec inline "still counted" 1000 1000 2>"$CASE_DIR/bad.err" \
+    || fail "usage_daily_malformed_rc"
+  python3 - "$CASE_DIR/before-bad.json" "$ledger" <<'PYEOF' || fail "usage_daily_malformed_keeps_totals"
+import json, sys
+a, b = (json.load(open(f)) for f in sys.argv[1:])
+assert b["delivered_dictations"]["count"] == a["delivered_dictations"]["count"] + 1, b
+assert b["daily"] == a["daily"], b
+PYEOF
+  pass "usage_daily_malformed_keeps_totals"
+  assert_file_contains "usage_daily_malformed_warns" "$CASE_DIR/bad.err" "daily usage is unreadable"
+  out="$(TZ=Asia/Dubai DICTATE_USAGE_NOW=2026-10-16T10:00:00Z "$DICTATE_BIN" usage --json --days 7)"
+  assert_equals "usage_days_skips_bad_bucket" "$(printf '%s' "$out" | python3 -c 'import json,sys; print([x["date"] for x in json.load(sys.stdin)["daily"]["days"]])')" "['2026-10-15']"
+  python3 - "$ledger" <<'PYEOF'
+import json, sys
+p = json.load(open(sys.argv[1]))
+p["daily"] = "garbage"
+json.dump(p, open(sys.argv[1], "w"))
+PYEOF
+  out="$("$DICTATE_BIN" usage --json --days 7)"
+  assert_equals "usage_days_unreadable_status" "$(json_field "$out" daily.status)" "unreadable"
 }
 
 # A failing cleanup stage keeps its pre-extraction semantics: under set -e it
@@ -1961,7 +2152,8 @@ assert c["pipeline"] == {"native": True, "verify": True, "supervise": True}, c["
   out="$(DICTATE_APP_NATIVE_PIPELINE=0 "$DICTATE_BIN" app-config --json)"
   assert_contains "app_config_native_pipeline_off" "$out" '"pipeline": {"native": false'
   assert_equals "app_config_supervise_default" "$(json_field "$out" pipeline.supervise)" "True"
-  assert_contains "app_config_capabilities" "$out" '"capabilities": ["take_markers", "lifecycle_lock", "warmup_json"]'
+  assert_contains "app_config_capabilities" "$out" '"capabilities": ["take_markers", "lifecycle_lock", "warmup_json", "usage_days", "deferred_usage"]'
+  assert_equals "app_config_usage_path" "$(json_field "$out" usage.summary_path)" "$DICTATE_CONFIG_DIR/usage.json"
   printf '[app]\nsupervise_daemon = false\n' >"$DICTATE_CONFIG_FILE"
   out="$("$DICTATE_BIN" app-config --json)"
   assert_equals "app_config_supervise_off" "$(json_field "$out" pipeline.supervise)" "False"
@@ -2215,6 +2407,8 @@ run_app_backend_round
 run_app_backend_failure_round
 run_config_last_good_round
 run_inline_record_round
+run_inline_record_usage_retry_round
+run_usage_daily_round
 run_cleanup_stage_failure_round
 run_finder_quick_action_round
 run_finder_handler_round

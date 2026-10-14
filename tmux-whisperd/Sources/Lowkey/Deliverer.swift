@@ -43,7 +43,14 @@ enum Deliverer {
     var target: String?
     for step in remaining {
       if target == nil, step.postsKey {
-        target = DispatchQueue.main.sync { NSWorkspace.shared.frontmostApplication?.localizedName } ?? "-"
+        let front = DispatchQueue.main.sync { NSWorkspace.shared.frontmostApplication }
+        // E.g. Lowkey's own window in front: paste and send nothing.
+        if DeliveryTarget.isSelf(frontmostPID: front?.processIdentifier, ownPID: getpid()) {
+          throw NSError(domain: "Lowkey", code: 4, userInfo: [
+            NSLocalizedDescriptionKey: "Lowkey was in front: text is on the clipboard",
+          ])
+        }
+        target = front?.localizedName ?? "-"
       }
       switch step {
       case .setClipboard(let text):

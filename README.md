@@ -199,6 +199,15 @@ recording-to-delivery elapsed time. It is an estimate, not a claim of lifetime
 hours saved. Changing that WPM setting recalculates the estimate while leaving
 the recorded delivery and duration totals unchanged.
 
+Each delivery is also counted under its local calendar date, for streaks and
+activity: `tmux-whisper usage --json --days N` (or `--days all`) adds per-day
+buckets (deliveries, words, recording time, longest take, most words in one
+take). Daily counting starts with the first delivery after upgrading to 0.11;
+nothing before it is backfilled. A delivery recorded by an older CLI on the
+same machine still counts in the totals but has no day, and is reported as
+`untracked_deliveries`. Like the totals, the buckets hold counts and durations
+only, never text.
+
 ## Upgrade and Repair
 
 Daily-use upgrade flow depends on channel:

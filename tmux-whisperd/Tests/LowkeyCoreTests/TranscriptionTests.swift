@@ -93,6 +93,14 @@ struct TranscriptionSettingsTests {
     #expect(config.nativePipelineBlocker == nil)
     #expect(config.transcription?.socketPath == "/s.sock")
     #expect(config.delivery.sendDelayMs == 35)
+    #expect(config.usage == nil && !config.supports("deferred_usage"))
+
+    let withUsage = json.replacingOccurrences(
+      of: #""pipeline":{"native":true,"verify":true}}"#,
+      with: #""pipeline":{"native":true,"verify":true},"capabilities":["usage_days","deferred_usage"],"usage":{"summary_path":"/c/usage.json"}}"#)
+    config = try JSONDecoder().decode(AppConfig.self, from: Data(withUsage.utf8))
+    #expect(config.usage?.summaryPath == "/c/usage.json")
+    #expect(config.supports("deferred_usage") && config.supports("usage_days") && !config.supports("take_markers"))
 
     let disabled = json.replacingOccurrences(of: #""native":true"#, with: #""native":false"#)
     config = try JSONDecoder().decode(AppConfig.self, from: Data(disabled.utf8))
@@ -440,6 +448,27 @@ struct TakeRecordTests {
     #expect(object["record_ms"] as? Int == 3000)
     #expect(object["delivered"] as? Bool == true)
     #expect(object["startup_source"] as? String == "app:native")
+    // Unset optional fields stay out, so older CLIs see the payload unchanged.
+    #expect(object["delivered_local_date"] == nil)
+    #expect(object["usage_only"] == nil)
+  }
+
+  @Test func encodesTheDeliveryDateAndUsageOnly() throws {
+    var record = TakeRecord(takeId: "t2", status: "ok", delivered: true)
+    record.deliveredLocalDate = "2026-10-15"
+    record.usageOnly = true
+    let object = try #require(try JSONSerialization.jsonObject(with: JSONEncoder().encode(record)) as? [String: Any])
+    #expect(object["delivered_local_date"] as? String == "2026-10-15")
+    #expect(object["usage_only"] as? Bool == true)
+  }
+
+  @Test func decodesWhetherTheLedgerDeduplicatesUsage() throws {
+    let new = try JSONDecoder().decode(RecordResult.self, from: Data(
+      #"{"ok":true,"take_id":"a","duplicate":false,"usage_recorded":false,"history_saved":true,"usage_dedup":true}"#.utf8))
+    #expect(new.usageDeduplicated == true && !new.usageRecorded)
+    let old = try JSONDecoder().decode(RecordResult.self, from: Data(
+      #"{"ok":true,"take_id":"a","duplicate":false,"usage_recorded":false,"history_saved":true}"#.utf8))
+    #expect(old.usageDeduplicated == nil)
   }
 
   @Test func takeMarkerLooksLikeTheCLIsAndFollowsTheTake() throws {

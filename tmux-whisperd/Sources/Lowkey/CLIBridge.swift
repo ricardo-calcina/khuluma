@@ -45,10 +45,16 @@ struct CLIBridge {
     }
   }
 
-  func process(wav: URL, app: String?, recordMs: Int, startupMs: Int, startedAtEpochMs: Int) throws -> ProcessResult {
+  /// `deferUsage` (capability `deferred_usage`): the CLI doesn't count the
+  /// take; the caller records usage once it has delivered.
+  func process(wav: URL, app: String?, recordMs: Int, startupMs: Int, startedAtEpochMs: Int,
+               deferUsage: Bool) throws -> ProcessResult {
     var args = ["inline", "process", wav.path, "--json",
                 "--record-ms", String(recordMs), "--startup-ms", String(startupMs),
                 "--started-at-ms", String(startedAtEpochMs)]
+    if deferUsage {
+      args.append("--defer-usage")
+    }
     if let app, !app.isEmpty {
       args += ["--app", app]
     }

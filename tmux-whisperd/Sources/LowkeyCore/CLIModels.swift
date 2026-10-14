@@ -40,8 +40,22 @@ public struct AppConfig: Decodable, Equatable, Sendable {
   /// Whether config.toml parsed (0.10+).
   public let config: ConfigStatus?
   /// What the CLI supports (0.11+), e.g. "take_markers", "lifecycle_lock",
-  /// "warmup_json".
+  /// "warmup_json", "usage_days", "deferred_usage".
   public let capabilities: [String]?
+  /// Where the usage ledger lives (0.11+).
+  public let usage: Usage?
+
+  public struct Usage: Decodable, Equatable, Sendable {
+    public let summaryPath: String
+
+    enum CodingKeys: String, CodingKey {
+      case summaryPath = "summary_path"
+    }
+  }
+
+  public func supports(_ capability: String) -> Bool {
+    capabilities?.contains(capability) ?? false
+  }
 
   public struct ConfigStatus: Decodable, Equatable, Sendable {
     /// The TOML parse error, if config.toml is invalid.
@@ -83,6 +97,7 @@ public struct AppConfig: Decodable, Equatable, Sendable {
     case pipeline
     case config
     case capabilities
+    case usage
   }
 
   /// CLI features daemon supervision relies on: markers that keep upgrades
@@ -143,10 +158,13 @@ public struct ProcessResult: Decodable, Equatable, Sendable {
   public let message: String?
   public let delivery: Delivery
   public let timings: [String: Int]
+  /// `--defer-usage` was honoured: the caller records usage after delivery.
+  public let usageDeferred: Bool?
 
   enum CodingKeys: String, CodingKey {
     case ok, status, text, mode, message, delivery, timings
     case rawText = "raw_text"
+    case usageDeferred = "usage_deferred"
   }
 }
 
