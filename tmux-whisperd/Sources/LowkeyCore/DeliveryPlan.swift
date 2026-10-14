@@ -29,6 +29,14 @@ public enum DeliveryTarget {
     guard let frontmost, isSelf(frontmost) else { return frontmost }
     return lastExternal.flatMap { isSelf($0) ? nil : $0 }
   }
+
+  /// The app whose cleanup mode applies (and is recorded in history): the
+  /// one the text is delivered to. "restore" and retargeted takes go to the
+  /// app from recording start; "current" to whatever is frontmost at stop.
+  public static func modeApp(pasteTarget: String?, retargeted: Bool, original: String?,
+                             frontmostAtStop: String?) -> String? {
+    pasteTarget == "restore" || retargeted ? original : frontmostAtStop
+  }
 }
 
 /// The local calendar date usage is counted under.

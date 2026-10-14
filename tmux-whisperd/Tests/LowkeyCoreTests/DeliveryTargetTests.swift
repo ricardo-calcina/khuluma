@@ -47,3 +47,17 @@ struct RetargetedDeliveryTests {
     #expect(current.restoringOriginalApp().autosend && current.restoringOriginalApp().sendDelayMs == 35)
   }
 }
+
+struct ModeAppTests {
+  @Test func modeComesFromTheAppTheTextIsDeliveredTo() {
+    #expect(DeliveryTarget.modeApp(pasteTarget: "current", retargeted: false, original: "Ghostty",
+                                   frontmostAtStop: "Safari") == "Safari")
+    #expect(DeliveryTarget.modeApp(pasteTarget: "restore", retargeted: false, original: "Ghostty",
+                                   frontmostAtStop: "Safari") == "Ghostty")
+    // Started with Lowkey in front: delivered to Ghostty, so Ghostty's mode.
+    #expect(DeliveryTarget.modeApp(pasteTarget: "current", retargeted: true, original: "Ghostty",
+                                   frontmostAtStop: "Lowkey") == "Ghostty")
+    #expect(DeliveryTarget.modeApp(pasteTarget: nil, retargeted: false, original: "Ghostty",
+                                   frontmostAtStop: "Safari") == "Safari")
+  }
+}

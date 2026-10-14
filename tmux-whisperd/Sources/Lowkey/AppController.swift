@@ -492,7 +492,9 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
       let config = fresh ?? cachedConfig
       // Match the CLI: "restore" uses the app from recording start; "current"
       // uses whatever is frontmost when processing begins (for mode detection).
-      let appName = config?.inline.pasteTarget == "restore" ? take.originalApp?.localizedName : frontmostAtStop
+      // A retargeted take is delivered to its original app, so it's that one.
+      let appName = DeliveryTarget.modeApp(pasteTarget: config?.inline.pasteTarget, retargeted: take.retargeted,
+                                           original: take.originalApp?.localizedName, frontmostAtStop: frontmostAtStop)
       // How the take reaches the CLI path, for the take log.
       let route: (path: String, reason: String)
       if let fresh {
