@@ -72,6 +72,11 @@ Experiment first: play the chime when capture is confirmed (engine started, or f
 ### 9. Start at login
 Opt-in menu toggle. One mechanism: `SMAppService.mainApp`, verified first for a self-signed app in `~/Applications` on macOS 27, including the "requires approval" state (shown as such, not treated as failure). Define disable, rebuild and move behaviour. If SMAppService can't work for this signing setup, use a LaunchAgent *instead* (never both). Verify TCC grants survive a login-item launch. With item 3, login also warms the daemon.
 
+Done (feat/lowkey-honest-chime-login, 2026-10-14):
+- The chime plays on the first audio buffer, with a fallback chime after 750 ms. First use measured hotkey → chime at 196–325 ms, against about 90 ms before.
+- Start at Login is a menu toggle using `SMAppService.mainApp`. It registered at once ("on", no approval prompt) for the self-signed app in `~/Applications`. Before its first registration the status reads `notFound`, which the toggle treats as off.
+- Also added: Ctrl+Esc cancels, bound only while recording (asked for during 3c-2; Raycast had it).
+
 ## Deferred (only with evidence)
 - **Config file watcher (FSEvents):** pipeline settings already refresh per take. Only add it if needing Reload Settings for hotkey/sounds proves a real annoyance. It would need debouncing, path filtering and item 5's validity check.
 - **Warm microphone / pre-roll:** after item 8, run *one* measured experiment. Any warm-capture mode needs a new buffer contract: separate engine-running from recording, discard idle buffers, bound pre-roll in memory, clear it on cancel/sleep/device change/opt-out, and accept the always-on mic indicator explicitly.

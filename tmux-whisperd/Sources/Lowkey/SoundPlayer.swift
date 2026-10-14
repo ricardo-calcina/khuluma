@@ -9,10 +9,13 @@ final class SoundPlayer {
     case start, stop, process, error, cancel
   }
 
+  /// Loaded on main, read from any thread (the start chime plays from the
+  /// audio thread).
   private var players: [Event: AVAudioPlayer] = [:]
+  private let lock = NSLock()
 
   func load(from config: AppConfig) {
-    players.removeAll()
+    var players: [Event: AVAudioPlayer] = [:]
     for event in Event.allCases {
       guard let sound = config.sounds[event.rawValue], sound.enabled, let path = sound.path else { continue }
       do {
@@ -23,6 +26,7 @@ final class SoundPlayer {
         Log.write("sound: cannot load \(event.rawValue) from \(path): \(error.localizedDescription)")
       }
     }
+    lock.withLock { self.players = players }
   }
 
   private let queue = DispatchQueue(label: "lowkey.sound", qos: .userInteractive)
@@ -30,7 +34,7 @@ final class SoundPlayer {
   /// Plays without blocking the caller: on a cold output device `play()` can
   /// take 100+ ms, which must not delay starting the microphone.
   func play(_ event: Event, onStarted: ((Double) -> Void)? = nil) {
-    guard let player = players[event] else { return }
+    guard let player = lock.withLock({ players[event] }) else { return }
     queue.async {
       let started = monotonicMs()
       player.stop()

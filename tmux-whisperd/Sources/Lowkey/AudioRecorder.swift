@@ -18,6 +18,8 @@ final class AudioRecorder {
   private var samples: [Float] = []
   private var converter: AVAudioConverter?
   private var firstBufferAt: Double?
+  /// Called once, on the audio thread, when the take's first buffer arrives.
+  private var onFirstAudio: (() -> Void)?
   private(set) var isRecording = false
   /// The input changed: rebuild the engine before the next take.
   private var needsRebuild = false
@@ -104,18 +106,19 @@ final class AudioRecorder {
 
   /// Starts capture. Returns how long engine start took, in ms. A failure
   /// (including an exception from AVAudioEngine) is retried once on a
-  /// fresh engine, then thrown.
+  /// fresh engine, then thrown. `onFirstAudio` runs on the audio thread
+  /// when the first buffer arrives: the moment speech is really captured.
   @discardableResult
-  func start() throws -> Double {
+  func start(onFirstAudio: (() -> Void)? = nil) throws -> Double {
     guard !isRecording else { return 0 }
     if needsRebuild { rebuild(reason: "input changed since the last take") }
-    return try RetryOnce.run({ try startEngine() }, recover: { error in
+    return try RetryOnce.run({ try startEngine(onFirstAudio: onFirstAudio) }, recover: { error in
       Log.write("audio: could not start capture (\(error.localizedDescription)); retrying once on a fresh engine")
       rebuild(reason: "start failed")
     })
   }
 
-  private func startEngine() throws -> Double {
+  private func startEngine(onFirstAudio: (() -> Void)?) throws -> Double {
     let engine = self.engine
     let inputFormat = try ObjCException.catching { engine.inputNode.outputFormat(forBus: 0) }
     guard inputFormat.sampleRate > 0, inputFormat.channelCount > 0 else {
@@ -125,6 +128,7 @@ final class AudioRecorder {
     lock.withLock {
       samples.removeAll(keepingCapacity: true)
       firstBufferAt = nil
+      self.onFirstAudio = onFirstAudio
     }
 
     try ObjCException.catching {
@@ -156,6 +160,7 @@ final class AudioRecorder {
     }
     isRecording = false
     let take = lock.withLock {
+      onFirstAudio = nil
       let take = samples
       samples.removeAll(keepingCapacity: false)
       return take
@@ -188,10 +193,14 @@ final class AudioRecorder {
     }
     guard error == nil, let channel = output.floatChannelData?[0] else { return }
     let count = Int(output.frameLength)
-    lock.withLock {
-      if firstBufferAt == nil { firstBufferAt = monotonicMs() }
+    let first = lock.withLock { () -> (() -> Void)? in
       samples.append(contentsOf: UnsafeBufferPointer(start: channel, count: count))
+      guard firstBufferAt == nil else { return nil }
+      firstBufferAt = monotonicMs()
+      defer { onFirstAudio = nil }
+      return onFirstAudio
     }
+    first?()
   }
 
   /// The default input device's name, for the log.

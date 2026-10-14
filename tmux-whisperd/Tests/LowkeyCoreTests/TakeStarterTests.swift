@@ -157,3 +157,29 @@ struct RetryOnceTests {
     #expect(recoveries == 0)
   }
 }
+
+struct OneShotTests {
+  @Test func firesOnceAcrossThreads() {
+    let shot = OneShot()
+    let fired = Locked(0)
+    DispatchQueue.concurrentPerform(iterations: 64) { _ in
+      if shot.fire() { fired.update { $0 += 1 } }
+    }
+    #expect(fired.value == 1)
+    #expect(!shot.fire())
+  }
+
+  @Test func cancelBeatsALateFire() {
+    let shot = OneShot()
+    shot.cancel()
+    #expect(!shot.fire())
+  }
+}
+
+private final class Locked<Value>: @unchecked Sendable {
+  private let lock = NSLock()
+  private var stored: Value
+  init(_ value: Value) { stored = value }
+  var value: Value { lock.withLock { stored } }
+  func update(_ body: (inout Value) -> Void) { lock.withLock { body(&stored) } }
+}
