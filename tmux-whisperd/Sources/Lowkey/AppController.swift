@@ -118,6 +118,8 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
   /// front is meant for it.
   private var lastExternalApp: NSRunningApplication?
   private var retrying = false
+  /// Made on first open, then reused.
+  private var statsWindow: StatsWindowController?
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     buildMenu()
@@ -155,6 +157,10 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     reloadSettings()
     replayPendingRecords(cli: cli)
     refreshTimedOutItems()
+    // `-LowkeyOpenStats YES`: open Stats at launch (for checking the window).
+    if UserDefaults.standard.bool(forKey: "LowkeyOpenStats") {
+      showStats()
+    }
   }
 
   /// Quit never discards a dictation. A take still recording is saved to
@@ -1465,6 +1471,9 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     menu.addItem(discardItem)
     menu.addItem(.separator())
     menu.addItem(cancelItem)
+    let stats = NSMenuItem(title: "Stats…", action: #selector(showStats), keyEquivalent: "s")
+    stats.target = self
+    menu.addItem(stats)
     let reload = NSMenuItem(title: "Reload Settings", action: #selector(reloadSettings), keyEquivalent: "r")
     reload.target = self
     menu.addItem(reload)
@@ -1478,6 +1487,15 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     menu.delegate = self
     statusItem.menu = menu
     refreshStatus()
+  }
+
+  @objc private func showStats() {
+    MainActor.assumeIsolated {
+      let window = statsWindow ?? StatsWindowController(
+        model: StatsModel { [weak self] in StatsModel.Source(cli: self?.cli, config: self?.config) })
+      statsWindow = window
+      window.show()
+    }
   }
 
   @objc private func openLog() {
