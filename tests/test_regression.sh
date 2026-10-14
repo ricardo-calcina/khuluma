@@ -967,8 +967,10 @@ fi
 exit 1
 EOF
 chmod +x "$SWIFTBAR_USAGE_BIN/tmux-whisper"
+# Includes the additive daily_tracking_started_at (0.11): SwiftBar reads
+# named fields, so newer output must keep working.
 cat >"$SWIFTBAR_USAGE_JSON" <<'EOF'
-{"command":"usage","schema_version":1,"coverage":{"status":"active","tracking_started_at":"2026-09-17T09:00:00Z"},"delivered_dictations":{"count":4},"processed_words":1234,"estimated_time_difference_ms":150000}
+{"command":"usage","schema_version":1,"coverage":{"status":"active","tracking_started_at":"2026-09-17T09:00:00Z","daily_tracking_started_at":"2026-10-15T08:00:00Z"},"delivered_dictations":{"count":4},"processed_words":1234,"estimated_time_difference_ms":150000}
 EOF
 swiftbar_usage_env=(
   HOME="$SWIFTBAR_USAGE_HOME"

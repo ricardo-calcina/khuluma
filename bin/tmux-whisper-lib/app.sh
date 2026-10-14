@@ -156,6 +156,7 @@ app_config_json() {
     APPCFG_CONFIG_SOURCE="${CFG_CONFIG_SOURCE:-file}" \
     APPCFG_VERIFY_PIPELINE="${DICTATE_APP_VERIFY_PIPELINE:-${CFG_APP_VERIFY_PIPELINE:-1}}" \
     APPCFG_SUPERVISE_DAEMON="${DICTATE_APP_SUPERVISE_DAEMON:-${CFG_APP_SUPERVISE_DAEMON:-1}}" \
+    APPCFG_USAGE_PATH="$(usage_summary_file)" \
     python3 - <<'PYEOF'
 import json, os
 e = os.environ
@@ -192,19 +193,26 @@ print(json.dumps({
     # What this CLI supports, so a newer app can tell an older CLI apart:
     # take_markers: Lowkey's whole-take markers count as busy and dead ones
     #   are pruned; lifecycle_lock: daemon starts/restarts are serialized;
-    #   warmup_json: `warmup --json` reports ready/warming/unavailable.
-    "capabilities": ["take_markers", "lifecycle_lock", "warmup_json"],
+    #   warmup_json: `warmup --json` reports ready/warming/unavailable;
+    #   usage_days: `usage --json --days N|all` has per-day buckets;
+    #   deferred_usage: `inline process --defer-usage` plus `inline record`
+    #   usage_only, with take ids deduplicated in the usage ledger.
+    "capabilities": ["take_markers", "lifecycle_lock", "warmup_json", "usage_days", "deferred_usage"],
+    "usage": {"summary_path": e["APPCFG_USAGE_PATH"]},
 }))
 PYEOF
 }
 
 # tmux-whisper inline process <wav> [--app NAME] [--record-ms N]
-#   [--startup-ms N] [--started-at-ms EPOCH_MS] --json
+#   [--startup-ms N] [--started-at-ms EPOCH_MS] [--defer-usage] --json
+# --defer-usage (capability deferred_usage): don't count the take in the
+# usage ledger; the caller records it with `inline record` (usage_only) once
+# it has actually delivered the text.
 # Prints one JSON object: {ok, status, text, raw_text, mode, message,
 # delivery: {...}, timings: {...}}. Human progress goes to the log, never
 # stdout. The caller owns the WAV file.
 inline_process_json() {
-  local wav="" app="" record_ms="0" startup_ms="0" started_at_ms=""
+  local wav="" app="" record_ms="0" startup_ms="0" started_at_ms="" defer_usage="0"
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --json) ;;
@@ -212,6 +220,7 @@ inline_process_json() {
       --record-ms) [[ $# -ge 2 ]] || die "inline process: --record-ms requires a value"; record_ms="$2"; shift ;;
       --startup-ms) [[ $# -ge 2 ]] || die "inline process: --startup-ms requires a value"; startup_ms="$2"; shift ;;
       --started-at-ms) [[ $# -ge 2 ]] || die "inline process: --started-at-ms requires a value"; started_at_ms="$2"; shift ;;
+      --defer-usage) defer_usage="1" ;;
       -*) die "inline process: unknown option: $1" ;;
       *) [[ -z "$wav" ]] || die "inline process: only one WAV file"; wav="$1" ;;
     esac
@@ -234,6 +243,7 @@ inline_process_json() {
   trap "rm -f '$log' '$work_wav'" EXIT
   cp "$wav" "$work_wav" || die "inline process: cannot read $wav"
   INLINE_DELIVERY_MODE="external"
+  INLINE_DEFER_USAGE="$defer_usage"
   INLINE_EXTERNAL_TEXT=""
   INLINE_EXTERNAL_RAW_TEXT=""
   INLINE_EXTERNAL_MODE=""
@@ -254,6 +264,7 @@ inline_process_json() {
   APPPROC_PASTE_TARGET="$APP_PASTE_TARGET" \
   APPPROC_ACTIVATE_DELAY_MS="$APP_ACTIVATE_DELAY_MS" \
   APPPROC_SEND_DELAY_MS="$APP_SEND_DELAY_MS" \
+  APPPROC_DEFER_USAGE="$defer_usage" \
   python3 - <<'PYEOF'
 import json, os
 e = os.environ
@@ -289,6 +300,7 @@ print(json.dumps({
         "send_delay_ms": int(e["APPPROC_SEND_DELAY_MS"]),
     },
     "timings": timings,
+    "usage_deferred": e.get("APPPROC_DEFER_USAGE") == "1",
 }, ensure_ascii=False))
 PYEOF
   rm -f "$log" "$work_wav" 2>/dev/null || true
@@ -355,6 +367,12 @@ PYEOF
 # total_ms, startup_ms, started_at_ms, delivered_at_ms, capture_wav_ms,
 # capture_wav_bytes, startup_source, and wav_path (the padded WAV, only with
 # [debug] keep_logs; this command takes ownership and removes it).
+# delivered_local_date (YYYY-MM-DD, the local date at delivery) puts a
+# replayed take in the right day. usage_only: true records only the usage of
+# a take `inline process --defer-usage` already saved to history and bench.
+# History/bench and usage are deduplicated separately (the take-id files
+# below, and take ids in the usage ledger), so a replay retries only the part
+# that failed and never counts usage twice.
 inline_record_json() {
   [[ "${1:-}" == "--json" && $# -eq 1 ]] || die "usage: tmux-whisper inline record --json < take.json"
   need python3
@@ -391,6 +409,8 @@ out = {
     "REC_STARTUP_SOURCE": text("startup_source") or "app:native",
     "REC_WAV_PATH": text("wav_path"),
     "REC_MODEL": text("model"),
+    "REC_LOCAL_DATE": text("delivered_local_date") if re.fullmatch(r"\d{4}-\d{2}-\d{2}", text("delivered_local_date")) else "",
+    "REC_USAGE_ONLY": "1" if p.get("usage_only") is True else "0",
 }
 for key in ("record_ms", "transcribe_ms", "clean_ms", "paste_ms", "total_ms", "startup_ms",
             "started_at_ms", "delivered_at_ms", "capture_wav_ms", "capture_wav_bytes"):
@@ -403,12 +423,18 @@ PYEOF
 
   # Lowkey spools each take and replays leftovers at launch (after a quit
   # timeout or crash), so the same take can arrive twice: record it once.
+  # `recorded-takes` lists takes fully handled (its meaning before usage was
+  # deduplicated in the ledger, so older entries stay final);
+  # `recorded-takes-bench` and `recorded-takes-history` list takes whose bench
+  # row and history are saved.
   local ledger="$AUDIO_CACHE_DIR/recorded-takes"
+  local history_ledger="$AUDIO_CACHE_DIR/recorded-takes-history"
+  local bench_ledger="$AUDIO_CACHE_DIR/recorded-takes-bench"
   if [[ -n "$REC_TAKE_ID" && -f "$ledger" ]] && grep -qxF -- "$REC_TAKE_ID" "$ledger" 2>/dev/null; then
     APPREC_TAKE_ID="$REC_TAKE_ID" python3 -c '
 import json, os
 print(json.dumps({"ok": True, "take_id": os.environ["APPREC_TAKE_ID"], "duplicate": True,
-                  "usage_recorded": True, "history_saved": True}))'
+                  "usage_recorded": True, "history_saved": True, "usage_dedup": True}))'
     return 0
   fi
 
@@ -422,67 +448,107 @@ print(json.dumps({"ok": True, "take_id": os.environ["APPREC_TAKE_ID"], "duplicat
   paste_ms="${REC_PASTE_MS:-0}"
   total_ms="${REC_TOTAL_MS:-0}"
 
-  if [[ "$REC_STATUS" == "ok" && "$REC_DELIVERED" == "1" ]]; then
+  # Three parts, each done once: bench row (+ debug archive), history, usage.
+  # A replay redoes only the parts that are not marked done.
+  local wants_usage="0" needs_history="0" bench_done="0" history_done="0"
+  [[ "$REC_STATUS" == "ok" && "$REC_DELIVERED" == "1" ]] && wants_usage="1"
+  # A take recovered at quit was never pasted: history, but no usage.
+  if [[ "$REC_USAGE_ONLY" != "1" && ( "$wants_usage" == "1" || "$REC_STATUS" == "recovered" ) ]]; then
+    needs_history="1"
+  fi
+  inline_record_marked() {
+    [[ -n "$REC_TAKE_ID" && -f "$1" ]] && grep -qxF -- "$REC_TAKE_ID" "$1" 2>/dev/null
+  }
+  inline_record_mark() {
+    [[ -n "$REC_TAKE_ID" ]] || return 0
+    mkdir -p "$AUDIO_CACHE_DIR" 2>/dev/null || true
+    printf '%s\n' "$REC_TAKE_ID" >>"$1" 2>/dev/null || true
+    if [[ "$(wc -l <"$1" 2>/dev/null | tr -d ' ')" -gt 1000 ]]; then
+      tail -n 500 "$1" >"${1}.tmp.$$" 2>/dev/null && mv -f "${1}.tmp.$$" "$1" 2>/dev/null || true
+    fi
+  }
+  # `inline process --defer-usage` already wrote this take's bench row and
+  # history.
+  if [[ "$REC_USAGE_ONLY" == "1" ]] || inline_record_marked "$bench_ledger"; then
+    bench_done="1"
+  fi
+  if [[ "$needs_history" != "1" ]] || inline_record_marked "$history_ledger"; then
+    history_done="1"
+  fi
+
+  if [[ "$wants_usage" == "1" ]]; then
     local usage_full_elapsed_ms="$total_ms"
     if [[ "$REC_STARTED_AT_MS" =~ ^[0-9]+$ && "$REC_DELIVERED_AT_MS" =~ ^[0-9]+$ ]]; then
       usage_full_elapsed_ms=$(( REC_DELIVERED_AT_MS - REC_STARTED_AT_MS ))
       (( usage_full_elapsed_ms < 0 )) && usage_full_elapsed_ms=0
     fi
-    if usage_record_delivery "inline" "$REC_TEXT" "$record_ms" "$usage_full_elapsed_ms"; then
+    # Not an array: an empty one is "unbound" under set -u in bash 3.2.
+    if usage_record_delivery "inline" "$REC_TEXT" "$record_ms" "$usage_full_elapsed_ms" \
+        ${REC_TAKE_ID:+--take-id "$REC_TAKE_ID"} ${REC_LOCAL_DATE:+--local-date "$REC_LOCAL_DATE"}; then
       usage_recorded="1"
+      [[ "$REC_USAGE_ONLY" == "1" ]] && signal_just_processed
     else
       echo "[usage] unable to record delivered dictation summary" >&2
     fi
   fi
 
-  append_bench_entry "inline" "$REC_STATUS" "$model_id" "$mode" "0" "${#REC_RAW}" "${#REC_TEXT}" \
-    "$record_ms" "$transcribe_ms" "$clean_ms" "0" "$paste_ms" "$total_ms" \
-    "${REC_STARTUP_MS:-0}" "0" "0" "0" "$REC_STARTUP_SOURCE"
+  if [[ "$bench_done" != "1" ]]; then
+    append_bench_entry "inline" "$REC_STATUS" "$model_id" "$mode" "0" "${#REC_RAW}" "${#REC_TEXT}" \
+      "$record_ms" "$transcribe_ms" "$clean_ms" "0" "$paste_ms" "$total_ms" \
+      "${REC_STARTUP_MS:-0}" "0" "0" "0" "$REC_STARTUP_SOURCE"
 
-  case "$REC_STATUS" in
-    ok|no_speech|recovered) signal_just_processed ;;
-    *)
-      touch "$ERROR_FLAG" 2>/dev/null || true
-      swiftbar_refresh
-      ;;
-  esac
+    case "$REC_STATUS" in
+      ok|no_speech|recovered) signal_just_processed ;;
+      *)
+        touch "$ERROR_FLAG" 2>/dev/null || true
+        swiftbar_refresh
+        ;;
+    esac
 
-  # Debug archive ([debug] keep_logs), as inline process writes it: the padded
-  # WAV the app transcribed plus a .meta file. The app hands the WAV over;
-  # archiving removes it.
-  INLINE_CAPTURE_WAV_MS="$REC_CAPTURE_WAV_MS"
-  INLINE_CAPTURE_WAV_BYTES="$REC_CAPTURE_WAV_BYTES"
-  INLINE_CAPTURE_GAP_TO_RECORD_MS=""
-  if [[ "$REC_CAPTURE_WAV_MS" =~ ^[0-9]+$ && "$record_ms" =~ ^[0-9]+$ ]]; then
-    INLINE_CAPTURE_GAP_TO_RECORD_MS=$(( REC_CAPTURE_WAV_MS - record_ms ))
+    # Debug archive ([debug] keep_logs), as inline process writes it: the
+    # padded WAV the app transcribed plus a .meta file. The app hands the WAV
+    # over; archiving removes it.
+    INLINE_CAPTURE_WAV_MS="$REC_CAPTURE_WAV_MS"
+    INLINE_CAPTURE_WAV_BYTES="$REC_CAPTURE_WAV_BYTES"
+    INLINE_CAPTURE_GAP_TO_RECORD_MS=""
+    if [[ "$REC_CAPTURE_WAV_MS" =~ ^[0-9]+$ && "$record_ms" =~ ^[0-9]+$ ]]; then
+      INLINE_CAPTURE_GAP_TO_RECORD_MS=$(( REC_CAPTURE_WAV_MS - record_ms ))
+    fi
+    if [[ -n "$REC_WAV_PATH" ]]; then
+      local archive_prefix=""
+      archive_prefix="$(inline_archive_prefix "${REC_TAKE_ID:-lowkey}" 2>/dev/null || true)"
+      archive_inline_debug_artifacts "$archive_prefix" "$REC_WAV_PATH" "" "" "$REC_STATUS" \
+        "$record_ms" "$transcribe_ms" "$clean_ms" "0" "$paste_ms" "$total_ms" "$REC_TAKE_ID"
+    fi
+    inline_record_mark "$bench_ledger"
   fi
-  if [[ -n "$REC_WAV_PATH" ]]; then
-    local archive_prefix=""
-    archive_prefix="$(inline_archive_prefix "${REC_TAKE_ID:-lowkey}" 2>/dev/null || true)"
-    archive_inline_debug_artifacts "$archive_prefix" "$REC_WAV_PATH" "" "" "$REC_STATUS" \
-      "$record_ms" "$transcribe_ms" "$clean_ms" "0" "$paste_ms" "$total_ms" "$REC_TAKE_ID"
-  fi
 
-  # A take recovered at quit was never pasted: history, but no usage.
-  if [[ ( "$REC_STATUS" == "ok" && "$REC_DELIVERED" == "1" ) || "$REC_STATUS" == "recovered" ]]; then
+  if [[ "$history_done" == "1" ]]; then
+    [[ "$needs_history" == "1" ]] && history_saved="1"
+  else
     local history_app="${REC_APP:-current}"
-    save_history "$REC_RAW" "$REC_TEXT" "$mode" "$history_app" "$record_ms" "$transcribe_ms" "$clean_ms" "0" "$paste_ms" "$total_ms" \
-      && history_saved="1"
-  fi
-
-  # Mark the take recorded so a replay never counts usage twice. A recovered
-  # take (no usage) whose history failed stays unmarked so a replay retries it.
-  if [[ -n "$REC_TAKE_ID" && ( "$REC_STATUS" != "recovered" || "$history_saved" == "1" ) ]]; then
-    mkdir -p "$AUDIO_CACHE_DIR" 2>/dev/null || true
-    printf '%s\n' "$REC_TAKE_ID" >>"$ledger" 2>/dev/null || true
-    if [[ "$(wc -l <"$ledger" 2>/dev/null | tr -d ' ')" -gt 1000 ]]; then
-      tail -n 500 "$ledger" >"${ledger}.tmp.$$" 2>/dev/null && mv -f "${ledger}.tmp.$$" "$ledger" 2>/dev/null || true
+    if save_history "$REC_RAW" "$REC_TEXT" "$mode" "$history_app" "$record_ms" "$transcribe_ms" "$clean_ms" "0" "$paste_ms" "$total_ms"; then
+      history_saved="1"
+      history_done="1"
+      inline_record_mark "$history_ledger"
     fi
   fi
 
-  APPREC_TAKE_ID="$REC_TAKE_ID" APPREC_USAGE="$usage_recorded" APPREC_HISTORY="$history_saved" python3 -c '
+  # Fully handled: a replay is then a plain duplicate. Otherwise the app keeps
+  # the take and a replay retries the history or usage that failed.
+  if [[ "$history_done" == "1" && ( "$wants_usage" != "1" || "$usage_recorded" == "1" ) ]]; then
+    inline_record_mark "$ledger"
+  fi
+
+  inline_record_result "$REC_TAKE_ID" "$usage_recorded" "$history_saved"
+}
+
+inline_record_result() {
+  APPREC_TAKE_ID="$1" APPREC_USAGE="$2" APPREC_HISTORY="$3" python3 -c '
 import json, os
 e = os.environ
+# usage_dedup: the ledger deduplicates take ids, so retrying a take whose
+# usage was not recorded cannot count it twice.
 print(json.dumps({"ok": True, "take_id": e["APPREC_TAKE_ID"], "duplicate": False, "usage_recorded": e["APPREC_USAGE"] == "1",
-                  "history_saved": e["APPREC_HISTORY"] == "1"}))'
+                  "history_saved": e["APPREC_HISTORY"] == "1", "usage_dedup": True}))'
 }

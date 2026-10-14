@@ -13,6 +13,9 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     let startedEpochMs: Int
     let startupMs: Int
     let originalApp: NSRunningApplication?
+    /// Lowkey was in front at the hotkey, so `originalApp` is the app before
+    /// it and must be re-activated for delivery.
+    let retargeted: Bool
     /// Settings read while recording, so each take uses what the CLI would
     /// use now (e.g. after `tmux-whisper autosend off`), not launch-time values.
     let settings: SettingsFetch?
@@ -21,6 +24,10 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     let marker: TakeMarker?
     /// The start chime: played once, when capture is confirmed.
     let chime: OneShot
+
+    func delivery(_ base: Delivery) -> Delivery {
+      retargeted ? base.restoringOriginalApp() : base
+    }
   }
 
   /// If no audio has arrived this long after the engine started, chime
@@ -107,6 +114,9 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
   private var pendingHotkey: HotkeySpec?
   /// Takes whose transcription timed out, for Retry/Discard.
   private let timedOut = TimedOutTakes.standard
+  /// The last active app other than Lowkey: a take started with Lowkey in
+  /// front is meant for it.
+  private var lastExternalApp: NSRunningApplication?
   private var retrying = false
 
   func applicationDidFinishLaunching(_ notification: Notification) {
@@ -141,6 +151,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     NSWorkspace.shared.notificationCenter.addObserver(
       forName: NSWorkspace.didWakeNotification, object: nil, queue: .main
     ) { [weak self] _ in self?.supervisor?.trigger(.wake) }
+    trackExternalApps()
     reloadSettings()
     replayPendingRecords(cli: cli)
     refreshTimedOutItems()
@@ -378,7 +389,12 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
                          how, monotonicMs() - hotkeyAt, playMs))
       }
     }
-    let original = NSWorkspace.shared.frontmostApplication
+    let frontmost = NSWorkspace.shared.frontmostApplication
+    let original = DeliveryTarget.original(
+      frontmost: frontmost,
+      lastExternal: lastExternalApp.flatMap { $0.isTerminated ? nil : $0 },
+      isSelf: { $0.processIdentifier == getpid() })
+    let retargeted = frontmost?.processIdentifier == getpid() && original != nil
     let directory = markerDirectory
     let outcome = starter.start(marker: {
       let marker = TakeMarker.create(directory: directory, takeId: UUID().uuidString.lowercased(), phase: .recording)
@@ -398,6 +414,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         startedEpochMs: Int(Date().timeIntervalSince1970 * 1000),
         startupMs: Int((startedAt - hotkeyAt).rounded()),
         originalApp: original,
+        retargeted: retargeted,
         settings: cli.map { SettingsFetch(cli: $0, queue: settingsQueue) },
         marker: marker,
         chime: chime
@@ -514,7 +531,9 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
       let config = fresh ?? cachedConfig
       // Match the CLI: "restore" uses the app from recording start; "current"
       // uses whatever is frontmost when processing begins (for mode detection).
-      let appName = config?.inline.pasteTarget == "restore" ? take.originalApp?.localizedName : frontmostAtStop
+      // A retargeted take is delivered to its original app, so it's that one.
+      let appName = DeliveryTarget.modeApp(pasteTarget: config?.inline.pasteTarget, retargeted: take.retargeted,
+                                           original: take.originalApp?.localizedName, frontmostAtStop: frontmostAtStop)
       // How the take reaches the CLI path, for the take log.
       let route: (path: String, reason: String)
       if let fresh {
@@ -598,6 +617,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
       switch error.code {
       case 2: return "accessibility_missing"
       case 3: return "no_paste_key"
+      case 4: return "target_is_lowkey"
       default: return "lowkey_\(error.code)"
       }
     }
@@ -749,7 +769,8 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
       record.rawText = raw
       record.text = text
       record.mode = mode
-      let steps = DeliveryPlan.steps(text: text, delivery: config.delivery, hasOriginalApp: take.originalApp != nil)
+      let steps = DeliveryPlan.steps(text: text, delivery: take.delivery(config.delivery),
+                                     hasOriginalApp: take.originalApp != nil)
       let target: String?
       do {
         target = try Deliverer.perform(steps, originalApp: take.originalApp)
@@ -771,8 +792,10 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         return .handled
       }
       let deliveredAt = monotonicMs()
+      let deliveredDate = Date()
       record.delivered = true
-      record.deliveredAtMs = Int(Date().timeIntervalSince1970 * 1000)
+      record.deliveredAtMs = Int(deliveredDate.timeIntervalSince1970 * 1000)
+      record.deliveredLocalDate = LocalDate.string(for: deliveredDate)
       record.pasteMs = Int(deliveredAt - cleanedAt)
       record.totalMs = recordMs + Int(deliveredAt - stopAt)
       logTake("delivered", endedAt: deliveredAt, transcribed: transcribed) { line in
@@ -823,6 +846,13 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
       let wantsUsage = record.status == "ok" && record.delivered
       if wantsUsage && !(result.usageRecorded && result.historySaved) {
         Log.write("persist: take \(record.takeId) partly recorded (usage \(result.usageRecorded), history \(result.historySaved))")
+      }
+      // A CLI that deduplicates take ids retries only what failed (usage or
+      // history), so the take is kept; an older one could count usage twice.
+      if wantsUsage && !(result.usageRecorded && (result.historySaved || record.usageOnly == true))
+          && result.usageDeduplicated == true {
+        Log.write("persist: take \(record.takeId) not fully recorded yet (kept for the next launch)")
+        return false
       }
       // A recovered take exists only in history: keep it spooled until saved.
       if record.status == "recovered" && !result.historySaved {
@@ -893,8 +923,11 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     do {
       try WAVEncoder.encode(samples: samples).write(to: wav, options: [.atomic])
       chmod(wav.path, 0o600)
-      let result = try cli.process(wav: wav, app: appName, recordMs: recordMs,
-                                   startupMs: take.startupMs, startedAtEpochMs: take.startedEpochMs)
+      let result = try Self.processDeferringUsage(cli: cli, config: config) { deferUsage in
+        try cli.process(wav: wav, app: appName, recordMs: recordMs,
+                        startupMs: take.startupMs, startedAtEpochMs: take.startedEpochMs,
+                        deferUsage: deferUsage)
+      }
       processedAt = monotonicMs()
       guard result.ok else {
         logTake(result.status == "no_speech" ? "no_speech" : "failed") { line in
@@ -915,9 +948,28 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
       let delivery = config.map { $0.safeDelivery(result.delivery) }
         ?? Delivery(autosend: false, sendMode: result.delivery.sendMode, pasteTarget: result.delivery.pasteTarget,
                     activateDelayMs: result.delivery.activateDelayMs, sendDelayMs: result.delivery.sendDelayMs)
-      let steps = DeliveryPlan.steps(text: result.text, delivery: delivery, hasOriginalApp: take.originalApp != nil)
+      let steps = DeliveryPlan.steps(text: result.text, delivery: take.delivery(delivery),
+                                     hasOriginalApp: take.originalApp != nil)
       let delivering = monotonicMs()
       let target = try Deliverer.perform(steps, originalApp: take.originalApp)
+      if result.usageDeferred == true {
+        // Count it now that the text is delivered (history and bench are
+        // already saved by `inline process`).
+        let deliveredDate = Date()
+        var usage = TakeRecord(takeId: UUID().uuidString.lowercased(), status: "ok", delivered: true)
+        usage.usageOnly = true
+        usage.text = result.text
+        usage.mode = result.mode
+        usage.app = appName
+        usage.recordMs = recordMs
+        usage.totalMs = recordMs + Int(monotonicMs() - stopAt)
+        usage.startupMs = take.startupMs
+        usage.startedAtMs = take.startedEpochMs
+        usage.deliveredAtMs = Int(deliveredDate.timeIntervalSince1970 * 1000)
+        usage.deliveredLocalDate = LocalDate.string(for: deliveredDate)
+        usage.startupSource = "app:avaudioengine"
+        persist(usage, cli: cli)
+      }
       logTake("delivered") { line in
         line.add("transcribe", result.timings["transcribe_ms"])
         line.add("deliver", ms: monotonicMs() - delivering)
@@ -1219,8 +1271,10 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let target = try Deliverer.perform(DeliveryPlan.steps(text: pending.text, delivery: delivery, hasOriginalApp: false),
                                            originalApp: nil)
         if var record = pending.record {
+          let deliveredDate = Date()
           record.delivered = true
-          record.deliveredAtMs = Int(Date().timeIntervalSince1970 * 1000)
+          record.deliveredAtMs = Int(deliveredDate.timeIntervalSince1970 * 1000)
+          record.deliveredLocalDate = LocalDate.string(for: deliveredDate)
           self?.persist(record, cli: cli)
         }
         self?.timedOut.remove(pending.entry)
@@ -1258,7 +1312,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
           let modelPath = transcription.modelPath,
           DaemonClient(socketPath: transcription.socketPath).status(timeout: 1)?
             .holds(path: modelPath, version: transcription.modelVersion ?? "v3") == true else {
-      return retranscribeWithCLI(entry, cli: cli)
+      return retranscribeWithCLI(entry, cli: cli, deferUsage: config.supports("deferred_usage"))
     }
     let samples: [Float]
     do {
@@ -1289,7 +1343,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     record.transcribeMs = Int(monotonicMs() - startedAt)
     switch TextPipeline(settings: cleanup).process(transcript: transcript, app: info.app) {
     case .needsCLI:
-      return retranscribeWithCLI(entry, cli: cli)
+      return retranscribeWithCLI(entry, cli: cli, deferUsage: config.supports("deferred_usage"))
     case .noSpeech:
       record.status = "no_speech"
       persist(record, cli: cli)
@@ -1303,12 +1357,14 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
   }
 
-  /// `inline process` on the kept WAV (it records history and usage itself).
-  private func retranscribeWithCLI(_ entry: TimedOutTakes.Entry, cli: CLIBridge) -> RetryOutcome {
+  /// `inline process` on the kept WAV (it records history itself, and
+  /// usage too unless deferred until the retried text is pasted).
+  private func retranscribeWithCLI(_ entry: TimedOutTakes.Entry, cli: CLIBridge, deferUsage: Bool) -> RetryOutcome {
     let info = entry.info
     do {
       let result = try cli.process(wav: entry.wav, app: info.app, recordMs: info.recordMs,
-                                   startupMs: info.startupMs, startedAtEpochMs: info.startedAtMs)
+                                   startupMs: info.startupMs, startedAtEpochMs: info.startedAtMs,
+                                   deferUsage: deferUsage)
       guard result.ok else {
         if result.status == "no_speech" {
           timedOut.remove(entry)
@@ -1316,7 +1372,19 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         return .failed("retry failed (recording kept): \(result.message ?? result.status)")
       }
-      return .ready(RetriedText(entry: entry, text: result.text, record: nil))
+      var usage: TakeRecord?
+      if result.usageDeferred == true {
+        var record = TakeRecord(takeId: UUID().uuidString.lowercased(), status: "ok", delivered: false)
+        record.usageOnly = true
+        record.text = result.text
+        record.mode = result.mode
+        record.app = info.app
+        record.recordMs = info.recordMs
+        record.startupMs = info.startupMs
+        record.startedAtMs = info.startedAtMs
+        usage = record
+      }
+      return .ready(RetriedText(entry: entry, text: result.text, record: usage))
     } catch {
       return .failed("retry failed (recording kept): \(error.localizedDescription)")
     }
@@ -1334,6 +1402,34 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     configLine.title = "⚠︎ config.toml invalid: \(using)"
     configLine.isHidden = false
     Log.write("settings: config.toml invalid (\(error)); \(using)")
+  }
+
+  /// Runs `inline process`, deferring usage until delivery when the CLI can.
+  /// With settings unknown (fetch failed), it asks anyway: a CLI without
+  /// `--defer-usage` rejects the option before doing any work, and the take
+  /// then runs without it (that CLI counts usage itself, as before).
+  private static func processDeferringUsage(cli: CLIBridge, config: AppConfig?,
+                                            _ run: (Bool) throws -> ProcessResult) throws -> ProcessResult {
+    if let config, !config.supports("deferred_usage") { return try run(false) }
+    do {
+      return try run(true)
+    } catch CLIBridge.BridgeError.failed(let message) where message.contains("unknown option: --defer-usage") {
+      return try run(false)
+    }
+  }
+
+  /// Remembers the last active app other than Lowkey (see `startRecording`).
+  private func trackExternalApps() {
+    if let front = NSWorkspace.shared.frontmostApplication, front.processIdentifier != getpid() {
+      lastExternalApp = front
+    }
+    NSWorkspace.shared.notificationCenter.addObserver(
+      forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main
+    ) { [weak self] note in
+      guard let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+            app.processIdentifier != getpid() else { return }
+      self?.lastExternalApp = app
+    }
   }
 
   // MARK: - Menu

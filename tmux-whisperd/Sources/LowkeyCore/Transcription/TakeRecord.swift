@@ -25,6 +25,12 @@ public struct TakeRecord: Codable, Equatable, Sendable {
   public var captureWavMs: Int?
   public var captureWavBytes: Int?
   public var startupSource: String = "app:native"
+  /// The local date (Gregorian, YYYY-MM-DD) when the text was delivered, so
+  /// a take replayed on a later day still counts toward its own day.
+  public var deliveredLocalDate: String?
+  /// Records only the usage of a take `inline process --defer-usage`
+  /// already saved to history and bench.
+  public var usageOnly: Bool?
   /// Padded WAV for the `[debug] keep_logs` archive; `inline record` takes
   /// ownership and removes it.
   public var wavPath: String?
@@ -51,6 +57,8 @@ public struct TakeRecord: Codable, Equatable, Sendable {
     case captureWavBytes = "capture_wav_bytes"
     case startupSource = "startup_source"
     case wavPath = "wav_path"
+    case deliveredLocalDate = "delivered_local_date"
+    case usageOnly = "usage_only"
   }
 }
 
@@ -60,11 +68,15 @@ public struct RecordResult: Decodable, Equatable, Sendable {
   public let takeId: String
   public let usageRecorded: Bool
   public let historySaved: Bool
+  /// The CLI deduplicates take ids in the usage ledger (0.11+), so a take
+  /// whose usage wasn't recorded can be retried safely.
+  public let usageDeduplicated: Bool?
 
   enum CodingKeys: String, CodingKey {
     case ok
     case takeId = "take_id"
     case usageRecorded = "usage_recorded"
     case historySaved = "history_saved"
+    case usageDeduplicated = "usage_dedup"
   }
 }

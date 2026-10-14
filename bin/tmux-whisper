@@ -203,7 +203,7 @@ HISTORY (saved transcripts, auto-cleanup after 7 days):
   tmux-whisper history N [--json] # show entry N (1 = most recent)
   tmux-whisper history stats [--json] # summarize saved dictations + operator timings
   tmux-whisper history sessions [N] [--json] # compact per-dictation session summaries
-  tmux-whisper usage [--json]       # durable, transcript-free usage summary for delivered dictations
+  tmux-whisper usage [--json] [--days N|all]  # durable, transcript-free usage summary (--days: per-day buckets)
   tmux-whisper last [--json]      # concise summary of the most recent dictation
   tmux-whisper history reprocess N [mode]  # re-run LLM on raw transcript
   tmux-whisper history clear      # delete all history
@@ -6384,8 +6384,13 @@ process_inline_recording() {
     usage_full_elapsed_ms=$(( delivery_completed_ms - usage_started_ms ))
     (( usage_full_elapsed_ms < 0 )) && usage_full_elapsed_ms=0
   fi
-  usage_record_delivery "inline" "$txt" "$record_ms" "$usage_full_elapsed_ms" || \
-    echo "[usage] unable to record delivered dictation summary" >&2
+  # `inline process --defer-usage`: the caller delivers, then records usage
+  # with the real outcome (`inline record` usage_only), so a failed paste is
+  # never counted.
+  if [[ "${INLINE_DEFER_USAGE:-0}" != "1" ]]; then
+    usage_record_delivery "inline" "$txt" "$record_ms" "$usage_full_elapsed_ms" || \
+      echo "[usage] unable to record delivered dictation summary" >&2
+  fi
   append_bench_entry "inline" "ok" "$model_id" "$detected_mode" "$do_postprocess" "${#raw_txt}" "${#txt}" "$record_ms" "$transcribe_ms" "$clean_ms" "$postprocess_ms" "$paste_ms" "$total_ms" \
     "$startup_total_ms" "$startup_audio_ms" "$startup_ffmpeg_live_ms" "$startup_target_ms" "$startup_audio_source"
 
@@ -8308,13 +8313,29 @@ case "$cmd" in
   history) manage_history "${@:2}" ;;
   version|--version) show_version "${@:2}" ;;
   usage)
-    if [[ "${2:-}" == "--json" ]]; then
-      usage_summary "1"
-    elif [[ -n "${2:-}" ]]; then
-      die "usage: tmux-whisper usage [--json]"
-    else
-      usage_summary
+    usage_json="0"
+    usage_days=""
+    set -- "${@:2}"
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --json) usage_json="1" ;;
+        --days)
+          [[ $# -ge 2 ]] || die "usage: tmux-whisper usage [--json [--days N|all]]"
+          usage_days="$2"
+          shift
+          ;;
+        *) die "usage: tmux-whisper usage [--json [--days N|all]]" ;;
+      esac
+      shift
+    done
+    if [[ -n "$usage_days" ]]; then
+      [[ "$usage_json" == "1" ]] || die "usage: --days needs --json"
+      if [[ "$usage_days" != "all" ]] && { [[ ! "$usage_days" =~ ^[0-9]+$ ]] || (( 10#$usage_days < 1 || 10#$usage_days > 3660 )); }; then
+        die "usage: --days takes 1-3660 or all"
+      fi
+      [[ "$usage_days" == "all" ]] || usage_days="$((10#$usage_days))"
     fi
+    usage_summary "$usage_json" "$usage_days"
     ;;
   last)
     if [[ "${2:-}" == "--json" ]]; then
