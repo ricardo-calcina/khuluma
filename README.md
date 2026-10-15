@@ -19,7 +19,7 @@ Tmux Whisper is **inline-first for daily dictation, with tmux as a first-class d
 - `integrations/raycast/`: Raycast scripts (`inline`, `toggle`, `cancel`)
 - `assets/sounds/dictate/`: tiny sample WAV sound pack
 - `install.sh`: local installer
-- `docs/plans/`: planning/history notes kept separate from active operator docs
+- `docs/plans/`: the active plan; finished plans move to `docs/plans/archive/`
 - `tests/`: deterministic bash tests and install smoke tests
 - `.github/workflows/ci.yml`: CI for syntax + tests
 

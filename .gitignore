@@ -8,6 +8,7 @@
 history/
 .cache/
 archive/
+!docs/plans/archive/
 tmux-whisperd/.build/
 
 # Editor/OS

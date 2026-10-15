@@ -1,6 +1,6 @@
 # Lowkey roadmap: rename, CLI sunset, App Store later
 
-Status: approved (2026-10-15). Phases 0–5 are the plan; phase 6 (Mac App Store) is parked until Lowkey has proven itself in daily use and been improved further. Start with phase 0. Nothing is renamed by this document. Follows phase 3c (`LOWKEY_PHASE3C_PLAN.md`) and the stats window (`LOWKEY_STATS_PLAN.md`).
+Status: approved (2026-10-15). Phases 0–5 are the plan; phase 6 (Mac App Store) is parked until Lowkey has proven itself in daily use and been improved further. Start with phase 0. Nothing is renamed by this document. Follows phase 3c (`archive/LOWKEY_PHASE3C_PLAN.md`) and the stats window (`archive/LOWKEY_STATS_PLAN.md`).
 
 Three goals, in order of commitment:
 1. **Rename the project to Lowkey.** Lowkey (`tmux-whisperd/`, bundle id `com.ricardo-nth.lowkey`) is already the daily driver; "tmux-whisper" describes the CLI's tmux flow, which is no longer the main path.
