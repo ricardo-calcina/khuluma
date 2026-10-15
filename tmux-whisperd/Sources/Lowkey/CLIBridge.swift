@@ -36,25 +36,25 @@ struct CLIBridge {
     return nil
   }
 
+  /// The settings, checked first against Lowkey's app contract: throws
+  /// `AppContract.Mismatch` for a CLI that isn't the one Lowkey was built with.
   func appConfig() throws -> AppConfig {
     let data = try run(["app-config", "--json"], timeout: 15)
     do {
-      return try JSONDecoder().decode(AppConfig.self, from: data)
+      return try AppContract.decodeAppConfig(data)
+    } catch let mismatch as AppContract.Mismatch {
+      throw mismatch
     } catch {
       throw BridgeError.badOutput(String(decoding: data.prefix(200), as: UTF8.self))
     }
   }
 
-  /// `deferUsage` (capability `deferred_usage`): the CLI doesn't count the
-  /// take; the caller records usage once it has delivered.
-  func process(wav: URL, app: String?, recordMs: Int, startupMs: Int, startedAtEpochMs: Int,
-               deferUsage: Bool) throws -> ProcessResult {
-    var args = ["inline", "process", wav.path, "--json",
+  /// `--defer-usage`: the CLI doesn't count the take; the caller records
+  /// usage once it has delivered.
+  func process(wav: URL, app: String?, recordMs: Int, startupMs: Int, startedAtEpochMs: Int) throws -> ProcessResult {
+    var args = ["inline", "process", wav.path, "--json", "--defer-usage",
                 "--record-ms", String(recordMs), "--startup-ms", String(startupMs),
                 "--started-at-ms", String(startedAtEpochMs)]
-    if deferUsage {
-      args.append("--defer-usage")
-    }
     if let app, !app.isEmpty {
       args += ["--app", app]
     }
@@ -89,28 +89,14 @@ struct CLIBridge {
     }
   }
 
-  /// `usage --json`, with per-day buckets when the CLI has `usage_days`.
+  /// `usage --json --days all`: lifetime totals and per-day buckets.
   /// Counts and durations only: no transcript text is ever in it.
-  func usage(daily: Bool) throws -> UsageReport {
-    let data = try run(["usage", "--json"] + (daily ? ["--days", "all"] : []), timeout: 10)
+  func usage() throws -> UsageReport {
+    let data = try run(["usage", "--json", "--days", "all"], timeout: 10)
     do {
       return try JSONDecoder().decode(UsageReport.self, from: data)
     } catch {
       throw BridgeError.badOutput("usage report did not decode")
-    }
-  }
-
-  /// Text-only cleanup of a raw transcript, for the shadow compare.
-  func cleanup(transcript: String, app: String?) throws -> CleanupResult {
-    var args = ["inline", "cleanup", "--json"]
-    if let app, !app.isEmpty {
-      args += ["--app", app]
-    }
-    let data = try run(args, timeout: 30, input: Data(transcript.utf8))
-    do {
-      return try JSONDecoder().decode(CleanupResult.self, from: data)
-    } catch {
-      throw BridgeError.badOutput(String(decoding: data.prefix(200), as: UTF8.self))
     }
   }
 

@@ -1,13 +1,13 @@
 import Foundation
+import LowkeyCore
 
-/// Shadow comparison for the 3b rollout (`[app] verify_pipeline`): after the
-/// native result is delivered, the CLI processes the same take in the
-/// background and any difference is logged with both texts.
-public enum ShadowCompare {
+/// Compares a native cleanup result with the CLI's, byte for byte. It was the
+/// `[app] verify_pipeline` rollout check; the parity tests still use it.
+enum ShadowCompare {
   /// nil when the native and CLI results agree (byte-identical text, raw
   /// text and mode, or both found no speech), else a one-line description
   /// for app.log. A native `.needsCLI` is never compared.
-  public static func mismatch(
+  static func mismatch(
     native: CleanupOutcome, cliStatus: String, cliRawText: String, cliText: String, cliMode: String?
   ) -> String? {
     switch (native, cliStatus) {
@@ -31,12 +31,7 @@ public enum ShadowCompare {
   }
 
   /// Against `inline process --json` (whole take: transcription + cleanup).
-  public static func mismatch(native: CleanupOutcome, cli: ProcessResult) -> String? {
-    mismatch(native: native, cliStatus: cli.status, cliRawText: cli.rawText, cliText: cli.text, cliMode: cli.mode)
-  }
-
-  /// Against `inline cleanup --json` on the same raw transcript (text only).
-  public static func mismatch(native: CleanupOutcome, cli: CleanupResult) -> String? {
+  static func mismatch(native: CleanupOutcome, cli: ProcessResult) -> String? {
     mismatch(native: native, cliStatus: cli.status, cliRawText: cli.rawText, cliText: cli.text, cliMode: cli.mode)
   }
 

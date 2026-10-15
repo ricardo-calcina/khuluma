@@ -34,8 +34,6 @@ struct UsageCapabilityTests {
       + #""delivery":{"autosend":true,"send_mode":"enter","paste_target":"current","activate_delay_ms":0,"send_delay_ms":35},"#
       + #""timings":{},"usage_deferred":true}"#
     #expect(try JSONDecoder().decode(ProcessResult.self, from: Data(json.utf8)).usageDeferred == true)
-    let old = json.replacingOccurrences(of: #","usage_deferred":true"#, with: "")
-    #expect(try JSONDecoder().decode(ProcessResult.self, from: Data(old.utf8)).usageDeferred == nil)
   }
 }
 

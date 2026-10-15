@@ -142,6 +142,7 @@ app_config_json() {
 
   env "${sound_env[@]}" \
     APPCFG_CLI_VERSION="$TMUX_WHISPER_CLI_VERSION" \
+    APPCFG_APP_CONTRACT="$TMUX_WHISPER_APP_CONTRACT" \
     APPCFG_HOTKEY="${DICTATE_APP_HOTKEY:-${CFG_APP_HOTKEY:-ctrl+option+space}}" \
     APPCFG_AUTOSEND="$APP_AUTOSEND" \
     APPCFG_SEND_MODE="$APP_SEND_MODE" \
@@ -151,10 +152,8 @@ app_config_json() {
     APPCFG_PROCESS_SOUND="${CFG_INLINE_PROCESS_SOUND:-1}" \
     APPCFG_CLEANUP_JSON="$(app_cleanup_settings_json)" \
     APPCFG_TRANSCRIPTION_JSON="$(app_transcription_settings_json)" \
-    APPCFG_NATIVE_PIPELINE="${DICTATE_APP_NATIVE_PIPELINE:-${CFG_APP_NATIVE_PIPELINE:-1}}" \
     APPCFG_CONFIG_ERROR="${CFG_CONFIG_PARSE_ERROR:-}" \
     APPCFG_CONFIG_SOURCE="${CFG_CONFIG_SOURCE:-file}" \
-    APPCFG_VERIFY_PIPELINE="${DICTATE_APP_VERIFY_PIPELINE:-${CFG_APP_VERIFY_PIPELINE:-1}}" \
     APPCFG_SUPERVISE_DAEMON="${DICTATE_APP_SUPERVISE_DAEMON:-${CFG_APP_SUPERVISE_DAEMON:-1}}" \
     APPCFG_USAGE_PATH="$(usage_summary_file)" \
     python3 - <<'PYEOF'
@@ -169,6 +168,7 @@ for event in ("start", "stop", "process", "error", "cancel"):
 print(json.dumps({
     "schema_version": 1,
     "cli_version": e["APPCFG_CLI_VERSION"],
+    "app_contract": int(e["APPCFG_APP_CONTRACT"]),
     "hotkey": e["APPCFG_HOTKEY"],
     "sounds": sounds,
     "inline": {
@@ -185,19 +185,9 @@ print(json.dumps({
     # ("last_good") or, if there is none, the defaults.
     "config": {"error": e["APPCFG_CONFIG_ERROR"] or None, "source": e["APPCFG_CONFIG_SOURCE"]},
     "pipeline": {
-        "native": e["APPCFG_NATIVE_PIPELINE"].lower() in ("1", "true", "yes", "on"),
-        "verify": e["APPCFG_VERIFY_PIPELINE"].lower() in ("1", "true", "yes", "on"),
         # Lowkey keeps the daemon warm (it still never launches one itself).
         "supervise": e["APPCFG_SUPERVISE_DAEMON"].lower() in ("1", "true", "yes", "on"),
     },
-    # What this CLI supports, so a newer app can tell an older CLI apart:
-    # take_markers: Lowkey's whole-take markers count as busy and dead ones
-    #   are pruned; lifecycle_lock: daemon starts/restarts are serialized;
-    #   warmup_json: `warmup --json` reports ready/warming/unavailable;
-    #   usage_days: `usage --json --days N|all` has per-day buckets;
-    #   deferred_usage: `inline process --defer-usage` plus `inline record`
-    #   usage_only, with take ids deduplicated in the usage ledger.
-    "capabilities": ["take_markers", "lifecycle_lock", "warmup_json", "usage_days", "deferred_usage"],
     "usage": {"summary_path": e["APPCFG_USAGE_PATH"]},
 }))
 PYEOF
@@ -205,7 +195,7 @@ PYEOF
 
 # tmux-whisper inline process <wav> [--app NAME] [--record-ms N]
 #   [--startup-ms N] [--started-at-ms EPOCH_MS] [--defer-usage] --json
-# --defer-usage (capability deferred_usage): don't count the take in the
+# --defer-usage (what Lowkey always passes): don't count the take in the
 # usage ledger; the caller records it with `inline record` (usage_only) once
 # it has actually delivered the text.
 # Prints one JSON object: {ok, status, text, raw_text, mode, message,

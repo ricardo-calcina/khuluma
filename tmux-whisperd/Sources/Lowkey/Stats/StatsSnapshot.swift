@@ -55,9 +55,6 @@ enum StatsSnapshot {
       ("not-started", StatsModel(
         stats: UsageStats(report: report(today: today, trackedDays: 0, untracked: 0, status: "not_started"), today: today),
         updatedAt: updated)),
-      ("lifetime-only", StatsModel(
-        stats: UsageStats(report: report(today: today, trackedDays: 0, untracked: 0, status: nil), today: today),
-        updatedAt: updated)),
       ("empty", StatsModel(
         stats: UsageStats(report: UsageReport(trackingStartedAt: nil, dictations: 0, words: 0, recordingMs: 0,
                                               fullElapsedMs: 0, typingWPM: 40, estimatedTimeDifferenceMs: 0,

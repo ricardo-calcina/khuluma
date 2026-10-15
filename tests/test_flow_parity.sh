@@ -2139,13 +2139,17 @@ assert t["socket_path"].endswith(".sock") and t["model_path"], t
 assert t["tail_pad_ms"] == "500" and t["tail_rescue"] is True and t["language"] == "en", t
 assert t["chunking"] is False and t["silence_trim"] is False, t
 assert t["processing_dir"].endswith("/processing"), t
-assert c["pipeline"] == {"native": True, "verify": True, "supervise": True}, c["pipeline"]
+assert c["pipeline"] == {"supervise": True}, c["pipeline"]
+assert "capabilities" not in c, c
 ' || { echo "$out" >&2; fail "app_config_transcription_section"; }
   pass "app_config_transcription_section"
-  out="$(DICTATE_APP_NATIVE_PIPELINE=0 "$DICTATE_BIN" app-config --json)"
-  assert_contains "app_config_native_pipeline_off" "$out" '"pipeline": {"native": false'
   assert_equals "app_config_supervise_default" "$(json_field "$out" pipeline.supervise)" "True"
-  assert_contains "app_config_capabilities" "$out" '"capabilities": ["take_markers", "lifecycle_lock", "warmup_json", "usage_days", "deferred_usage"]'
+  # Lowkey refuses takes unless the CLI speaks its contract: the two numbers
+  # must move together.
+  local swift_contract
+  swift_contract="$(sed -nE 's/^ *public static let version = ([0-9]+).*/\1/p' "$ROOT/tmux-whisperd/Sources/LowkeyCore/CLIModels.swift")"
+  [[ -n "$swift_contract" ]] || fail "app_contract_swift_constant_found"
+  assert_equals "app_config_contract_matches_lowkey" "$(json_field "$out" app_contract)" "$swift_contract"
   assert_equals "app_config_usage_path" "$(json_field "$out" usage.summary_path)" "$DICTATE_CONFIG_DIR/usage.json"
   printf '[app]\nsupervise_daemon = false\n' >"$DICTATE_CONFIG_FILE"
   out="$("$DICTATE_BIN" app-config --json)"

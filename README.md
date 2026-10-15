@@ -362,12 +362,10 @@ On first launch, allow Microphone, and Accessibility (for pasting) in System Set
 ```toml
 [app]
 hotkey = "ctrl+option+space"   # e.g. "cmd+shift+d", "f13"
-native_pipeline = true         # false: always use `tmux-whisper inline process`
-verify_pipeline = true         # also run the CLI cleanup in the background and log any difference
 supervise_daemon = true        # keep the Parakeet daemon warm (launch, wake, recording start)
 ```
 
-Then choose **Reload Settings** from the menu. Timings, errors, `supervisor:` and `verify:` results are in `~/Library/Logs/Lowkey/app.log`; `tools/lowkey-report.sh` summarises it (outcomes, fallback and failure rates, where the time goes, verify results) without printing any dictated text. The menu shows whether the Parakeet daemon is ready, and offers **Retry**/**Discard** for a take whose transcription timed out (its audio is kept privately for an hour; Retry transcribes, then **Paste retried dictation** pastes it where you are, without sending).
+Then choose **Reload Settings** from the menu. Timings, errors and `supervisor:` lines are in `~/Library/Logs/Lowkey/app.log`; `tools/lowkey-report.sh` summarises it (outcomes, fallback and failure rates, where the time goes) without printing any dictated text. The menu shows whether the Parakeet daemon is ready, and offers **Retry**/**Discard** for a take whose transcription timed out (its audio is kept privately for an hour; Retry transcribes, then **Paste retried dictation** pastes it where you are, without sending).
 
 **Stats…** in the menu opens a window with your lifetime words, words per minute, the estimated time saved against typing (labelled as an estimate), a 30/60/90-day activity heatmap, your streak and recorded bests. It reads `tmux-whisper usage --json --days all`, which holds counts and durations only, never what you said.
 

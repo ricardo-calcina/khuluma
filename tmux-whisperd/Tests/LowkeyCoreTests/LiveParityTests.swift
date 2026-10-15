@@ -28,11 +28,10 @@ struct LiveParityTests {
     var compared = 0
     for variant in variants {
       let out = root.appendingPathComponent("out/\(variant)")
-      let config = try JSONDecoder().decode(
-        AppConfig.self, from: Data(contentsOf: out.appendingPathComponent("app-config.json")))
+      let config = try AppContract.decodeAppConfig(Data(contentsOf: out.appendingPathComponent("app-config.json")))
       #expect(config.nativePipelineBlocker == nil, "\(variant): \(config.nativePipelineBlocker ?? "")")
-      let transcription = try #require(config.transcription)
-      let cleanup = try #require(config.cleanup)
+      let transcription = config.transcription
+      let cleanup = config.cleanup
       let client = DaemonClient(socketPath: transcription.socketPath)
       for name in wavs {
         let stem = String(name.dropLast(4))

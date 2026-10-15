@@ -27,7 +27,7 @@ Three goals, in order of commitment:
 | SwiftBar plugin | `tmux-whisper-status.0.2s.sh` | Retired in #62 (2026-10-15); only the `tmux-whisper swiftbar` notice stub is left | Stub removed in phase 0's tidy-up | Gone |
 | Finder Quick Action, `transcribe` | `Transcribe with Tmux Whisper.workflow`, `tmux-whisper transcribe` | Finder users; the `transcribe-audio` skill in `~/.claude/skills` and `~/.codex/skills` (and `integrations/agents/`) | Unchanged | Needs a replacement first (see below) |
 | Lowkey app | bundle id `com.ricardo-nth.lowkey`, `~/Library/Logs/Lowkey`, `~/Library/Application Support/Lowkey/` | TCC grants (Microphone, Accessibility), Login Items (`SMAppService`), `tools/lowkey-report.sh` | Already named Lowkey | Unchanged |
-| Lowkey's text | "tmux-whisper CLI not found", "Update tmux-whisper for daily stats", "Couldn't load stats from tmux-whisper" (`CLIBridge.swift`, `AppController.swift`, `StatsView.swift`) | Users | Unchanged while the CLI is required | Gone with the CLI dependency |
+| Lowkey's text | "tmux-whisper CLI not found", the CLI/app contract mismatch notice, "Couldn't load stats from tmux-whisper" (`CLIBridge.swift`, `AppController.swift`, `StatsView.swift`) | Users | Unchanged while the CLI is required | Gone with the CLI dependency |
 | Daemon | `tmux-whisperd`, Swift package `tmux-whisperd`, library `TmuxWhisperKit` | CLI builds it from source (`swift build` in `pkgshare`/`~/.local/share/tmux-whisper`) on first use; Lowkey connects to its socket | Unchanged | Bundled inside Lowkey.app (as `lowkeyd` or an XPC service); package renamed with the repo move |
 
 ## What Lowkey still needs from the CLI
