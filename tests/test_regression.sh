@@ -524,6 +524,30 @@ assert_contains "budget_show_dynamic_note" "$modecheck_budget_show" "auto_numeri
 modecheck_budget_threshold="$(HOME="$MODECHECK_HOME" PATH="$MODECHECK_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$MODECHECK_CFG" DICTATE_CONFIG_FILE="$MODECHECK_CFG/config.toml" tmux-whisper budget threshold 42)"
 assert_contains "budget_threshold_set" "$modecheck_budget_threshold" "budget auto_long_words_threshold: 42"
 
+# --- Regression 8: a Homebrew install finds the Finder Quick Action handler in
+# its pkgshare and ignores a stale local-install receipt. ---
+BREW_FINDER_HOME="$TMP_ROOT/home-brew-finder"
+BREW_FINDER_PREFIX="$BREW_FINDER_HOME/Cellar/tmux-whisper/0.11.0"
+BREW_FINDER_BIN="$BREW_FINDER_HOME/bin"
+BREW_FINDER_CFG="$BREW_FINDER_HOME/.config/dictate"
+install_test_runtime "$BREW_FINDER_PREFIX/libexec"
+mkdir -p "$BREW_FINDER_PREFIX/share/tmux-whisper/integrations" "$BREW_FINDER_BIN" "$BREW_FINDER_CFG"
+cp -R "$ROOT/integrations/finder" "$BREW_FINDER_PREFIX/share/tmux-whisper/integrations/finder"
+printf '#!/bin/bash\nexec "%s/libexec/tmux-whisper" "$@"\n' "$BREW_FINDER_PREFIX" >"$BREW_FINDER_BIN/tmux-whisper"
+chmod +x "$BREW_FINDER_BIN/tmux-whisper"
+printf '[meta]\nconfig_version = 1\n' >"$BREW_FINDER_CFG/config.toml"
+cat >"$BREW_FINDER_CFG/install-receipt.env" <<EOF
+install_source='local'
+repo_root='$ROOT'
+bin_path='$BREW_FINDER_HOME/.local/bin/tmux-whisper'
+EOF
+brew_finder_share="$(cd "$BREW_FINDER_PREFIX/share/tmux-whisper" && pwd)"
+brew_finder_out="$(HOME="$BREW_FINDER_HOME" PATH="$BREW_FINDER_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= \
+  DICTATE_CONFIG_DIR="$BREW_FINDER_CFG" DICTATE_CONFIG_FILE="$BREW_FINDER_CFG/config.toml" \
+  DICTATE_SERVICES_DIR="$BREW_FINDER_HOME/Services" tmux-whisper finder install)"
+assert_contains "finder_brew_handler_from_pkgshare" "$brew_finder_out" "handler: $brew_finder_share/integrations/finder/tmux-whisper-transcribe.sh"
+assert_not_contains "finder_brew_ignores_stale_receipt_root" "$brew_finder_out" "handler: $ROOT/"
+
 IDLE_STOP_HOME="$TMP_ROOT/home-idle-stop"
 IDLE_STOP_BIN="$IDLE_STOP_HOME/.local/bin"
 IDLE_STOP_CFG="$IDLE_STOP_HOME/.config/dictate"
