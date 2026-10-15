@@ -1,15 +1,15 @@
-# Lowkey roadmap: rename, CLI sunset, maybe the Mac App Store
+# Lowkey roadmap: rename, CLI sunset, App Store later
 
-Status: draft (2026-10-14). Roadmap only: nothing is renamed by this document. Follows phase 3c (`LOWKEY_PHASE3C_PLAN.md`) and the stats window (`LOWKEY_STATS_PLAN.md`).
+Status: approved (2026-10-15). Phases 0–5 are the plan; phase 6 (Mac App Store) is parked until Lowkey has proven itself in daily use and been improved further. Start with phase 0. Nothing is renamed by this document. Follows phase 3c (`LOWKEY_PHASE3C_PLAN.md`) and the stats window (`LOWKEY_STATS_PLAN.md`).
 
 Three goals, in order of commitment:
 1. **Rename the project to Lowkey.** Lowkey (`tmux-whisperd/`, bundle id `com.ricardo-nth.lowkey`) is already the daily driver; "tmux-whisper" describes the CLI's tmux flow, which is no longer the main path.
 2. **Make Lowkey the main tool**, then sunset the bash CLI (`bin/tmux-whisper`) and archive the `tmux-whisper` repo.
-3. **Maybe list Lowkey on the Mac App Store.** A gate to evaluate, not a commitment. See "App Store blockers" below.
+3. **Maybe list Lowkey on the Mac App Store, later.** Parked: no work planned. The research in "App Store blockers" stays here so a sandboxed build isn't designed out by accident.
 
 ## Decisions this roadmap proposes
-- **New repo, archive the old one** (recommended) rather than renaming `ricardo-nth/tmux-whisper` in place. Lowkey moves to `ricardo-nth/lowkey` with its history (`git filter-repo` on `tmux-whisperd/`, `docs/plans/LOWKEY_*`, `tools/*lowkey*`). The old repo gets a final CLI release and is archived. Archive URLs (Homebrew formula, `bootstrap.sh`, release tarballs) keep working without depending on rename redirects, and an archived repo can't be confused with the live product. The cost: issues, stars and watchers stay behind (transfer the open ones). Renaming in place keeps them, but then there's no repo to archive, and the redirects break if anything is ever created under the old name. GitHub doesn't promise that rename redirects cover tag archives or `raw.githubusercontent.com` links, which are exactly what the formula and `bootstrap.sh` use ([gh-rename]). Archiving makes code, releases, issues and PRs read-only, and doesn't close open issues ([gh-archive]).
-- **Direct download first, App Store second.** Ship Lowkey signed with Developer ID and notarized, as a Homebrew cask in `ricardo-nth/tap`. Only then decide on the App Store, which needs a sandboxed build with a different shape (see blockers).
+- **New repo, archive the old one** (recommended; confirm in phase 0) rather than renaming `ricardo-nth/tmux-whisper` in place. Lowkey moves to `ricardo-nth/lowkey` with its history (`git filter-repo` on `tmux-whisperd/`, `docs/plans/LOWKEY_*`, `tools/*lowkey*`). The old repo gets a final CLI release and is archived. Archive URLs (Homebrew formula, `bootstrap.sh`, release tarballs) keep working without depending on rename redirects, and an archived repo can't be confused with the live product. The cost: issues, stars and watchers stay behind (transfer the open ones). Renaming in place keeps them, but then there's no repo to archive, and the redirects break if anything is ever created under the old name. GitHub doesn't promise that rename redirects cover tag archives or `raw.githubusercontent.com` links, which are exactly what the formula and `bootstrap.sh` use ([gh-rename]). Archiving makes code, releases, issues and PRs read-only, and doesn't close open issues ([gh-archive]).
+- **Direct download only for now.** Ship Lowkey signed with Developer ID and notarized, as a Homebrew cask in `ricardo-nth/tap`. The App Store needs a sandboxed build with a different shape (see blockers) and is parked.
 - **Keep the bundle id** `com.ricardo-nth.lowkey`. It's already Lowkey's. Moving from the local self-signed identity to Developer ID changes the signing identity, so Microphone and Accessibility are granted once more. TCC identifies an app by bundle id **plus** its code requirement, and the self-signed requirement very likely won't match a Developer ID signature ([tcc-identity], [tn2206], [dts-tcc]). The same applies to a later move to App Store signing, which isn't documented as preserving grants: test it.
 - **The tmux flow ends with the CLI.** Lowkey already pastes into the frontmost app, terminals included. tmux's distinct features (origin-pane targeting, the async queue) aren't carried over unless real use shows they're missed.
 
@@ -19,12 +19,12 @@ Three goals, in order of commitment:
 | --- | --- | --- | --- | --- |
 | GitHub repo | `ricardo-nth/tmux-whisper` | Formula `url` (tag archives), `bootstrap.sh` (`--repo`, raw URLs), README badges and links, install receipts (`source=`), issue links in docs and CHANGELOG, `AGENTS.md` and `docs/agents/issue-tracker.md` | New repo `ricardo-nth/lowkey`; old repo untouched | Final CLI release, README points to Lowkey, archive |
 | Homebrew | formula `ricardo-nth/tap/tmux-whisper` (CLI only, at v0.9.0; doesn't ship Lowkey) | `brew install/upgrade` users; `tools/update-homebrew-formula.sh`; `docs/RELEASE_CHECKLIST.md` | Add cask `lowkey` (notarized `.app`). Formula unchanged | `deprecate!` with a date and `replacement_cask: "lowkey"`, later `disable!` ([brew-deprecate]) |
-| Config and data | `~/.config/dictate/` (`config.toml`, `.config.toml.last-good`, `current-mode`, `modes/`, `vocab`, `history/*.json`, `history/bench.tsv`, `usage.json`, `install-receipt.env`, `backups/`), daemon socket `~/.config/dictate/.cache/tmux-whisperd.sock`, sounds `~/.local/share/sounds/dictate/`, models `~/.local/share/tmux-whisper/models/` | The CLI (writer of everything), Lowkey (reads config only through `app-config --json`, but watches `usage.json` directly in `StatsModel.swift` and talks to the socket path `app-config` gives it), SwiftBar (reads `usage.json` signature) | Unchanged | Lowkey owns its data under `~/Library/Application Support/Lowkey/` (the sandbox container, if the App Store happens), with a one-time import from `~/.config/dictate` |
-| Runtime state | `/tmp/dictate-processing/` markers, `/tmp/whisper-dictate*.state`, `<socket>.lifecycle.lock`, 134 `DICTATE_*` env vars | CLI ↔ Lowkey idle checks and lifecycle lock, SwiftBar, the daemon's idle check before upgrades | Unchanged | Private to Lowkey; env vars dropped (settings live in config) |
-| CLI contracts (`docs/CLI_CONTRACTS.md`) | `tmux-whisper <cmd> --json` | Lowkey (`app-config`, `inline process/record/cleanup`, `warmup`, `usage`), SwiftBar, the `transcribe-audio` agent skill, any script of yours | Frozen: additive fields only, no renames | Final version documented; no new fields |
-| `usage --json` | `schema_version` 1 (+ `--days`) | SwiftBar ready menu, Lowkey stats window (`usage --json --days all`) | Unchanged | Replaced by Lowkey reading its own ledger; the JSON shape is kept as Lowkey's export format so the stats code doesn't change |
-| Raycast scripts | `integrations/raycast/tmux-whisper-{inline,toggle,cancel}.sh`, package "Tmux Whisper" | Raycast users (hotkeys to inline/tmux/cancel) | Unchanged | Removed: Lowkey's own hotkey and Ctrl+Esc cancel replace them |
-| SwiftBar plugin | `tmux-whisper-status.0.2s.sh` | SwiftBar users (state icon, usage, toggles) | Unchanged | Removed: Lowkey is the menu-bar item |
+| Config and data | `~/.config/dictate/` (`config.toml`, `.config.toml.last-good`, `current-mode`, `modes/`, `vocab`, `history/*.json`, `history/bench.tsv`, `usage.json`, `install-receipt.env`, `backups/`), daemon socket `~/.config/dictate/.cache/tmux-whisperd.sock`, sounds `~/.local/share/sounds/dictate/`, models `~/.local/share/tmux-whisper/models/` | The CLI (writer of everything), Lowkey (reads config only through `app-config --json`, but watches `usage.json` directly in `StatsModel.swift` and talks to the socket path `app-config` gives it) | Unchanged | Lowkey owns its data under `~/Library/Application Support/Lowkey/` (the sandbox container, if the App Store happens), with a one-time import from `~/.config/dictate` |
+| Runtime state | `/tmp/dictate-processing/` markers, `/tmp/whisper-dictate*.state`, `<socket>.lifecycle.lock`, ~126 `DICTATE_*` env vars (the plugin-only `/tmp` flags went in #63) | CLI ↔ Lowkey idle checks and lifecycle lock, the daemon's idle check before upgrades | Unchanged | Private to Lowkey; env vars dropped (settings live in config) |
+| CLI contracts (`docs/CLI_CONTRACTS.md`) | `tmux-whisper <cmd> --json` | Lowkey (`app-config`, `inline process/record/cleanup`, `warmup`, `usage`), the `transcribe-audio` agent skill, any script of yours | Frozen: additive fields only, no renames | Final version documented; no new fields |
+| `usage --json` | `schema_version` 1 (+ `--days`) | Lowkey stats window (`usage --json --days all`); SwiftBar until #62 | Unchanged | Replaced by Lowkey reading its own ledger; the JSON shape is kept as Lowkey's export format so the stats code doesn't change |
+| Raycast scripts | `integrations/raycast/tmux-whisper-{inline,toggle,cancel}.sh`, package "Tmux Whisper" | Nobody on your machine since 2026-10-15 (Lowkey owns the dictation key, F17, and Ctrl+Esc cancels) | Removed in phase 0's tidy-up, with `integrations doctor/repair` | Gone |
+| SwiftBar plugin | `tmux-whisper-status.0.2s.sh` | Retired in #62 (2026-10-15); only the `tmux-whisper swiftbar` notice stub is left | Stub removed in phase 0's tidy-up | Gone |
 | Finder Quick Action, `transcribe` | `Transcribe with Tmux Whisper.workflow`, `tmux-whisper transcribe` | Finder users; the `transcribe-audio` skill in `~/.claude/skills` and `~/.codex/skills` (and `integrations/agents/`) | Unchanged | Needs a replacement first (see below) |
 | Lowkey app | bundle id `com.ricardo-nth.lowkey`, `~/Library/Logs/Lowkey`, `~/Library/Application Support/Lowkey/` | TCC grants (Microphone, Accessibility), Login Items (`SMAppService`), `tools/lowkey-report.sh` | Already named Lowkey | Unchanged |
 | Lowkey's text | "tmux-whisper CLI not found", "Update tmux-whisper for daily stats", "Couldn't load stats from tmux-whisper" (`CLIBridge.swift`, `AppController.swift`, `StatsView.swift`) | Users | Unchanged while the CLI is required | Gone with the CLI dependency |
@@ -47,16 +47,32 @@ Today Lowkey's happy path (hotkey → capture → Parakeet over the socket → S
 | **File transcription** | `tmux-whisper transcribe`, Finder Quick Action, the agent skill | Drag-and-drop onto Lowkey or a "Transcribe File…" menu item, plus a small command-line tool for agents. The direct-download build can ship a `lowkey` CLI inside the bundle (`Contents/MacOS/lowkey`, symlinked by the cask); it talks to the running app or daemon, not the bash CLI |
 | **Sounds** | Paths from `app-config` (`~/.local/share/sounds/dictate`) | Bundled default sounds in the app; custom sounds chosen in Settings |
 
-Anything not listed (tmux flow, `bench-matrix`, `budget`, `keybind`, `swiftbar`, `integrations doctor/repair`, `watch`, `logs follow`, `devices`, `doctor`) is CLI-only operator surface that ends with the CLI. `doctor` and `debug` get a slim equivalent in Lowkey's menu (an "About and diagnostics" view, copying a transcript-free report).
+Anything not listed (tmux flow, CLI inline capture, `bench-matrix`, `budget`, `keybind`, `swiftbar`, `integrations doctor/repair`, `watch`, `logs follow`, `devices`, `doctor`) is CLI-only operator surface that ends with the CLI. `doctor` and `debug` get a slim equivalent in Lowkey's menu (an "About and diagnostics" view, copying a transcript-free report).
 
 ## Phases
 
-### Phase 0: decide (this document)
-- Confirm the decisions above, in particular new repo vs rename in place.
-- Check the name. An App Store name can be used by one app per localization, and only App Store Connect says whether it's free ([asc-name]). Existing "Lowkey" apps: an iPhone group chat app ([lowkey-chat]), lowkey.fyi on iPhone/iPad ([lowkey-fyi]), and a gaming-clips product acquired by Niantic ([lowkey-yc]). No native Mac app named exactly "Lowkey" or "Lowkey Dictation" was found, which doesn't prove the name is free, and trademarks weren't checked. Fallbacks for the store listing: "Lowkey Dictation", "Lowkey: Private Dictation" (the app and bundle can still be called Lowkey).
-- Join the Apple Developer Program (needed for Developer ID notarization and for the App Store).
+### Phase 0 (P0): check the name, then review and tidy the codebase
+Two pieces of work before anything is renamed or ported, so the rename and phase 1 only touch code that survives.
 
-Exit: decisions recorded here; name cleared for the channels you want; a developer account.
+**P0a. Name check.** The last cheap moment to change the name: after phase 2 it's in the repo, the cask, the bundle and your TCC grants.
+- What's known (2026-10-14): an App Store name can be used by one app per localization, and only App Store Connect says whether it's free ([asc-name]). Existing "Lowkey" apps: an iPhone group chat app ([lowkey-chat]), lowkey.fyi on iPhone/iPad ([lowkey-fyi]), and a gaming-clips product acquired by Niantic ([lowkey-yc]). No native Mac app named exactly "Lowkey" or "Lowkey Dictation" was found, which doesn't prove the name is free. Trademarks weren't checked.
+- Check: trademark registers (USPTO, UKIPO, EUIPO) in software classes (9, 42); the Mac and iOS App Stores; `ricardo-nth/lowkey` on GitHub and a cask named `lowkey` in `homebrew/cask` (`brew search --cask lowkey`); a domain if you want one; and how findable it is, since "lowkey" is everyday slang and a search for it won't find the app.
+- Compare "Lowkey" as is, a different spelling (e.g. Lowkee, Lowki, LowKey) and a longer store/display name ("Lowkey Dictation"), against the same checks.
+- Exit: one name chosen and recorded at the top of this document, with the checks behind it.
+
+**P0b. Codebase review and tidy-up.** A full review of the CLI, Lowkey and the docs, then deletions, so the code that goes into the rename is already the shape Lowkey 1.0 needs. Run it as a review first (a findings list plus decisions for you), then tidy-up PRs by area, each with `./tests/ci.sh` green and an oracle review.
+- **Decisions first** (they decide how much goes): is the tmux flow still used (`history sessions` shows the split by flow)? Is CLI inline capture (`inline start/stop/toggle`, ffmpeg device handling, osascript paste) still used now that Lowkey owns the key? Keep, port or drop LLM post-processing, silence trim and chunking? Anything dropped here never has to be ported in phase 1.
+- **Candidates to delete:**
+  - The Raycast scripts and the `integrations doctor/repair` adapter machinery that exists for them; the `tmux-whisper swiftbar` notice stub.
+  - Lowkey's support for older CLIs. App and CLI ship from one tree, so Lowkey can require the CLI version it was built with and say so clearly, instead of capability checks (`take_markers`, `lifecycle_lock`, `warmup_json`, `usage_days`, `deferred_usage`), the lifetime-only Stats window, the "Update tmux-whisper" notices and supervision turning itself off.
+  - Rollout switches, once the v0.10.0 gates in `tools/lowkey-report.sh` pass: `[app] native_pipeline = false` (the phase 2 path) and `[app] verify_pipeline` with its `inline cleanup` shadow compare. Keep what `tests/gen-cleanup-fixtures.sh` needs.
+  - Legacy log handling in `lowkey-report.sh` (`done(native)` lines from before the `take:` line).
+  - Whatever the decisions above drop (tmux flow, CLI capture, LLM), and CLI operator commands with no remaining user (`bench-matrix`, `budget`, `keybind`, `watch`, …).
+  - Docs: finished plans moved to `docs/plans/archive/`, `ROADMAP.md` rewritten around Lowkey, the CHANGELOG archive TODO done.
+- **Structure:** split `AppController.swift` (~1,500 lines) by responsibility; keep `LowkeyCore` the testable, AppKit-free core; check module boundaries (`TmuxWhisperKit`, `LowkeyCore`, `Lowkey`) are the ones phase 1 and the new repo want. No renames yet: names change in phase 2.
+- Exit: nothing left that exists only for SwiftBar, Raycast or an older CLI or app version; the decisions recorded here; CI green; deletions listed in CHANGELOG; and a week of daily Lowkey use afterwards with the `lowkey-report.sh` gates still met.
+
+**Also in phase 0:** confirm new repo vs rename in place, and join the Apple Developer Program before phase 2 (needed for Developer ID notarization).
 
 ### Phase 1: Lowkey stops needing the CLI
 Native config, history, usage writers, the daemon in the bundle, model download, sounds in the bundle. Also gate delivery on `CGPreflightPostEventAccess`/`CGRequestPostEventAccess` instead of `AXIsProcessTrustedWithOptions` (`Deliverer.swift`): it's the narrower permission, and the one a sandboxed build can get. Launch the bundled daemon as a child process (works for both channels) rather than an `SMAppService` agent. Each port proven against the CLI with shared fixtures (as `tests/fixtures/cleanup/` did for cleanup), and the CLI and Lowkey write the same files under the same locks while both exist.
@@ -93,13 +109,11 @@ Exit: 30 days with the notice live; nothing of yours still calls `tmux-whisper` 
 
 Exit: archived; `brew install ricardo-nth/tap/tmux-whisper` says it's disabled and names the cask.
 
-### Phase 6 (optional): Mac App Store
-Only if the blockers below have answers you're happy with. A separate sandboxed build target (`Lowkey-AppStore` entitlements, socket in an app-group container, no Sparkle, no bundled CLI), not the direct build with entitlements bolted on.
-
-Exit: a TestFlight build passes review, or a rejection tells you the copy-only fallback is the only App Store option, and you decide whether that's worth listing.
+### Phase 6 (parked): Mac App Store
+Not planned. Revisit once Lowkey has shipped through phase 2 and been improved in daily use. If it's picked up: a separate sandboxed build target (`Lowkey-AppStore` entitlements, socket in an app-group container, no Sparkle, no bundled CLI), not the direct build with entitlements bolted on, starting with a TestFlight build. Until then, phase 1 shouldn't rule it out: gate paste on PostEvent, bundle the daemon as a child process, keep data under Application Support.
 
 ## App Store blockers to check
-Checked 2026-10-14 against Apple's guidelines, documentation and DTS answers on the developer forums. Nothing here was tested with a sandboxed Lowkey build. Short version: **automatic paste is technically possible in the sandbox but is a real App Review risk**. The definite blockers are the ones Lowkey can fix: no sandbox, the external CLI, home-directory paths and signing.
+Reference for the parked phase 6. Checked 2026-10-14 against Apple's guidelines, documentation and DTS answers on the developer forums. Nothing here was tested with a sandboxed Lowkey build. Short version: **automatic paste is technically possible in the sandbox but is a real App Review risk**. The definite blockers are the ones Lowkey can fix: no sandbox, the external CLI, home-directory paths and signing.
 
 | Area | Lowkey today | Verdict | What it would take |
 | --- | --- | --- | --- |
@@ -112,15 +126,12 @@ Checked 2026-10-14 against Apple's guidelines, documentation and DTS answers on 
 | **Microphone, login, other 2.4.5 points** | `audio-input` entitlement, usage string present, `SMAppService.mainApp` opt-in | **Routine** | The sandbox needs `com.apple.security.device.microphone` too (not interchangeable with the hardened-runtime `audio-input`) ([apple-mic-entitlement], [apple-audio-input]). Start at Login is already opt-in, as 2.4.5(iii) and `SMAppService` expect ([apple-smappservice]). App Store builds must update through the store (2.4.5(vii)), so no Sparkle in that build |
 | **Signing and account** | Local self-signed identity | **Blocker** (fixable) | Apple Developer Program, US$99/year ([apple-program]). Direct downloads need Developer ID + hardened runtime + notarization; the App Store needs Apple distribution signing ([apple-certificates], [apple-notarization]) |
 
-**Recommendation:** after phase 2, build a minimal sandboxed variant (bundled daemon as a child or XPC service, container storage, PostEvent gate, model download with consent) and run it daily for a week before deciding to submit. If you submit, start with a TestFlight build, and decide upfront whether a copy-only App Store build is worth shipping if automatic paste is rejected. For a dictation app, auto-paste is most of the value, which is why most competitors stay outside the store.
+**If phase 6 is picked up:** build a minimal sandboxed variant (bundled daemon as a child or XPC service, container storage, PostEvent gate, model download with consent) and run it daily for a week before deciding to submit. If you submit, start with a TestFlight build, and decide upfront whether a copy-only App Store build is worth shipping if automatic paste is rejected. For a dictation app, auto-paste is most of the value, which is why most competitors stay outside the store.
 
 ## Open questions
-- New repo or rename in place (recommendation above)?
-- LLM post-processing: port (Keychain key) or drop? How often is it on in practice (`bench.tsv`/`take:` lines show the `cli` path reason)?
-- Silence trim and chunking: used at all? If not, drop rather than port.
-- Is the tmux flow still used? `history sessions` can show the split by flow.
 - Lowkey versioning: start at 1.0 in the new repo, or continue the CLI's 0.x?
-- App Store: free, paid, or not at all? Paid needs the Paid Apps agreement and tax/banking set up in App Store Connect.
+- Settled in phase 0: the name (P0a); tmux flow, CLI capture, LLM post-processing, silence trim and chunking (P0b); new repo vs rename in place.
+- Parked with phase 6: free or paid on the App Store (paid needs the Paid Apps agreement and tax/banking in App Store Connect).
 
 ## Sources
 Checked 2026-10-14. Forum answers are dated where it matters, since sandbox behaviour has changed across macOS versions.
