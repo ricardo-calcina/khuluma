@@ -2,6 +2,12 @@
 
 ## v0.11.0 — Unreleased
 
+- **Removed before the Lowkey rename** (phase 0 of `docs/plans/LOWKEY_RENAME_ROADMAP.md`; Lowkey owns the dictation key and the menu-bar item):
+  - **The Raycast scripts** (`integrations/raycast/tmux-whisper-{inline,toggle,cancel}.sh`) are no longer shipped or installed. `install.sh` doesn't delete old copies in `~/.config/dictate/integrations/raycast`; move them to the Trash.
+  - **`tmux-whisper integrations` (status, `--json`, `doctor`, `repair`)** is gone with them: it only existed to check and refresh the Raycast scripts. The Finder Quick Action handler is still installed beside the binary.
+  - **`tmux-whisper swiftbar`**, the notice left when the plugin was retired, is gone; the command is now unknown. `install.sh` no longer looks for a leftover plugin.
+  - **JSON:** `install_sanity.raycast_inline` is removed from `doctor --json`, and `paths.raycast_dir` from `debug --json`.
+
 - **The SwiftBar plugin is retired; Lowkey is the menu-bar app** (breaking for JSON readers of the plugin's state):
   - The plugin (`integrations/tmux-whisper-status.0.2s.sh`) is no longer shipped or installed, and `DICTATE_INSTALL_SWIFTBAR` is gone. `install.sh` doesn't delete an old copy; it tells you where it is so you can move it to the Trash.
   - Lowkey's menu shows recording and processing state and offers Cancel, and its Stats window replaces the plugin's usage line. Settings the plugin toggled (modes, autosend, paste target, send mode, postprocess, process sound, mic source, repeats) are still `tmux-whisper` commands or `config.toml` keys. Tmux recordings no longer have a menu-bar indicator: use `tmux-whisper status`.

@@ -22,7 +22,7 @@ These commands are safe to build integrations on:
   - `effective_settings.integrations` (the SwiftBar toggle) was removed in v0.11.
 - `tmux-whisper doctor --json`
   - Object with install, config, mode, and runtime health sections plus suggested fixes.
-  - `install_sanity.swiftbar` was removed in v0.11 when the SwiftBar plugin was retired.
+  - `install_sanity.swiftbar` was removed in v0.11 when the SwiftBar plugin was retired, and `install_sanity.raycast_inline` with the Raycast scripts. `integrations` and `swiftbar` are no longer commands.
 - `tmux-whisper history list [N] --json`
   - Newest-first array of compact history entries.
 - `tmux-whisper history search <query> [N] --json`
@@ -75,11 +75,6 @@ These commands are safe to build integrations on:
 - `tmux-whisper config path --json`
 - `tmux-whisper config get <path> --json`
   - Read-only config inspection contracts.
-- `tmux-whisper integrations --json`
-  - Object with installed binary, install receipt, and Raycast script state.
-  - The `swiftbar` section was removed in v0.11 when the plugin was retired.
-  - Adapter entries include source path and provenance state: `current`, `missing`, `non-executable`, `different`, or source-unavailable/source-missing fallbacks.
-  - Adapter entries include installed `version` and `source_version` values when shipped adapter metadata is present.
 - `tmux-whisper bench [N|all] --json [filters]`
   - Object with record counts, filters, stage summaries, startup summaries, latest row, and `next_commands`.
 - `tmux-whisper bench export [N|all] --json [filters]`
@@ -89,14 +84,6 @@ These commands are safe to build integrations on:
 
 These are useful but not yet promised as stable contracts:
 
-- `tmux-whisper integrations doctor`
-  - Human-readable integration lifecycle diagnostics for installed binary, receipt, Raycast scripts, executable bits, and adapter provenance/drift from the recorded source tree.
-- `tmux-whisper integrations repair --dry-run`
-  - Human-readable adapter-only repair preview. This intentionally does not mutate files.
-- `tmux-whisper integrations repair`
-  - Human-readable adapter-only repair action for Raycast scripts. It creates missing adapter directories, refreshes adapter files from the recorded source tree, ensures executable bits, and backs up replaced adapter files.
-- `tmux-whisper swiftbar [...]`
-  - Retired in v0.11: prints a notice and exits 0 for any arguments, so older scripts keep working.
 - `tmux-whisper transcribe <file>... --format json`
   - One JSON object per input, newline-delimited: `file`, `text`, `audio_duration_ms`, `processing_ms`, `model`, `engine`. `text` is the raw Parakeet transcript with no dictation cleanup. `audio_duration_ms` is `null` when the duration cannot be probed. Stdin input reports `file: "stdin"`. Exit status is non-zero if any input fails; successful inputs are still emitted.
   - File transcripts are not deliveries: they never appear in `history` or `usage`.

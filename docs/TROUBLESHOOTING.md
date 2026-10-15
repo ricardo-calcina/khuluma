@@ -48,7 +48,7 @@ tmux-whisper doctor
 tmux-whisper status
 ```
 
-`--force` refreshes binaries and integrations but preserves your live config, modes, and vocab.
+`--force` refreshes binaries but preserves your live config, modes, and vocab.
 
 Schema mismatch:
 
@@ -175,14 +175,5 @@ tmux-whisper vocab rm --regex "pattern"
 
 ## 5) Integration optionality
 
-Tmux Whisper remains usable without Raycast or Lowkey.
-
-- Missing integration scripts appear as warnings in `tmux-whisper doctor`, not hard failures.
-- Raycast runs in a minimal environment. If postprocess or custom PATH overrides work in your shell but not in integrations, put them in `~/.zshenv`.
-- The SwiftBar plugin was retired in v0.11 (Lowkey replaces it). If SwiftBar still shows a Tmux Whisper item, move `~/.config/swiftbar/plugins/tmux-whisper-status.0.2s.sh` to the Trash.
-
-Raycast paths installed by the app:
-
-- `~/.config/dictate/integrations/raycast/tmux-whisper-inline.sh`
-- `~/.config/dictate/integrations/raycast/tmux-whisper-toggle.sh`
-- `~/.config/dictate/integrations/raycast/tmux-whisper-cancel.sh`
+- Lowkey and the Finder Quick Action run the CLI in a minimal environment. If custom PATH entries or env-based overrides work in your shell but not from them, put them in `~/.zshenv`.
+- The Raycast scripts and the SwiftBar plugin were retired in v0.11 (Lowkey replaces them). Old copies under `~/.config/dictate/integrations/raycast` or `~/.config/swiftbar/plugins/tmux-whisper-status.0.2s.sh` can go to the Trash.

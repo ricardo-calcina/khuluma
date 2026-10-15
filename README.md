@@ -16,7 +16,6 @@ Tmux Whisper is **inline-first for daily dictation, with tmux as a first-class d
 - `bin/dictate-lib.sh`: shared helper library used by Tmux Whisper and its integrations
 - `tmux-whisperd/`: local Swift daemon package used by the default backend
 - `config/`: default config, modes, and vocab
-- `integrations/raycast/`: Raycast scripts (`inline`, `toggle`, `cancel`)
 - `assets/sounds/dictate/`: tiny sample WAV sound pack
 - `install.sh`: local installer
 - `docs/plans/`: the active plan; finished plans move to `docs/plans/archive/`
@@ -30,7 +29,7 @@ Tmux Whisper is **inline-first for daily dictation, with tmux as a first-class d
 - `python3` (with `tomllib`, Python 3.11+ recommended)
 - `swift` + Xcode toolchain (for building the local `tmux-whisperd` backend)
 - a local Parakeet model directory, either at `~/.local/share/tmux-whisper/models/...` or via `swift_parakeet.model_path`
-- Optional: `tmux`, Raycast, Lowkey (the native menu-bar app in `tmux-whisperd/`)
+- Optional: `tmux`, Lowkey (the native menu-bar app in `tmux-whisperd/`)
 - Optional for LLM postprocess: `CEREBRAS_API_KEY`
 
 ## Install Channels
@@ -104,9 +103,7 @@ Tmux Whisper expects a Parakeet model to already exist locally in that owned pat
 Install behavior:
 
 - Preserves existing config, modes, and vocab by default, including when `--force` is used.
-- `--force` refreshes binaries/integrations and seeds missing defaults; it does not replace your live config file.
-- Installs Raycast scripts to `~/.config/dictate/integrations/raycast`.
-- No longer installs a SwiftBar plugin (retired in v0.11; Lowkey's menu-bar item replaces it). If an older install left `~/.config/swiftbar/plugins/tmux-whisper-status.0.2s.sh` behind, the installer points at it so you can move it to the Trash.
+- `--force` refreshes binaries and seeds missing defaults; it does not replace your live config file.
 - Installs sample sounds to `~/.local/share/sounds/dictate`.
 - Runs a best-effort backend warm-up after install/update, including a tiny synthetic prime transcription so the next real dictation is closer to warm.
 - Writes an install receipt to `~/.config/dictate/install-receipt.env` with the install source, archive URL when bootstrapped, repo ref/commit when available, and resolved runtime paths.
@@ -153,7 +150,7 @@ tmux-whisper postprocess on
 - Run `tmux-whisper`, speak, then stop.
 - Let processing finish while you keep working in tmux.
 
-If you are not inside tmux, use `tmux-whisper inline` or the Raycast inline integration instead.
+If you are not inside tmux, use `tmux-whisper inline` or Lowkey instead.
 
 ### Transcribe audio files
 
@@ -276,47 +273,13 @@ Common real-world fixes are documented in [docs/TROUBLESHOOTING.md](docs/TROUBLE
 - install-channel refresh and upgrade drift
 - invalid config repair
 - tmux vs inline usage errors
-- Raycast environment issues
 - vocab and mode recovery flows
 
 ## Integrations
 
-Raycast is an optional adapter around the CLI, and Lowkey is the native menu-bar app. Tmux Whisper remains usable without either one. For the supported integration matrix, install-channel expectations, environment boundaries, and stable-vs-experimental surface definitions, see [`docs/INTEGRATIONS.md`](docs/INTEGRATIONS.md).
+Lowkey is the native menu-bar app and the main way to dictate; the Finder Quick Action and the agent skill wrap `tmux-whisper transcribe`. The Raycast scripts and the SwiftBar plugin are retired (v0.11). For the integration matrix and environment notes, see [`docs/INTEGRATIONS.md`](docs/INTEGRATIONS.md).
 
-### Raycast
-
-Installer-managed Raycast scripts live at:
-
-- `~/.config/dictate/integrations/raycast/tmux-whisper-inline.sh`
-- `~/.config/dictate/integrations/raycast/tmux-whisper-toggle.sh`
-- `~/.config/dictate/integrations/raycast/tmux-whisper-cancel.sh`
-
-Recommended setup:
-
-- create three Raycast Script Commands that point at those installed files
-- use `tmux-whisper-inline.sh` for frontmost-app paste/send
-- use `tmux-whisper-toggle.sh` for pane-targeted tmux recording from a hotkey
-- use `tmux-whisper-cancel.sh` for discard/cancel behavior
-
-### Menu bar
-
-The SwiftBar plugin was retired in v0.11. [Lowkey](#lowkey-experimental-native-app) is the menu-bar app now: recording and processing state, cancel, and the Stats window for usage. Settings the plugin used to toggle are still available as `tmux-whisper` commands (`tmux-whisper help`) or in `~/.config/dictate/config.toml`. `tmux-whisper swiftbar` is kept as a no-op that says so. An old `[integrations.swiftbar]` table in your config is ignored.
-
-### Integration environment note
-
-Raycast often runs with a minimal shell environment. If you rely on `CEREBRAS_API_KEY`, custom PATH entries, or env-based overrides, put them in `~/.zshenv` so the integrations can see them consistently.
-
-### Integration lifecycle checks
-
-`tmux-whisper integrations` inspects the installed adapter surface. For v0.7 integration-platform work, lifecycle checks start with an observable doctor and a dry-run repair preview:
-
-```bash
-tmux-whisper integrations doctor
-tmux-whisper integrations repair --dry-run
-tmux-whisper integrations repair
-```
-
-`doctor` checks the installed binary, install receipt, Raycast scripts, executable bits, and adapter drift from the recorded source tree. `integrations` and `doctor` report each adapter as `current`, `missing`, `non-executable`, or `different` from source so update provenance is visible before repair. `repair --dry-run` shows the adapter-only refresh plan without changing files. `repair` refreshes only the installed Raycast scripts, creates missing adapter directories, fixes executable bits, and backs up replaced adapter files to `~/.config/dictate/backups/integrations/`. It works on Homebrew, bootstrap, and local installs; use `./install.sh --force` only when you need a full local runtime refresh.
+GUI launchers such as Lowkey and Finder run with a minimal shell environment. If you rely on custom PATH entries or env-based overrides, put them in `~/.zshenv` so the CLI sees them consistently.
 
 ## Sounds
 
@@ -349,7 +312,7 @@ tmux-whisper bench-matrix 1
 
 ## Lowkey (experimental native app)
 
-Lowkey is the native macOS menu-bar front-end for inline dictation. It runs beside the CLI/Raycast setup, so you can compare the two. It handles the hotkey, microphone, sounds and paste natively. It sends each take straight to the Parakeet daemon (`tmux-whisperd`) and cleans the text up in Swift with the same rules as the CLI (vocab, modes, British spelling, tail rescue), so the text matches inline dictation exactly without starting the CLI. History, bench and usage are still written by the installed `tmux-whisper` (`inline record`), in the background after the text is pasted. Takes fall back to `tmux-whisper inline process` when LLM post-processing or silence trim is on, the CLI runs in a non-C locale, or the daemon can't be reached.
+Lowkey is the native macOS menu-bar front-end for inline dictation. It handles the hotkey, microphone, sounds and paste natively. It sends each take straight to the Parakeet daemon (`tmux-whisperd`) and cleans the text up in Swift with the same rules as the CLI (vocab, modes, British spelling, tail rescue), so the text matches inline dictation exactly without starting the CLI. History, bench and usage are still written by the installed `tmux-whisper` (`inline record`), in the background after the text is pasted. Takes fall back to `tmux-whisper inline process` when LLM post-processing or silence trim is on, the CLI runs in a non-C locale, or the daemon can't be reached.
 
 ```bash
 tools/make-signing-identity.sh   # once: local code-signing identity (keeps permissions across rebuilds)

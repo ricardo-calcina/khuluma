@@ -16,10 +16,10 @@ body:
     attributes:
       label: Affected flow
       options:
+        - lowkey
+        - transcribe
         - tmux
         - inline
-        - raycast
-        - lowkey
         - install/bootstrap
         - homebrew
     validations:
