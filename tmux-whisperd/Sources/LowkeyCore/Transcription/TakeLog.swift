@@ -33,7 +33,7 @@ public struct TakeLog: Sendable {
   /// free text in the log.
   public static func cliStatus(_ status: String?) -> String {
     switch status {
-    case "ok", "no_speech", "superseded", "failed": return "cli_\(status!)"
+    case "ok", "no_speech", "failed": return "cli_\(status!)"
     default: return "other"
     }
   }

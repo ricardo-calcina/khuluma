@@ -5,12 +5,10 @@ Use this page for quick diagnosis and high-confidence fixes.
 ## 1) Run the health checks
 
 ```bash
-tmux-whisper debug
 tmux-whisper doctor
 tmux-whisper status
 ```
 
-- `debug`: detailed config/env/path visibility
 - `doctor`: install/dependency/mode/runtime checks with suggested fixes
 - `status`: current runtime + effective settings snapshot
 
@@ -18,7 +16,7 @@ tmux-whisper status
 
 Which install are you actually running?
 
-- Use `tmux-whisper debug`.
+- Use `tmux-whisper doctor`.
 - Check the resolved binary path and install channel before assuming the wrong copy is broken.
 
 Upgrade or refresh by channel:
@@ -95,15 +93,6 @@ Parakeet backend unavailable:
   - ensure `swift` is installed if the native backend needs to rebuild
   - if you keep models outside the default location, set `swift_parakeet.model_path` explicitly
 
-Not running inside tmux:
-
-- Symptom:
-  - `not running inside tmux and DICTATE_TARGET_PANE is not set`
-- Fix:
-  - start tmux and run `tmux-whisper` from the pane you want to target
-  - or set `DICTATE_TARGET_PANE` yourself
-  - or use `tmux-whisper inline` for frontmost-app dictation instead
-
 ## 3) Mode configuration issues
 
 Invalid fixed mode fallback:
@@ -112,12 +101,6 @@ Invalid fixed mode fallback:
 - Fix either:
   - reset to auto-detect: `tmux-whisper mode auto`
   - create missing custom mode: `tmux-whisper mode create "<name>"`
-
-Invalid tmux mode fallback:
-
-- Symptom: `tmux.mode: <name> (invalid, fallback=code)`
-- Fix:
-  - `tmux-whisper tmux mode code`
 
 Missing prompt files:
 

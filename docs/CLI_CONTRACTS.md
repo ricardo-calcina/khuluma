@@ -19,10 +19,11 @@ These commands are safe to build integrations on:
   - Object with `command`, `summary`, `runtime`, `effective_settings`, `diagnostics`, and `more_detail`.
   - `summary.next_action` is the primary human next step.
   - `more_detail` is an ordered command list for deeper inspection.
-  - `effective_settings.integrations` (the SwiftBar toggle) was removed in v0.11.
+  - `effective_settings.integrations` (the SwiftBar toggle) was removed in v0.11, along with the tmux and CLI-capture keys: `runtime.tmux`, `runtime.inline`, `runtime.tmux_queue`, `effective_settings.tmux`, `effective_settings.audio`, `effective_settings.mode.tmux`, `postprocess.tmux` and `mode_prompt.tmux`. `summary.active_flow` is `inline` while a take is processing, otherwise null.
 - `tmux-whisper doctor --json`
   - Object with install, config, mode, and runtime health sections plus suggested fixes.
   - `install_sanity.swiftbar` was removed in v0.11 when the SwiftBar plugin was retired, and `install_sanity.raycast_inline` with the Raycast scripts. `integrations` and `swiftbar` are no longer commands.
+  - Also removed in v0.11: `dependencies.tmux`, `mode_config.tmux`, `mode_config.available.tmux_count`, `modes[].flows.tmux_enabled`, `state_files` and `tmux_queue`.
 - `tmux-whisper history list [N] --json`
   - Newest-first array of compact history entries.
 - `tmux-whisper history search <query> [N] --json`
@@ -41,14 +42,15 @@ These commands are safe to build integrations on:
     history. It starts with the first successful delivery after this feature is
     installed; it does not backfill or recover pruned history.
   - `full_elapsed_duration_ms` measures recording start through successful
-    delivery for both inline and tmux flows. `estimated_time_difference_ms` is
+    delivery. `estimated_time_difference_ms` is
     `typing_equivalent_duration_ms - full_elapsed_duration_ms`, so its sign is
     explicit rather than an unqualified time-saved claim.
   - The WPM assumption is evaluated when the command is read. Changing
     `DICTATE_HISTORY_TYPING_WPM` recalculates the estimate, not the stored
     delivery, word, or duration totals.
-  - Only successful delivered inline and tmux dictations are counted. Failed,
-    cancelled, no-speech, superseded, and replay runs are excluded.
+  - Only successful delivered dictations are counted. Failed, cancelled,
+    no-speech and replay runs are excluded. `by_flow` can still show `tmux`
+    for deliveries recorded before v0.11.
   - `coverage.daily_tracking_started_at` (string or null, 0.11+): when per-day
     counting began.
 - `tmux-whisper usage --json --days N|all`
@@ -72,17 +74,12 @@ These commands are safe to build integrations on:
     usage ledger (`usage_deferred: true`); the caller records it after
     delivering with `inline record` and `usage_only: true`. Take ids are
     deduplicated in the ledger, so a replayed record never counts twice.
-- `tmux-whisper logs --json`
-- `tmux-whisper logs path|tail [stream] [--lines N] --json`
-  - Object with `streams` and `next_commands`.
-- `tmux-whisper devices --json`
-  - Object with platform, device list, and permission hints.
 - `tmux-whisper config --json`
 - `tmux-whisper config path --json`
 - `tmux-whisper config get <path> --json`
   - Read-only config inspection contracts.
 - `tmux-whisper bench [N|all] --json [filters]`
-  - Object with record counts, filters, stage summaries, startup summaries, latest row, and `next_commands`.
+  - Object with record counts, filters, stage summaries, startup summaries, latest row, and `next_commands`. The `--slow-startup-audio-ms`, `--slow-startup-ffmpeg-ms` and `--slow-startup-target-ms` filters were removed in v0.11 with CLI capture.
 - `tmux-whisper bench export [N|all] --json [filters]`
   - Newest-first array of raw bench rows.
 
@@ -95,12 +92,10 @@ These are useful but not yet promised as stable contracts:
   - File transcripts are not deliveries: they never appear in `history` or `usage`.
 - `tmux-whisper finder install|remove|status`
   - Human-readable management of the Finder Quick Action (`~/Library/Services/Transcribe with Tmux Whisper.workflow`).
-- `tmux-whisper logs follow ... --json`
-  - Streaming newline-delimited JSON events. Treat event names as provisional.
-- `tmux-whisper watch ...`
-  - Human/operator text view composed from stable JSON commands.
 - `tmux-whisper bench-matrix ...`
   - Benchmark-oriented text table for local tuning, not an integration API.
+
+`logs`, `devices` and `watch` were removed in v0.11 with the tmux flow and CLI capture.
 
 ## Contract Rules
 

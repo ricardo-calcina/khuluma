@@ -10,7 +10,6 @@
   - [ ] `./tests/ci.sh`
   - [ ] `./install.sh --force`
   - [ ] `test -f ~/.config/dictate/install-receipt.env`
-  - [ ] `tmux-whisper debug`
   - [ ] `tmux-whisper doctor`
 - [ ] Confirm changelog is updated (`CHANGELOG.md`).
 - [ ] Confirm roadmap alignment (`ROADMAP.md`) if scope changed.
@@ -47,7 +46,7 @@ Complete the pre-release checks before this section. Tagging and publication are
   - [ ] `brew install/upgrade ricardo-nth/tap/tmux-whisper`
 - [ ] Validate command:
   - [ ] `tmux-whisper --help`
-  - [ ] `tmux-whisper debug`
+  - [ ] `tmux-whisper doctor`
 - [ ] Commit/push tap repo update (`../homebrew-tap`) after formula validation passes.
 
 ## Post-release

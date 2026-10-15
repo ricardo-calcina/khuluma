@@ -36,7 +36,6 @@ If behavior changes in runtime flows, also test locally:
 
 ```bash
 ./install.sh --force
-tmux-whisper debug
 tmux-whisper doctor
 ```
 

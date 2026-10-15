@@ -111,43 +111,6 @@ run_install_warmup() {
     "$BIN_DIR/tmux-whisper" warmup --best-effort --refresh-in-background || true
 }
 
-migrate_legacy_mode_names() {
-  local modes_dir="$CONFIG_DIR/modes"
-  if [[ -d "$modes_dir/short" && ! -e "$modes_dir/code" ]]; then
-    mv "$modes_dir/short" "$modes_dir/code"
-  fi
-  if [[ -d "$modes_dir/fast" && ! -e "$modes_dir/base" ]]; then
-    mv "$modes_dir/fast" "$modes_dir/base"
-  fi
-  if [[ -f "$CONFIG_DIR/current-mode" ]]; then
-    local current_mode
-    current_mode="$(tr -d '[:space:]' < "$CONFIG_DIR/current-mode" 2>/dev/null || true)"
-    if [[ "$current_mode" == "short" ]]; then
-      printf '%s\n' "code" > "$CONFIG_DIR/current-mode"
-    elif [[ "$current_mode" == "fast" ]]; then
-      printf '%s\n' "base" > "$CONFIG_DIR/current-mode"
-    fi
-  fi
-  if [[ -f "$CONFIG_DIR/config.toml" ]]; then
-    local tmp_cfg
-    tmp_cfg="$(mktemp)"
-    awk '
-      BEGIN { in_tmux=0 }
-      /^\[/ {
-        in_tmux = ($0 ~ /^\[tmux\][[:space:]]*$/)
-      }
-      {
-        line = $0
-        if (in_tmux && line ~ /^[[:space:]]*mode[[:space:]]*=/) {
-          sub(/"short"/, "\"code\"", line)
-        }
-        print line
-      }
-    ' "$CONFIG_DIR/config.toml" > "$tmp_cfg"
-    mv "$tmp_cfg" "$CONFIG_DIR/config.toml"
-  fi
-}
-
 install_default_config_files() {
   if [[ ! -e "$CONFIG_DIR/config.toml" ]]; then
     mkdir -p "$CONFIG_DIR"
@@ -161,12 +124,11 @@ install_default_modes_preserving_local() {
   local modes_preexisting="0"
   [[ -d "$CONFIG_DIR/modes" ]] && modes_preexisting="1"
   mkdir -p "$CONFIG_DIR/modes"
-  migrate_legacy_mode_names
   if [[ "$modes_preexisting" == "0" ]]; then
     cp -R "$REPO_ROOT/config/modes/." "$CONFIG_DIR/modes/"
     return 0
   fi
-  # Existing installs keep local mode set; only ensure the core inline/tmux modes exist.
+  # Existing installs keep local mode set; only ensure the core modes exist.
   copy_if_missing "$REPO_ROOT/config/modes/base" "$CONFIG_DIR/modes/base"
   copy_if_missing "$REPO_ROOT/config/modes/code" "$CONFIG_DIR/modes/code"
 }
@@ -226,4 +188,4 @@ fi
 echo "Paths kept for now: config=$CONFIG_DIR sounds=$SOUND_DIR"
 echo "Install receipt: $CONFIG_DIR/install-receipt.env"
 run_install_warmup
-echo "Run: tmux-whisper debug"
+echo "Run: tmux-whisper doctor"

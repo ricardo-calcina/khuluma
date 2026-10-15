@@ -4,11 +4,7 @@ Local-first dictation for macOS using a warm Swift/CoreML Parakeet backend by de
 
 ## Core USP
 
-Tmux Whisper is **inline-first for daily dictation, with tmux as a first-class differentiator**.
-
-- Primary daily workflow: record and deliver into the frontmost app with inline dictation.
-- Tmux workflow: record in a pane, let transcription/process run, and keep working in other panes/windows.
-- Design priority is reliable local dictation, while retaining the asynchronous terminal/tmux flow that desktop-only tools do not offer.
+Lowkey, the menu-bar app, records and delivers dictation into the frontmost app. The `tmux-whisper` CLI is its back end (config, history, usage, the daemon) and transcribes audio files. The tmux flow and CLI recording were removed in v0.11; the project is being renamed to Lowkey (`docs/plans/LOWKEY_RENAME_ROADMAP.md`).
 
 ## What You Get
 
@@ -125,32 +121,20 @@ Useful install flags:
 Run these once after install or upgrade:
 
 ```bash
-tmux-whisper debug
 tmux-whisper doctor
 tmux-whisper status
 tmux-whisper warmup
 ```
 
-Use `tmux-whisper debug` if you are ever unsure which binary/channel you are running. It shows the resolved binary path and install channel.
+Use `tmux-whisper doctor` if you are ever unsure which binary/channel you are running. It shows the resolved binary path and install channel.
 
 ## Quick Start
 
 ```bash
-tmux-whisper debug
-tmux-whisper inline
-tmux-whisper            # tmux toggle mode
-tmux-whisper devices
+tmux-whisper doctor
 tmux-whisper mode auto
 tmux-whisper postprocess on
 ```
-
-### Tmux workflow
-
-- Start from the tmux pane you want to send back into.
-- Run `tmux-whisper`, speak, then stop.
-- Let processing finish while you keep working in tmux.
-
-If you are not inside tmux, use `tmux-whisper inline` or Lowkey instead.
 
 ### Transcribe audio files
 
@@ -247,12 +231,9 @@ tmux-whisper config repair
 - `tmux-whisper history search <query> [N] [--json]` turns saved dictations into a searchable operator surface without leaving the CLI.
 - `tmux-whisper history export [N|all] [--json]` now exports full history entries for shell pipelines, sharing, and agent/operator replay flows.
 - History JSON keeps transcript, word-count, timing, and audio-artifact metadata for stats/roundups; inline debug WAVs are pruned separately with `history.audio_retention_days` / `DICTATE_HISTORY_AUDIO_RETENTION_DAYS` so audio cannot grow forever.
-- `tmux-whisper logs path|tail|follow|--json` now gives log inspection both snapshot and live-follow workflows instead of one fixed text dump.
-- `tmux-whisper devices --json` now exposes AVFoundation audio devices as structured CLI output for support/debug flows.
 - `tmux-whisper config [--json]`, `config path [--json]`, and `config get <path> [--json]` now give config inspection a real read-only operator surface instead of only repair-oriented guidance.
 - `tmux-whisper bench [N] --json` now exposes timing summaries as structured data, and `tmux-whisper bench export [N|all] [--json]` exports the raw recent rows behind those summaries.
-- `tmux-whisper watch [--interval SECONDS] [--iterations N]` now turns `status` + `last` + `bench` into a text-first live operator overview without committing the project to a TUI.
-- `tmux-whisper status --preset compact` and `watch --preset compact` now provide narrower operator snapshots for tighter terminals, quick checks, and future shell/plugin surfaces.
+- `tmux-whisper status --preset compact` now provides a narrower operator snapshot for tighter terminals, quick checks, and future shell/plugin surfaces.
 - `tmux-whisper bench-matrix [N] [phrase_file]` runs a quick matrix over postprocess/vocab toggles (and LLM models when API key is set) on fixed phrases.
   - Phrase file format: one phrase per line (blank lines and `#` comments ignored). Optional `label<TAB>phrase` is supported.
   - Set `DICTATE_BENCH_MATRIX_PROGRESS=0` for summary-only output (no per-combo progress lines).
@@ -263,7 +244,6 @@ tmux-whisper config repair
 Start here:
 
 ```bash
-tmux-whisper debug
 tmux-whisper doctor
 tmux-whisper status
 ```
@@ -304,7 +284,7 @@ Use this repo as the source of truth and install to your local runtime path:
 Then test your local command:
 
 ```bash
-tmux-whisper debug
+tmux-whisper doctor
 tmux-whisper bench 10
 tmux-whisper bench --json
 tmux-whisper bench-matrix 1

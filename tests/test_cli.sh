@@ -29,16 +29,8 @@ install_test_runtime "$BIN_DIR"
 # Ensure the default ~/.local/bin path is unavailable and fallback-to-sibling works.
 output="$(HOME="$HOME_DIR" PATH="$BIN_DIR:/usr/bin:/bin" DICTATE_LIB_PATH= "$BIN_DIR/tmux-whisper" --help)"
 
-if [[ "$output" != *"tmux-whisper: local dictation for macOS with a warm Swift/CoreML Parakeet backend"* ]]; then
+if [[ "$output" != *"tmux-whisper: the back end for Lowkey (the menu-bar dictation app) and file transcription"* ]]; then
   echo "Expected help output from tmux-whisper command" >&2
-  exit 1
-fi
-if [[ "$output" != *"DICTATE_STOP_GRACE_MS=700"* ]]; then
-  echo "Expected help output to document stop grace tuning" >&2
-  exit 1
-fi
-if [[ "$output" != *"DICTATE_INLINE_STOP_GRACE_MS=1000"* ]]; then
-  echo "Expected help output to document inline stop grace tuning" >&2
   exit 1
 fi
 if [[ "$output" != *"DICTATE_TRANSCRIBE_TAIL_PAD_MS=500"* ]]; then
@@ -98,26 +90,6 @@ if [[ "$output" != *"DICTATE_HISTORY_RETENTION_DAYS=7"* ]]; then
 fi
 if [[ "$output" != *"DICTATE_HISTORY_AUDIO_RETENTION_DAYS=2"* ]]; then
   echo "Expected help output to document history audio retention" >&2
-  exit 1
-fi
-if [[ "$output" != *"tmux-whisper devices [--json]"* ]]; then
-  echo "Expected help output to document devices JSON output" >&2
-  exit 1
-fi
-if [[ "$output" != *"tmux-whisper logs path [stream] [--json]"* ]]; then
-  echo "Expected help output to document logs path" >&2
-  exit 1
-fi
-if [[ "$output" != *"tmux-whisper logs tail [stream] [--lines N] [--json]"* ]]; then
-  echo "Expected help output to document logs tail" >&2
-  exit 1
-fi
-if [[ "$output" != *"tmux-whisper logs follow [stream] [--lines N] [--json]"* ]]; then
-  echo "Expected help output to document logs follow" >&2
-  exit 1
-fi
-if [[ "$output" != *"tmux-whisper watch [--preset compact] [--interval SECONDS] [--iterations N]"* ]]; then
-  echo "Expected help output to document watch" >&2
   exit 1
 fi
 if [[ "$output" != *"tmux-whisper config defaults"* ]]; then

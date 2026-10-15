@@ -232,15 +232,13 @@ inline_process_json() {
   # shellcheck disable=SC2064
   trap "rm -f '$log' '$work_wav'" EXIT
   cp "$wav" "$work_wav" || die "inline process: cannot read $wav"
-  INLINE_DELIVERY_MODE="external"
   INLINE_DEFER_USAGE="$defer_usage"
   INLINE_EXTERNAL_TEXT=""
   INLINE_EXTERNAL_RAW_TEXT=""
   INLINE_EXTERNAL_MODE=""
   INLINE_EXTERNAL_TIMINGS=""
-  # An empty session id is never "superseded" by CLI inline recordings.
   process_inline_recording "$work_wav" "$app" "$(current_transcribe_model_label)" "$record_ms" \
-    "$startup_ms" "0" "0" "0" "app:avaudioengine" "" "" "self" "$started_at_ms" >"$log" 2>&1 || rc=$?
+    "$startup_ms" "app:avaudioengine" "$started_at_ms" >"$log" 2>&1 || rc=$?
 
   eval "$(app_delivery_settings_env)"
   APPPROC_RC="$rc" \
@@ -265,8 +263,6 @@ if ok:
     status = "ok"
 elif any("No speech detected" in l for l in lines):
     status = "no_speech"
-elif any(l.startswith("Skipping stale inline result") for l in lines):
-    status = "superseded"
 else:
     status = "failed"
 timings = {}
@@ -498,7 +494,7 @@ print(json.dumps({"ok": True, "take_id": os.environ["APPREC_TAKE_ID"], "duplicat
     if [[ -n "$REC_WAV_PATH" ]]; then
       local archive_prefix=""
       archive_prefix="$(inline_archive_prefix "${REC_TAKE_ID:-lowkey}" 2>/dev/null || true)"
-      archive_inline_debug_artifacts "$archive_prefix" "$REC_WAV_PATH" "" "" "$REC_STATUS" \
+      archive_inline_debug_artifacts "$archive_prefix" "$REC_WAV_PATH" "" "$REC_STATUS" \
         "$record_ms" "$transcribe_ms" "$clean_ms" "0" "$paste_ms" "$total_ms" "$REC_TAKE_ID"
     fi
     inline_record_mark "$bench_ledger"

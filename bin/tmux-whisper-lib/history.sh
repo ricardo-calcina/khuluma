@@ -1160,7 +1160,6 @@ payload = {
     "next_commands": [
         "tmux-whisper history stats",
         "tmux-whisper bench 10",
-        "tmux-whisper logs tail transcribe --lines 40",
     ],
 }
 
@@ -1212,7 +1211,6 @@ print("")
 print("Next:")
 print("  tmux-whisper history stats")
 print("  tmux-whisper bench 10")
-print("  tmux-whisper logs tail transcribe --lines 40")
 PYEOF
 }
 

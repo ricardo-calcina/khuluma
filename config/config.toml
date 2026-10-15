@@ -5,7 +5,6 @@
 config_version = 1
 
 [audio]
-source = "auto"
 silence_trim = false
 silence_trim_mode = "edges"
 silence_threshold_db = -60
@@ -37,34 +36,8 @@ process_sound = true
 paste_target = "current"
 send_mode = "enter"
 
-[tmux]
-autosend = true
-paste_target = "origin"
-postprocess = false
-process_sound = true
-mode = "code"
-send_mode = "auto"
-
 [debug]
 keep_logs = false
-
-[ui.keybinds]
-tmux = "F12"
-inline = "F11"
-
-[ui.icons]
-recording = "🔴"
-processing = "🔲"
-ready = "🔳"
-error = "⚠️"
-base = ""
-code = ""
-long = ""
-email = ""
-chat = ""
-linkedin = ""
-twitter = ""
-cancel = "🚫"
 
 [audio.sounds]
 cancel = "~/.local/share/sounds/dictate/cancel.wav"

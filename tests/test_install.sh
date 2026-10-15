@@ -67,8 +67,8 @@ if [[ "$install_output" != *"Warmup:"* ]]; then
   echo "Expected install to report warmup status" >&2
   exit 1
 fi
-if [[ "$install_output" != *"Run: tmux-whisper debug"* ]]; then
-  echo "Expected install output to point users at tmux-whisper debug" >&2
+if [[ "$install_output" != *"Run: tmux-whisper doctor"* ]]; then
+  echo "Expected install output to point users at tmux-whisper doctor" >&2
   exit 1
 fi
 if [[ "$install_output" != *"Paths kept for now: config=$HOME/.config/dictate sounds=$HOME/.local/share/sounds/dictate"* ]]; then
@@ -110,67 +110,6 @@ if ! rg -q 'my custom code prompt' "$HOME/.config/dictate/modes/code/prompt"; th
 fi
 if [[ -e "$HOME/.config/dictate/modes/email" ]]; then
   echo "Expected --force to preserve local mode set (email should stay removed)" >&2
-  exit 1
-fi
-
-# Legacy local mode folder should migrate from short -> code without clobbering contents.
-mv "$HOME/.config/dictate/modes/code" "$HOME/.config/dictate/modes/short"
-printf '%s\n' "short" > "$HOME/.config/dictate/current-mode"
-printf '%s\n' "legacy code prompt" > "$HOME/.config/dictate/modes/short/prompt"
-tmp_cfg="$(mktemp)"
-awk '
-  BEGIN { in_tmux=0 }
-  /^\[/ { in_tmux = ($0 ~ /^\[tmux\][[:space:]]*$/) }
-  {
-    line = $0
-    if (in_tmux && line ~ /^[[:space:]]*mode[[:space:]]*=/) {
-      sub(/"code"/, "\"short\"", line)
-    }
-    print line
-  }
-' "$HOME/.config/dictate/config.toml" > "$tmp_cfg"
-mv "$tmp_cfg" "$HOME/.config/dictate/config.toml"
-"$ROOT/install.sh" --force --with-sounds
-if [[ -d "$HOME/.config/dictate/modes/short" ]]; then
-  echo "Expected legacy short mode folder to be migrated to code" >&2
-  exit 1
-fi
-if [[ ! -f "$HOME/.config/dictate/modes/code/prompt" ]]; then
-  echo "Expected code mode folder after migration" >&2
-  exit 1
-fi
-if ! rg -q 'legacy code prompt' "$HOME/.config/dictate/modes/code/prompt"; then
-  echo "Expected migrated code mode prompt to preserve local content" >&2
-  exit 1
-fi
-if [[ "$(tr -d '[:space:]' < "$HOME/.config/dictate/current-mode")" != "code" ]]; then
-  echo "Expected current-mode short to migrate to code" >&2
-  exit 1
-fi
-if ! rg -q '^[[:space:]]*mode = "code"$' "$HOME/.config/dictate/config.toml"; then
-  echo "Expected [tmux] mode short to migrate to code" >&2
-  exit 1
-fi
-
-# Legacy local base/fast mode should migrate from fast -> base without clobbering contents.
-mv "$HOME/.config/dictate/modes/base" "$HOME/.config/dictate/modes/fast"
-printf '%s\n' "fast" > "$HOME/.config/dictate/current-mode"
-printf '%s\n' "legacy base prompt" > "$HOME/.config/dictate/modes/fast/prompt"
-"$ROOT/install.sh" --force --with-sounds
-if [[ -d "$HOME/.config/dictate/modes/fast" ]]; then
-  echo "Expected legacy fast mode folder to be migrated to base" >&2
-  exit 1
-fi
-if [[ ! -f "$HOME/.config/dictate/modes/base/prompt" ]]; then
-  echo "Expected base mode folder after migration" >&2
-  exit 1
-fi
-if ! rg -q 'legacy base prompt' "$HOME/.config/dictate/modes/base/prompt"; then
-  echo "Expected migrated base mode prompt to preserve local content" >&2
-  exit 1
-fi
-if [[ "$(tr -d '[:space:]' < "$HOME/.config/dictate/current-mode")" != "base" ]]; then
-  echo "Expected current-mode fast to migrate to base" >&2
   exit 1
 fi
 
