@@ -47,13 +47,19 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let done = DispatchGroup()
     private var outcome: Outcome = .unavailable("settings unavailable")
 
-    init(cli: CLIBridge, queue: DispatchQueue) {
+    /// `onMismatch` runs as soon as a mismatch is known, so later presses
+    /// are refused even if no take waits for this fetch.
+    private let onMismatch: (AppContract.Mismatch) -> Void
+
+    init(cli: CLIBridge, queue: DispatchQueue, onMismatch: @escaping (AppContract.Mismatch) -> Void) {
+      self.onMismatch = onMismatch
       done.enter()
       queue.async {
         do {
           self.outcome = .config(try cli.appConfig())
         } catch let mismatch as AppContract.Mismatch {
           self.outcome = .mismatch(mismatch)
+          self.onMismatch(mismatch)
         } catch {
           self.outcome = .unavailable(error.localizedDescription)
         }
@@ -249,7 +255,8 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
                                    app: take.originalApp?.localizedName, marker: take.marker))
       }
     }
-    let config = self.config
+    // With a mismatched CLI the audio is only saved, for the next launch.
+    let config = contractMismatch == nil ? self.config : nil
     var stillUnsaved: [UnsavedTake] = []
     for pendingTake in unsaved {
       do {
@@ -430,6 +437,9 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     switch outcome {
     case .started(let engineMs, let marker):
       let startedAt = monotonicMs()
+      let refuse: (AppContract.Mismatch) -> Void = { [weak self] mismatch in
+        DispatchQueue.main.async { self?.refuseTakes(mismatch) }
+      }
       take = Take(
         hotkeyAt: hotkeyAt,
         startedAt: startedAt,
@@ -437,7 +447,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         startupMs: Int((startedAt - hotkeyAt).rounded()),
         originalApp: original,
         retargeted: retargeted,
-        settings: cli.map { SettingsFetch(cli: $0, queue: settingsQueue) },
+        settings: cli.map { SettingsFetch(cli: $0, queue: settingsQueue, onMismatch: refuse) },
         marker: marker,
         chime: chime
       )
@@ -539,20 +549,29 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
     let frontmostAtStop = NSWorkspace.shared.frontmostApplication?.localizedName
     let cachedConfig = self.config
+    // Found while recording (a reload, or this take's own fetch): newer than
+    // any settings the take read at its start.
+    let knownMismatch = contractMismatch
     work.async { [weak self] in
       // Every path below is synchronous on this queue: the take is over when it returns.
       defer { take.marker?.remove() }
       guard let self else { return }
       take.marker?.update(.processing)
+      if let knownMismatch {
+        self.keepForMatchingCLI(samples: samples, take: take, recordMs: recordMs, mismatch: knownMismatch)
+        return
+      }
       // Settings fetched during the recording; usually ready long before
-      // stop. Without them, the CLI path reads its own fresh settings.
+      // stop. The wait outlasts the fetch's own timeout, so no take reaches
+      // a CLI whose contract is still unknown. Without settings (the CLI
+      // failed), the CLI path reads its own.
       var fresh: AppConfig?
       var problem: String?
-      switch take.settings?.wait(timeout: 5) ?? .unavailable("no settings fetch") {
+      switch take.settings?.wait(timeout: 20) ?? .unavailable("no settings fetch") {
       case .config(let config): fresh = config
       case .unavailable(let reason): problem = reason
       case .mismatch(let mismatch):
-        self.keepForMatchingCLI(samples: samples, recordMs: recordMs, mismatch: mismatch)
+        self.keepForMatchingCLI(samples: samples, take: take, recordMs: recordMs, mismatch: mismatch)
         return
       }
       if let fresh, fresh != cachedConfig {
@@ -588,11 +607,13 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
   /// The CLI changed under a take to one Lowkey can't use: nothing is
   /// transcribed with it. The audio is saved like a quit's, and transcribed
-  /// into history once a matching CLI's settings arrive.
-  private func keepForMatchingCLI(samples: [Float], recordMs: Int, mismatch: AppContract.Mismatch) {
+  /// into history once a matching CLI's settings arrive. If it can't be
+  /// written it stays in memory, and Quit retries like any unsaved take.
+  private func keepForMatchingCLI(samples: [Float], take: Take, recordMs: Int, mismatch: AppContract.Mismatch) {
+    let takeId = UUID().uuidString.lowercased()
     let kept: Bool
     do {
-      let url = try recovered.save(samples: samples, takeId: UUID().uuidString.lowercased())
+      let url = try recovered.save(samples: samples, takeId: takeId)
       Log.write("pipeline: CLI contract mismatch; saved the recording to \(url.lastPathComponent)")
       kept = true
     } catch {
@@ -610,9 +631,14 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
       self.refuseTakes(mismatch)
       if kept {
         self.showRecoveredLine("Saved dictations waiting (\(self.recovered.all().count)): Show in Finder", action: true)
+      } else {
+        self.unsaved.append(UnsavedTake(samples: samples, takeId: takeId, startedEpochMs: take.startedEpochMs,
+                                        startupMs: take.startupMs, app: take.originalApp?.localizedName, marker: nil))
       }
       self.sounds.play(.error)
-      self.finishProcessing(error: mismatch.localizedDescription + (kept ? " (recording saved)" : ""))
+      self.finishProcessing(error: mismatch.localizedDescription + (kept ? " (recording saved)" : " (recording kept until Quit)"))
+      // The mismatch may be older than a reinstall since: check again.
+      self.reloadSettings()
     }
   }
 
@@ -1150,6 +1176,8 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
       return
     case .ready:
       daemonLine.title = "Parakeet: ready"
+      // Saved takes that failed while the daemon was down or loading.
+      if let config, contractMismatch == nil { recoverLeftoverTakes(config: config) }
     case .warming(let reason):
       daemonLine.title = "Parakeet: warming up (\(reason))"
     case .unavailable(let reason):

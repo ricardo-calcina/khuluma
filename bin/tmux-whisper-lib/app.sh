@@ -300,8 +300,8 @@ PYEOF
 # tmux-whisper inline cleanup [--app NAME] --json   (transcript on stdin)
 # Runs only the deterministic text cleanup of an inline take (artefacts,
 # fillers/repeats, mode, vocab, paragraphs, British spelling), never the LLM.
-# Used to generate Lowkey's TextPipeline parity fixtures and for shadow
-# compares. Prints {ok, status, raw_text, text, mode, cleanup}.
+# Used to generate Lowkey's TextPipeline parity fixtures
+# (tests/gen-cleanup-fixtures.sh). Prints {ok, status, raw_text, text, mode, cleanup}.
 inline_cleanup_json() {
   local app=""
   while [[ $# -gt 0 ]]; do
