@@ -543,6 +543,14 @@ if [[ -e "$ROOT/integrations/tmux-whisper-status.0.2s.sh" ]]; then
 fi
 echo "PASS: swiftbar_plugin_retired"
 
+# The /tmp status flags (processed, cancelled, error, processing-long) only
+# fed the retired SwiftBar plugin; nothing should write them again.
+if grep -rqE 'DICTATE_(PROCESSED|CANCEL|ERROR|PROCESSING_LONG)_FLAG|dictate-(just-processed|cancelled\.flag|error\.flag|inline-processing-long)' "$ROOT/bin" "$ROOT/integrations"; then
+  echo "FAIL: status_flags_retired" >&2
+  exit 1
+fi
+echo "PASS: status_flags_retired"
+
 # --- Regression 8b: integration status inspects installed adapter paths. A
 # leftover SwiftBar plugin, receipt key and config table from an install made
 # before the plugin was retired are ignored. ---
@@ -733,7 +741,7 @@ assert_not_contains "raycast_inline_no_swiftbar_refresh" "$(cat "$RAYCAST_CALLS_
 
 RAYCAST_CANCEL_STATE="$TMP_ROOT/raycast-cancel-inline.state"
 printf 'pid=\nwav=%q\n' "$TMP_ROOT/raycast-cancel.wav" >"$RAYCAST_CANCEL_STATE"
-HOME="$RAYCAST_CALLS_HOME" PATH="$RAYCAST_CALLS_BIN:$STUB_BIN:/usr/bin:/bin" DICTATE_BIN="$RAYCAST_CALLS_BIN/tmux-whisper" DICTATE_INLINE_STATE_FILE="$RAYCAST_CANCEL_STATE" DICTATE_STATE_FILE="$TMP_ROOT/raycast-cancel-tmux.state" DICTATE_CANCEL_FLAG="$TMP_ROOT/raycast-cancel.flag" DICTATE_PROCESSING_DIR="$TMP_ROOT/raycast-processing" DICTATE_TEST_RAYCAST_CALLS_LOG="$RAYCAST_CALLS_LOG" bash "$ROOT/integrations/raycast/tmux-whisper-cancel.sh" >/dev/null 2>&1 || true
+HOME="$RAYCAST_CALLS_HOME" PATH="$RAYCAST_CALLS_BIN:$STUB_BIN:/usr/bin:/bin" DICTATE_BIN="$RAYCAST_CALLS_BIN/tmux-whisper" DICTATE_INLINE_STATE_FILE="$RAYCAST_CANCEL_STATE" DICTATE_STATE_FILE="$TMP_ROOT/raycast-cancel-tmux.state" DICTATE_PROCESSING_DIR="$TMP_ROOT/raycast-processing" DICTATE_TEST_RAYCAST_CALLS_LOG="$RAYCAST_CALLS_LOG" bash "$ROOT/integrations/raycast/tmux-whisper-cancel.sh" >/dev/null 2>&1 || true
 assert_not_contains "raycast_cancel_no_swiftbar_refresh" "$(cat "$RAYCAST_CALLS_LOG")" "swiftbar"
 
 IDLE_STOP_HOME="$TMP_ROOT/home-idle-stop"
@@ -754,13 +762,11 @@ config_version = 1
 source = "auto"
 EOF
 
-idle_stop_out="$(HOME="$IDLE_STOP_HOME" PATH="$IDLE_STOP_BIN:$STUB_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$IDLE_STOP_CFG" DICTATE_CONFIG_FILE="$IDLE_STOP_CFG/config.toml" DICTATE_STATE_FILE="$IDLE_STOP_HOME/tmux.state" DICTATE_INLINE_STATE_FILE="$IDLE_STOP_HOME/inline.state" DICTATE_ERROR_FLAG="$IDLE_STOP_HOME/error.flag" tmux-whisper stop 2>&1 || true)"
+idle_stop_out="$(HOME="$IDLE_STOP_HOME" PATH="$IDLE_STOP_BIN:$STUB_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$IDLE_STOP_CFG" DICTATE_CONFIG_FILE="$IDLE_STOP_CFG/config.toml" DICTATE_STATE_FILE="$IDLE_STOP_HOME/tmux.state" DICTATE_INLINE_STATE_FILE="$IDLE_STOP_HOME/inline.state" tmux-whisper stop 2>&1 || true)"
 assert_contains "idle_tmux_stop_reports_not_recording" "$idle_stop_out" "not recording. Run: tmux-whisper start"
-assert_file_not_exists "idle_tmux_stop_no_error_flag" "$IDLE_STOP_HOME/error.flag"
 
-idle_inline_stop_out="$(HOME="$IDLE_STOP_HOME" PATH="$IDLE_STOP_BIN:$STUB_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$IDLE_STOP_CFG" DICTATE_CONFIG_FILE="$IDLE_STOP_CFG/config.toml" DICTATE_STATE_FILE="$IDLE_STOP_HOME/tmux.state" DICTATE_INLINE_STATE_FILE="$IDLE_STOP_HOME/inline.state" DICTATE_ERROR_FLAG="$IDLE_STOP_HOME/error.flag" tmux-whisper inline stop 2>&1 || true)"
+idle_inline_stop_out="$(HOME="$IDLE_STOP_HOME" PATH="$IDLE_STOP_BIN:$STUB_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$IDLE_STOP_CFG" DICTATE_CONFIG_FILE="$IDLE_STOP_CFG/config.toml" DICTATE_STATE_FILE="$IDLE_STOP_HOME/tmux.state" DICTATE_INLINE_STATE_FILE="$IDLE_STOP_HOME/inline.state" tmux-whisper inline stop 2>&1 || true)"
 assert_contains "idle_inline_stop_reports_not_recording" "$idle_inline_stop_out" "not recording. Run: tmux-whisper inline start"
-assert_file_not_exists "idle_inline_stop_no_error_flag" "$IDLE_STOP_HOME/error.flag"
 
 # A freshly truncated marker can be an active writer between open and publish.
 # Doctor must leave it alone so the recording control is not lost.

@@ -486,7 +486,6 @@ print(json.dumps({"ok": True, "take_id": os.environ["APPREC_TAKE_ID"], "duplicat
     if usage_record_delivery "inline" "$REC_TEXT" "$record_ms" "$usage_full_elapsed_ms" \
         ${REC_TAKE_ID:+--take-id "$REC_TAKE_ID"} ${REC_LOCAL_DATE:+--local-date "$REC_LOCAL_DATE"}; then
       usage_recorded="1"
-      [[ "$REC_USAGE_ONLY" == "1" ]] && signal_just_processed
     else
       echo "[usage] unable to record delivered dictation summary" >&2
     fi
@@ -496,13 +495,6 @@ print(json.dumps({"ok": True, "take_id": os.environ["APPREC_TAKE_ID"], "duplicat
     append_bench_entry "inline" "$REC_STATUS" "$model_id" "$mode" "0" "${#REC_RAW}" "${#REC_TEXT}" \
       "$record_ms" "$transcribe_ms" "$clean_ms" "0" "$paste_ms" "$total_ms" \
       "${REC_STARTUP_MS:-0}" "0" "0" "0" "$REC_STARTUP_SOURCE"
-
-    case "$REC_STATUS" in
-      ok|no_speech|recovered) signal_just_processed ;;
-      *)
-        touch "$ERROR_FLAG" 2>/dev/null || true
-        ;;
-    esac
 
     # Debug archive ([debug] keep_logs), as inline process writes it: the
     # padded WAV the app transcribed plus a .meta file. The app hands the WAV

@@ -17,7 +17,6 @@ fi
 # Cancel any active inline recording
 STATE_FILE="${DICTATE_INLINE_STATE_FILE:-/tmp/whisper-dictate-inline.state}"
 TMUX_STATE="${DICTATE_STATE_FILE:-/tmp/whisper-dictate.state}"
-CANCEL_FLAG="${DICTATE_CANCEL_FLAG:-/tmp/dictate-cancelled.flag}"
 PROCESSING_DIR="${DICTATE_PROCESSING_DIR:-/tmp/dictate-processing}"
 SOUNDS_DIR="${SOUNDS_DIR:-$HOME/.local/share/sounds}"
 
@@ -45,8 +44,6 @@ cancel_recording() {
   
   # Clear any processing markers
   rm -f "$PROCESSING_DIR"/* 2>/dev/null || true
-  
-  touch "$CANCEL_FLAG"
   
   # Play cancel sound
   local cancel_sound="$SOUNDS_DIR/dictate/cancel.wav"

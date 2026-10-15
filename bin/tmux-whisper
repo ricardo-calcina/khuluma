@@ -12,7 +12,6 @@ fi
 
 STATE_FILE="${DICTATE_STATE_FILE:-/tmp/whisper-dictate.state}"
 INLINE_STATE_FILE="${DICTATE_INLINE_STATE_FILE:-/tmp/whisper-dictate-inline.state}"
-ERROR_FLAG="${DICTATE_ERROR_FLAG:-/tmp/dictate-error.flag}"
 TMPDIR="${DICTATE_TMPDIR:-/tmp}"
 RECORD_LOG="${DICTATE_RECORD_LOG:-$TMPDIR/whisper-dictate.record.log}"
 TRANSCRIBE_LOG="${DICTATE_TRANSCRIBE_LOG:-$TMPDIR/whisper-dictate.transcribe.log}"
@@ -417,8 +416,6 @@ AUDIO_INDEX_CACHE="$AUDIO_CACHE_DIR/audio-index.sh"
 BACKEND_RUNTIME_CACHE="$AUDIO_CACHE_DIR/backend-state.sh"
 INLINE_SESSION_CACHE="$AUDIO_CACHE_DIR/inline-session.sh"
 PROCESSING_DIR="${DICTATE_PROCESSING_DIR:-/tmp/dictate-processing}"
-PROCESSED_FLAG="${DICTATE_PROCESSED_FLAG:-/tmp/dictate-just-processed}"
-PROCESSING_LONG_FLAG="${DICTATE_PROCESSING_LONG_FLAG:-/tmp/dictate-inline-processing-long.flag}"
 PROCESSING_MARKER_FILE=""
 DICTATE_LAST_AUDIO_INDEX_SOURCE=""
 DICTATE_LAST_AUDIO_INDEX_MS="0"
@@ -464,11 +461,6 @@ processing_marker_stop_by_session() {
     marker_session="$(sed -n 's/^session_id=//p' "$f" 2>/dev/null | head -n 1)"
     [[ "$marker_session" == "$session_id" ]] && rm -f "$f" 2>/dev/null || true
   done
-}
-
-signal_just_processed() {
-  touch "$PROCESSED_FLAG" 2>/dev/null || true
-  rm -f "$PROCESSING_LONG_FLAG" 2>/dev/null || true
 }
 
 generate_inline_session_id() {
@@ -5759,7 +5751,6 @@ start() {
   record_started_ms="$(now_ms)"
   startup_total_ms=$(( record_started_ms - startup_started_ms ))
   (( startup_total_ms < 0 )) && startup_total_ms=0
-  rm -f "$ERROR_FLAG" 2>/dev/null || true
   atomic_write_state_file "$STATE_FILE" 'pid=%q\nwav=%q\ntarget_pane=%q\nmodel_id=%q\nlanguage=%q\njob_id=%q\nrecord_started_ms=%q\nstartup_total_ms=%q\nstartup_audio_ms=%q\nstartup_ffmpeg_live_ms=%q\nstartup_target_ms=%q\nstartup_audio_source=%q\n' \
     "$pid" "$wav" "$target_pane" "$model_id" "${DICTATE_LANGUAGE:-en}" "$job_id" "$record_started_ms" \
     "$startup_total_ms" "$startup_audio_ms" "$startup_ffmpeg_live_ms" "0" "$startup_audio_source"
@@ -5860,7 +5851,6 @@ stop() {
     if [[ "$transcribe_rc" -ne 0 ]]; then
       echo "[tmux-async] transcribe failed rc=$transcribe_rc"
       rm -f "$wav" 2>/dev/null || true
-      touch "$ERROR_FLAG" 2>/dev/null || true
       total_ms=$(( $(now_ms) - flow_started_ms ))
       append_bench_entry "tmux" "transcribe_failed" "$model_id" "$tmux_mode" "$do_postprocess" "0" "0" "$record_ms" "$transcribe_ms" "0" "0" "0" "$total_ms" \
         "$startup_total_ms" "$startup_audio_ms" "$startup_ffmpeg_live_ms" "$startup_target_ms" "$startup_audio_source"
@@ -5878,7 +5868,6 @@ stop() {
       if keep_logs_enabled; then
         echo "[transcribe] empty after artifact cleanup; skipping paste/send" >>"$TRANSCRIBE_LOG"
       fi
-      signal_just_processed
       exit 0
     fi
 
@@ -5903,7 +5892,6 @@ stop() {
         txt="$(DICTATE_FORCE_MODE="$tmux_mode" postprocess_llm "$txt" "Ghostty")"
       fi
       rm -f "$proc_file"
-      signal_just_processed
       postprocess_ms=$(( $(now_ms) - stage_started_ms ))
     fi
 
@@ -5964,7 +5952,6 @@ stop() {
 
     # Sound when done
     play_sound stop
-    signal_just_processed
 
     success="1"
     if [[ "$success" == "1" ]] && ! keep_logs_enabled; then
@@ -6025,8 +6012,6 @@ cancel() {
     [[ "$(basename "$marker")" == inline-lowkey-* ]] && continue
     rm -f "$marker" 2>/dev/null || true
   done
-  
-  touch "${DICTATE_CANCEL_FLAG:-/tmp/dictate-cancelled.flag}" 2>/dev/null || true
   
   play_sound cancel  # audible feedback that we cancelled
   echo "🚫 CANCELLED (recording discarded)"
@@ -6144,7 +6129,6 @@ process_inline_recording() {
       "$startup_total_ms" "$startup_audio_ms" "$startup_ffmpeg_live_ms" "$startup_target_ms" "$startup_audio_source"
     archive_inline_debug_artifacts "$archive_prefix" "$wav" "$record_log" "$transcribe_log" "record_failed" \
       "$record_ms" "0" "0" "0" "0" "$total_ms" "$inline_session_id"
-    touch "$ERROR_FLAG" 2>/dev/null || true
     return 1
   fi
   if ! keep_logs_enabled; then
@@ -6176,7 +6160,6 @@ process_inline_recording() {
       "$startup_total_ms" "$startup_audio_ms" "$startup_ffmpeg_live_ms" "$startup_target_ms" "$startup_audio_source"
     archive_inline_debug_artifacts "$archive_prefix" "$wav" "$record_log" "$transcribe_log" "transcribe_failed" \
       "$record_ms" "$transcribe_ms" "0" "0" "0" "$total_ms" "$inline_session_id"
-    touch "$ERROR_FLAG" 2>/dev/null || true
     return 1
   fi
   
@@ -6192,7 +6175,6 @@ process_inline_recording() {
       "$startup_total_ms" "$startup_audio_ms" "$startup_ffmpeg_live_ms" "$startup_target_ms" "$startup_audio_source"
     archive_inline_debug_artifacts "$archive_prefix" "$wav" "$record_log" "$transcribe_log" "no_speech" \
       "$record_ms" "$transcribe_ms" "$clean_ms" "0" "0" "$total_ms" "$inline_session_id"
-    signal_just_processed
     return 1
   fi
 
@@ -6210,7 +6192,6 @@ process_inline_recording() {
     ( save_history "$raw_txt" "$txt" "$detected_mode" "${history_app:-unknown}" "$record_ms" "$transcribe_ms" "$clean_ms" "0" "0" "$total_ms" ) >/dev/null 2>&1 &
     archive_inline_debug_artifacts "$archive_prefix" "$wav" "$record_log" "$transcribe_log" "superseded_pre_postprocess" \
       "$record_ms" "$transcribe_ms" "$clean_ms" "0" "0" "$total_ms" "$inline_session_id"
-    signal_just_processed
     return 0
   fi
 
@@ -6242,7 +6223,6 @@ process_inline_recording() {
     ( save_history "$raw_txt" "$txt" "$detected_mode" "${history_app:-unknown}" "$record_ms" "$transcribe_ms" "$clean_ms" "$postprocess_ms" "0" "$total_ms" ) >/dev/null 2>&1 &
     archive_inline_debug_artifacts "$archive_prefix" "$wav" "$record_log" "$transcribe_log" "superseded_post_postprocess" \
       "$record_ms" "$transcribe_ms" "$clean_ms" "$postprocess_ms" "0" "$total_ms" "$inline_session_id"
-    signal_just_processed
     return 0
   fi
   
@@ -6266,7 +6246,6 @@ process_inline_recording() {
         "$startup_total_ms" "$startup_audio_ms" "$startup_ffmpeg_live_ms" "$startup_target_ms" "$startup_audio_source"
       archive_inline_debug_artifacts "$archive_prefix" "$wav" "$record_log" "$transcribe_log" "clipboard_failed" \
         "$record_ms" "$transcribe_ms" "$clean_ms" "$postprocess_ms" "$paste_ms" "$total_ms" "$inline_session_id"
-      touch "$ERROR_FLAG" 2>/dev/null || true
       return 1
     fi
   
@@ -6314,7 +6293,6 @@ process_inline_recording() {
           "$startup_total_ms" "$startup_audio_ms" "$startup_ffmpeg_live_ms" "$startup_target_ms" "$startup_audio_source"
         archive_inline_debug_artifacts "$archive_prefix" "$wav" "$record_log" "$transcribe_log" "autosend_failed_paste" \
           "$record_ms" "$transcribe_ms" "$clean_ms" "$postprocess_ms" "$paste_ms" "$total_ms" "$inline_session_id"
-        touch "$ERROR_FLAG" 2>/dev/null || true
         return 1
       fi
       sleep_ms "$send_delay_ms"
@@ -6328,7 +6306,6 @@ process_inline_recording() {
           "$startup_total_ms" "$startup_audio_ms" "$startup_ffmpeg_live_ms" "$startup_target_ms" "$startup_audio_source"
         archive_inline_debug_artifacts "$archive_prefix" "$wav" "$record_log" "$transcribe_log" "autosend_failed_send" \
           "$record_ms" "$transcribe_ms" "$clean_ms" "$postprocess_ms" "$paste_ms" "$total_ms" "$inline_session_id"
-        touch "$ERROR_FLAG" 2>/dev/null || true
         return 1
       fi
       echo "✅ Sent ($(inline_send_mode_desc "$inline_send_mode"))"
@@ -6343,7 +6320,6 @@ process_inline_recording() {
           "$startup_total_ms" "$startup_audio_ms" "$startup_ffmpeg_live_ms" "$startup_target_ms" "$startup_audio_source"
         archive_inline_debug_artifacts "$archive_prefix" "$wav" "$record_log" "$transcribe_log" "paste_failed" \
           "$record_ms" "$transcribe_ms" "$clean_ms" "$postprocess_ms" "$paste_ms" "$total_ms" "$inline_session_id"
-        touch "$ERROR_FLAG" 2>/dev/null || true
         return 1
       fi
       echo "✅ Pasted (no Enter)"
@@ -6355,8 +6331,8 @@ process_inline_recording() {
   delivery_completed_ms="$(now_ms)"
   total_ms=$(( $(now_ms) - flow_started_ms ))
   # Persist the small, transcript-free ledger while this confirmed delivery is
-  # still in hand. It must be visible before the processed signal, while the
-  # larger transcript history write remains safely asynchronous below.
+  # still in hand. Usage is persisted synchronously, while the larger
+  # transcript history write remains safely asynchronous below.
   local usage_full_elapsed_ms="$total_ms"
   if [[ "$usage_started_ms" =~ ^[0-9]+$ ]]; then
     usage_full_elapsed_ms=$(( delivery_completed_ms - usage_started_ms ))
@@ -6372,7 +6348,6 @@ process_inline_recording() {
   append_bench_entry "inline" "ok" "$model_id" "$detected_mode" "$do_postprocess" "${#raw_txt}" "${#txt}" "$record_ms" "$transcribe_ms" "$clean_ms" "$postprocess_ms" "$paste_ms" "$total_ms" \
     "$startup_total_ms" "$startup_audio_ms" "$startup_ffmpeg_live_ms" "$startup_target_ms" "$startup_audio_source"
 
-  signal_just_processed
   if [[ "${INLINE_DELIVERY_MODE:-paste}" != "external" ]]; then
     play_sound stop
   fi
@@ -6538,7 +6513,6 @@ inline_start() {
     die "recording failed (ffmpeg exited immediately)"
   fi
 
-  rm -f "$ERROR_FLAG" 2>/dev/null || true
   atomic_write_state_file "$INLINE_STATE_FILE" 'pid=%q\nwav=%q\ntarget_app=%q\nmodel_id=%q\nrecord_started_ms=%q\nstartup_total_ms=%q\nstartup_audio_ms=%q\nstartup_ffmpeg_live_ms=%q\nstartup_target_ms=%q\nstartup_audio_source=%q\ninline_session_id=%q\ncontrol_fifo=%q\ncontrol_keeper_pid=%q\n' \
     "$pid" "$wav" "$target_app" "$model_id" "$record_started_ms" \
     "$startup_total_ms" "$startup_audio_ms" "$startup_ffmpeg_live_ms" "$startup_target_ms" "${startup_audio_source};selector=${audio_selector_kind}" "$inline_session_id" \
