@@ -6,7 +6,7 @@ Lowkey, the native menu-bar app in `tmux-whisperd/`, is the main way to dictate.
 
 - Supported platform: macOS with the requirements listed in the README.
 - Supported install channels: Homebrew stable, bootstrap from GitHub, and local clone installs via `./install.sh`.
-- Supported runtime source of truth: the CLI, config under `~/.config/dictate`, install receipt, state files, processing markers, and CLI status/diagnostic commands.
+- Supported runtime source of truth: the CLI, config under `~/.config/dictate`, install receipt, processing markers, and CLI status/diagnostic commands.
 - Unsupported as production surfaces: alternate backend experiments and direct parsing of private state files when a CLI read contract exists.
 
 ## Compatibility Matrix

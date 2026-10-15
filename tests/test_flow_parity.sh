@@ -1407,6 +1407,10 @@ assert r["cleanup"]["clean"] == "1", r["cleanup"]
 
   out="$(DICTATE_APP_HOTKEY="cmd+shift+d" "$DICTATE_BIN" app-config --json)"
   assert_contains "app_config_hotkey_override" "$out" '"hotkey": "cmd+shift+d"'
+  out="$(DICTATE_INLINE_PROCESS_SOUND=0 "$DICTATE_BIN" app-config --json)"
+  printf '%s' "$out" | python3 -c 'import json,sys; assert json.load(sys.stdin)["inline"]["process_sound"] is False' \
+    || fail "app_config_process_sound_override"
+  pass "app_config_process_sound_override"
 
   out="$("$DICTATE_BIN" inline process "$CASE_DIR/take.wav" --app Safari --record-ms 3000 --startup-ms 9 --json)"
   printf '%s' "$out" | python3 -c '
