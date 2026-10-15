@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Summarise Lowkey's app.log: take outcomes, where the time goes, daemon
-# warmups and verify results, against the release gates. Transcript-free:
+# warmups and timed-out retries. Transcript-free:
 # it prints counts and timings only, never dictated text.
 #
 #   tools/lowkey-report.sh                  # the whole log
@@ -38,7 +38,7 @@ import datetime as dt
 import re
 import statistics
 import sys
-from collections import Counter, defaultdict
+from collections import Counter
 
 log_path, since_arg, days_arg = sys.argv[1], sys.argv[2], sys.argv[3]
 
@@ -53,7 +53,6 @@ elif days_arg:
     since = today - dt.timedelta(days=max(int(days_arg), 1) - 1)
 
 LINE = re.compile(r"^\[([^\]]+)\] (.*)$")
-VERIFY = re.compile(r"^verify: take \S+ (matches the CLI|skipped:|could not run|pipeline mismatch:)(.*)$")
 CODE = re.compile(r"^[a-z0-9_]{1,40}$")
 PAIR = re.compile(r'([A-Za-z_]+)=("((?:[^"\\]|\\.)*)"|\S*)')
 
@@ -84,16 +83,12 @@ def local_day(stamp):
     return moment.astimezone().date()
 
 
-takes = []          # instrumented `take:` lines
-legacy = []         # 3b-era `done(native)` lines: (total, asr)
-legacy_cli = 0
+takes = []          # `take:` lines
 first_audio = []
 capturing = []
 start_failures = 0
 warmups = []        # (ms, trigger)
 unavailable = Counter()
-verify = Counter()
-verify_days = defaultdict(Counter)
 retries = Counter()
 first_day = last_day = None
 
@@ -113,13 +108,6 @@ with open(log_path, encoding="utf-8", errors="replace") as handle:
             fields = parse_pairs(message[6:])
             fields["_day"] = day
             takes.append(fields)
-        elif message.startswith("done(native): "):
-            total = re.search(r"stop→delivered (\d+)ms", message)
-            asr = re.search(r"asr (\d+)", message)
-            if total and asr:
-                legacy.append((float(total.group(1)), float(asr.group(1))))
-        elif message.startswith("done(cli): "):
-            legacy_cli += 1
         elif message.startswith("stop: "):
             found = re.search(r"hotkey→first audio ([\d.]+)ms", message)
             if found:
@@ -137,21 +125,6 @@ with open(log_path, encoding="utf-8", errors="replace") as handle:
         elif message.startswith("supervisor: daemon unavailable"):
             found = re.search(r"unavailable: (.*?) \(", message)
             unavailable[found.group(1) if found else "?"] += 1
-        elif message.startswith("verify: "):
-            # Judge only the status right after the take id: mismatch lines
-            # go on to quote dictated text, which may contain any phrase.
-            found = VERIFY.match(message)
-            status = found.group(1) if found else ""
-            if status == "matches the CLI" and found.group(2) == "":
-                kind = "match"
-            elif status == "skipped:":
-                kind = "skipped"
-            elif status == "could not run":
-                kind = "error"
-            else:
-                kind = "mismatch"
-            verify[kind] += 1
-            verify_days[day][kind] += 1
         elif message.startswith("retry: "):
             if "transcribed a timed-out" in message:
                 retries["transcribed"] += 1
@@ -194,7 +167,7 @@ print(f"Window: {window}, local time")
 print()
 paths = Counter(t.get("path", "?") for t in takes)
 outcomes = Counter(t.get("outcome", "?") for t in takes)
-print(f"Takes (instrumented): {len(takes)}"
+print(f"Takes: {len(takes)}"
       + (" (" + ", ".join(f"{k} {v}" for k, v in paths.most_common()) + ")" if takes else ""))
 if takes:
     print("  outcomes: " + ", ".join(f"{k} {v}" for k, v in outcomes.most_common()))
@@ -297,11 +270,6 @@ if timed:
 cold = [t for t in delivered if t.get("state") == "cold"]
 if cold:
     print(f"  cold takes, stop to delivered: {spread([num(t, 'total') for t in cold])}")
-if legacy:
-    print(f"  before instrumentation: {len(legacy)} native takes, stop to delivered minus asr"
-          f" (send waits included): {spread([total - asr for total, asr in legacy])}")
-if legacy_cli:
-    print(f"  before instrumentation: {legacy_cli} CLI-path takes")
 
 # --- Capture start ------------------------------------------------------------
 if first_audio or capturing:
@@ -323,40 +291,6 @@ else:
     print("  model warmups started by Lowkey: none")
 if unavailable:
     print("  unavailable: " + ", ".join(f"{k} x{v}" for k, v in unavailable.most_common(5)))
-
-# --- Verify -------------------------------------------------------------------
-print()
-checked = verify["match"] + verify["mismatch"]
-print(f"Verify (native cleanup vs the CLI): {verify['match']} match, {verify['mismatch']} mismatch, "
-      f"{verify['skipped']} skipped, {verify['error']} errors")
-clean_days = sorted(d for d, c in verify_days.items() if c["match"] and not c["mismatch"])
-mismatch_days = sorted(d for d, c in verify_days.items() if c["mismatch"])
-for day in sorted(verify_days):
-    counts = verify_days[day]
-    print(f"  {day}: {counts['match']} match, {counts['mismatch']} mismatch")
-
-# --- Gates --------------------------------------------------------------------
-print()
-print("v0.10.0 gates")
-overheads = [overhead(t) for t in warm]
-if len(overheads) >= 20 and median(overheads) < 100:
-    verdict = "PASS"
-elif len(overheads) >= 20:
-    verdict = "FAIL"
-else:
-    verdict = "NOT YET"
-print(f"  [{verdict}] 20+ warm native takes, median overhead under 100ms: "
-      f"n={len(overheads)}, median {ms(median(overheads))}")
-if mismatch_days:
-    verdict = "FAIL"
-elif len(clean_days) >= 2:
-    verdict = "PASS"
-else:
-    verdict = "NOT YET"
-detail = f"{len(clean_days)} clean day(s)"
-if mismatch_days:
-    detail += ", mismatches on " + ", ".join(str(d) for d in mismatch_days) + " (narrow with --since once fixed)"
-print(f"  [{verdict}] 2+ days of verified takes with no verify mismatches: {detail}")
 PY
 
 if [[ "$SYSTEM" == "1" ]]; then

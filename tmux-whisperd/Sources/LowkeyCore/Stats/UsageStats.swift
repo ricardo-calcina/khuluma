@@ -84,7 +84,7 @@ public struct UsageStats: Equatable, Sendable {
 
   public let today: CivilDate
   public let lifetime: Lifetime
-  /// nil from a CLI without daily buckets (lifetime-only window).
+  /// The report has active daily buckets.
   public let hasDaily: Bool
   public let dailyStatus: String?
   /// The first day with daily data (local date of `daily.started_at`).

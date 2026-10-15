@@ -21,6 +21,11 @@ XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
 DEFAULT_SWIFT_PARAKEET_MODELS_DIR="$XDG_DATA_HOME/tmux-whisper/models"
 DICTATE_CONFIG_SCHEMA_VERSION=1
 TMUX_WHISPER_CLI_VERSION="0.10.0-dev"
+# What `app-config --json` and the commands Lowkey runs promise the app.
+# Lowkey refuses takes unless its own contract number (AppContract.version
+# in tmux-whisperd/Sources/LowkeyCore/CLIModels.swift) is the same: bump
+# both together whenever either side needs the other to change.
+TMUX_WHISPER_APP_CONTRACT=1
 
 # Readers such as `tmux-whisper doctor` inspect these files while
 # recording starts. Publish a complete replacement so they never observe the

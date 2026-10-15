@@ -110,7 +110,7 @@ final class StatsModel: ObservableObject {
       // seen as a change once the watcher is up.
       let path = Self.ledgerPath(config)
       let before = FileSignature(path: path)
-      let result = Result { try cli.usage(daily: config?.supports("usage_days") ?? false) }
+      let result = Result { try cli.usage() }
       DispatchQueue.main.async {
         self?.finished(result, generation: generation, ledger: path, before: before)
       }
@@ -154,7 +154,7 @@ final class StatsModel: ObservableObject {
   // MARK: - Ledger watcher
 
   nonisolated private static func ledgerPath(_ config: AppConfig?) -> String {
-    if let path = config?.usage?.summaryPath, !path.isEmpty { return path }
+    if let path = config?.usage.summaryPath, !path.isEmpty { return path }
     return FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".config/dictate/usage.json").path
   }
 

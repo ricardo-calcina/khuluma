@@ -1544,7 +1544,8 @@ audiocache_debug_json="$(HOME="$AUDIOCACHE_HOME" PATH="$AUDIOCACHE_BIN:/usr/bin:
 assert_json_equals "audio_cache_json_index" "$audiocache_debug_json" "audio_resolution.index" "0"
 assert_json_equals "audio_cache_json_note" "$audiocache_debug_json" "audio_resolution.cache_note" "stale cache invalidated: cached idx=1 name=MacBook Air Microphone match=mac at=2026-03-20T08:47:56Z; re-resolved idx=0 match=mac name=MacBook Air Microphone"
 
-# tools/lowkey-report.sh: app.log summary (transcript-free) and the gates.
+# tools/lowkey-report.sh: app.log summary (transcript-free). The done(native)
+# and verify: lines are from retired builds and must be ignored.
 REPORT_LOG="$TMP_ROOT/lowkey-app.log"
 cat >"$REPORT_LOG" <<'EOF'
 [2026-10-10T09:00:00.000Z] done(native): stop→delivered 700ms: queue 2, asr 520, clean 5.0, deliver 170; mode=base, chars=10, target=Claude
@@ -1567,26 +1568,24 @@ cat >"$REPORT_LOG" <<'EOF'
 [2026-10-13T09:00:02.000Z] verify: take fff matches the CLI
 EOF
 report_text="$(TZ=UTC "$ROOT/tools/lowkey-report.sh" --log "$REPORT_LOG")"
-assert_contains "lowkey_report_take_counts" "$report_text" "Takes (instrumented): 7 (native 5, fallback 2)"
+assert_contains "lowkey_report_take_counts" "$report_text" "Takes: 7 (native 5, fallback 2)"
 assert_contains "lowkey_report_fallback_rate" "$report_text" "fallback rate: 28.6% (2 of 7 tried natively); daemon unreachable x2"
 assert_contains "lowkey_report_failure_rate" "$report_text" "failure rate: 28.6% (2 of 7)"
 assert_contains "lowkey_report_failure_kinds" "$report_text" "    timed_out x1"
 assert_contains "lowkey_report_error_codes_only" "$report_text" "    failed: other x1"
 assert_contains "lowkey_report_incomplete_tail" "$report_text" "1 without daemon timings for every pass"
-assert_contains "lowkey_report_verify_anchored" "$report_text" "2026-10-12: 1 match, 2 mismatch"
 assert_contains "lowkey_report_overhead" "$report_text" "minus Parakeet and delivery waits): median 55ms, p90 60ms (n=2)"
 assert_contains "lowkey_report_overhead_bucket" "$report_text" "5-15s: median 60ms, p90 60ms (n=1)"
 assert_contains "lowkey_report_overhead_cold" "$report_text" "overhead, not warm (cold): median 150ms"
 assert_contains "lowkey_report_transport" "$report_text" "request minus model time (warm): median 8ms"
-assert_contains "lowkey_report_legacy" "$report_text" "before instrumentation: 1 native takes"
 assert_contains "lowkey_report_start_failures" "$report_text" "recordings that failed to start: 1"
 assert_contains "lowkey_report_warmups" "$report_text" "model warmups started by Lowkey (daemon model warmup time): median 1800ms"
-assert_contains "lowkey_report_overhead_gate" "$report_text" "[NOT YET] 20+ warm native takes"
-assert_contains "lowkey_report_verify_gate" "$report_text" "[FAIL] 2+ days of verified takes with no verify mismatches: 2 clean day(s), mismatches on 2026-10-10, 2026-10-12"
+assert_not_contains "lowkey_report_ignores_verify" "$report_text" "Verify"
+assert_not_contains "lowkey_report_ignores_legacy" "$report_text" "before instrumentation"
 assert_not_contains "lowkey_report_transcript_free" "$report_text" "SECRET"
-report_since="$(TZ=UTC "$ROOT/tools/lowkey-report.sh" --log "$REPORT_LOG" --since 2026-10-11)"
-assert_contains "lowkey_report_since_drops_old_mismatch" "$report_since" "Verify (native cleanup vs the CLI): 3 match, 2 mismatch"
-assert_not_contains "lowkey_report_since_drops_legacy" "$report_since" "before instrumentation"
+report_since="$(TZ=UTC "$ROOT/tools/lowkey-report.sh" --log "$REPORT_LOG" --since 2026-10-12)"
+assert_contains "lowkey_report_since_window" "$report_since" "Window: 2026-10-12 to 2026-10-13 (since 2026-10-12)"
+assert_contains "lowkey_report_since_drops_takes" "$report_since" "Takes: 0"
 if "$ROOT/tools/lowkey-report.sh" --log "$REPORT_LOG" --days x >/dev/null 2>&1; then
   echo "FAIL: lowkey_report_rejects_bad_days" >&2
   exit 1

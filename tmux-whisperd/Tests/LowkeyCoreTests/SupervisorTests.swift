@@ -218,32 +218,19 @@ struct DaemonSupervisorTests {
     #expect(supervisor.currentState == .unknown)
   }
 
-  @Test func supervisionNeedsANewEnoughCLIAndTheSwitch() throws {
-    func config(capabilities: String, supervise: String, modelPath: String = #""/m""#) throws -> AppConfig {
-      let json = #"""
-      {"schema_version":1,"cli_version":"0.11.0-dev","hotkey":"ctrl+option+space","sounds":{},
-       "inline":{"autosend":true,"send_mode":"enter","paste_target":"current","process_sound":true,"activate_delay_ms":0,"send_delay_ms":0},
-       "transcription":{"socket_path":"/s.sock","model_path":MODEL,"model_version":"v3","model_label":"m","language":"en",
-         "tail_pad_ms":"500","tail_rescue":true,"tail_rescue_ms":"","tail_rescue_min_ms":"","chunking":false,
-         "silence_trim":false,"keep_logs":false,"ffmpeg":true,"timeout_seconds":"600","processing_dir":"/p"},
-       "pipeline":{"native":true,"verify":true SUPERVISE}CAPS}
-      """#.replacingOccurrences(of: "SUPERVISE", with: supervise)
-        .replacingOccurrences(of: "CAPS", with: capabilities)
-        .replacingOccurrences(of: "MODEL", with: modelPath)
-      return try JSONDecoder().decode(AppConfig.self, from: Data(json.utf8))
+  @Test func supervisionNeedsTheSwitchAndAModel() throws {
+    func config(supervise: Bool, modelPath: String = #""/m""#) throws -> AppConfig {
+      try AppConfigFixture.decode(AppConfigFixture.json
+        .replacingOccurrences(of: #""pipeline":{"supervise":true}"#, with: #""pipeline":{"supervise":\#(supervise)}"#)
+        .replacingOccurrences(of: #""model_path":"/m""#, with: #""model_path":\#(modelPath)"#))
     }
-    let all = #","capabilities":["take_markers","lifecycle_lock","warmup_json"]"#
-    let ok = try config(capabilities: all, supervise: #","supervise":true"#)
+    let ok = try config(supervise: true)
     #expect(ok.supervisionBlocker == nil)
     #expect(DaemonSupervisor.Target(config: ok) == target)
-    #expect(try config(capabilities: "", supervise: "").supervisionBlocker == "CLI too old for daemon supervision")
-    #expect(try config(capabilities: #","capabilities":["take_markers"]"#, supervise: #","supervise":true"#)
-      .supervisionBlocker == "CLI too old for daemon supervision")
-    let off = try config(capabilities: all, supervise: #","supervise":false"#)
+    let off = try config(supervise: false)
     #expect(off.supervisionBlocker == "[app] supervise_daemon = false")
     #expect(DaemonSupervisor.Target(config: off) == nil)
-    #expect(try config(capabilities: all, supervise: #","supervise":true"#, modelPath: "null")
-      .supervisionBlocker == "no Parakeet model path")
+    #expect(try config(supervise: true, modelPath: "null").supervisionBlocker == "no Parakeet model path")
   }
 
   @Test func decodesTheCLIsWarmupReport() throws {

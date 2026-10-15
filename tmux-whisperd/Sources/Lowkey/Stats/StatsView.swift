@@ -62,9 +62,7 @@ private struct StatsContent: View {
       }
       Hero(lifetime: stats.lifetime)
       switch stats.dailyStatus {
-      case nil:
-        Notice(symbol: "arrow.down.circle", text: "Update tmux-whisper for daily stats: activity, streaks and bests.")
-      case "unreadable":
+      case nil, "unreadable":
         Notice(symbol: "exclamationmark.triangle",
                text: "Daily stats couldn't be read. Lifetime totals are unaffected.")
       default:

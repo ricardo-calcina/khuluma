@@ -61,7 +61,7 @@ struct UsageReportTests {
                                               fullElapsedMs: 4700, longestRecordingMs: 3000, mostWords: 3)])
   }
 
-  @Test func decodesAnOlderCLIsReportWithoutDays() throws {
+  @Test func decodesAReportWithoutDays() throws {
     let old = #"""
     {"command":"usage","schema_version":1,"coverage":{"status":"active","tracking_started_at":"2026-09-19T06:30:53Z"},
      "delivered_dictations":{"count":80},"processed_words":24306,"recording_duration_ms":8112000,

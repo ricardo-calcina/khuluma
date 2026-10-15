@@ -68,15 +68,11 @@ public struct RecordResult: Decodable, Equatable, Sendable {
   public let takeId: String
   public let usageRecorded: Bool
   public let historySaved: Bool
-  /// The CLI deduplicates take ids in the usage ledger (0.11+), so a take
-  /// whose usage wasn't recorded can be retried safely.
-  public let usageDeduplicated: Bool?
 
   enum CodingKeys: String, CodingKey {
     case ok
     case takeId = "take_id"
     case usageRecorded = "usage_recorded"
     case historySaved = "history_saved"
-    case usageDeduplicated = "usage_dedup"
   }
 }
