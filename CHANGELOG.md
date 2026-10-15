@@ -593,6 +593,7 @@ Attempted to speed up transcription by implementing a persistent daemon that kee
 - [x] Expand the operator CLI around history/logs/bench/config before any dashboard work: JSON parity, export/search/tail helpers, live text-first watch surfaces, filtered bench inspection, session summaries, command cross-links, and documented JSON contracts.
 - [x] Package/install polish: bootstrap/update scripts + docs for reproducible setup across machines.
 - [x] Add explicit SwiftBar integration on/off toggle (Tmux Whisper remains fully usable without SwiftBar).
+- [ ] Rename to Lowkey, make the app the main tool, sunset the CLI and archive this repo (App Store parked). Staged plan with exit criteria: `docs/plans/LOWKEY_RENAME_ROADMAP.md`. Next: phase 0, a name check and a codebase review and tidy-up before anything is renamed.
 - [ ] When `CHANGELOG.md` gets too long, archive older entries into a single `CHANGELOG.archive.md` (keep current/recent work in `CHANGELOG.md`).
 
 ### Future labs (deferred, separate projects)
