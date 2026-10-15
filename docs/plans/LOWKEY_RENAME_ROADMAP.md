@@ -105,7 +105,7 @@ Exit: import is idempotent (run twice, same result), tested on a copy of your re
 ### Phase 4: deprecate the CLI
 - CLI release that prints a one-line notice on interactive commands (not in `--json` output) pointing to Lowkey; README and `docs/INTEGRATIONS.md` say "deprecated".
 - Formula: `deprecate! date: "…", because: "is replaced by the Lowkey app", replacement_cask: "lowkey"`. Deprecation warns and still installs; `disable!` refuses. The replacement is a suggestion, not an automatic migration ([brew-deprecate]). Homebrew can migrate a formula to a same-tap cask through `tap_migrations.json` since 5.0.6, but with a different name and later reports of failures ([brew-21207]), so the plan doesn't rely on it.
-- Raycast scripts, SwiftBar plugin and Finder Quick Action marked deprecated by `integrations doctor`, with what replaces each.
+- The Finder Quick Action marked deprecated by `tmux-whisper doctor`, with what replaces it (Raycast and SwiftBar are already gone, phase 0).
 
 Exit: 30 days with the notice live; nothing of yours still calls `tmux-whisper` (Raycast, SwiftBar, skills, shell aliases, `~/.zshenv`).
 

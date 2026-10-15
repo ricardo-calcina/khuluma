@@ -7,7 +7,7 @@
 # handed to the dictation pipeline (which pads/trims its WAV in place), and the
 # output is the raw transcript: no vocab, spelling, filler, mode, or LLM
 # cleanup. File transcripts are not deliveries, so they never touch history,
-# the usage ledger, sounds, paste targets, or SwiftBar state.
+# the usage ledger, sounds, or paste targets.
 
 transcribe_file_usage() {
   cat <<'EOF'

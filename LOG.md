@@ -11,6 +11,7 @@ Turn tmux-whisper into Lowkey: rename, make the app the main tool, sunset the CL
 - [ ] P2 · Lowkey ideas parked from 3c, only with evidence: config file watcher, warm mic/pre-roll · added 2026-10-16
 
 ## Done
+- 2026-10-16 · Raycast scripts, `integrations` doctor/repair and the `swiftbar` stub removed · chore/remove-raycast-integrations
 - 2026-10-16 · Finished plans moved to docs/plans/archive/ · chore/archive-finished-plans
 - 2026-10-16 · P0b review done; dropping tmux flow, CLI capture, LLM post-processing, silence trim, chunking; Lowkey to require its matching CLI · roadmap P0b
 - 2026-10-15 · Lowkey rename roadmap approved: phases 0–5, App Store parked · docs/plans/LOWKEY_RENAME_ROADMAP.md

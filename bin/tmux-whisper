@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# GUI launchers (Raycast, Lowkey) often run with a minimal PATH.
+# GUI launchers (Lowkey, the Finder Quick Action) often run with a minimal PATH.
 # Prefer Homebrew for python3 (tomllib) and ffmpeg.
 export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:${PATH:-/usr/bin:/bin}"
 
 if [[ -f "$HOME/.zshenv" ]]; then
-  # Load XDG vars + SOUNDS_DIR for non-interactive invocations (tmux/Raycast/etc.)
+  # Load XDG vars + SOUNDS_DIR for non-interactive invocations (Lowkey, Finder, etc.)
   source "$HOME/.zshenv"
 fi
 
@@ -101,11 +101,6 @@ DIAGNOSTICS:
   tmux-whisper bench export [N|all] [--json] [filters] # export raw bench rows (default: 30 recent)
   tmux-whisper bench-matrix [N] [phrase_file] # compare llm_model(post=on) x postprocess x vocab_clean on fixed phrases
   tmux-whisper changelog          # show recent Tmux Whisper changes
-
-INTEGRATIONS:
-  tmux-whisper integrations [--json] # inspect installed Raycast adapters
-  tmux-whisper integrations doctor   # diagnose adapter lifecycle drift
-  tmux-whisper integrations repair [--dry-run] # refresh adapter files only
 
 TEXT CLEANUP:
   tmux-whisper silence-trim       # show silence-trim status
@@ -8116,12 +8111,6 @@ manage_keybind() {
   fi
 }
 
-# The SwiftBar plugin was retired in favour of Lowkey's menu-bar item. The
-# command stays as a no-op so older Raycast copies and scripts keep exiting 0.
-manage_swiftbar() {
-  echo "The SwiftBar plugin has been retired; Lowkey's menu-bar item replaces it."
-}
-
 manage_sounds() {
   local target="${1:-}"
   local val="${2:-}"
@@ -8225,8 +8214,6 @@ case "$cmd" in
   vocab) manage_vocab "${2:-}" "${@:3}" ;;
   mode) manage_mode "${2:-}" "${@:3}" ;;
   keybind) manage_keybind "${2:-}" "${3:-}" ;;
-  integrations) manage_integrations "${2:-}" "${@:3}" ;;
-  swiftbar) manage_swiftbar "${2:-}" ;;
   replay) replay "${2:-}" "${@:3}" ;;
   history) manage_history "${@:2}" ;;
   version|--version) show_version "${@:2}" ;;
