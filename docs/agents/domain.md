@@ -12,7 +12,7 @@ If these files do not exist, proceed silently. Do not flag their absence or sugg
 
 ## Layout
 
-This is a single-context repo. Tmux Whisper is a macOS-first, inline-first dictation CLI. Tmux is the differentiated pane-targeted workflow; Raycast scripts are adapter surfaces around the CLI/runtime, and Lowkey is the native menu-bar app (the SwiftBar plugin was retired in v0.11).
+This is a single-context repo. Tmux Whisper is a macOS dictation project being renamed to Lowkey (`docs/plans/LOWKEY_RENAME_ROADMAP.md`). Lowkey, the native menu-bar app in `tmux-whisperd/`, is the main dictation path; the `tmux-whisper` CLI owns config, history, usage and the daemon lifecycle, plus file transcription. The Raycast scripts and the SwiftBar plugin were retired in v0.11.
 
 Use the repo's established terms:
 
@@ -20,7 +20,7 @@ Use the repo's established terms:
 - `dictate` only for legacy config, state, temp, and user-local runtime paths that intentionally still use that name.
 - `inline` for frontmost-app paste/send dictation.
 - `tmux` for pane-targeted dictation.
-- `Raycast scripts` for integration adapters; `Lowkey` for the native menu-bar app.
+- `Lowkey` for the native menu-bar app; `Finder Quick Action` and the agent skill for the `transcribe` adapters.
 - `processing markers`, `state files`, and `install receipt` for runtime/integration observability.
 
 ## ADRs

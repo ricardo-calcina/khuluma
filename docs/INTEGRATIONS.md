@@ -1,40 +1,31 @@
 # Integration Compatibility
 
-Tmux Whisper is CLI-first. Raycast scripts are adapter surfaces around the installed `tmux-whisper` command and the runtime state files it owns.
-
-Use this document to decide whether an integration issue belongs in the supported path, the local-development path, or a future experimental track.
+Lowkey, the native menu-bar app in `tmux-whisperd/`, is the main way to dictate. The installed `tmux-whisper` CLI still owns config, history, usage and the daemon lifecycle that Lowkey reads through it. The Finder Quick Action and the agent skill wrap `tmux-whisper transcribe`.
 
 ## Support Boundaries
 
 - Supported platform: macOS with the requirements listed in the README.
 - Supported install channels: Homebrew stable, bootstrap from GitHub, and local clone installs via `./install.sh`.
-- Supported integration adapters: the installer-managed Raycast scripts shipped in this repo. The SwiftBar plugin was retired in v0.11; Lowkey's menu-bar item replaces it.
 - Supported runtime source of truth: the CLI, config under `~/.config/dictate`, install receipt, state files, processing markers, and CLI status/diagnostic commands.
-- Unsupported as production surfaces today: alternate backend experiments, dashboard/TUI wrappers, and direct edits to installed adapter files without repair/install follow-up.
+- Unsupported as production surfaces: alternate backend experiments and direct parsing of private state files when a CLI read contract exists.
 
 ## Compatibility Matrix
 
 | Surface | Status | Install/update path | Notes |
 | --- | --- | --- | --- |
-| `tmux-whisper` CLI | Stable daily surface | Homebrew, bootstrap, or local `./install.sh --force` | Source of truth for tmux, inline, config, history, logs, status, doctor, and integration checks. |
-| CLI inline dictation | Stable daily workflow | Installed CLI | Uses macOS paste/send automation. It is the primary dictation path for frontmost-app capture and optional auto-send. |
-| tmux dictation | Stable terminal workflow | Requires `tmux` plus the installed CLI | Provides the differentiated tmux capture and queue workflow. Use `tmux-whisper status`, `history sessions`, `bench`, and `logs` for support. |
-| Raycast inline script | Supported adapter | `./install.sh --force` or `tmux-whisper integrations repair` | Should stay thin and delegate to the installed CLI/runtime rather than carrying independent state logic. |
-| Raycast tmux-toggle script | Supported adapter | `./install.sh --force` or `tmux-whisper integrations repair` | Requires `tmux`; uses the same runtime state as the CLI tmux flow. |
-| Raycast cancel script | Supported adapter | `./install.sh --force` or `tmux-whisper integrations repair` | Cancels active tmux or inline state through the shared runtime markers. |
-| SwiftBar plugin | Retired (v0.11) | None | Lowkey's menu-bar item replaces it. `tmux-whisper swiftbar` remains as a no-op notice; integration checks ignore a leftover plugin file, receipt key or config table. |
-| Finder Quick Action (transcribe files) | Experimental adapter | `tmux-whisper finder install` | Runs `integrations/finder/tmux-whisper-transcribe.sh`, which calls `tmux-whisper transcribe --beside --clipboard`. Not yet covered by `integrations doctor`. |
-| Lowkey (native menu-bar app) | Experimental, daily-driven | `tools/build-lowkey-app.sh` (see the README) | Owns the hotkey, capture, sounds, paste and the Stats window, and uses the installed CLI for transcription, cleanup, history and usage. Replaces the SwiftBar plugin. Tracked in issue #30. |
-| Alternate backend experiments | Experimental/future | None supported | Parakeet/CoreML is the active runtime path; alternate engines belong outside the near-term support boundary. |
+| Lowkey (native menu-bar app) | Daily driver | `tools/build-lowkey-app.sh` (see the README) | Owns the hotkey, capture, sounds, paste and the Stats window. Transcribes over the daemon socket and cleans text natively; uses the installed CLI for settings, history, usage and the daemon lifecycle (`docs/CLI_CONTRACTS.md`). |
+| `tmux-whisper` CLI | Supported | Homebrew, bootstrap, or local `./install.sh --force` | Source of truth for config, history, logs, status and doctor. |
+| CLI inline and tmux dictation | Being removed (phase 0 of `docs/plans/LOWKEY_RENAME_ROADMAP.md`) | Installed CLI | Lowkey replaces both. |
+| Finder Quick Action (transcribe files) | Supported | `tmux-whisper finder install` | Runs `integrations/finder/tmux-whisper-transcribe.sh`, which calls `tmux-whisper transcribe --beside --clipboard`. The handler is installed beside the binary (Homebrew's `share/tmux-whisper`, or `~/.local/share/tmux-whisper/integrations`). |
+| Agent skill (`integrations/agents/transcribe-audio/`) | Supported | Copy into your agent's skills folder | Tells Claude Code and Codex to use `tmux-whisper transcribe` for audio files. |
+| Raycast scripts, SwiftBar plugin | Retired (v0.11) | None | Lowkey owns the dictation key and the menu-bar item. Old copies under `~/.config/dictate/integrations/raycast` or SwiftBar's plugin folder can go to the Trash. |
 
 ## Environment Expectations
 
-Raycast often runs with a smaller environment than an interactive terminal. If an integration behaves differently from the CLI, check environment first.
+GUI launchers (Lowkey, Finder) run the CLI with a smaller environment than an interactive terminal. If behaviour differs from the terminal, check the environment first.
 
-- Put durable variables such as `CEREBRAS_API_KEY` in `~/.zshenv` when integrations need them.
-- Do not rely on interactive-only shell setup from `.zshrc` for Raycast.
-- Keep custom PATH dependencies visible to non-interactive shells.
-- Use `tmux-whisper debug` and `tmux-whisper status` to compare the installed runtime view against the integration behavior.
+- Keep custom PATH dependencies and env-based overrides in `~/.zshenv`, which the CLI loads; don't rely on `.zshrc`.
+- Use `tmux-whisper status` and `tmux-whisper doctor` to compare the installed runtime against what you see.
 
 ## Channel Differences
 
@@ -42,40 +33,15 @@ Homebrew is the stable channel. It is best when you want tagged releases and nor
 
 Bootstrap is for pinned installs or testing a GitHub ref without keeping a clone. Prefer explicit `--ref` for reproducible setup.
 
-Local clone installs are for active development. Run `./install.sh --force` after local code changes before judging installed CLI or Raycast behavior.
-
-## Lifecycle Commands
-
-Start integration support with non-mutating checks:
-
-```bash
-tmux-whisper integrations doctor
-tmux-whisper integrations repair --dry-run
-```
-
-Use adapter-only repair when the installed Raycast scripts are missing, non-executable, or drifted from the recorded source tree:
-
-```bash
-tmux-whisper integrations repair
-```
-
-Adapter sources resolve from the installed copy beside the binary: Homebrew's `share/tmux-whisper`, or the `~/.local/share/tmux-whisper/integrations` snapshot written by `install.sh` and bootstrap. Replaced adapters are backed up to `~/.config/dictate/backups/integrations/`. Missing Raycast scripts are reported as warnings because the adapter is optional.
-
-Use the full local installer when the binary, libraries, config defaults, sounds, native backend source, or install receipt also need to be refreshed:
-
-```bash
-./install.sh --force
-```
+Local clone installs are for active development. Run `./install.sh --force` after local code changes before judging installed CLI or Lowkey behaviour.
 
 ## Stable Vs Experimental Surfaces
 
-Supported surfaces are documented CLI commands, installer-managed adapter paths, and the integration doctor/repair lifecycle. Their human-readable output is for operators and is not a stable parsing contract; integrations should consume the stable JSON read contracts in `docs/CLI_CONTRACTS.md`.
-
-Experimental surfaces are menu layout details, native companion ideas, alternate backend experiments, and any direct parsing of private state files when a CLI read contract exists.
+Integrations should consume the stable JSON read contracts in `docs/CLI_CONTRACTS.md`; human-readable output is for operators and is not a parsing contract.
 
 When adding integration behavior, prefer one of these shapes:
 
 - extend the CLI/runtime source of truth
 - expose a small documented command
 - keep adapter scripts thin
-- add deterministic tests that do not require live Raycast, a real microphone, or real transcription
+- add deterministic tests that do not require a real microphone or real transcription

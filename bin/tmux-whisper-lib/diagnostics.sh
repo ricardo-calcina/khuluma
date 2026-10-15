@@ -189,7 +189,6 @@ debug() {
       JSON_WHISPERD_SOCKET="$swift_socket_path" \
       JSON_PARAKEET_MODEL="$swift_model_path" \
       JSON_PARAKEET_MODEL_VERSION="$swift_model_version" \
-      JSON_RAYCAST_DIR="$DICTATE_CONFIG_DIR/integrations/raycast" \
       JSON_BACKEND_MODEL="${DICTATE_LAST_BACKEND_MODEL:-$(current_transcribe_model_label)}" \
       JSON_ENV_OVERRIDES="$env_override_lines" \
       JSON_CFG_AUDIO_SOURCE="${CFG_AUDIO_SOURCE:-auto}" \
@@ -280,7 +279,6 @@ data = {
         "whisperd_bin": {"path": maybe("JSON_WHISPERD_BIN"), "ok": bool(s("JSON_WHISPERD_BIN")) and os.path.isfile(s("JSON_WHISPERD_BIN")) and os.access(s("JSON_WHISPERD_BIN"), os.X_OK)},
         "whisperd_socket": {"path": maybe("JSON_WHISPERD_SOCKET"), "live": bool(s("JSON_WHISPERD_SOCKET")) and os.path.exists(s("JSON_WHISPERD_SOCKET"))},
         "parakeet_model": {"path": maybe("JSON_PARAKEET_MODEL"), "ok": bool(s("JSON_PARAKEET_MODEL")) and os.path.isdir(s("JSON_PARAKEET_MODEL")), "version": maybe("JSON_PARAKEET_MODEL_VERSION")},
-        "raycast_dir": {"path": s("JSON_RAYCAST_DIR"), "ok": os.path.isdir(s("JSON_RAYCAST_DIR"))},
         "backend_model": maybe("JSON_BACKEND_MODEL"),
     },
     "env_overrides": overrides,
@@ -373,7 +371,6 @@ PYEOF
   echo "  whisperd_bin: ${swift_binary:-<none>} $([[ -n "$swift_binary" && -x "$swift_binary" ]] && echo "($(tmux_whisperd_binary_state))" || echo '(not built)')"
   echo "  whisperd_sock:${swift_socket_path:-<none>} $([[ -S "$swift_socket_path" ]] && echo '(live)' || echo '(offline)')"
   echo "  parakeet_mod: ${swift_model_path:-<none>} $([[ -n "$swift_model_path" && -d "$swift_model_path" ]] && echo "(ok, ${swift_model_version})" || echo '(missing)')"
-  echo "  raycast_dir:  $DICTATE_CONFIG_DIR/integrations/raycast $([[ -d "$DICTATE_CONFIG_DIR/integrations/raycast" ]] && echo '(ok)' || echo '(missing)')"
   echo "  backend_model:${DICTATE_LAST_BACKEND_MODEL:-$(current_transcribe_model_label)}"
   echo ""
 
@@ -618,7 +615,7 @@ doctor_json() {
     doctor_json_add_suggestion "Install Tmux Whisper from this repo: ./install.sh --force"
   }
 
-  local shared_lib_ok="0" internal_lib_ok="0" config_file_ok="0" raycast_inline_ok="0"
+  local shared_lib_ok="0" internal_lib_ok="0" config_file_ok="0"
   [[ -r "$DICTATE_LIB_PATH" ]] && shared_lib_ok="1"
   if [[ "$shared_lib_ok" != "1" ]]; then
     issues=$((issues + 1))
@@ -647,9 +644,6 @@ doctor_json() {
       doctor_json_add_suggestion "Repair config in place: tmux-whisper config repair"
       ;;
   esac
-  local raycast_inline_path
-  raycast_inline_path="$DICTATE_CONFIG_DIR/integrations/raycast/tmux-whisper-inline.sh"
-  [[ -f "$raycast_inline_path" ]] && raycast_inline_ok="1"
 
   local swift_root swift_binary swift_socket_path swift_model_path swift_model_version swift_models_dir
   swift_root="$(resolve_tmux_whisperd_root 2>/dev/null || true)"
@@ -925,8 +919,6 @@ doctor_json() {
     JSON_CONFIG_SCHEMA_EXPECTED="v$DICTATE_CONFIG_SCHEMA_VERSION" \
     JSON_CONFIG_SCHEMA_STATUS="$cfg_schema_status" \
     JSON_CONFIG_SCHEMA_PARSE_ERROR="$cfg_parse_error" \
-    JSON_RAYCAST_INLINE_PATH="$raycast_inline_path" \
-    JSON_RAYCAST_INLINE_OK="$raycast_inline_ok" \
     JSON_BACKEND="swift_parakeet" \
     JSON_TMUX_WHISPERD_SOURCE="$swift_root" \
     JSON_TMUX_WHISPERD_SOURCE_OK="$swift_root_ok" \
@@ -1092,7 +1084,6 @@ data = {
             "status": s("JSON_CONFIG_SCHEMA_STATUS"),
             "parse_error": maybe("JSON_CONFIG_SCHEMA_PARSE_ERROR"),
         },
-        "raycast_inline": {"path": s("JSON_RAYCAST_INLINE_PATH"), "ok": to_bool_flag("JSON_RAYCAST_INLINE_OK")},
         "backend": s("JSON_BACKEND"),
         "tmux_whisperd_source": {"path": maybe("JSON_TMUX_WHISPERD_SOURCE"), "ok": to_bool_flag("JSON_TMUX_WHISPERD_SOURCE_OK")},
         "tmux_whisperd_binary": {"path": maybe("JSON_TMUX_WHISPERD_BIN"), "ok": to_bool_flag("JSON_TMUX_WHISPERD_BIN_OK")},
@@ -1269,7 +1260,6 @@ doctor() {
       add_suggestion "Repair config in place: tmux-whisper config repair"
       ;;
   esac
-  echo "  - raycast inline: $DICTATE_CONFIG_DIR/integrations/raycast/tmux-whisper-inline.sh $([[ -f "$DICTATE_CONFIG_DIR/integrations/raycast/tmux-whisper-inline.sh" ]] && echo '(ok)' || echo '(missing)')"
   local swift_root swift_binary swift_socket_path swift_model_path swift_model_version swift_models_dir
   swift_root="$(resolve_tmux_whisperd_root 2>/dev/null || true)"
   swift_binary="${DICTATE_TMUX_WHISPERD_BIN:-${swift_root:+$(tmux_whisperd_build_root)/.build/release/tmux-whisperd}}"

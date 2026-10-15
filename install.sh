@@ -51,8 +51,6 @@ done
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BIN_DIR="${DICTATE_BIN_DIR:-$HOME/.local/bin}"
 CONFIG_DIR="${DICTATE_CONFIG_DIR:-$HOME/.config/dictate}"
-# Retired; only used to point at a leftover plugin from an older install.
-SWIFTBAR_DIR="${DICTATE_SWIFTBAR_DIR:-$HOME/.config/swiftbar/plugins}"
 SOUND_DIR="${DICTATE_SOUNDS_DIR:-$HOME/.local/share/sounds/dictate}"
 XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
 NATIVE_DIR="${DICTATE_NATIVE_DIR:-$XDG_DATA_HOME/tmux-whisper/native}"
@@ -173,7 +171,7 @@ install_default_modes_preserving_local() {
   copy_if_missing "$REPO_ROOT/config/modes/code" "$CONFIG_DIR/modes/code"
 }
 
-mkdir -p "$BIN_DIR" "$CONFIG_DIR" "$CONFIG_DIR/integrations/raycast"
+mkdir -p "$BIN_DIR" "$CONFIG_DIR"
 mkdir -p "$NATIVE_DIR/tmux-whisperd"
 mkdir -p "$PARAKEET_MODELS_DIR"
 
@@ -196,16 +194,10 @@ cp -R "$REPO_ROOT/tmux-whisperd/Tests" "$NATIVE_DIR/tmux-whisperd/Tests"
 install_default_config_files
 install_default_modes_preserving_local
 
-install -m 0755 "$REPO_ROOT/integrations/raycast/tmux-whisper-inline.sh" "$CONFIG_DIR/integrations/raycast/tmux-whisper-inline.sh"
-install -m 0755 "$REPO_ROOT/integrations/raycast/tmux-whisper-toggle.sh" "$CONFIG_DIR/integrations/raycast/tmux-whisper-toggle.sh"
-install -m 0755 "$REPO_ROOT/integrations/raycast/tmux-whisper-cancel.sh" "$CONFIG_DIR/integrations/raycast/tmux-whisper-cancel.sh"
-
-# Pristine adapter sources beside the binary (mirrors Homebrew's pkgshare), so
-# `integrations doctor|repair` work after bootstrap deletes its extracted tree.
+# The Finder Quick Action handler lives beside the binary (mirrors Homebrew's
+# pkgshare), so it keeps working after bootstrap deletes its extracted tree.
 ADAPTER_SHARE_DIR="$(dirname "$BIN_DIR")/share/tmux-whisper"
 rm -rf "$ADAPTER_SHARE_DIR/integrations"
-mkdir -p "$ADAPTER_SHARE_DIR/integrations/raycast"
-install -m 0755 "$REPO_ROOT/integrations/raycast/"*.sh "$ADAPTER_SHARE_DIR/integrations/raycast/"
 mkdir -p "$ADAPTER_SHARE_DIR/integrations/finder"
 install -m 0755 "$REPO_ROOT/integrations/finder/tmux-whisper-transcribe.sh" "$ADAPTER_SHARE_DIR/integrations/finder/tmux-whisper-transcribe.sh"
 
@@ -226,9 +218,6 @@ echo "Installed tmux-whisper to: $BIN_DIR/tmux-whisper"
 echo "Config path: $CONFIG_DIR"
 echo "Native backend source: $NATIVE_DIR/tmux-whisperd"
 echo "Parakeet models dir: $PARAKEET_MODELS_DIR"
-if [[ -e "$SWIFTBAR_DIR/tmux-whisper-status.0.2s.sh" ]]; then
-  echo "SwiftBar plugin is retired (Lowkey replaces it); move the old copy to the Trash: $SWIFTBAR_DIR/tmux-whisper-status.0.2s.sh"
-fi
 if [[ "$INSTALL_SOUNDS" == "1" ]]; then
   echo "Sample sounds: $SOUND_DIR"
 else
