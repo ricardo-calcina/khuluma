@@ -28,7 +28,7 @@ struct LocalDateTests {
   }
 }
 
-struct UsageCapabilityTests {
+struct DeferredUsageTests {
   @Test func processResultSaysWhetherUsageWasDeferred() throws {
     let json = #"{"ok":true,"status":"ok","text":"hi","raw_text":"hi","mode":"base","message":null,"#
       + #""delivery":{"autosend":true,"send_mode":"enter","paste_target":"current","activate_delay_ms":0,"send_delay_ms":35},"#

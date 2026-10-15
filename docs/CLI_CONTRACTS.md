@@ -61,8 +61,14 @@ These commands are safe to build integrations on:
     date at delivery), `count`, `by_flow`, `words`, `recording_ms`,
     `full_elapsed_ms`, `longest_recording_ms`, `most_words`. Only these
     validated numbers are emitted.
+- `tmux-whisper app-config --json` (app integration)
+  - Lowkey's settings: hotkey, sounds, inline delivery, cleanup,
+    transcription, `pipeline.supervise`, `config` (source and error) and
+    `usage.summary_path`. `app_contract` is an integer that changes whenever
+    Lowkey and the CLI must change together; Lowkey takes no dictation from a
+    CLI whose contract differs from the one it was built with.
 - `tmux-whisper inline process <wav> --json [--defer-usage]` (app integration)
-  - `--defer-usage` (capability `deferred_usage`) leaves the take out of the
+  - `--defer-usage` leaves the take out of the
     usage ledger (`usage_deferred: true`); the caller records it after
     delivering with `inline record` and `usage_only: true`. Take ids are
     deduplicated in the ledger, so a replayed record never counts twice.
