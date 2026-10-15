@@ -549,18 +549,11 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
     let frontmostAtStop = NSWorkspace.shared.frontmostApplication?.localizedName
     let cachedConfig = self.config
-    // Found while recording (a reload, or this take's own fetch): newer than
-    // any settings the take read at its start.
-    let knownMismatch = contractMismatch
     work.async { [weak self] in
       // Every path below is synchronous on this queue: the take is over when it returns.
       defer { take.marker?.remove() }
       guard let self else { return }
       take.marker?.update(.processing)
-      if let knownMismatch {
-        self.keepForMatchingCLI(samples: samples, take: take, recordMs: recordMs, mismatch: knownMismatch)
-        return
-      }
       // Settings fetched during the recording; usually ready long before
       // stop. The wait outlasts the fetch's own timeout, so no take reaches
       // a CLI whose contract is still unknown. Without settings (the CLI
@@ -571,6 +564,12 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
       case .config(let config): fresh = config
       case .unavailable(let reason): problem = reason
       case .mismatch(let mismatch):
+        self.keepForMatchingCLI(samples: samples, take: take, recordMs: recordMs, mismatch: mismatch)
+        return
+      }
+      // A mismatch found since this take's fetch (a reload, while recording
+      // or queued) is newer than its settings: read it now, on main.
+      if let mismatch = DispatchQueue.main.sync(execute: { self.contractMismatch }) {
         self.keepForMatchingCLI(samples: samples, take: take, recordMs: recordMs, mismatch: mismatch)
         return
       }
