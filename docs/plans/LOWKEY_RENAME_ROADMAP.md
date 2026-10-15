@@ -1,9 +1,11 @@
 # Lowkey roadmap: rename, CLI sunset, App Store later
 
+**Name: open.** "Lowkey" is ruled out as the public name: 1313Labs Ltd holds LOWKEY for software in the UK, US and EU (checked 2026-10-16, see `LOWKEY_NAME_CHECK.md`). "Lowkey" stays the working name in this document and the code until a new name is chosen after the P0b tidy-up.
+
 Status: approved (2026-10-15). Phases 0–5 are the plan; phase 6 (Mac App Store) is parked until Lowkey has proven itself in daily use and been improved further. Start with phase 0. Nothing is renamed by this document. Follows phase 3c (`archive/LOWKEY_PHASE3C_PLAN.md`) and the stats window (`archive/LOWKEY_STATS_PLAN.md`).
 
 Three goals, in order of commitment:
-1. **Rename the project to Lowkey.** Lowkey (`tmux-whisperd/`, bundle id `com.ricardo-nth.lowkey`) is already the daily driver; "tmux-whisper" describes the CLI's tmux flow, which is no longer the main path.
+1. **Rename the project to Lowkey** (working name; final name open, see P0a). Lowkey (`tmux-whisperd/`, bundle id `com.ricardo-nth.lowkey`) is already the daily driver; "tmux-whisper" describes the CLI's tmux flow, which is no longer the main path.
 2. **Make Lowkey the main tool**, then sunset the bash CLI (`bin/tmux-whisper`) and archive the `tmux-whisper` repo.
 3. **Maybe list Lowkey on the Mac App Store, later.** Parked: no work planned. The research in "App Store blockers" stays here so a sandboxed build isn't designed out by accident.
 
@@ -55,7 +57,8 @@ Anything not listed (tmux flow, CLI inline capture, `bench-matrix`, `budget`, `k
 Two pieces of work before anything is renamed or ported, so the rename and phase 1 only touch code that survives.
 
 **P0a. Name check.** The last cheap moment to change the name: after phase 2 it's in the repo, the cask, the bundle and your TCC grants.
-- What's known (2026-10-14): an App Store name can be used by one app per localization, and only App Store Connect says whether it's free ([asc-name]). Existing "Lowkey" apps: an iPhone group chat app ([lowkey-chat]), lowkey.fyi on iPhone/iPad ([lowkey-fyi]), and a gaming-clips product acquired by Niantic ([lowkey-yc]). No native Mac app named exactly "Lowkey" or "Lowkey Dictation" was found, which doesn't prove the name is free. Trademarks weren't checked.
+- **Outcome (2026-10-16): Lowkey ruled out, replacement open.** Live LOWKEY word marks covering computer software and apps in the UK (UK00003672761), US (7813710) and EU (018610302), all 1313Labs Ltd. Respellings sound the same and "Lowkey Dictation" only adds a descriptive word. About 70 replacements were screened; none chosen yet. Findings, the method and every name checked: `LOWKEY_NAME_CHECK.md`. Decide after P0b, before phase 2.
+- Known before the check (2026-10-14): an App Store name can be used by one app per localization, and only App Store Connect says whether it's free ([asc-name]). Existing "Lowkey" apps: an iPhone group chat app ([lowkey-chat]), lowkey.fyi on iPhone/iPad ([lowkey-fyi]), and a gaming-clips product acquired by Niantic ([lowkey-yc]).
 - Check: trademark registers (USPTO, UKIPO, EUIPO) in software classes (9, 42); the Mac and iOS App Stores; `ricardo-nth/lowkey` on GitHub and a cask named `lowkey` in `homebrew/cask` (`brew search --cask lowkey`); a domain if you want one; and how findable it is, since "lowkey" is everyday slang and a search for it won't find the app.
 - Compare "Lowkey" as is, a different spelling (e.g. Lowkee, Lowki, LowKey) and a longer store/display name ("Lowkey Dictation"), against the same checks.
 - Exit: one name chosen and recorded at the top of this document, with the checks behind it.
@@ -137,7 +140,7 @@ Reference for the parked phase 6. Checked 2026-10-14 against Apple's guidelines,
 
 ## Open questions
 - Lowkey versioning: start at 1.0 in the new repo, or continue the CLI's 0.x?
-- Settled in phase 0: the name (P0a); new repo vs rename in place. (Tmux flow, CLI capture, LLM post-processing, silence trim and chunking: dropped, see P0b.)
+- Still open from phase 0: the name (P0a, Lowkey ruled out, decide after P0b); new repo vs rename in place. (Tmux flow, CLI capture, LLM post-processing, silence trim and chunking: dropped, see P0b.)
 - Parked with phase 6: free or paid on the App Store (paid needs the Paid Apps agreement and tax/banking in App Store Connect).
 
 ## Sources
