@@ -2,6 +2,8 @@
 
 Status: **open.** "Lowkey" is ruled out as the public name (2026-10-16). No replacement chosen yet: decide once the P0b tidy-up is done, before phase 2 puts the name into the repo, cask, bundle and TCC grants. Until then "Lowkey" stays the working name in code and docs. Nothing has been renamed.
 
+Pinned, not checked yet: **DTNSND** ("dictate 'n' send"), 2026-10-16.
+
 ## Why not Lowkey
 1313Labs Ltd (London) holds LOWKEY as a word mark covering software in all three markets that matter:
 - UK **UK00003672761**, registered 2021-11-19, classes 9, 35, 38, 41, 42, 45. Class 9 includes "mobile apps" and "computer software"; class 42 includes SaaS ([tm-uk-lowkey]).
