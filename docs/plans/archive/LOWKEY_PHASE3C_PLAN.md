@@ -1,6 +1,6 @@
 # Lowkey phase 3c: always warm, never lose a take
 
-Status: reviewed (2026-10-10, two oracle reviews: strategy + risks), revised. Follows 3b (PR #50), see `LOWKEY_PHASE3_PLAN.md`. Ships after v0.10.0, which is gated on 3b's real-use measurements.
+Status: reviewed (2026-10-10, two oracle reviews: strategy + risks), revised. Follows 3b (PR #50), see `archive/LOWKEY_PHASE3_PLAN.md`. Ships after v0.10.0, which is gated on 3b's real-use measurements.
 
 3c-1 lands in three PRs: **(a)** CLI/daemon foundations (items 1, 2, the daemon/CLI half of 3, app-config capabilities); **(b)** Lowkey supervision (rest of 3), timeouts (4), hotkey swap (rest of 5); idle device change (7) shipped separately in PR #55; **(c)** instrumentation and `tools/lowkey-report.sh` (6).
 
