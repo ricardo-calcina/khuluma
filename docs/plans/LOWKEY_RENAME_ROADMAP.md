@@ -62,6 +62,13 @@ Two pieces of work before anything is renamed or ported, so the rename and phase
 
 **P0b. Codebase review and tidy-up.** A full review of the CLI, Lowkey and the docs, then deletions, so the code that goes into the rename is already the shape Lowkey 1.0 needs. Run it as a review first (a findings list plus decisions for you), then tidy-up PRs by area, each with `./tests/ci.sh` green and an oracle review.
 - **Decisions first** (they decide how much goes): is the tmux flow still used (`history sessions` shows the split by flow)? Is CLI inline capture (`inline start/stop/toggle`, ffmpeg device handling, osascript paste) still used now that Lowkey owns the key? Keep, port or drop LLM post-processing, silence trim and chunking? Anything dropped here never has to be ported in phase 1.
+- **Decided (2026-10-16), from `history/bench.tsv` and `app.log`:**
+  - **Drop the tmux flow.** No tmux takes in 800 logged runs since May 2026. The tmux keybind already pointed at a script that no longer exists.
+  - **Drop CLI inline capture**, and with it `recording.sh`, `audio.sh`, ffmpeg device detection, `devices`/`device` and osascript paste. Last used 2026-09-30; every take since 2026-10-06 came through Lowkey. The end-to-end checks for tail rescue, `keep_logs` and audio retention move onto `inline process`.
+  - **Drop LLM post-processing, silence trim and audio chunking**, plus `budget`, `bench-matrix`, `replay` and `history reprocess`. All three were off, and none of the 104 saved history entries used post-processing. Phase 1 doesn't port them. `merge_transcript_chunks` stays because tail rescue uses it.
+  - **Drop operator commands with no user:** `watch`, `keybind`, `debug`, `logs follow`. `bench` is slimmed.
+  - **Lowkey requires the CLI it was built with.** `app-config --json` reports an integer app contract, and Lowkey has a matching constant (CI checks they agree). On a mismatch Lowkey refuses takes and says which versions differ and to run `./install.sh --force`. This replaces the capability checks: version strings alone can't do it, because every capability was added while the CLI said `0.10.0-dev`.
+  - The v0.10.0 gates passed on 2026-10-16 (68 warm native takes, median overhead 70ms; 96 verify matches, 0 mismatches), so `[app] native_pipeline` and `[app] verify_pipeline` go. The CLI's `inline cleanup` stays for `tests/gen-cleanup-fixtures.sh`, and `inline process` stays as Lowkey's fallback (daemon unreachable, native errors, Retry).
 - **Candidates to delete:**
   - The Raycast scripts and the `integrations doctor/repair` adapter machinery that exists for them; the `tmux-whisper swiftbar` notice stub.
   - Lowkey's support for older CLIs. App and CLI ship from one tree, so Lowkey can require the CLI version it was built with and say so clearly, instead of capability checks (`take_markers`, `lifecycle_lock`, `warmup_json`, `usage_days`, `deferred_usage`), the lifetime-only Stats window, the "Update tmux-whisper" notices and supervision turning itself off.
@@ -130,7 +137,7 @@ Reference for the parked phase 6. Checked 2026-10-14 against Apple's guidelines,
 
 ## Open questions
 - Lowkey versioning: start at 1.0 in the new repo, or continue the CLI's 0.x?
-- Settled in phase 0: the name (P0a); tmux flow, CLI capture, LLM post-processing, silence trim and chunking (P0b); new repo vs rename in place.
+- Settled in phase 0: the name (P0a); new repo vs rename in place. (Tmux flow, CLI capture, LLM post-processing, silence trim and chunking: dropped, see P0b.)
 - Parked with phase 6: free or paid on the App Store (paid needs the Paid Apps agreement and tax/banking in App Store Connect).
 
 ## Sources
