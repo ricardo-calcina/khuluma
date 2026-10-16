@@ -1,94 +1,17 @@
 import AppKit
 import Foundation
 import LowkeyCore
-import ServiceManagement
 
 /// Menu-bar app: hotkey → chime + capture → transcription and cleanup →
-/// paste/send. Takes go through the native pipeline (daemon socket + Swift
-/// cleanup) unless the settings need the CLI's `inline process`.
-final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
-  private struct Take {
-    let hotkeyAt: Double
-    let startedAt: Double
-    let startedEpochMs: Int
-    let startupMs: Int
-    let originalApp: NSRunningApplication?
-    /// Lowkey was in front at the hotkey, so `originalApp` is the app before
-    /// it and must be re-activated for delivery.
-    let retargeted: Bool
-    /// Settings read while recording, so each take uses what the CLI would
-    /// use now (e.g. after `tmux-whisper autosend off`), not launch-time values.
-    let settings: SettingsFetch?
-    /// Published before capture starts and removed when the take ends, so
-    /// the CLI never swaps the daemon out mid-take.
-    let marker: TakeMarker?
-    /// The start chime: played once, when capture is confirmed.
-    let chime: OneShot
-
-    func delivery(_ base: Delivery) -> Delivery {
-      retargeted ? base.restoringOriginalApp() : base
-    }
-  }
-
+/// paste/send. Owns the take's lifecycle and the app's state; the work of a
+/// take is in `TakePipeline`, persistence in `TakePersister`, the menu in
+/// `StatusMenu`.
+final class AppController: NSObject, NSApplicationDelegate {
   /// If no audio has arrived this long after the engine started, chime
   /// anyway (and log it) rather than leave the press unanswered.
   private static let chimeFallback: TimeInterval = 0.75
 
-  /// `tmux-whisper app-config --json`, fetched in the background.
-  final class SettingsFetch: @unchecked Sendable {
-    enum Outcome {
-      case config(AppConfig)
-      /// The CLI isn't the one Lowkey was built with: no take may use it.
-      case mismatch(AppContract.Mismatch)
-      /// Not read (in time): the CLI path reads its own settings.
-      case unavailable(String)
-    }
-
-    private let done = DispatchGroup()
-    private var outcome: Outcome = .unavailable("settings unavailable")
-
-    /// `onMismatch` runs as soon as a mismatch is known, so later presses
-    /// are refused even if no take waits for this fetch.
-    private let onMismatch: (AppContract.Mismatch) -> Void
-
-    init(cli: CLIBridge, queue: DispatchQueue, onMismatch: @escaping (AppContract.Mismatch) -> Void) {
-      self.onMismatch = onMismatch
-      done.enter()
-      queue.async {
-        do {
-          self.outcome = .config(try cli.appConfig())
-        } catch let mismatch as AppContract.Mismatch {
-          self.outcome = .mismatch(mismatch)
-          self.onMismatch(mismatch)
-        } catch {
-          self.outcome = .unavailable(error.localizedDescription)
-        }
-        self.done.leave()
-      }
-    }
-
-    func wait(timeout: TimeInterval) -> Outcome {
-      guard done.wait(timeout: .now() + timeout) == .success else { return .unavailable("timed out reading settings") }
-      return outcome
-    }
-  }
-
-  private enum Phase {
-    case ready, recording, processing, error(String)
-  }
-
-  private var statusItem: NSStatusItem!
-  private let statusLine = NSMenuItem(title: "Starting…", action: nil, keyEquivalent: "")
-  private let hotkeyLine = NSMenuItem(title: "Hotkey: –", action: nil, keyEquivalent: "")
-  private let configLine = NSMenuItem(title: "", action: nil, keyEquivalent: "")
-  private let recoveredLine = NSMenuItem(title: "", action: nil, keyEquivalent: "")
-  private let daemonLine = NSMenuItem(title: "", action: nil, keyEquivalent: "")
-  private let retryItem = NSMenuItem(title: "", action: #selector(retryTimedOut), keyEquivalent: "")
-  private let pasteRetriedItem = NSMenuItem(title: "", action: #selector(pasteRetried), keyEquivalent: "")
-  private let discardTimedOutItem = NSMenuItem(title: "Discard timed-out recording", action: #selector(discardTimedOut), keyEquivalent: "")
-  private let cancelItem = NSMenuItem(title: "Cancel Recording", action: #selector(cancelRecording), keyEquivalent: "")
-  private let loginItem = NSMenuItem(title: "Start at Login", action: #selector(toggleStartAtLogin), keyEquivalent: "")
-
+  private let menu = StatusMenu()
   private let recorder = AudioRecorder()
   private let sounds = SoundPlayer()
   private lazy var hotkey = HotkeyMonitor { [weak self] in self?.toggle() }
@@ -101,16 +24,14 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
   /// One start at a time; a failed start never leaves its marker behind.
   private let starter = TakeStarter()
   private var cli: CLIBridge?
+  /// Set with `cli`: transcription, delivery and persistence of takes.
+  private var pipeline: TakePipeline?
   private var config: AppConfig?
   private var take: Take?
   /// Set once Quit has begun: the hotkey no longer starts new takes.
   private var quitting = false
-  private var processing = 0
-  private var phase: Phase = .ready { didSet { refreshStatus() } }
+  private var status = ActivityStatus() { didSet { refreshStatus() } }
   private let work = DispatchQueue(label: "lowkey.work", qos: .userInitiated)
-  /// `inline record` runs here, after delivery, one take at a time.
-  private let persistQueue = DispatchQueue(label: "lowkey.persist", qos: .utility)
-  private let pending = PendingRecords.standard
   private let recovered = RecoveredTakes.standard
   private var recoveryRunning = false
   private let settingsQueue = DispatchQueue(label: "lowkey.settings", qos: .userInitiated, attributes: .concurrent)
@@ -133,15 +54,17 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
   /// The last active app other than Lowkey: a take started with Lowkey in
   /// front is meant for it.
   private var lastExternalApp: NSRunningApplication?
-  private var retrying = false
+  /// Every take stopped for Quit whose audio couldn't be written yet.
+  private var unsaved: [UnsavedTake] = []
   /// Made on first open, then reused.
   private var statsWindow: StatsWindowController?
 
   func applicationDidFinishLaunching(_ notification: Notification) {
-    buildMenu()
+    connectMenu()
+    menu.install()
     sweepStaleMarkers()
     Log.write("launch: Lowkey \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev")"
-              + ", start at login \(Self.loginStatusText(SMAppService.mainApp.status))")
+              + ", start at login \(LoginItem.text(LoginItem.status))")
 
     recorder.prepare()
     recorder.onConfigurationChange = { [weak self] in self?.handleDeviceChange() }
@@ -153,10 +76,14 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     guard let cli = CLIBridge.locate() else {
-      phase = .error("tmux-whisper CLI not found")
+      status.failed("tmux-whisper CLI not found")
       return
     }
     self.cli = cli
+    let pipeline = TakePipeline(cli: cli, persister: TakePersister(cli: cli)) { [weak self] in
+      self?.supervisor?.trigger(.unreachable)
+    }
+    self.pipeline = pipeline
     supervisor = DaemonSupervisor(
       environment: DaemonSupervisor.Environment(
         probe: { path, timeout in DaemonClient(socketPath: path).status(timeout: timeout) },
@@ -171,13 +98,34 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     ) { [weak self] _ in self?.supervisor?.trigger(.wake) }
     trackExternalApps()
     reloadSettings()
-    replayPendingRecords(cli: cli)
+    pipeline.persister.replayLeftovers()
     refreshTimedOutItems()
     // `-LowkeyOpenStats YES`: open Stats at launch (for checking the window).
     if UserDefaults.standard.bool(forKey: "LowkeyOpenStats") {
       showStats()
     }
   }
+
+  private func connectMenu() {
+    menu.onCancelRecording = { [weak self] in self?.cancelRecording() }
+    menu.onRetryTimedOut = { [weak self] in self?.retryTimedOut() }
+    menu.onPasteRetried = { [weak self] in self?.pasteRetried() }
+    menu.onDiscardTimedOut = { [weak self] in self?.discardTimedOut() }
+    menu.onDiscardUnsaved = { [weak self] in self?.discardUnsavedAndQuit() }
+    menu.onShowRecovered = { [weak self] in
+      guard let self else { return }
+      NSWorkspace.shared.activateFileViewerSelecting(self.recovered.all())
+    }
+    menu.onShowStats = { [weak self] in self?.showStats() }
+    menu.onReloadSettings = { [weak self] in self?.reloadSettings() }
+    menu.onToggleLogin = { [weak self] in self?.toggleStartAtLogin() }
+    menu.onWillOpen = { [weak self] in
+      self?.refreshTimedOutItems()
+      self?.menu.showLogin(LoginItem.status)
+    }
+  }
+
+  // MARK: - Quit
 
   /// Quit never discards a dictation. A take still recording is saved to
   /// disk at once, then transcribed into history and onto the clipboard
@@ -191,8 +139,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
       guard saveRecordingForQuit() else {
         // Couldn't write the audio: stay open rather than lose a take. Only
         // the explicit "Discard … and quit" menu item gives it up.
-        discardItem.title = "Discard \(unsaved.count) unsaved recording\(unsaved.count == 1 ? "" : "s") and quit"
-        discardItem.isHidden = false
+        menu.showDiscardUnsaved("Discard \(unsaved.count) unsaved recording\(unsaved.count == 1 ? "" : "s") and quit")
         fail("couldn't save \(unsaved.count) recording\(unsaved.count == 1 ? "" : "s") for quitting; Quit retries")
         return .terminateCancel
       }
@@ -200,11 +147,11 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     return terminateAfterDraining()
   }
 
-  @objc private func discardUnsavedAndQuit() {
+  private func discardUnsavedAndQuit() {
     Log.write("quit: discarding \(unsaved.count) unsaved recording(s) at the user's request")
     unsaved.forEach { $0.marker?.remove() }
     unsaved.removeAll()
-    discardItem.isHidden = true
+    menu.showDiscardUnsaved(nil)
     NSApp.terminate(nil)
   }
 
@@ -215,7 +162,9 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
       guard replied.wait(timeout: .now()) == .success else { return }
       DispatchQueue.main.async { NSApp.reply(toApplicationShouldTerminate: true) }
     }
-    work.async { [persistQueue] in
+    let persistQueue = pipeline?.persister.queue
+    work.async {
+      guard let persistQueue else { return reply() }
       persistQueue.async { reply() }
     }
     DispatchQueue.main.asyncAfter(deadline: .now() + 30) {
@@ -224,19 +173,6 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
     return .terminateLater
   }
-
-  /// A take stopped for Quit whose audio couldn't be written yet.
-  private struct UnsavedTake {
-    let samples: [Float]
-    let takeId: String
-    let startedEpochMs: Int
-    let startupMs: Int
-    let app: String?
-    let marker: TakeMarker?
-  }
-  /// Every take stopped for Quit whose audio couldn't be written yet.
-  private var unsaved: [UnsavedTake] = []
-  private let discardItem = NSMenuItem(title: "", action: #selector(discardUnsavedAndQuit), keyEquivalent: "")
 
   /// Stops the take in progress for Quit and writes its audio (and any
   /// earlier unsaved takes) to the recovery folder before anything else,
@@ -276,62 +212,21 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
       }
     }
     unsaved = stillUnsaved
-    if unsaved.isEmpty { discardItem.isHidden = true }
+    if unsaved.isEmpty { menu.showDiscardUnsaved(nil) }
     return unsaved.isEmpty
   }
 
-  /// Transcribes a saved take into history (status "recovered": no usage,
-  /// nothing pasted) and optionally onto the clipboard, then deletes the
-  /// audio. Leaves the audio for the next launch if it can't transcribe.
+  // MARK: - Saved takes
+
+  /// Runs on `work`. See `TakePipeline.recover`.
   private func recover(url: URL, samples: [Float], takeId: String, startedEpochMs: Int?, startupMs: Int,
                        app: String?, config: AppConfig?, copy: Bool) {
-    guard let cli, let native = config?.native else {
+    guard let pipeline else {
       Log.write("recover: \(url.lastPathComponent) kept for later (native pipeline unavailable)")
       return
     }
-    let (transcription, cleanup, modelPath) = native
-    let client = DaemonClient(socketPath: transcription.socketPath)
-    let timeout = min(transcription.maxTimeout, 30 + 2 * Double(samples.count) / Double(AudioPrep.sampleRate))
-    do {
-      let transcribed = try NativeTranscriber(settings: transcription).transcribe(samples: samples) { wav, flow in
-        try client.transcribe(wav: wav, language: transcription.language, flow: flow, modelPath: modelPath,
-                              modelVersion: transcription.modelVersion, timeout: timeout)
-      }
-      var record = TakeRecord(takeId: takeId, status: "recovered", delivered: false)
-      record.app = app
-      record.model = transcription.modelLabel
-      record.recordMs = samples.count * 1000 / AudioPrep.sampleRate
-      record.startupMs = startupMs
-      record.startedAtMs = startedEpochMs
-      record.captureWavMs = AudioPrep.ffprobeDurationMs(sampleCount: samples.count)
-      record.captureWavBytes = 44 + 2 * samples.count
-      switch TextPipeline(settings: cleanup).process(transcript: transcribed.transcript, app: app) {
-      case .text(let raw, let text, let mode):
-        record.rawText = raw
-        record.text = text
-        record.mode = mode
-        if copy {
-          DispatchQueue.main.sync {
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(text, forType: .string)
-          }
-        }
-        Log.write("recover: \(url.lastPathComponent) transcribed (\(text.count) chars)" + (copy ? ", copied to the clipboard" : ""))
-      case .noSpeech:
-        record.status = "no_speech"
-        Log.write("recover: \(url.lastPathComponent) had no speech")
-      case .needsCLI:
-        Log.write("recover: \(url.lastPathComponent) kept for later (settings need the CLI)")
-        return
-      }
-      if persist(record, cli: cli) {
-        recovered.remove(url)
-      } else {
-        Log.write("recover: \(url.lastPathComponent) kept: its record could not be spooled")
-      }
-    } catch {
-      Log.write("recover: \(url.lastPathComponent) kept for later: \(error.localizedDescription)")
-    }
+    pipeline.recover(url: url, samples: samples, takeId: takeId, startedEpochMs: startedEpochMs,
+                     startupMs: startupMs, app: app, config: config, copy: copy, store: recovered)
   }
 
   /// Takes saved at a previous quit that didn't finish: transcribe them into
@@ -342,7 +237,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     guard config.nativePipelineBlocker == nil else {
       // Can't transcribe natively with these settings: say so, and retry
       // whenever usable settings arrive.
-      showRecoveredLine("Saved dictations waiting (\(leftovers.count)): Show in Finder", action: true)
+      menu.showRecovered("Saved dictations waiting (\(leftovers.count)): Show in Finder", action: true)
       return
     }
     recoveryRunning = true
@@ -361,25 +256,13 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
       DispatchQueue.main.async {
         self.recoveryRunning = false
         if remaining > 0 {
-          self.showRecoveredLine("Saved dictations waiting (\(remaining)): Show in Finder", action: true)
+          self.menu.showRecovered("Saved dictations waiting (\(remaining)): Show in Finder", action: true)
         } else if done > 0 {
-          self.showRecoveredLine(
+          self.menu.showRecovered(
             "Recovered \(done) dictation\(done == 1 ? "" : "s") from the last quit (tmux-whisper history)", action: false)
         }
       }
     }
-  }
-
-  private func showRecoveredLine(_ title: String, action: Bool) {
-    recoveredLine.title = title
-    recoveredLine.isEnabled = action
-    recoveredLine.action = action ? #selector(showRecoveredFolder) : nil
-    recoveredLine.target = action ? self : nil
-    recoveredLine.isHidden = false
-  }
-
-  @objc private func showRecoveredFolder() {
-    NSWorkspace.shared.activateFileViewerSelecting(recovered.all())
   }
 
   // MARK: - Recording
@@ -454,7 +337,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
       DispatchQueue.main.asyncAfter(deadline: .now() + Self.chimeFallback) {
         playChime("with no audio yet after \(Int(Self.chimeFallback * 1000))ms")
       }
-      phase = .recording
+      status.recordingStarted()
       do {
         // A toggle bound to the same keys already stops the take.
         if hotkey.binding != Self.cancelKey { try cancelHotkey.register(Self.cancelKey) }
@@ -508,12 +391,11 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     if config?.inline.processSound ?? true {
       sounds.play(.process)
     }
-    processing += 1
-    phase = .processing
+    status.processingStarted()
     process(samples: samples, take: take, recordMs: recordMs, stopAt: stopAt)
   }
 
-  @objc private func cancelRecording() {
+  private func cancelRecording() {
     guard let take else { return }
     take.chime.cancel()
     cancelHotkey.unregister()
@@ -521,7 +403,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     take.marker?.remove()
     self.take = nil
     sounds.play(.cancel)
-    phase = processing > 0 ? .processing : .ready
+    status.recordingCancelled()
     Log.write("cancel: recording discarded")
     applyPendingHotkey()
   }
@@ -533,10 +415,10 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     stopRecording()
   }
 
-  // MARK: - Processing and delivery
+  // MARK: - Processing
 
   private func process(samples: [Float], take: Take, recordMs: Int, stopAt: Double) {
-    guard let cli else {
+    guard let pipeline else {
       take.marker?.remove()
       var line = TakeLog()
       line.add("path", "none")
@@ -588,9 +470,11 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if let blocker = fresh.nativePipelineBlocker {
           route = ("cli", blocker)
         } else {
-          switch self.processNatively(samples: samples, take: take, recordMs: recordMs, appName: appName,
-                                      config: fresh, cli: cli, stopAt: stopAt) {
-          case .handled: return
+          switch pipeline.processNatively(samples: samples, take: take, recordMs: recordMs, appName: appName,
+                                          config: fresh, stopAt: stopAt) {
+          case .handled(let result):
+            DispatchQueue.main.async { self.finish(result) }
+            return
           case .fallback(let reason): route = ("fallback", reason)
           }
         }
@@ -599,8 +483,27 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
         route = ("cli", problem ?? "settings unavailable")
       }
       take.marker?.update(.cli)
-      self.processWithCLI(samples: samples, take: take, recordMs: recordMs, appName: appName, cli: cli,
-                          stopAt: stopAt, config: config, route: route)
+      let result = pipeline.processWithCLI(samples: samples, take: take, recordMs: recordMs, appName: appName,
+                                           stopAt: stopAt, config: config, route: route)
+      DispatchQueue.main.async { self.finish(result) }
+    }
+  }
+
+  /// Shows how a take ended.
+  private func finish(_ result: TakeResult) {
+    switch result {
+    case .delivered:
+      sounds.play(.stop)
+      finishProcessing(error: nil)
+    case .noSpeech:
+      finishProcessing(error: nil, note: "No speech detected")
+    case .failed(let message):
+      sounds.play(.error)
+      finishProcessing(error: message)
+    case .timedOut(let message):
+      sounds.play(.error)
+      refreshTimedOutItems()
+      finishProcessing(error: message)
     }
   }
 
@@ -629,7 +532,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     DispatchQueue.main.async {
       self.refuseTakes(mismatch)
       if kept {
-        self.showRecoveredLine("Saved dictations waiting (\(self.recovered.all().count)): Show in Finder", action: true)
+        self.menu.showRecovered("Saved dictations waiting (\(self.recovered.all().count)): Show in Finder", action: true)
       } else {
         self.unsaved.append(UnsavedTake(samples: samples, takeId: takeId, startedEpochMs: take.startedEpochMs,
                                         startupMs: take.startupMs, app: take.originalApp?.localizedName, marker: nil))
@@ -650,7 +553,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     contractMismatch = mismatch
     supervisedTarget = nil
     supervisor?.configure(nil)
-    daemonLine.isHidden = true
+    menu.showDaemon(nil)
   }
 
   private func sweepStaleMarkers() {
@@ -661,421 +564,27 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
   }
 
-  /// Takes on settings read for a take: everything except re-registering an
-  /// unchanged hotkey, which could drop a press while recording.
-  private func adopt(_ fresh: AppConfig) {
-    if fresh.hotkey != config?.hotkey {
-      apply(fresh)
-      return
-    }
-    let pipelineChanged = fresh.nativePipelineBlocker != config?.nativePipelineBlocker
-    if fresh.config != config?.config { showConfigStatus(fresh) }
-    recoverLeftoverTakes(config: fresh)
-    config = fresh
-    sweepStaleMarkers()
-    configureSupervision(fresh, trigger: .settings)
-    sounds.load(from: fresh)
-    if pipelineChanged {
-      Log.write("settings: pipeline " + (fresh.nativePipelineBlocker.map { "CLI (\($0))" } ?? "native"))
-    }
-  }
-
-  private enum NativeRoute {
-    case handled
-    /// Nothing visible happened: the take goes through the CLI instead.
-    case fallback(String)
-  }
-
-  /// A short, stable reason for the take log (details go on the
-  /// `pipeline:` line).
-  private static func fallbackReason(_ error: Error) -> String {
-    switch error as? DaemonClient.ClientError {
-    case .unreachable?: return "daemon unreachable"
-    case .protocolError?: return "daemon protocol error"
-    case .daemon(let code, _)?: return "daemon error \(code)"
-    case .timedOut?: return "daemon timed out"
-    case nil: return "native transcription failed"
-    }
-  }
-
-  /// A fixed error category for the take log: never the message, which
-  /// can carry CLI output (and so dictated text).
-  private static func errorCategory(_ error: Error) -> String {
-    if error is AppContract.Mismatch { return "cli_mismatch" }
-    if let bridge = error as? CLIBridge.BridgeError {
-      switch bridge {
-      case .notInstalled: return "cli_missing"
-      case .failed: return "cli_failed"
-      case .timedOut: return "cli_timed_out"
-      case .badOutput: return "cli_bad_output"
-      }
-    }
-    let error = error as NSError
-    if error.domain == "Lowkey" {
-      switch error.code {
-      case 2: return "accessibility_missing"
-      case 3: return "no_paste_key"
-      case 4: return "target_is_lowkey"
-      default: return "lowkey_\(error.code)"
-      }
-    }
-    return "other"
-  }
-
-  /// How long a take waits, after WAV prep, for the ping that tags it
-  /// warm/cold/contended before sending its own request.
-  private static let probeWait: TimeInterval = 0.05
-
-  /// The native path: transcribe through the daemon socket, clean up in
-  /// Swift, deliver, then persist in the background.
-  private func processNatively(samples: [Float], take: Take, recordMs: Int, appName: String?,
-                               config: AppConfig, cli: CLIBridge, stopAt: Double) -> NativeRoute {
-    guard let native = config.native else { return .fallback("transcription settings missing") }
-    let (transcription, cleanup, modelPath) = native
-    let takeId = UUID().uuidString.lowercased()
-    let startedAt = monotonicMs()
-
-    let client = DaemonClient(socketPath: transcription.socketPath)
-    let modelVersion = transcription.modelVersion ?? "v3"
-    let probe = TakeProbe { client.status(timeout: DaemonSupervisor.probeTimeout) }
-    let probeState = { probe.state(waiting: Self.probeWait, modelPath: modelPath, modelVersion: modelVersion) }
-    // The take's one log line: transcript-free, for tools/lowkey-report.sh.
-    func logTake(_ outcome: String, endedAt: Double, transcribed: NativeTranscriber.Result? = nil,
-                 _ extra: (inout TakeLog) -> Void = { _ in }) {
-      var line = TakeLog()
-      line.add("path", "native")
-      line.add("outcome", outcome)
-      line.add("state", probeState().rawValue)
-      line.add("record", recordMs)
-      line.add("total", ms: endedAt - stopAt)
-      line.add("queue", ms: startedAt - stopAt)
-      if let timings = transcribed?.timings {
-        line.add("prep", ms: timings.prepMs)
-        line.add("probe", ms: probe.waitedMs)
-        if let full = timings.pass("inline") {
-          // The probe wait happens inside the first pass's timing.
-          line.add("full", ms: full.elapsedMs - probe.waitedMs)
-          line.add("full_daemon", full.daemonMs)
-        }
-        line.add("tail_window", transcribed?.tailRescueMs)
-        if let tail = timings.pass("inline-tail") {
-          line.add("tail", ms: tail.elapsedMs)
-          line.add("tail_daemon", tail.daemonMs)
-        }
-        if transcribed?.tailRescueFailed == true { line.add("tail_failed", 1) }
-      }
-      extra(&line)
-      Log.write(line.line)
-    }
-    // Parakeet runs far faster than real time; allow a cold model load.
-    let timeout = min(transcription.maxTimeout, 30 + 2 * Double(samples.count) / Double(AudioPrep.sampleRate))
-    var record = TakeRecord(takeId: takeId, status: "ok", delivered: false)
-    record.app = appName
-    record.model = transcription.modelLabel
-    record.recordMs = recordMs
-    record.startupMs = take.startupMs
-    record.startedAtMs = take.startedEpochMs
-    record.captureWavMs = AudioPrep.ffprobeDurationMs(sampleCount: samples.count)
-    record.captureWavBytes = 44 + 2 * samples.count
-
-    let transcribed: NativeTranscriber.Result
-    do {
-      transcribed = try NativeTranscriber(settings: transcription, keepWAV: transcription.keepLogs)
-        .transcribeTimed(samples: samples) { wav, flow in
-        // Tag the take before its own request can count as contention.
-        if flow == "inline" { _ = probeState() }
-        return try client.transcribePass(wav: wav, language: transcription.language, flow: flow, modelPath: modelPath,
-                                         modelVersion: transcription.modelVersion, timeout: timeout)
-      }
-    } catch let failure as NativeTranscriber.Failure {
-      if case DaemonClient.ClientError.timedOut(let seconds) = failure.underlying {
-        // Re-running through the CLI would wait on the same daemon again.
-        // No automatic retry: keep the audio for an hour for Retry/Discard.
-        record.status = "transcribe_failed"
-        record.wavPath = failure.keptWAV?.path
-        record.transcribeMs = Int(monotonicMs() - startedAt)
-        record.totalMs = recordMs + Int(monotonicMs() - stopAt)
-        persist(record, cli: cli)
-        let status = client.status(timeout: 1)
-        Log.write("pipeline: transcription timed out after \(Int(seconds))s; daemon "
-                  + (status.map { "still answers pings (generation \($0.generation ?? "?"), \($0.activeRequests ?? -1) in flight)" }
-                     ?? "does not answer pings"))
-        let saved: Bool
-        do {
-          try timedOut.save(samples: samples, info: TimedOutTakes.Info(
-            takeId: takeId, app: appName, recordMs: recordMs, startupMs: take.startupMs,
-            startedAtMs: take.startedEpochMs, generation: status?.generation))
-          saved = true
-        } catch {
-          saved = false
-          Log.write("pipeline: could not keep the timed-out take for Retry: \(error.localizedDescription)")
-        }
-        logTake("timed_out", endedAt: monotonicMs()) { line in
-          line.add("asr", ms: monotonicMs() - startedAt)
-          line.add("kept", saved ? 1 : 0)
-        }
-        DispatchQueue.main.async {
-          self.sounds.play(.error)
-          self.refreshTimedOutItems()
-          self.finishProcessing(error: "transcription timed out after \(Int(seconds))s"
-                                + (saved ? " (Retry in the menu)" : ""))
-        }
-        return .handled
-      }
-      if case DaemonClient.ClientError.unreachable = failure.underlying { supervisor?.trigger(.unreachable) }
-      if let kept = failure.keptWAV { try? FileManager.default.removeItem(at: kept) }
-      Log.write("pipeline: native transcription unavailable (\(failure.underlying.localizedDescription)); using the CLI path")
-      return .fallback(Self.fallbackReason(failure.underlying))
-    } catch {
-      Log.write("pipeline: native transcription unavailable (\(error.localizedDescription)); using the CLI path")
-      return .fallback("native transcription failed")
-    }
-    let transcribedAt = monotonicMs()
-    record.transcribeMs = Int(transcribedAt - startedAt)
-    record.wavPath = transcribed.keptWAV?.path
-    if transcribed.tailRescueFailed {
-      Log.write("pipeline: tail rescue pass failed; kept the full transcript (as the CLI does)")
-    }
-
-    let outcome = TextPipeline(settings: cleanup).process(transcript: transcribed.transcript, app: appName)
-    let cleanedAt = monotonicMs()
-    record.cleanMs = Int(cleanedAt - transcribedAt)
-
-    switch outcome {
-    case .needsCLI:
-      if let kept = transcribed.keptWAV { try? FileManager.default.removeItem(at: kept) }
-      return .fallback("cleanup needs the CLI")
-    case .noSpeech:
-      record.status = "no_speech"
-      record.totalMs = recordMs + Int(monotonicMs() - stopAt)
-      logTake("no_speech", endedAt: monotonicMs(), transcribed: transcribed) { line in
-        line.add("asr", ms: transcribedAt - startedAt)
-        line.add("clean", ms: cleanedAt - transcribedAt)
-      }
-      persist(record, cli: cli)
-      DispatchQueue.main.async { self.finishProcessing(error: nil, note: "No speech detected") }
-      return .handled
-    case .text(let raw, let text, let mode):
-      record.rawText = raw
-      record.text = text
-      record.mode = mode
-      let steps = DeliveryPlan.steps(text: text, delivery: take.delivery(config.delivery),
-                                     hasOriginalApp: take.originalApp != nil)
-      let target: String?
-      do {
-        target = try Deliverer.perform(steps, originalApp: take.originalApp)
-      } catch {
-        record.status = "paste_failed"
-        record.pasteMs = Int(monotonicMs() - cleanedAt)
-        record.totalMs = recordMs + Int(monotonicMs() - stopAt)
-        logTake("paste_failed", endedAt: monotonicMs(), transcribed: transcribed) { line in
-          line.add("asr", ms: transcribedAt - startedAt)
-          line.add("clean", ms: cleanedAt - transcribedAt)
-          line.add("error", Self.errorCategory(error))
-        }
-        persist(record, cli: cli)
-        DispatchQueue.main.async {
-          self.sounds.play(.error)
-          self.finishProcessing(error: error.localizedDescription)
-        }
-        return .handled
-      }
-      let deliveredAt = monotonicMs()
-      let deliveredDate = Date()
-      record.delivered = true
-      record.deliveredAtMs = Int(deliveredDate.timeIntervalSince1970 * 1000)
-      record.deliveredLocalDate = LocalDate.string(for: deliveredDate)
-      record.pasteMs = Int(deliveredAt - cleanedAt)
-      record.totalMs = recordMs + Int(deliveredAt - stopAt)
-      logTake("delivered", endedAt: deliveredAt, transcribed: transcribed) { line in
-        line.add("asr", ms: transcribedAt - startedAt)
-        line.add("clean", ms: cleanedAt - transcribedAt)
-        line.add("deliver", ms: deliveredAt - cleanedAt)
-        line.add("waits", DeliveryPlan.waitMs(steps))
-        line.add("mode", mode)
-        line.add("chars", text.count)
-        line.add("target", target ?? "-")
-      }
-      persist(record, cli: cli)
-      DispatchQueue.main.async {
-        self.sounds.play(.stop)
-        self.finishProcessing(error: nil)
-      }
-      return .handled
-    }
-  }
-
-  /// History, bench and usage, one take at a time, after delivery.
-  /// Returns whether the record is durably spooled (so the caller may drop
-  /// any other copy, e.g. a recovered take's audio).
-  @discardableResult
-  private func persist(_ record: TakeRecord, cli: CLIBridge) -> Bool {
-    // Spooled first, so a quit that can't wait or a crash replays it later.
-    let spooled: URL?
-    do {
-      spooled = try pending.save(record)
-    } catch {
-      spooled = nil
-      Log.write("persist: take \(record.takeId) not spooled: \(error.localizedDescription)")
-    }
-    persistQueue.async { [pending] in
-      if Self.record(record, cli: cli), let spooled {
-        pending.remove(spooled)
-      }
-    }
-    return spooled != nil
-  }
-
-  /// Runs `inline record`; true once the take is fully recorded.
-  private static func record(_ record: TakeRecord, cli: CLIBridge) -> Bool {
-    do {
-      let result = try cli.record(record)
-      let wantsUsage = record.status == "ok" && record.delivered
-      if wantsUsage && !(result.usageRecorded && result.historySaved) {
-        Log.write("persist: take \(record.takeId) partly recorded (usage \(result.usageRecorded), history \(result.historySaved))")
-      }
-      // Take ids are deduplicated, so a retry redoes only what failed
-      // (usage or history): keep the take for the next launch.
-      if wantsUsage && !(result.usageRecorded && (result.historySaved || record.usageOnly == true)) {
-        Log.write("persist: take \(record.takeId) not fully recorded yet (kept for the next launch)")
-        return false
-      }
-      // A recovered take exists only in history: keep it spooled until saved.
-      if record.status == "recovered" && !result.historySaved {
-        Log.write("persist: recovered take \(record.takeId) not in history yet (kept for the next launch)")
-        return false
-      }
-      return true
-    } catch {
-      Log.write("persist: take \(record.takeId) not recorded yet (kept for the next launch): \(error.localizedDescription)")
-      return false
-    }
-  }
-
-  /// Replays takes a previous run delivered but could not record.
-  private func replayPendingRecords(cli: CLIBridge) {
-    persistQueue.async { [pending] in
-      let (records, dropped) = pending.leftovers()
-      for name in dropped {
-        Log.write("persist: dropped stale or unreadable pending record \(name)")
-      }
-      for (url, record) in records where Self.record(record, cli: cli) {
-        pending.remove(url)
-        Log.write("persist: replayed take \(record.takeId) from a previous run")
-      }
-    }
-  }
-
-  /// The CLI path: `tmux-whisper inline process` transcribes, cleans up and
-  /// saves history; the app delivers, then records usage.
-  private func processWithCLI(samples: [Float], take: Take, recordMs: Int, appName: String?, cli: CLIBridge,
-                              stopAt: Double, config: AppConfig?, route: (path: String, reason: String)) {
-    let wav = FileManager.default.temporaryDirectory.appendingPathComponent("lowkey-\(UUID().uuidString).wav")
-    defer { try? FileManager.default.removeItem(at: wav) }
-    let startedAt = monotonicMs()
-    var processedAt: Double?
-    func logTake(_ outcome: String, _ extra: (inout TakeLog) -> Void = { _ in }) {
-      var line = TakeLog()
-      line.add("path", route.path)
-      line.add("reason", route.reason)
-      line.add("outcome", outcome)
-      line.add("record", recordMs)
-      line.add("total", ms: monotonicMs() - stopAt)
-      line.add("queue", ms: startedAt - stopAt)
-      line.add("cli", ms: processedAt.map { $0 - startedAt })
-      extra(&line)
-      Log.write(line.line)
-    }
-    do {
-      try WAVEncoder.encode(samples: samples).write(to: wav, options: [.atomic])
-      chmod(wav.path, 0o600)
-      let result = try cli.process(wav: wav, app: appName, recordMs: recordMs,
-                                   startupMs: take.startupMs, startedAtEpochMs: take.startedEpochMs)
-      processedAt = monotonicMs()
-      guard result.ok else {
-        logTake(result.status == "no_speech" ? "no_speech" : "failed") { line in
-          if result.status != "no_speech" { line.add("error", TakeLog.cliStatus(result.status)) }
-        }
-        DispatchQueue.main.async {
-          if result.status == "no_speech" {
-            self.finishProcessing(error: nil, note: "No speech detected")
-          } else {
-            self.sounds.play(.error)
-            self.finishProcessing(error: result.message ?? result.status)
-          }
-        }
-        return
-      }
-      // An invalid config.toml with no valid copy means default settings
-      // (autosend on): paste without sending. Unknown settings count as that.
-      let delivery = config.map { $0.safeDelivery(result.delivery) }
-        ?? Delivery(autosend: false, sendMode: result.delivery.sendMode, pasteTarget: result.delivery.pasteTarget,
-                    activateDelayMs: result.delivery.activateDelayMs, sendDelayMs: result.delivery.sendDelayMs)
-      let steps = DeliveryPlan.steps(text: result.text, delivery: take.delivery(delivery),
-                                     hasOriginalApp: take.originalApp != nil)
-      let delivering = monotonicMs()
-      let target = try Deliverer.perform(steps, originalApp: take.originalApp)
-      if result.usageDeferred {
-        // Count it now that the text is delivered (history and bench are
-        // already saved by `inline process`).
-        let deliveredDate = Date()
-        var usage = TakeRecord(takeId: UUID().uuidString.lowercased(), status: "ok", delivered: true)
-        usage.usageOnly = true
-        usage.text = result.text
-        usage.mode = result.mode
-        usage.app = appName
-        usage.recordMs = recordMs
-        usage.totalMs = recordMs + Int(monotonicMs() - stopAt)
-        usage.startupMs = take.startupMs
-        usage.startedAtMs = take.startedEpochMs
-        usage.deliveredAtMs = Int(deliveredDate.timeIntervalSince1970 * 1000)
-        usage.deliveredLocalDate = LocalDate.string(for: deliveredDate)
-        usage.startupSource = "app:avaudioengine"
-        persist(usage, cli: cli)
-      }
-      logTake("delivered") { line in
-        line.add("transcribe", result.timings["transcribe_ms"])
-        line.add("deliver", ms: monotonicMs() - delivering)
-        line.add("waits", DeliveryPlan.waitMs(steps))
-        line.add("mode", result.mode)
-        line.add("chars", result.text.count)
-        line.add("target", target ?? "-")
-      }
-      DispatchQueue.main.async {
-        self.sounds.play(.stop)
-        self.finishProcessing(error: nil)
-      }
-    } catch {
-      logTake("failed") { $0.add("error", Self.errorCategory(error)) }
-      DispatchQueue.main.async {
-        self.sounds.play(.error)
-        self.finishProcessing(error: error.localizedDescription)
-      }
-    }
-  }
-
   private func finishProcessing(error: String?, note: String? = nil) {
-    processing = max(0, processing - 1)
     if let error {
-      fail(error)
-      return
+      Log.write("error: \(error)")
+    } else if let note {
+      Log.write("note: \(note)")
     }
-    if let note { Log.write("note: \(note)") }
-    if take != nil {
-      phase = .recording
-    } else {
-      phase = processing > 0 ? .processing : .ready
-    }
+    status.processingFinished(error: error, recording: take != nil)
   }
 
   private func fail(_ message: String) {
     Log.write("error: \(message)")
-    phase = .error(message)
+    status.failed(message)
+  }
+
+  private func refreshStatus() {
+    menu.show(status, recording: take != nil)
   }
 
   // MARK: - Settings
 
-  @objc private func reloadSettings() {
+  private func reloadSettings() {
     guard let cli else { return }
     work.async { [weak self] in
       do {
@@ -1116,13 +625,46 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
       }
       pendingHotkey = nil
       if registerHotkey(spec) {
-        if case .error = phase { phase = .ready } else { refreshStatus() }
+        status.clearError()
       }
     } catch {
       pendingHotkey = nil
-      hotkeyLine.title = "Hotkey: invalid (\(config.hotkey))" + (hotkey.binding.map { ", still \($0.display)" } ?? "")
+      menu.showHotkey("Hotkey: invalid (\(config.hotkey))" + (hotkey.binding.map { ", still \($0.display)" } ?? ""))
       fail("hotkey \"\(config.hotkey)\": \(error)")
     }
+  }
+
+  /// Takes on settings read for a take: everything except re-registering an
+  /// unchanged hotkey, which could drop a press while recording.
+  private func adopt(_ fresh: AppConfig) {
+    if fresh.hotkey != config?.hotkey {
+      apply(fresh)
+      return
+    }
+    let pipelineChanged = fresh.nativePipelineBlocker != config?.nativePipelineBlocker
+    if fresh.config != config?.config { showConfigStatus(fresh) }
+    recoverLeftoverTakes(config: fresh)
+    config = fresh
+    sweepStaleMarkers()
+    configureSupervision(fresh, trigger: .settings)
+    sounds.load(from: fresh)
+    if pipelineChanged {
+      Log.write("settings: pipeline " + (fresh.nativePipelineBlocker.map { "CLI (\($0))" } ?? "native"))
+    }
+  }
+
+  /// Warns in the menu (and log) while config.toml doesn't parse.
+  private func showConfigStatus(_ config: AppConfig) {
+    let status = config.config
+    guard let error = status.error else {
+      menu.showConfigWarning(nil)
+      return
+    }
+    let using = status.source == "last_good"
+      ? "using the last valid settings"
+      : "using defaults, paste without sending"
+    menu.showConfigWarning("⚠︎ config.toml invalid: \(using)")
+    Log.write("settings: config.toml invalid (\(error)); \(using)")
   }
 
   /// Binds the hotkey; if the new one can't be registered, the old binding
@@ -1131,11 +673,11 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
   private func registerHotkey(_ spec: HotkeySpec) -> Bool {
     do {
       try hotkey.register(spec)
-      hotkeyLine.title = "Hotkey: \(spec.display)"
+      menu.showHotkey("Hotkey: \(spec.display)")
       return true
     } catch {
       let kept = hotkey.binding.map { "; keeping \($0.display)" } ?? ""
-      hotkeyLine.title = "Hotkey: \(hotkey.binding?.display ?? "none") (\(spec.display) unavailable)"
+      menu.showHotkey("Hotkey: \(hotkey.binding?.display ?? "none") (\(spec.display) unavailable)")
       fail("\(error.localizedDescription)\(kept)")
       return false
     }
@@ -1162,7 +704,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     supervisedTarget = target
     supervisor?.configure(target)
     if target == nil {
-      daemonLine.isHidden = true
+      menu.showDaemon(nil)
     } else {
       supervisor?.trigger(trigger)
     }
@@ -1171,83 +713,27 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
   private func showDaemonState(_ state: DaemonSupervisor.State) {
     switch state {
     case .unknown:
-      daemonLine.isHidden = true
-      return
+      menu.showDaemon(nil)
     case .ready:
-      daemonLine.title = "Parakeet: ready"
+      menu.showDaemon("Parakeet: ready")
       // Saved takes that failed while the daemon was down or loading.
       if let config, contractMismatch == nil { recoverLeftoverTakes(config: config) }
     case .warming(let reason):
-      daemonLine.title = "Parakeet: warming up (\(reason))"
+      menu.showDaemon("Parakeet: warming up (\(reason))")
     case .unavailable(let reason):
-      daemonLine.title = "Parakeet: unavailable (\(reason))"
+      menu.showDaemon("Parakeet: unavailable (\(reason))")
     }
-    daemonLine.isHidden = false
   }
 
   // MARK: - Timed-out takes
 
-  /// A retried take's text, waiting for the user to paste it.
-  private struct RetriedText {
-    let entry: TimedOutTakes.Entry
-    let text: String
-    /// The native path's record, persisted once the text is pasted (the CLI
-    /// path's `inline process` has already recorded the take).
-    let record: TakeRecord?
-  }
+  private var retrying = false
   private var retried: RetriedText?
   /// A paste of the retried text is under way.
   private var pastingRetry = false
   /// Retried pastes run here, not behind other takes on `work`: they must
   /// happen while the app the user chose is still in front.
   private let pasteQueue = DispatchQueue(label: "lowkey.paste", qos: .userInitiated)
-
-  func menuWillOpen(_ menu: NSMenu) {
-    refreshTimedOutItems()
-    refreshLoginItem()
-  }
-
-  // MARK: - Start at login
-
-  private static func loginStatusText(_ status: SMAppService.Status) -> String {
-    switch status {
-    case .enabled: return "on"
-    case .requiresApproval: return "waiting for approval in System Settings"
-    case .notRegistered: return "off"
-    case .notFound: return "off (not found)"
-    @unknown default: return "unknown (\(status.rawValue))"
-    }
-  }
-
-  /// Opt-in, and macOS keeps the setting (System Settings → General →
-  /// Login Items), so there's nothing in config.toml. Registered by bundle,
-  /// so a rebuild in place keeps it; moving the app needs a re-toggle.
-  private func refreshLoginItem() {
-    let status = SMAppService.mainApp.status
-    loginItem.state = status == .enabled ? .on : (status == .requiresApproval ? .mixed : .off)
-    loginItem.title = status == .requiresApproval ? "Start at Login (approve in System Settings)" : "Start at Login"
-  }
-
-  @objc private func toggleStartAtLogin() {
-    let service = SMAppService.mainApp
-    do {
-      switch service.status {
-      case .enabled:
-        try service.unregister()
-      case .requiresApproval:
-        // Registered, but macOS wants the user's say-so: show where.
-        SMAppService.openSystemSettingsLoginItems()
-      default:
-        try service.register()
-        if service.status == .requiresApproval { SMAppService.openSystemSettingsLoginItems() }
-      }
-      Log.write("login: start at login \(Self.loginStatusText(service.status))")
-    } catch {
-      Log.write("login: could not change start at login: \(error.localizedDescription)")
-      fail("could not change Start at Login: \(error.localizedDescription)")
-    }
-    refreshLoginItem()
-  }
 
   /// Shows Retry / Paste / Discard while a timed-out take is kept (expired
   /// ones are deleted here).
@@ -1256,20 +742,21 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     if let pending = retried, !entries.contains(pending.entry) {
       retried = nil // expired or removed
     }
-    retryItem.isHidden = entries.isEmpty || retrying || retried != nil
-    pasteRetriedItem.isHidden = retried == nil || retrying || pastingRetry
-    discardTimedOutItem.isHidden = entries.isEmpty || retrying || pastingRetry
-    if let retried {
-      pasteRetriedItem.title = "Paste retried dictation (\(retried.text.count) chars, doesn't send)"
-    }
-    if let newest = entries.last {
-      retryItem.title = "Retry timed-out recording (\(newest.info.recordMs / 1000)s"
+    let retry = entries.last.flatMap { newest -> String? in
+      guard !retrying, retried == nil else { return nil }
+      return "Retry timed-out recording (\(newest.info.recordMs / 1000)s"
         + (entries.count > 1 ? ", \(entries.count) kept" : "") + ")"
     }
-    discardTimedOutItem.title = entries.count > 1 ? "Discard \(entries.count) timed-out recordings" : "Discard timed-out recording"
+    let paste = retried.flatMap { pending -> String? in
+      guard !retrying, !pastingRetry else { return nil }
+      return "Paste retried dictation (\(pending.text.count) chars, doesn't send)"
+    }
+    let discard = entries.isEmpty || retrying || pastingRetry ? nil
+      : (entries.count > 1 ? "Discard \(entries.count) timed-out recordings" : "Discard timed-out recording")
+    menu.showTimedOut(retry: retry, paste: paste, discard: discard)
   }
 
-  @objc private func discardTimedOut() {
+  private func discardTimedOut() {
     guard !pastingRetry else { return }
     let entries = timedOut.all()
     entries.forEach(timedOut.remove)
@@ -1278,21 +765,19 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     refreshTimedOutItems()
   }
 
-  /// Transcribes the newest timed-out take again (natively when the daemon
-  /// holds the model now, else through `inline process`). Nothing is pasted
-  /// until the user chooses "Paste retried dictation" in the app they want
-  /// it in: by now, focus may be anywhere.
-  @objc private func retryTimedOut() {
-    guard let cli, let entry = timedOut.all().last, !retrying, retried == nil else { return }
+  /// Transcribes the newest timed-out take again. Nothing is pasted until
+  /// the user chooses "Paste retried dictation" in the app they want it in:
+  /// by now, focus may be anywhere.
+  private func retryTimedOut() {
+    guard let pipeline, let entry = timedOut.all().last, !retrying, retried == nil else { return }
     retrying = true
     refreshTimedOutItems()
-    processing += 1
-    phase = .processing
+    status.processingStarted()
     let marker = TakeMarker.create(directory: markerDirectory, takeId: entry.info.takeId + "-retry", phase: .processing)
     work.async { [weak self] in
       defer { marker?.remove() }
       guard let self else { return }
-      let outcome = self.retranscribe(entry, cli: cli)
+      let outcome = pipeline.retranscribe(entry)
       DispatchQueue.main.async {
         self.retrying = false
         switch outcome {
@@ -1314,8 +799,8 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
   /// Pastes the retried text into the app in front (never sends). The
   /// recording is dropped only once the paste went through.
-  @objc private func pasteRetried() {
-    guard let pending = retried, let cli, !pastingRetry else { return }
+  private func pasteRetried() {
+    guard let pending = retried, let pipeline, !pastingRetry else { return }
     pastingRetry = true
     refreshTimedOutItems()
     // Lowkey never takes focus, so this is the app the user chose Paste in.
@@ -1345,9 +830,9 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
           record.delivered = true
           record.deliveredAtMs = Int(deliveredDate.timeIntervalSince1970 * 1000)
           record.deliveredLocalDate = LocalDate.string(for: deliveredDate)
-          self?.persist(record, cli: cli)
+          pipeline.persister.persist(record)
         }
-        self?.timedOut.remove(pending.entry)
+        pipeline.timedOut.remove(pending.entry)
         Log.write("retry: pasted a retried dictation (\(pending.text.count) chars, target=\(target ?? "-"))")
         DispatchQueue.main.async {
           self?.retried = nil
@@ -1362,115 +847,17 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
   }
 
-  private enum RetryOutcome {
-    case ready(RetriedText)
-    case noSpeech
-    case failed(String)
-  }
+  // MARK: - Other
 
-  private func retranscribe(_ entry: TimedOutTakes.Entry, cli: CLIBridge) -> RetryOutcome {
-    let info = entry.info
-    let startedAt = monotonicMs()
-    let config: AppConfig
+  private func toggleStartAtLogin() {
     do {
-      config = try cli.appConfig()
+      try LoginItem.toggle()
+      Log.write("login: start at login \(LoginItem.text(LoginItem.status))")
     } catch {
-      return .failed("retry: cannot read settings: \(error.localizedDescription)")
+      Log.write("login: could not change start at login: \(error.localizedDescription)")
+      fail("could not change Start at Login: \(error.localizedDescription)")
     }
-    // Natively only if the daemon is warm now; otherwise the CLI starts it.
-    guard let (transcription, cleanup, modelPath) = config.native,
-          DaemonClient(socketPath: transcription.socketPath).status(timeout: 1)?
-            .holds(path: modelPath, version: transcription.modelVersion ?? "v3") == true else {
-      return retranscribeWithCLI(entry, cli: cli)
-    }
-    let samples: [Float]
-    do {
-      samples = try RecoveredTakes.samples(at: entry.wav)
-    } catch {
-      return .failed("retry: the kept recording is unreadable")
-    }
-    let client = DaemonClient(socketPath: transcription.socketPath)
-    let timeout = min(transcription.maxTimeout, 30 + 2 * Double(samples.count) / Double(AudioPrep.sampleRate))
-    let transcript: String
-    do {
-      transcript = try NativeTranscriber(settings: transcription).transcribe(samples: samples) { wav, flow in
-        try client.transcribe(wav: wav, language: transcription.language, flow: flow, modelPath: modelPath,
-                              modelVersion: transcription.modelVersion, timeout: timeout)
-      }.transcript
-    } catch {
-      return .failed("retry failed (recording kept): \(error.localizedDescription)")
-    }
-    // A new take id: the timed-out attempt is already recorded under the old one.
-    var record = TakeRecord(takeId: UUID().uuidString.lowercased(), status: "ok", delivered: false)
-    record.app = info.app
-    record.model = transcription.modelLabel
-    record.recordMs = info.recordMs
-    record.startupMs = info.startupMs
-    record.startedAtMs = info.startedAtMs
-    record.captureWavMs = AudioPrep.ffprobeDurationMs(sampleCount: samples.count)
-    record.captureWavBytes = 44 + 2 * samples.count
-    record.transcribeMs = Int(monotonicMs() - startedAt)
-    switch TextPipeline(settings: cleanup).process(transcript: transcript, app: info.app) {
-    case .needsCLI:
-      return retranscribeWithCLI(entry, cli: cli)
-    case .noSpeech:
-      record.status = "no_speech"
-      persist(record, cli: cli)
-      timedOut.remove(entry)
-      return .noSpeech
-    case .text(let raw, let text, let mode):
-      record.rawText = raw
-      record.text = text
-      record.mode = mode
-      return .ready(RetriedText(entry: entry, text: text, record: record))
-    }
-  }
-
-  /// `inline process` on the kept WAV (it records history itself; usage
-  /// waits until the retried text is pasted).
-  private func retranscribeWithCLI(_ entry: TimedOutTakes.Entry, cli: CLIBridge) -> RetryOutcome {
-    let info = entry.info
-    do {
-      let result = try cli.process(wav: entry.wav, app: info.app, recordMs: info.recordMs,
-                                   startupMs: info.startupMs, startedAtEpochMs: info.startedAtMs)
-      guard result.ok else {
-        if result.status == "no_speech" {
-          timedOut.remove(entry)
-          return .noSpeech
-        }
-        return .failed("retry failed (recording kept): \(result.message ?? result.status)")
-      }
-      var usage: TakeRecord?
-      if result.usageDeferred {
-        var record = TakeRecord(takeId: UUID().uuidString.lowercased(), status: "ok", delivered: false)
-        record.usageOnly = true
-        record.text = result.text
-        record.mode = result.mode
-        record.app = info.app
-        record.recordMs = info.recordMs
-        record.startupMs = info.startupMs
-        record.startedAtMs = info.startedAtMs
-        usage = record
-      }
-      return .ready(RetriedText(entry: entry, text: result.text, record: usage))
-    } catch {
-      return .failed("retry failed (recording kept): \(error.localizedDescription)")
-    }
-  }
-
-  /// Warns in the menu (and log) while config.toml doesn't parse.
-  private func showConfigStatus(_ config: AppConfig) {
-    let status = config.config
-    guard let error = status.error else {
-      configLine.isHidden = true
-      return
-    }
-    let using = status.source == "last_good"
-      ? "using the last valid settings"
-      : "using defaults, paste without sending"
-    configLine.title = "⚠︎ config.toml invalid: \(using)"
-    configLine.isHidden = false
-    Log.write("settings: config.toml invalid (\(error)); \(using)")
+    menu.showLogin(LoginItem.status)
   }
 
   /// Remembers the last active app other than Lowkey (see `startRecording`).
@@ -1487,89 +874,12 @@ final class AppController: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
   }
 
-  // MARK: - Menu
-
-  private func buildMenu() {
-    statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-    let menu = NSMenu()
-    statusLine.isEnabled = false
-    hotkeyLine.isEnabled = false
-    configLine.isEnabled = false
-    configLine.isHidden = true
-    recoveredLine.isEnabled = false
-    recoveredLine.isHidden = true
-    cancelItem.target = self
-    menu.addItem(statusLine)
-    menu.addItem(hotkeyLine)
-    menu.addItem(configLine)
-    menu.addItem(recoveredLine)
-    daemonLine.isEnabled = false
-    daemonLine.isHidden = true
-    menu.addItem(daemonLine)
-    retryItem.target = self
-    retryItem.isHidden = true
-    menu.addItem(retryItem)
-    pasteRetriedItem.target = self
-    pasteRetriedItem.isHidden = true
-    menu.addItem(pasteRetriedItem)
-    discardTimedOutItem.target = self
-    discardTimedOutItem.isHidden = true
-    menu.addItem(discardTimedOutItem)
-    discardItem.target = self
-    discardItem.isHidden = true
-    menu.addItem(discardItem)
-    menu.addItem(.separator())
-    menu.addItem(cancelItem)
-    let stats = NSMenuItem(title: "Stats…", action: #selector(showStats), keyEquivalent: "s")
-    stats.target = self
-    menu.addItem(stats)
-    let reload = NSMenuItem(title: "Reload Settings", action: #selector(reloadSettings), keyEquivalent: "r")
-    reload.target = self
-    menu.addItem(reload)
-    let log = NSMenuItem(title: "Open Log", action: #selector(openLog), keyEquivalent: "l")
-    log.target = self
-    menu.addItem(log)
-    loginItem.target = self
-    menu.addItem(loginItem)
-    menu.addItem(.separator())
-    menu.addItem(NSMenuItem(title: "Quit Lowkey", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
-    menu.delegate = self
-    statusItem.menu = menu
-    refreshStatus()
-  }
-
-  @objc private func showStats() {
+  private func showStats() {
     MainActor.assumeIsolated {
       let window = statsWindow ?? StatsWindowController(
         model: StatsModel { [weak self] in StatsModel.Source(cli: self?.cli, config: self?.config) })
       statsWindow = window
       window.show()
     }
-  }
-
-  @objc private func openLog() {
-    NSWorkspace.shared.open(Log.fileURL)
-  }
-
-  private func refreshStatus() {
-    let symbol: String
-    switch phase {
-    case .ready:
-      symbol = "mic"
-      statusLine.title = "Ready"
-    case .recording:
-      symbol = "mic.fill"
-      statusLine.title = "Recording…"
-    case .processing:
-      symbol = "waveform"
-      statusLine.title = processing > 1 ? "Processing (\(processing))…" : "Processing…"
-    case .error(let message):
-      symbol = "exclamationmark.triangle"
-      statusLine.title = "Error: \(message)"
-    }
-    cancelItem.isHidden = take == nil
-    let image = NSImage(systemSymbolName: symbol, accessibilityDescription: "Lowkey")
-    image?.isTemplate = true
-    statusItem?.button?.image = image
   }
 }
