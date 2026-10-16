@@ -19,8 +19,6 @@ public struct CleanupSettings: Codable, Equatable, Sendable {
   public var longParagraphMinWords: String
   /// `DICTATE_FORCE_MODE`, if set.
   public var forceMode: String?
-  /// LLM post-processing is enabled and has a key: the CLI must handle it.
-  public var postprocess: Bool
   /// The CLI's effective LC_CTYPE / LC_COLLATE (LC_ALL, else the category,
   /// else LANG; "" when unset). grep -i, sed trimming, glob order and the
   /// blank check depend on them; only the C locale is reproduced natively.
@@ -30,7 +28,7 @@ public struct CleanupSettings: Codable, Equatable, Sendable {
   public init(
     configDir: String, clean: String = "0", repeatsLevel: String = "1", vocabClean: String = "1",
     britishSpelling: String = "1", codeParagraphMinWords: String = "70", longParagraphMinWords: String = "55",
-    forceMode: String? = nil, postprocess: Bool = false, localeCtype: String? = nil, localeCollate: String? = nil
+    forceMode: String? = nil, localeCtype: String? = nil, localeCollate: String? = nil
   ) {
     self.configDir = configDir
     self.clean = clean
@@ -40,7 +38,6 @@ public struct CleanupSettings: Codable, Equatable, Sendable {
     self.codeParagraphMinWords = codeParagraphMinWords
     self.longParagraphMinWords = longParagraphMinWords
     self.forceMode = forceMode
-    self.postprocess = postprocess
     self.localeCtype = localeCtype
     self.localeCollate = localeCollate
   }
@@ -54,14 +51,13 @@ public struct CleanupSettings: Codable, Equatable, Sendable {
     case codeParagraphMinWords = "code_paragraph_min_words"
     case longParagraphMinWords = "long_paragraph_min_words"
     case forceMode = "force_mode"
-    case postprocess
     case localeCtype = "locale_ctype"
     case localeCollate = "locale_collate"
   }
 
   /// The native pipeline can't reproduce this configuration; use the CLI.
   public var requiresCLI: Bool {
-    postprocess || !CleanupSettings.isCLocale(localeCtype) || !CleanupSettings.isCLocale(localeCollate)
+    !CleanupSettings.isCLocale(localeCtype) || !CleanupSettings.isCLocale(localeCollate)
   }
 
   static func isCLocale(_ value: String?) -> Bool {
@@ -82,8 +78,7 @@ public enum CleanupOutcome: Equatable, Sendable {
   case text(raw: String, text: String, mode: String)
   /// Nothing left after artefact/filler cleanup ("No speech detected").
   case noSpeech
-  /// LLM post-processing is on, or the CLI runs in a non-C locale: only the
-  /// CLI can produce the result.
+  /// The CLI runs in a non-C locale: only the CLI can produce the result.
   case needsCLI
 }
 
@@ -108,7 +103,7 @@ public struct TextPipeline: Sendable {
     return .text(raw: raw, text: finish(raw, mode: mode), mode: mode)
   }
 
-  /// `cleanup_raw_transcript` with post-processing off.
+  /// `cleanup_raw_transcript`.
   func cleanRaw(_ text: String) -> String {
     var out = PerlText.bashCapture(TextCleanup.sanitizeArtifacts(text))
     if settings.fillersEnabled {
@@ -121,7 +116,7 @@ public struct TextPipeline: Sendable {
     return out
   }
 
-  /// `finish_transcript_text` with post-processing off.
+  /// `finish_transcript_text`.
   func finish(_ text: String, mode: String) -> String {
     var out = text
     if settings.vocabEnabled {

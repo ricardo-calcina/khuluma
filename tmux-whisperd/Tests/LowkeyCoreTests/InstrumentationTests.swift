@@ -18,7 +18,8 @@ struct TakeLogTests {
 
   @Test func cliStatusesNeverCarryFreeText() {
     #expect(TakeLog.cliStatus("failed") == "cli_failed")
-    #expect(TakeLog.cliStatus("superseded") == "cli_superseded")
+    #expect(TakeLog.cliStatus("no_speech") == "cli_no_speech")
+    #expect(TakeLog.cliStatus("superseded") == "other")
     #expect(TakeLog.cliStatus("Bad output: \"my dictated words\"") == "other")
     #expect(TakeLog.cliStatus("mydictatedwords") == "other")
     #expect(TakeLog.cliStatus(nil) == "other")

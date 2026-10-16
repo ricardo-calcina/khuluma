@@ -60,9 +60,6 @@ struct TranscriptionSettingsTests {
     let base = TranscriptionSettings(socketPath: "/s", modelPath: "/m")
     #expect(base.cliReason == nil)
     #expect(TranscriptionSettings(socketPath: "/s", modelPath: nil).cliReason != nil)
-    var trimmed = base
-    trimmed.silenceTrim = true
-    #expect(trimmed.cliReason != nil)
     var octal = base
     octal.tailPadMs = "0500"
     #expect(octal.cliReason != nil)
@@ -78,47 +75,19 @@ struct TranscriptionSettingsTests {
   }
 
   @Test func decodesTheAppConfigSections() throws {
-    let json = #"""
-    {"schema_version":1,"cli_version":"0.10.0-dev","hotkey":"ctrl+option+space","sounds":{},
-     "inline":{"autosend":true,"send_mode":"enter","paste_target":"current","process_sound":true,"activate_delay_ms":90,"send_delay_ms":35},
-     "cleanup":{"config_dir":"/c","clean":"0","repeats_level":"1","vocab_clean":"1","british_spelling":"1",
-       "code_paragraph_min_words":"70","long_paragraph_min_words":"55","force_mode":null,"postprocess":false,
-       "locale_ctype":"","locale_collate":""},
-     "transcription":{"socket_path":"/s.sock","model_path":"/m","model_version":"v3","model_label":"m","language":"en",
-       "tail_pad_ms":"500","tail_rescue":true,"tail_rescue_ms":"","tail_rescue_min_ms":"","chunking":false,
-       "silence_trim":false,"keep_logs":false,"ffmpeg":true,"timeout_seconds":"600","processing_dir":"/p"},
-     "pipeline":{"native":true,"verify":true}}
-    """#
-    var config = try JSONDecoder().decode(AppConfig.self, from: Data(json.utf8))
+    var config = try AppConfigFixture.decode()
     #expect(config.nativePipelineBlocker == nil)
-    #expect(config.transcription?.socketPath == "/s.sock")
+    #expect(config.native?.modelPath == "/m")
+    #expect(config.transcription.socketPath == "/s.sock")
     #expect(config.delivery.sendDelayMs == 35)
-    #expect(config.usage == nil && !config.supports("deferred_usage"))
-
-    let withUsage = json.replacingOccurrences(
-      of: #""pipeline":{"native":true,"verify":true}}"#,
-      with: #""pipeline":{"native":true,"verify":true},"capabilities":["usage_days","deferred_usage"],"usage":{"summary_path":"/c/usage.json"}}"#)
-    config = try JSONDecoder().decode(AppConfig.self, from: Data(withUsage.utf8))
-    #expect(config.usage?.summaryPath == "/c/usage.json")
-    #expect(config.supports("deferred_usage") && config.supports("usage_days") && !config.supports("take_markers"))
-
-    let disabled = json.replacingOccurrences(of: #""native":true"#, with: #""native":false"#)
-    config = try JSONDecoder().decode(AppConfig.self, from: Data(disabled.utf8))
-    #expect(config.nativePipelineBlocker == "[app] native_pipeline = false")
-
-    let llm = json.replacingOccurrences(of: #""postprocess":false"#, with: #""postprocess":true"#)
-    config = try JSONDecoder().decode(AppConfig.self, from: Data(llm.utf8))
-    #expect(config.nativePipelineBlocker == "LLM post-processing is on")
+    #expect(config.usage.summaryPath == "/c/usage.json")
+    #expect(config.appContract == AppContract.version)
   }
 
   @Test func invalidConfigNeverSendsWithFallbackDefaults() throws {
     func config(_ status: String) throws -> AppConfig {
-      let json = #"""
-      {"schema_version":1,"cli_version":"0.10.0-dev","hotkey":"ctrl+option+space","sounds":{},
-       "inline":{"autosend":true,"send_mode":"enter","paste_target":"current","process_sound":true,"activate_delay_ms":90,"send_delay_ms":35},
-       "config":STATUS}
-      """#.replacingOccurrences(of: "STATUS", with: status)
-      return try JSONDecoder().decode(AppConfig.self, from: Data(json.utf8))
+      try AppConfigFixture.decode(AppConfigFixture.json.replacingOccurrences(
+        of: #""config":{"error":null,"source":"file"}"#, with: #""config":"# + status))
     }
     let valid = try config(#"{"error":null,"source":"file"}"#)
     #expect(!valid.usingFallbackDefaults && valid.delivery.autosend)
@@ -130,13 +99,32 @@ struct TranscriptionSettingsTests {
     #expect(defaults.delivery.sendMode == "enter" && defaults.delivery.sendDelayMs == 35)
   }
 
-  @Test func olderCLIsKeepTheCLIPath() throws {
-    let json = #"""
+  @Test func onlyTheMatchingCLIContractDecodes() throws {
+    func mismatch(_ json: String) -> AppContract.Mismatch? {
+      do {
+        _ = try AppConfigFixture.decode(json)
+        return nil
+      } catch {
+        return error as? AppContract.Mismatch
+      }
+    }
+    // A CLI from before the contract number, missing sections too: a clear
+    // mismatch, not a decode error.
+    let old = #"""
     {"schema_version":1,"cli_version":"0.9.0","hotkey":"ctrl+option+space","sounds":{},
      "inline":{"autosend":true,"send_mode":"enter","paste_target":"current","process_sound":true,"activate_delay_ms":90,"send_delay_ms":35}}
     """#
-    let config = try JSONDecoder().decode(AppConfig.self, from: Data(json.utf8))
-    #expect(config.nativePipelineBlocker != nil)
+    let tooOld = try #require(mismatch(old))
+    #expect(tooOld == AppContract.Mismatch(cliVersion: "0.9.0", cliContract: nil))
+    #expect(tooOld.localizedDescription.contains("./install.sh --force"))
+
+    let older = try #require(mismatch(AppConfigFixture.json.replacingOccurrences(
+      of: #""app_contract":2"#, with: #""app_contract":1"#)))
+    #expect(older.localizedDescription == "tmux-whisper 0.10.0-dev (contract 1) is older than this Lowkey (contract 2): run ./install.sh --force")
+    let newer = try #require(mismatch(AppConfigFixture.json.replacingOccurrences(
+      of: #""app_contract":2"#, with: #""app_contract":3"#)))
+    #expect(newer.localizedDescription.contains("rebuild it with tools/build-lowkey-app.sh"))
+    #expect(mismatch(AppConfigFixture.json) == nil)
   }
 }
 
@@ -462,13 +450,10 @@ struct TakeRecordTests {
     #expect(object["usage_only"] as? Bool == true)
   }
 
-  @Test func decodesWhetherTheLedgerDeduplicatesUsage() throws {
-    let new = try JSONDecoder().decode(RecordResult.self, from: Data(
+  @Test func decodesTheRecordResult() throws {
+    let result = try JSONDecoder().decode(RecordResult.self, from: Data(
       #"{"ok":true,"take_id":"a","duplicate":false,"usage_recorded":false,"history_saved":true,"usage_dedup":true}"#.utf8))
-    #expect(new.usageDeduplicated == true && !new.usageRecorded)
-    let old = try JSONDecoder().decode(RecordResult.self, from: Data(
-      #"{"ok":true,"take_id":"a","duplicate":false,"usage_recorded":false,"history_saved":true}"#.utf8))
-    #expect(old.usageDeduplicated == nil)
+    #expect(result.takeId == "a" && !result.usageRecorded && result.historySaved)
   }
 
   @Test func takeMarkerLooksLikeTheCLIsAndFollowsTheTake() throws {

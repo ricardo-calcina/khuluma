@@ -5,20 +5,58 @@ Use this page for quick diagnosis and high-confidence fixes.
 ## 1) Run the health checks
 
 ```bash
-tmux-whisper debug
 tmux-whisper doctor
 tmux-whisper status
 ```
 
-- `debug`: detailed config/env/path visibility
 - `doctor`: install/dependency/mode/runtime checks with suggested fixes
 - `status`: current runtime + effective settings snapshot
 
-## 2) Setup and config issues
+## 2) Lowkey
+
+Lowkey shows errors on its menu's first line, and logs each one in `~/Library/Logs/Lowkey/app.log` (**Open Log** in the menu). `tools/lowkey-report.sh` summarises recent takes without printing any text.
+
+**"tmux-whisper … is older than this Lowkey: run ./install.sh --force"**, or **"this Lowkey … is older than tmux-whisper …: rebuild it with tools/build-lowkey-app.sh"**
+- The CLI and the app come from different checkouts, so their app contracts differ, and Lowkey takes no dictation until they match. If the mismatch is found at launch, the hotkey isn't registered at all; if it's found later (a reinstall while Lowkey runs), the hotkey plays the error sound and shows this message. A take that was already recording is saved, and recovered at a later launch with a matching CLI.
+- After fixing it, choose **Reload Settings** or relaunch Lowkey.
+- Fix: from the same checkout, run `./install.sh --force` and `tools/build-lowkey-app.sh`.
+
+**"tmux-whisper CLI not found"**
+- Lowkey looks in `~/.local/bin` and Homebrew's `bin`.
+- Fix: run `./install.sh`, then relaunch Lowkey.
+
+**"Accessibility permission missing: text is on the clipboard"**
+- Fix: in System Settings → Privacy & Security → Accessibility, turn Lowkey on. The text of that take is on the clipboard; paste it by hand.
+- Rebuilding with a different signing identity resets the permission. Use `tools/make-signing-identity.sh` once, so rebuilds keep it.
+
+**The start chime plays, but nothing is recorded ("no audio captured")**
+- Check Microphone permission for Lowkey (Privacy & Security → Microphone).
+- After switching microphones or headphones, Lowkey restarts its audio engine for the new input. `app.log` shows the input in use (`audio: input is …`).
+
+**"Parakeet: unavailable" or "warming up" in the menu, or slow first takes**
+- Fix: run `tmux-whisper warmup`, then `tmux-whisper doctor` to see what's wrong with the daemon or model ("Parakeet backend unavailable" in section 3).
+- Supervision (`[app] supervise_daemon = true`, the default) keeps the model warm at launch, on wake and when a recording starts.
+
+**"transcription timed out … (Retry in the menu)"**
+- The daemon didn't answer in time. The audio is kept for an hour. **Retry** transcribes it again; then **Paste retried dictation** pastes it where you are, without sending.
+- A timeout on the CLI fallback ("tmux-whisper did not answer within Ns") keeps no audio, so there's nothing to retry.
+
+**"Lowkey was in front: text is on the clipboard"**
+- Lowkey never pastes into its own windows (e.g. Stats). Paste the text by hand.
+
+**Text pasted but not sent, or sent with the wrong key**
+- Check `tmux-whisper autosend` and `tmux-whisper send-mode`.
+- If config.toml doesn't parse, Lowkey warns in the menu and uses the last valid settings, or, with none, the defaults with paste-only delivery. Fix the file (section 3), then **Reload Settings**.
+
+**A mode never applies**
+- A mode whose `flows` file says only `tmux` is hidden from Lowkey; `tmux-whisper doctor` flags it.
+- Fix: `tmux-whisper mode flows <name> inline`.
+
+## 3) Setup and config issues
 
 Which install are you actually running?
 
-- Use `tmux-whisper debug`.
+- Use `tmux-whisper doctor`.
 - Check the resolved binary path and install channel before assuming the wrong copy is broken.
 
 Upgrade or refresh by channel:
@@ -48,7 +86,7 @@ tmux-whisper doctor
 tmux-whisper status
 ```
 
-`--force` refreshes binaries and integrations but preserves your live config, modes, and vocab.
+`--force` refreshes binaries but preserves your live config, modes, and vocab.
 
 Schema mismatch:
 
@@ -95,16 +133,7 @@ Parakeet backend unavailable:
   - ensure `swift` is installed if the native backend needs to rebuild
   - if you keep models outside the default location, set `swift_parakeet.model_path` explicitly
 
-Not running inside tmux:
-
-- Symptom:
-  - `not running inside tmux and DICTATE_TARGET_PANE is not set`
-- Fix:
-  - start tmux and run `tmux-whisper` from the pane you want to target
-  - or set `DICTATE_TARGET_PANE` yourself
-  - or use `tmux-whisper inline` for frontmost-app dictation instead
-
-## 3) Mode configuration issues
+## 4) Mode configuration issues
 
 Invalid fixed mode fallback:
 
@@ -113,29 +142,13 @@ Invalid fixed mode fallback:
   - reset to auto-detect: `tmux-whisper mode auto`
   - create missing custom mode: `tmux-whisper mode create "<name>"`
 
-Invalid tmux mode fallback:
-
-- Symptom: `tmux.mode: <name> (invalid, fallback=code)`
-- Fix:
-  - `tmux-whisper tmux mode code`
-
-Missing prompt files:
-
-- Symptom: `mode.code.prompt: missing/empty` or `mode.long.prompt: missing/empty`
-- Fix:
-
-```bash
-tmux-whisper mode edit code
-tmux-whisper mode edit long
-```
-
-If both are missing after install drift, reinstall and seed missing defaults:
+If the core modes (`base`, `code`) are missing after install drift, reinstall to seed them:
 
 ```bash
 ./install.sh --force
 ```
 
-## 4) Vocabulary workflow issues
+## 5) Vocabulary workflow issues
 
 Accepted correction formats:
 
@@ -173,16 +186,7 @@ tmux-whisper vocab rm "literal text"
 tmux-whisper vocab rm --regex "pattern"
 ```
 
-## 5) Integration optionality
+## 6) Environment and retired integrations
 
-Tmux Whisper remains usable without Raycast or Lowkey.
-
-- Missing integration scripts appear as warnings in `tmux-whisper doctor`, not hard failures.
-- Raycast runs in a minimal environment. If postprocess or custom PATH overrides work in your shell but not in integrations, put them in `~/.zshenv`.
-- The SwiftBar plugin was retired in v0.11 (Lowkey replaces it). If SwiftBar still shows a Tmux Whisper item, move `~/.config/swiftbar/plugins/tmux-whisper-status.0.2s.sh` to the Trash.
-
-Raycast paths installed by the app:
-
-- `~/.config/dictate/integrations/raycast/tmux-whisper-inline.sh`
-- `~/.config/dictate/integrations/raycast/tmux-whisper-toggle.sh`
-- `~/.config/dictate/integrations/raycast/tmux-whisper-cancel.sh`
+- Lowkey and the Finder Quick Action run the CLI in a minimal environment. If custom PATH entries or env-based overrides work in your shell but not from them, put them in `~/.zshenv`.
+- The Raycast scripts and the SwiftBar plugin were retired in v0.11 (Lowkey replaces them). Old copies under `~/.config/dictate/integrations/raycast` or `~/.config/swiftbar/plugins/tmux-whisper-status.0.2s.sh` can go to the Trash.

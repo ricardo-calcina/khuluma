@@ -1,5 +1,52 @@
 import Foundation
 
+/// The contract between Lowkey and the CLI it was built with. App and CLI
+/// ship from one tree, so instead of feature checks Lowkey requires the CLI
+/// to speak exactly this version (`app_contract` in `app-config --json`,
+/// `TMUX_WHISPER_APP_CONTRACT` in `bin/tmux-whisper`; CI keeps them equal).
+public enum AppContract {
+  public static let version = 2
+
+  /// The installed CLI speaks a different contract: Lowkey takes no
+  /// dictations until the two match.
+  public struct Mismatch: Error, LocalizedError, Equatable, Sendable {
+    public let cliVersion: String
+    /// nil: a CLI from before the contract number existed.
+    public let cliContract: Int?
+
+    public var errorDescription: String? {
+      let cli = "tmux-whisper \(cliVersion)"
+      guard let cliContract else {
+        return "\(cli) is older than this Lowkey: run ./install.sh --force"
+      }
+      if cliContract < AppContract.version {
+        return "\(cli) (contract \(cliContract)) is older than this Lowkey (contract \(AppContract.version)): run ./install.sh --force"
+      }
+      return "this Lowkey (contract \(AppContract.version)) is older than \(cli) (contract \(cliContract)): rebuild it with tools/build-lowkey-app.sh"
+    }
+  }
+
+  private struct Probe: Decodable {
+    let appContract: Int?
+    let cliVersion: String?
+
+    enum CodingKeys: String, CodingKey {
+      case appContract = "app_contract"
+      case cliVersion = "cli_version"
+    }
+  }
+
+  /// Decodes `app-config --json`, checking the contract before anything
+  /// else so an older or newer CLI fails with `Mismatch`, not a decode error.
+  public static func decodeAppConfig(_ data: Data) throws -> AppConfig {
+    let probe = try JSONDecoder().decode(Probe.self, from: data)
+    guard probe.appContract == version else {
+      throw Mismatch(cliVersion: probe.cliVersion ?? "?", cliContract: probe.appContract)
+    }
+    return try JSONDecoder().decode(AppConfig.self, from: data)
+  }
+}
+
 /// `tmux-whisper app-config --json`
 public struct AppConfig: Decodable, Equatable, Sendable {
   public struct Sound: Decodable, Equatable, Sendable {
@@ -26,24 +73,20 @@ public struct AppConfig: Decodable, Equatable, Sendable {
   }
 
   public let schemaVersion: Int
+  public let appContract: Int
   public let cliVersion: String
   public let hotkey: String
   public let sounds: [String: Sound]
   public let inline: Inline
-  /// Text cleanup settings for the native TextPipeline. Absent from CLIs
-  /// older than 0.10.
-  public let cleanup: CleanupSettings?
-  /// Transcription settings for the native path (0.10+).
-  public let transcription: TranscriptionSettings?
-  /// `[app] native_pipeline` / `verify_pipeline` (0.10+).
-  public let pipeline: Pipeline?
-  /// Whether config.toml parsed (0.10+).
-  public let config: ConfigStatus?
-  /// What the CLI supports (0.11+), e.g. "take_markers", "lifecycle_lock",
-  /// "warmup_json", "usage_days", "deferred_usage".
-  public let capabilities: [String]?
-  /// Where the usage ledger lives (0.11+).
-  public let usage: Usage?
+  /// Text cleanup settings for the native TextPipeline.
+  public let cleanup: CleanupSettings
+  /// Transcription settings for the native path.
+  public let transcription: TranscriptionSettings
+  public let pipeline: Pipeline
+  /// Whether config.toml parsed.
+  public let config: ConfigStatus
+  /// Where the usage ledger lives.
+  public let usage: Usage
 
   public struct Usage: Decodable, Equatable, Sendable {
     public let summaryPath: String
@@ -51,10 +94,6 @@ public struct AppConfig: Decodable, Equatable, Sendable {
     enum CodingKeys: String, CodingKey {
       case summaryPath = "summary_path"
     }
-  }
-
-  public func supports(_ capability: String) -> Bool {
-    capabilities?.contains(capability) ?? false
   }
 
   public struct ConfigStatus: Decodable, Equatable, Sendable {
@@ -67,7 +106,7 @@ public struct AppConfig: Decodable, Equatable, Sendable {
   /// config.toml is invalid and there was no valid copy to fall back to, so
   /// the settings are the built-in defaults rather than the user's.
   public var usingFallbackDefaults: Bool {
-    guard let config, config.error != nil else { return false }
+    guard config.error != nil else { return false }
     return config.source != "last_good"
   }
 
@@ -80,14 +119,13 @@ public struct AppConfig: Decodable, Equatable, Sendable {
   }
 
   public struct Pipeline: Decodable, Equatable, Sendable {
-    public let native: Bool
-    public let verify: Bool
-    /// `[app] supervise_daemon` (0.11+; absent from older CLIs).
-    public let supervise: Bool?
+    /// `[app] supervise_daemon`.
+    public let supervise: Bool
   }
 
   enum CodingKeys: String, CodingKey {
     case schemaVersion = "schema_version"
+    case appContract = "app_contract"
     case cliVersion = "cli_version"
     case hotkey
     case sounds
@@ -96,21 +134,13 @@ public struct AppConfig: Decodable, Equatable, Sendable {
     case transcription
     case pipeline
     case config
-    case capabilities
     case usage
   }
 
-  /// CLI features daemon supervision relies on: markers that keep upgrades
-  /// out of a take, serialized daemon starts, and a truthful warmup.
-  public static let supervisionCapabilities = ["take_markers", "lifecycle_lock", "warmup_json"]
-
-  /// Why Lowkey must not keep the daemon warm, or nil if it may. An older
-  /// CLI keeps 3b behaviour: the daemon is started only by CLI fallbacks.
+  /// Why Lowkey must not keep the daemon warm, or nil if it may.
   public var supervisionBlocker: String? {
-    let have = Set(capabilities ?? [])
-    guard Self.supervisionCapabilities.allSatisfy(have.contains) else { return "CLI too old for daemon supervision" }
-    guard pipeline?.supervise ?? false else { return "[app] supervise_daemon = false" }
-    guard transcription?.modelPath?.isEmpty == false else { return "no Parakeet model path" }
+    guard pipeline.supervise else { return "[app] supervise_daemon = false" }
+    guard transcription.modelPath?.isEmpty == false else { return "no Parakeet model path" }
     return nil
   }
 
@@ -124,27 +154,15 @@ public struct AppConfig: Decodable, Equatable, Sendable {
   /// Why a take must go through `inline process` instead of the native
   /// pipeline, or nil if the native path reproduces the CLI.
   public var nativePipelineBlocker: String? {
-    guard pipeline?.native ?? false else { return pipeline == nil ? "CLI too old for the native path" : "[app] native_pipeline = false" }
-    guard let cleanup else { return "no cleanup settings" }
-    if cleanup.postprocess { return "LLM post-processing is on" }
     if cleanup.requiresCLI { return "CLI locale is not C (\(cleanup.localeCtype ?? "")/\(cleanup.localeCollate ?? ""))" }
-    guard let transcription else { return "no transcription settings" }
     return transcription.cliReason
   }
-}
 
-/// `tmux-whisper inline cleanup --app NAME --json` (transcript on stdin).
-public struct CleanupResult: Decodable, Equatable, Sendable {
-  public let ok: Bool
-  public let status: String
-  public let rawText: String
-  public let text: String
-  public let mode: String?
-  public let cleanup: CleanupSettings
-
-  enum CodingKeys: String, CodingKey {
-    case ok, status, text, mode, cleanup
-    case rawText = "raw_text"
+  /// What the native path needs, or nil when it can't run (see
+  /// `nativePipelineBlocker`, and a missing model path).
+  public var native: (transcription: TranscriptionSettings, cleanup: CleanupSettings, modelPath: String)? {
+    guard nativePipelineBlocker == nil, let modelPath = transcription.modelPath else { return nil }
+    return (transcription, cleanup, modelPath)
   }
 }
 
@@ -159,7 +177,7 @@ public struct ProcessResult: Decodable, Equatable, Sendable {
   public let delivery: Delivery
   public let timings: [String: Int]
   /// `--defer-usage` was honoured: the caller records usage after delivery.
-  public let usageDeferred: Bool?
+  public let usageDeferred: Bool
 
   enum CodingKeys: String, CodingKey {
     case ok, status, text, mode, message, delivery, timings
@@ -199,7 +217,7 @@ public struct Delivery: Decodable, Equatable, Sendable {
   }
 }
 
-/// `tmux-whisper warmup --json` (0.11+).
+/// `tmux-whisper warmup --json`.
 public struct WarmupReport: Decodable, Equatable, Sendable {
   public enum State: String, Decodable, Sendable {
     /// The daemon holds this model and version.

@@ -19,16 +19,18 @@ These commands are safe to build integrations on:
   - Object with `command`, `summary`, `runtime`, `effective_settings`, `diagnostics`, and `more_detail`.
   - `summary.next_action` is the primary human next step.
   - `more_detail` is an ordered command list for deeper inspection.
-  - `effective_settings.integrations` (the SwiftBar toggle) was removed in v0.11.
+  - `effective_settings.integrations` (the SwiftBar toggle) was removed in v0.11, along with the tmux and CLI-capture keys: `runtime.tmux`, `runtime.inline`, `runtime.tmux_queue`, `effective_settings.tmux`, `effective_settings.audio`, `effective_settings.mode.tmux`, `postprocess.tmux` and `mode_prompt.tmux`. With LLM post-processing and silence trim (also v0.11), `effective_settings` lost `postprocess`, `llm`, `budget`, `silence_trim` and `cerebras_api_key`, and `clean.vocab_only_when_postprocess_off` became `clean.vocab`. `summary.active_flow` is `inline` while a take is processing, otherwise null.
 - `tmux-whisper doctor --json`
   - Object with install, config, mode, and runtime health sections plus suggested fixes.
-  - `install_sanity.swiftbar` was removed in v0.11 when the SwiftBar plugin was retired.
+  - `install_sanity.swiftbar` was removed in v0.11 when the SwiftBar plugin was retired, and `install_sanity.raycast_inline` with the Raycast scripts. `integrations` and `swiftbar` are no longer commands.
+  - Also removed in v0.11: `dependencies.tmux`, `mode_config.tmux`, `mode_config.available.tmux_count`, `modes[].flows.tmux_enabled`, `state_files`, `tmux_queue` and `mode_config.modes[].prompt` (mode prompt files are no longer read).
 - `tmux-whisper history list [N] --json`
   - Newest-first array of compact history entries.
 - `tmux-whisper history search <query> [N] --json`
   - Newest-first array of matching entries with `match_fields`.
 - `tmux-whisper history export [N|all] --json`
   - Newest-first array of full history entries.
+  - v0.11 dropped `postprocess_budget` from the history readers and from `history stats`, and `metrics.postprocess_ms` from the metric summaries. Old history files keep the fields on disk; they are no longer read.
 - `tmux-whisper history sessions [N] --json`
   - Object with `sessions` and `next_commands`.
   - Each session includes app, mode, words, timing metrics, audio artifact metadata, debug notes, and a preview.
@@ -41,14 +43,15 @@ These commands are safe to build integrations on:
     history. It starts with the first successful delivery after this feature is
     installed; it does not backfill or recover pruned history.
   - `full_elapsed_duration_ms` measures recording start through successful
-    delivery for both inline and tmux flows. `estimated_time_difference_ms` is
+    delivery. `estimated_time_difference_ms` is
     `typing_equivalent_duration_ms - full_elapsed_duration_ms`, so its sign is
     explicit rather than an unqualified time-saved claim.
   - The WPM assumption is evaluated when the command is read. Changing
     `DICTATE_HISTORY_TYPING_WPM` recalculates the estimate, not the stored
     delivery, word, or duration totals.
-  - Only successful delivered inline and tmux dictations are counted. Failed,
-    cancelled, no-speech, superseded, and replay runs are excluded.
+  - Only successful delivered dictations are counted. Failed, cancelled,
+    no-speech and replay runs are excluded. `by_flow` can still show `tmux`
+    for deliveries recorded before v0.11.
   - `coverage.daily_tracking_started_at` (string or null, 0.11+): when per-day
     counting began.
 - `tmux-whisper usage --json --days N|all`
@@ -61,27 +64,25 @@ These commands are safe to build integrations on:
     date at delivery), `count`, `by_flow`, `words`, `recording_ms`,
     `full_elapsed_ms`, `longest_recording_ms`, `most_words`. Only these
     validated numbers are emitted.
+- `tmux-whisper app-config --json` (app integration)
+  - Lowkey's settings: hotkey, sounds, inline delivery, cleanup,
+    transcription, `pipeline.supervise`, `config` (source and error) and
+    `usage.summary_path`. `app_contract` is an integer that changes whenever
+    Lowkey and the CLI must change together; Lowkey takes no dictation from a
+    CLI whose contract differs from the one it was built with. Contract 2
+    (v0.11) removed `cleanup.postprocess`, `transcription.chunking` and
+    `transcription.silence_trim`.
 - `tmux-whisper inline process <wav> --json [--defer-usage]` (app integration)
-  - `--defer-usage` (capability `deferred_usage`) leaves the take out of the
+  - `--defer-usage` leaves the take out of the
     usage ledger (`usage_deferred: true`); the caller records it after
     delivering with `inline record` and `usage_only: true`. Take ids are
     deduplicated in the ledger, so a replayed record never counts twice.
-- `tmux-whisper logs --json`
-- `tmux-whisper logs path|tail [stream] [--lines N] --json`
-  - Object with `streams` and `next_commands`.
-- `tmux-whisper devices --json`
-  - Object with platform, device list, and permission hints.
 - `tmux-whisper config --json`
 - `tmux-whisper config path --json`
 - `tmux-whisper config get <path> --json`
-  - Read-only config inspection contracts.
-- `tmux-whisper integrations --json`
-  - Object with installed binary, install receipt, and Raycast script state.
-  - The `swiftbar` section was removed in v0.11 when the plugin was retired.
-  - Adapter entries include source path and provenance state: `current`, `missing`, `non-executable`, `different`, or source-unavailable/source-missing fallbacks.
-  - Adapter entries include installed `version` and `source_version` values when shipped adapter metadata is present.
+  - Read-only config inspection contracts. `effective.postprocess` was removed in v0.11; an old `[postprocess]` table is ignored.
 - `tmux-whisper bench [N|all] --json [filters]`
-  - Object with record counts, filters, stage summaries, startup summaries, latest row, and `next_commands`.
+  - Object with record counts, filters, stage summaries, startup summaries, latest row, and `next_commands`. The `--slow-startup-audio-ms`, `--slow-startup-ffmpeg-ms` and `--slow-startup-target-ms` filters were removed in v0.11 with CLI capture, and so were `postprocess_enabled` and `postprocess_ms` (the TSV keeps their columns, written as 0).
 - `tmux-whisper bench export [N|all] --json [filters]`
   - Newest-first array of raw bench rows.
 
@@ -89,25 +90,13 @@ These commands are safe to build integrations on:
 
 These are useful but not yet promised as stable contracts:
 
-- `tmux-whisper integrations doctor`
-  - Human-readable integration lifecycle diagnostics for installed binary, receipt, Raycast scripts, executable bits, and adapter provenance/drift from the recorded source tree.
-- `tmux-whisper integrations repair --dry-run`
-  - Human-readable adapter-only repair preview. This intentionally does not mutate files.
-- `tmux-whisper integrations repair`
-  - Human-readable adapter-only repair action for Raycast scripts. It creates missing adapter directories, refreshes adapter files from the recorded source tree, ensures executable bits, and backs up replaced adapter files.
-- `tmux-whisper swiftbar [...]`
-  - Retired in v0.11: prints a notice and exits 0 for any arguments, so older scripts keep working.
 - `tmux-whisper transcribe <file>... --format json`
   - One JSON object per input, newline-delimited: `file`, `text`, `audio_duration_ms`, `processing_ms`, `model`, `engine`. `text` is the raw Parakeet transcript with no dictation cleanup. `audio_duration_ms` is `null` when the duration cannot be probed. Stdin input reports `file: "stdin"`. Exit status is non-zero if any input fails; successful inputs are still emitted.
   - File transcripts are not deliveries: they never appear in `history` or `usage`.
 - `tmux-whisper finder install|remove|status`
   - Human-readable management of the Finder Quick Action (`~/Library/Services/Transcribe with Tmux Whisper.workflow`).
-- `tmux-whisper logs follow ... --json`
-  - Streaming newline-delimited JSON events. Treat event names as provisional.
-- `tmux-whisper watch ...`
-  - Human/operator text view composed from stable JSON commands.
-- `tmux-whisper bench-matrix ...`
-  - Benchmark-oriented text table for local tuning, not an integration API.
+
+`logs`, `devices` and `watch` were removed in v0.11 with the tmux flow and CLI capture, and `bench-matrix` with LLM post-processing.
 
 ## Contract Rules
 

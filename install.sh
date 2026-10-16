@@ -51,8 +51,6 @@ done
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BIN_DIR="${DICTATE_BIN_DIR:-$HOME/.local/bin}"
 CONFIG_DIR="${DICTATE_CONFIG_DIR:-$HOME/.config/dictate}"
-# Retired; only used to point at a leftover plugin from an older install.
-SWIFTBAR_DIR="${DICTATE_SWIFTBAR_DIR:-$HOME/.config/swiftbar/plugins}"
 SOUND_DIR="${DICTATE_SOUNDS_DIR:-$HOME/.local/share/sounds/dictate}"
 XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
 NATIVE_DIR="${DICTATE_NATIVE_DIR:-$XDG_DATA_HOME/tmux-whisper/native}"
@@ -113,43 +111,6 @@ run_install_warmup() {
     "$BIN_DIR/tmux-whisper" warmup --best-effort --refresh-in-background || true
 }
 
-migrate_legacy_mode_names() {
-  local modes_dir="$CONFIG_DIR/modes"
-  if [[ -d "$modes_dir/short" && ! -e "$modes_dir/code" ]]; then
-    mv "$modes_dir/short" "$modes_dir/code"
-  fi
-  if [[ -d "$modes_dir/fast" && ! -e "$modes_dir/base" ]]; then
-    mv "$modes_dir/fast" "$modes_dir/base"
-  fi
-  if [[ -f "$CONFIG_DIR/current-mode" ]]; then
-    local current_mode
-    current_mode="$(tr -d '[:space:]' < "$CONFIG_DIR/current-mode" 2>/dev/null || true)"
-    if [[ "$current_mode" == "short" ]]; then
-      printf '%s\n' "code" > "$CONFIG_DIR/current-mode"
-    elif [[ "$current_mode" == "fast" ]]; then
-      printf '%s\n' "base" > "$CONFIG_DIR/current-mode"
-    fi
-  fi
-  if [[ -f "$CONFIG_DIR/config.toml" ]]; then
-    local tmp_cfg
-    tmp_cfg="$(mktemp)"
-    awk '
-      BEGIN { in_tmux=0 }
-      /^\[/ {
-        in_tmux = ($0 ~ /^\[tmux\][[:space:]]*$/)
-      }
-      {
-        line = $0
-        if (in_tmux && line ~ /^[[:space:]]*mode[[:space:]]*=/) {
-          sub(/"short"/, "\"code\"", line)
-        }
-        print line
-      }
-    ' "$CONFIG_DIR/config.toml" > "$tmp_cfg"
-    mv "$tmp_cfg" "$CONFIG_DIR/config.toml"
-  fi
-}
-
 install_default_config_files() {
   if [[ ! -e "$CONFIG_DIR/config.toml" ]]; then
     mkdir -p "$CONFIG_DIR"
@@ -163,17 +124,16 @@ install_default_modes_preserving_local() {
   local modes_preexisting="0"
   [[ -d "$CONFIG_DIR/modes" ]] && modes_preexisting="1"
   mkdir -p "$CONFIG_DIR/modes"
-  migrate_legacy_mode_names
   if [[ "$modes_preexisting" == "0" ]]; then
     cp -R "$REPO_ROOT/config/modes/." "$CONFIG_DIR/modes/"
     return 0
   fi
-  # Existing installs keep local mode set; only ensure the core inline/tmux modes exist.
+  # Existing installs keep local mode set; only ensure the core modes exist.
   copy_if_missing "$REPO_ROOT/config/modes/base" "$CONFIG_DIR/modes/base"
   copy_if_missing "$REPO_ROOT/config/modes/code" "$CONFIG_DIR/modes/code"
 }
 
-mkdir -p "$BIN_DIR" "$CONFIG_DIR" "$CONFIG_DIR/integrations/raycast"
+mkdir -p "$BIN_DIR" "$CONFIG_DIR"
 mkdir -p "$NATIVE_DIR/tmux-whisperd"
 mkdir -p "$PARAKEET_MODELS_DIR"
 
@@ -196,16 +156,10 @@ cp -R "$REPO_ROOT/tmux-whisperd/Tests" "$NATIVE_DIR/tmux-whisperd/Tests"
 install_default_config_files
 install_default_modes_preserving_local
 
-install -m 0755 "$REPO_ROOT/integrations/raycast/tmux-whisper-inline.sh" "$CONFIG_DIR/integrations/raycast/tmux-whisper-inline.sh"
-install -m 0755 "$REPO_ROOT/integrations/raycast/tmux-whisper-toggle.sh" "$CONFIG_DIR/integrations/raycast/tmux-whisper-toggle.sh"
-install -m 0755 "$REPO_ROOT/integrations/raycast/tmux-whisper-cancel.sh" "$CONFIG_DIR/integrations/raycast/tmux-whisper-cancel.sh"
-
-# Pristine adapter sources beside the binary (mirrors Homebrew's pkgshare), so
-# `integrations doctor|repair` work after bootstrap deletes its extracted tree.
+# The Finder Quick Action handler lives beside the binary (mirrors Homebrew's
+# pkgshare), so it keeps working after bootstrap deletes its extracted tree.
 ADAPTER_SHARE_DIR="$(dirname "$BIN_DIR")/share/tmux-whisper"
 rm -rf "$ADAPTER_SHARE_DIR/integrations"
-mkdir -p "$ADAPTER_SHARE_DIR/integrations/raycast"
-install -m 0755 "$REPO_ROOT/integrations/raycast/"*.sh "$ADAPTER_SHARE_DIR/integrations/raycast/"
 mkdir -p "$ADAPTER_SHARE_DIR/integrations/finder"
 install -m 0755 "$REPO_ROOT/integrations/finder/tmux-whisper-transcribe.sh" "$ADAPTER_SHARE_DIR/integrations/finder/tmux-whisper-transcribe.sh"
 
@@ -226,9 +180,6 @@ echo "Installed tmux-whisper to: $BIN_DIR/tmux-whisper"
 echo "Config path: $CONFIG_DIR"
 echo "Native backend source: $NATIVE_DIR/tmux-whisperd"
 echo "Parakeet models dir: $PARAKEET_MODELS_DIR"
-if [[ -e "$SWIFTBAR_DIR/tmux-whisper-status.0.2s.sh" ]]; then
-  echo "SwiftBar plugin is retired (Lowkey replaces it); move the old copy to the Trash: $SWIFTBAR_DIR/tmux-whisper-status.0.2s.sh"
-fi
 if [[ "$INSTALL_SOUNDS" == "1" ]]; then
   echo "Sample sounds: $SOUND_DIR"
 else
@@ -237,4 +188,4 @@ fi
 echo "Paths kept for now: config=$CONFIG_DIR sounds=$SOUND_DIR"
 echo "Install receipt: $CONFIG_DIR/install-receipt.env"
 run_install_warmup
-echo "Run: tmux-whisper debug"
+echo "Run: tmux-whisper doctor"

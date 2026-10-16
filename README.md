@@ -1,163 +1,117 @@
 # Tmux Whisper
 
-Local-first dictation for macOS using a warm Swift/CoreML Parakeet backend by default, with optional LLM cleanup and tmux/desktop integrations.
+Local dictation for macOS. Press a key, speak, and the text is pasted into the app in front of you, transcribed on your Mac by a warm Parakeet model (Swift/CoreML). Nothing leaves the machine.
 
-## Core USP
+The project is being renamed after its menu-bar app, **Lowkey** ([`docs/plans/LOWKEY_RENAME_ROADMAP.md`](docs/plans/LOWKEY_RENAME_ROADMAP.md)). Lowkey is a working name: the public name is still to be chosen. Until the rename, the project has three parts:
 
-Tmux Whisper is **inline-first for daily dictation, with tmux as a first-class differentiator**.
+- **Lowkey** (`tmux-whisperd/Sources/Lowkey`): the menu-bar app you dictate with. It owns the hotkey, the microphone, the sounds, delivery (paste, optionally send) and the Stats window. It transcribes over the daemon's socket and cleans the text up in Swift.
+- **`tmux-whisperd`**: the local Parakeet daemon that keeps the model loaded.
+- **The `tmux-whisper` CLI** (`bin/`): Lowkey's back end for now. It holds config, modes, vocab, history and usage, starts and warms the daemon, and transcribes audio files. Lowkey calls it through a small set of JSON commands ([`docs/CLI_CONTRACTS.md`](docs/CLI_CONTRACTS.md)).
 
-- Primary daily workflow: record and deliver into the frontmost app with inline dictation.
-- Tmux workflow: record in a pane, let transcription/process run, and keep working in other panes/windows.
-- Design priority is reliable local dictation, while retaining the asynchronous terminal/tmux flow that desktop-only tools do not offer.
-
-## What You Get
-
-- `bin/tmux-whisper`: main CLI / orchestration layer
-- `bin/dictate-lib.sh`: shared helper library used by Tmux Whisper and its integrations
-- `tmux-whisperd/`: local Swift daemon package used by the default backend
-- `config/`: default config, modes, and vocab
-- `integrations/raycast/`: Raycast scripts (`inline`, `toggle`, `cancel`)
-- `assets/sounds/dictate/`: tiny sample WAV sound pack
-- `install.sh`: local installer
-- `docs/plans/`: the active plan; finished plans move to `docs/plans/archive/`
-- `tests/`: deterministic bash tests and install smoke tests
-- `.github/workflows/ci.yml`: CI for syntax + tests
+The tmux pane flow, CLI recording, LLM post-processing, the Raycast scripts and the SwiftBar plugin were removed in v0.11 (see `CHANGELOG.md`).
 
 ## Requirements
 
-- macOS
-- `ffmpeg`
-- `python3` (with `tomllib`, Python 3.11+ recommended)
-- `swift` + Xcode toolchain (for building the local `tmux-whisperd` backend)
-- a local Parakeet model directory, either at `~/.local/share/tmux-whisper/models/...` or via `swift_parakeet.model_path`
-- Optional: `tmux`, Raycast, Lowkey (the native menu-bar app in `tmux-whisperd/`)
-- Optional for LLM postprocess: `CEREBRAS_API_KEY`
+- macOS 14 or later
+- `python3` 3.11+ (for `tomllib`) and `ffmpeg`
+- Xcode or the Command Line Tools (`swift`), to build the daemon and Lowkey
+- A Parakeet CoreML model on disk, at `~/.local/share/tmux-whisper/models/parakeet-tdt-0.6b-v3-coreml` (or `-v2-coreml`), or anywhere `swift_parakeet.model_path` in the config points. Install doesn't download it; FluidInference publishes these CoreML conversions on Hugging Face.
 
-## Install Channels
+## Install
 
-Choose the channel that matches how you want to use the tool:
-
-### Homebrew stable
-
-Best for daily use when you want tagged releases and the simplest update path.
-
-```bash
-brew tap ricardo-nth/tap
-brew install ricardo-nth/tap/tmux-whisper
-```
-
-Update later with:
-
-```bash
-brew upgrade tmux-whisper
-```
-
-### Bootstrap from GitHub
-
-Best for testing `main` or pinning a specific release without keeping a local clone.
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/ricardo-nth/tmux-whisper/main/bootstrap.sh | bash
-```
-
-Pinned to a release tag:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/ricardo-nth/tmux-whisper/v0.9.0/bootstrap.sh | bash
-```
-
-Pass bootstrap and install flags explicitly:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/ricardo-nth/tmux-whisper/main/bootstrap.sh | bash -s -- --force --with-sounds
-curl -fsSL https://raw.githubusercontent.com/ricardo-nth/tmux-whisper/main/bootstrap.sh | bash -s -- --ref v0.9.0 --force
-```
-
-### Local clone / development
-
-Best when this repo is your source of truth and you want fast local iteration.
+Lowkey is built from a clone, and it needs the CLI from the same checkout: the two share an app contract number, and Lowkey refuses takes from a CLI with a different one.
 
 ```bash
 git clone https://github.com/ricardo-nth/tmux-whisper.git
 cd tmux-whisper
-./install.sh
+./install.sh                     # the CLI, default config, modes, vocab and sounds
+tools/make-signing-identity.sh   # once: a local code-signing identity, so permissions survive rebuilds
+tools/build-lowkey-app.sh        # build, sign and install ~/Applications/Lowkey.app
+open ~/Applications/Lowkey.app
 ```
 
-Refresh a local clone after pulling new changes:
+On first launch, allow Microphone and Accessibility (for pasting) in System Settings → Privacy & Security.
+
+After pulling changes, refresh both:
 
 ```bash
 git pull
 ./install.sh --force
+tools/build-lowkey-app.sh
 ```
 
-## Install Notes
+`build-lowkey-app.sh` quits and relaunches Lowkey. It waits (up to 5 minutes) for a take in progress to finish first.
 
-The default backend is local `swift_parakeet`.
+`install.sh` keeps your config, modes, vocab and sounds, including with `--force`, which only refreshes the scripts and adds missing defaults. Other flags: `--no-sounds`, `--with-sounds`, `--replace-sounds` (overwrite your sound files with the bundled ones). It ends with a daemon warm-up, and writes an install receipt to `~/.config/dictate/install-receipt.env`.
 
-Preferred Parakeet model home:
-
-- `~/.local/share/tmux-whisper/models/parakeet-tdt-0.6b-v3-coreml`
-- `~/.local/share/tmux-whisper/models/parakeet-tdt-0.6b-v2-coreml`
-
-Tmux Whisper expects a Parakeet model to already exist locally in that owned path, or to be pointed at an existing model directory via `swift_parakeet.model_path`. Install does not download model assets for you.
-
-Install behavior:
-
-- Preserves existing config, modes, and vocab by default, including when `--force` is used.
-- `--force` refreshes binaries/integrations and seeds missing defaults; it does not replace your live config file.
-- Installs Raycast scripts to `~/.config/dictate/integrations/raycast`.
-- No longer installs a SwiftBar plugin (retired in v0.11; Lowkey's menu-bar item replaces it). If an older install left `~/.config/swiftbar/plugins/tmux-whisper-status.0.2s.sh` behind, the installer points at it so you can move it to the Trash.
-- Installs sample sounds to `~/.local/share/sounds/dictate`.
-- Runs a best-effort backend warm-up after install/update, including a tiny synthetic prime transcription so the next real dictation is closer to warm.
-- Writes an install receipt to `~/.config/dictate/install-receipt.env` with the install source, archive URL when bootstrapped, repo ref/commit when available, and resolved runtime paths.
-- Note: config and sounds paths intentionally remain under `dictate` in this phase (`~/.config/dictate`, `~/.local/share/sounds/dictate`).
-
-Useful install flags:
+**CLI only:** Homebrew (`brew install ricardo-nth/tap/tmux-whisper`, at v0.9.0) and `bootstrap.sh` install the CLI without Lowkey. They are for file transcription, or a pinned CLI on another machine:
 
 ```bash
-./install.sh --force            # reinstall scripts and seed missing defaults (preserves local config)
-./install.sh --no-sounds        # skip sample sound install
-./install.sh --with-sounds      # explicit sound install
-./install.sh --replace-sounds   # overwrite existing sound files with bundled samples
+curl -fsSL https://raw.githubusercontent.com/ricardo-nth/tmux-whisper/main/bootstrap.sh | bash -s -- --ref v0.9.0 --force
 ```
 
-`bootstrap.sh` downloads a repository archive from GitHub and runs `install.sh` from that archive. Use `--ref <tag-or-commit>` when you want reproducible setup across machines.
+Config and sounds still live under the old name: `~/.config/dictate` and `~/.local/share/sounds/dictate`.
 
-## First Run Checklist
+## Using Lowkey
 
-Run these once after install or upgrade:
+Press the hotkey to start, speak after the chime, press it again to stop. Ctrl+Esc cancels a recording. The default hotkey is `ctrl+option+space`; change it in `~/.config/dictate/config.toml`, then choose **Reload Settings** in the menu:
+
+```toml
+[app]
+hotkey = "ctrl+option+space"   # e.g. "cmd+shift+d", "f13"
+supervise_daemon = true        # keep the Parakeet daemon warm (launch, wake, recording start)
+```
+
+The menu shows:
+- whether Lowkey is ready, recording or processing;
+- the hotkey;
+- whether the Parakeet daemon is ready;
+- a warning if `config.toml` doesn't parse.
+
+It also offers **Stats…**, **Open Log** and **Start at Login**.
+
+- **Timed-out takes:** when the daemon times out on a take, its audio is kept privately for an hour. **Retry** transcribes it again, and **Paste retried dictation** pastes it wherever you are, without sending. A take that times out on the CLI fallback isn't kept.
+- **Quitting:** a take still recording is saved to disk first, then transcribed into history and copied to the clipboard (never pasted). Quit waits up to 30 seconds for that and for takes already being transcribed. Saved audio and records that haven't reached history by then are finished at the next launch, without touching the clipboard; a take still in memory past the 30 seconds is lost.
+- **Fallback:** if the daemon can't be reached, the take goes through `tmux-whisper inline process` instead. The same happens when the CLI runs in a non-C locale.
+
+**Delivery settings** live in the CLI:
 
 ```bash
-tmux-whisper debug
-tmux-whisper doctor
-tmux-whisper status
-tmux-whisper warmup
+tmux-whisper autosend on|off            # paste and press the send key, or paste only
+tmux-whisper send-mode enter|ctrl_j|cmd_enter
+tmux-whisper target origin|current      # the app in front at the start of recording, or at the end
+tmux-whisper sound start|stop|process|error on|off
 ```
 
-Use `tmux-whisper debug` if you are ever unsure which binary/channel you are running. It shows the resolved binary path and install channel.
+**Stats…** shows lifetime words, words per minute, the estimated time saved against typing (always labelled as an estimate, at 40 wpm by default), a 30/60/90-day activity heatmap, your streak and your bests. It reads `tmux-whisper usage --json --days all`, which holds counts and durations only, never what you said.
 
-## Quick Start
+**Logs:** `~/Library/Logs/Lowkey/app.log` has one `take:` line per take (path, outcome, timings; no text). `tools/lowkey-report.sh` summarises it: outcomes, fallback and failure rates, and where the time goes.
+
+## Modes and vocab
+
+Cleanup removes fillers and repeats, applies your vocab corrections and British spelling, and then follows the mode for the app you're dictating into.
 
 ```bash
-tmux-whisper debug
-tmux-whisper inline
-tmux-whisper            # tmux toggle mode
-tmux-whisper devices
-tmux-whisper mode auto
-tmux-whisper postprocess on
+tmux-whisper mode                  # the current policy and all modes
+tmux-whisper mode auto             # pick the mode from the frontmost app (default)
+tmux-whisper mode code             # or force one: code, long, email, chat, base
+tmux-whisper mode apps add Ghostty # the current mode's trigger apps
+tmux-whisper mode flows code inline # let Lowkey use a mode that was tmux-only
+tmux-whisper mode create notes
 ```
 
-### Tmux workflow
+Each mode is a folder under `~/.config/dictate/modes/<name>/` with an `apps` list, a `flows` file and optional `vocab`. A mode whose `flows` file says only `tmux` is hidden from Lowkey; `tmux-whisper doctor` flags this.
 
-- Start from the tmux pane you want to send back into.
-- Run `tmux-whisper`, speak, then stop.
-- Let processing finish while you keep working in tmux.
+```bash
+tmux-whisper vocab add "clawed::Claude"     # also "wrong -> right"
+tmux-whisper vocab import --dry-run fixes.txt
+tmux-whisper vocab dedupe                   # backs up first
+tmux-whisper vocab rm "literal text"        # --regex to match a pattern
+```
 
-If you are not inside tmux, use `tmux-whisper inline` or the Raycast inline integration instead.
+## Transcribe audio files
 
-### Transcribe audio files
-
-Voice memos from a phone or dictaphone go through the same local Parakeet model:
+Voice memos go through the same local model:
 
 ```bash
 tmux-whisper transcribe memo.m4a               # raw transcript to stdout
@@ -168,262 +122,81 @@ tmux-whisper transcribe memo.m4a --format json # text + durations + model
 tmux-whisper transcribe - < memo.m4a           # read from stdin
 ```
 
-- Anything ffmpeg can decode works (m4a, mp3, wav, aac, flac, ogg/opus, video audio tracks). The original file is never modified; it is decoded into a private 16 kHz copy.
-- Output is the **raw** transcript: dictation cleanup (vocab, British spelling, filler/repeat removal, modes, LLM post-processing) is not applied, and file transcripts are not counted in `usage` or written to history.
-- Long recordings are chunked by the Parakeet runtime itself; a 10-minute memo took about 15 seconds end to end on an M1 Air with the model warm. Dictation waits while a long file is transcribing.
-- Existing output files are never overwritten without `--force`; failures exit non-zero and leave no partial output.
+- Anything ffmpeg can decode works (m4a, mp3, wav, aac, flac, ogg/opus, video audio tracks). The original is never modified.
+- The output is the **raw** transcript: no dictation cleanup. File transcripts aren't counted in `usage` or written to history.
+- Parakeet chunks long recordings itself: a 10-minute memo took about 15 seconds on an M1 Air with the model warm. Dictation waits while a long file is transcribing.
+- Output files are never overwritten without `--force`, and failures leave no partial output.
 
-For AI agents (Claude Code, Codex), `integrations/agents/transcribe-audio/SKILL.md` is a skill that tells them to use `tmux-whisper transcribe` for audio files instead of downloading a speech model. Install it by copying the folder into `~/.claude/skills/` and/or `~/.codex/skills/`.
+**Finder:** `tmux-whisper finder install` adds Quick Actions → "Transcribe with Tmux Whisper". It writes `<name>.txt` next to each selected file, copies the text and posts a notification. Remove it with `tmux-whisper finder remove`.
 
-For right-click transcription in Finder:
+**Agents:** `integrations/agents/transcribe-audio/SKILL.md` tells Claude Code and Codex to use `tmux-whisper transcribe` for audio files. Copy the folder into `~/.claude/skills/` or `~/.codex/skills/`.
 
-```bash
-tmux-whisper finder install   # adds Quick Actions > "Transcribe with Tmux Whisper"
-```
-
-It writes `<name>.txt` next to each selected audio file, copies the transcript to the clipboard, and posts a notification. It is enabled for the Finder context menu automatically (no System Settings step). The first run may ask for permission to access the folder the memo is in. Remove it with `tmux-whisper finder remove`.
-
-### Durable usage summary
-
-`tmux-whisper usage` reports a small local, transcript-free aggregate for
-successful deliveries; `tmux-whisper usage --json` is the stable surface for
-Lowkey's Stats window and other readers. The aggregate survives normal transcript-history pruning, but begins
-only after the feature is installed and never backfills old or pruned history.
-
-The estimate shows the typing pace assumption (`DICTATE_HISTORY_TYPING_WPM`,
-default `40`) and a signed difference between typing-equivalent time and full
-recording-to-delivery elapsed time. It is an estimate, not a claim of lifetime
-hours saved. Changing that WPM setting recalculates the estimate while leaving
-the recorded delivery and duration totals unchanged.
-
-Each delivery is also counted under its local calendar date, for streaks and
-activity: `tmux-whisper usage --json --days N` (or `--days all`) adds per-day
-buckets (deliveries, words, recording time, longest take, most words in one
-take). Daily counting starts with the first delivery after upgrading to 0.11;
-nothing before it is backfilled. A delivery recorded by an older CLI on the
-same machine still counts in the totals but has no day, and is reported as
-`untracked_deliveries`. Like the totals, the buckets hold counts and durations
-only, never text.
-
-## Upgrade and Repair
-
-Daily-use upgrade flow depends on channel:
-
-- Homebrew:
-  - `brew upgrade tmux-whisper`
-- Bootstrap:
-  - rerun the bootstrap command you used before, typically with `--force`
-  - for reproducible upgrades, include the same `--ref <tag-or-commit>` on every machine
-- Local clone:
-  - `git pull`
-  - `./install.sh --force`
-
-After any upgrade:
+## History and usage
 
 ```bash
-tmux-whisper doctor
-tmux-whisper status
+tmux-whisper last                    # the latest dictation, with timings
+tmux-whisper history                 # recent dictations; history N shows one
+tmux-whisper history search "invoice"
+tmux-whisper history stats
+tmux-whisper usage                   # lifetime totals; --json --days N|all for per-day buckets
+tmux-whisper bench 20                # stage timings of recent takes
 ```
 
-If config drift is reported:
+- **History** keeps transcripts for `history.retention_days` (7 by default).
+- **Usage** is a separate, transcript-free tally of delivered dictations that survives history pruning. It started when the feature was installed and doesn't backfill. Daily buckets started with v0.11.
+- **The time-saved figure** is an estimate. It assumes a typing speed (`DICTATE_HISTORY_TYPING_WPM`, 40 by default), and changing it recalculates the estimate without touching the recorded totals.
+
+Most read commands take `--json`. The stable ones are listed in [`docs/CLI_CONTRACTS.md`](docs/CLI_CONTRACTS.md).
+
+## Health checks and repair
+
+```bash
+tmux-whisper doctor     # install, config, modes and daemon, with suggested fixes
+tmux-whisper status     # what's running and the effective settings
+tmux-whisper version    # CLI version, config schema, running binary, install provenance
+tmux-whisper warmup     # start the daemon and load the model
+```
+
+If `doctor` reports config drift or invalid TOML:
 
 ```bash
 tmux-whisper config repair --dry-run
-tmux-whisper config repair
+tmux-whisper config repair      # backs up first
 ```
 
-### Bench matrix
+`tmux-whisper config`, `config get <key>` and `config defaults` show the config without changing it. More fixes, including Lowkey's own messages, are in [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md).
 
-`tmux-whisper bench-matrix [N] [phrase_file]` runs the cleanup/postprocess pipeline across the in-repo phrase list (or a small file you supply) with the requested number of rounds. Each line in `phrase_file` is trimmed and blank/commented lines (those beginning with `#`) are ignored, so you can customize the set while keeping the defaults for quick comparison. Set `DICTATE_BENCH_MATRIX_MODE` to force which fixed mode (typically `code`) drives the cleanup, postprocess, and vocab helpers. The output table is sorted by postprocess, model, and vocab settings to keep diffs stable, and you still see the warning `postprocess=on combos skipped` if `CEREBRAS_API_KEY` is unset.
+Lowkey and Finder run the CLI with a minimal environment. Put custom `PATH` entries and `DICTATE_*` overrides in `~/.zshenv` so they apply there too. More in [`docs/INTEGRATIONS.md`](docs/INTEGRATIONS.md).
 
-## UX Helpers
+## Development
 
-- `tmux-whisper doctor` now includes a **Suggested fixes** block with copy/paste commands when it finds dependency, install, config, or stale-state issues.
-- `tmux-whisper doctor` now validates fixed/tmux mode values and core mode prompt files (`code`/`long`) and reports explicit fallback behavior when invalid.
-- `tmux-whisper config defaults` now prints the canonical default config template, and `tmux-whisper config repair [--dry-run]` can safely fill missing defaults, refresh schema version in place, or reset malformed TOML with a backup.
-- `tmux-whisper vocab import <file>` now shows line-numbered previews for invalid entries (first 5).
-- `tmux-whisper vocab import --dry-run <file>` lets you preview additions before mutating your live vocab.
-- `tmux-whisper vocab dedupe` now creates a timestamped backup before rewriting your vocab file.
-- `tmux-whisper vocab rm "pattern"` now uses safer literal matching by default, with `--regex` available when you truly want regex behavior.
-- `tmux-whisper vocab export <file>` writes a normalized/deduped vocab snapshot you can share or version.
-- `tmux-whisper history list [N] --json` now exposes recent dictation summaries as a machine-readable array for shell scripts and future operator tooling.
-- `tmux-whisper history search <query> [N] [--json]` turns saved dictations into a searchable operator surface without leaving the CLI.
-- `tmux-whisper history export [N|all] [--json]` now exports full history entries for shell pipelines, sharing, and agent/operator replay flows.
-- History JSON keeps transcript, word-count, timing, and audio-artifact metadata for stats/roundups; inline debug WAVs are pruned separately with `history.audio_retention_days` / `DICTATE_HISTORY_AUDIO_RETENTION_DAYS` so audio cannot grow forever.
-- `tmux-whisper logs path|tail|follow|--json` now gives log inspection both snapshot and live-follow workflows instead of one fixed text dump.
-- `tmux-whisper devices --json` now exposes AVFoundation audio devices as structured CLI output for support/debug flows.
-- `tmux-whisper config [--json]`, `config path [--json]`, and `config get <path> [--json]` now give config inspection a real read-only operator surface instead of only repair-oriented guidance.
-- `tmux-whisper bench [N] --json` now exposes timing summaries as structured data, and `tmux-whisper bench export [N|all] [--json]` exports the raw recent rows behind those summaries.
-- `tmux-whisper watch [--interval SECONDS] [--iterations N]` now turns `status` + `last` + `bench` into a text-first live operator overview without committing the project to a TUI.
-- `tmux-whisper status --preset compact` and `watch --preset compact` now provide narrower operator snapshots for tighter terminals, quick checks, and future shell/plugin surfaces.
-- `tmux-whisper bench-matrix [N] [phrase_file]` runs a quick matrix over postprocess/vocab toggles (and LLM models when API key is set) on fixed phrases.
-  - Phrase file format: one phrase per line (blank lines and `#` comments ignored). Optional `label<TAB>phrase` is supported.
-  - Set `DICTATE_BENCH_MATRIX_PROGRESS=0` for summary-only output (no per-combo progress lines).
-- Stable CLI JSON surfaces are tracked in [`docs/CLI_CONTRACTS.md`](docs/CLI_CONTRACTS.md); prefer those contracts for scripts, agents, Lowkey, and future UI layers.
+- `bin/tmux-whisper`, `bin/tmux-whisper-lib/` and `bin/dictate-lib.sh` hold the CLI (bash).
+- `tmux-whisperd/` is the Swift package, with four targets:
+  - `TmuxWhisperKit`: the engine, protocol and socket server;
+  - `tmux-whisperd`: the daemon;
+  - `LowkeyCore`: Lowkey's AppKit-free logic, with most of the tests;
+  - `Lowkey`: the app shell.
+- The CLI builds the daemon on demand into `~/.local/share/tmux-whisper/native/` and rebuilds it when the sources change.
+- `config/` holds the defaults that `install.sh` seeds: config, modes and vocab.
+- `tools/` holds the Lowkey build and report scripts and the Homebrew formula updater.
+- `docs/plans/` holds the active plan. Finished plans move to `docs/plans/archive/`.
 
-## Troubleshooting
-
-Start here:
+Run the checks before a PR:
 
 ```bash
-tmux-whisper debug
-tmux-whisper doctor
-tmux-whisper status
+./tests/ci.sh                          # shell syntax, CLI, regression, flow parity, install and bootstrap tests
+cd tmux-whisperd && swift test         # Swift tests (LowkeyCore, TmuxWhisperKit)
 ```
 
-Common real-world fixes are documented in [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md), including:
+`tests/fixtures/cleanup/` keeps Lowkey's Swift cleanup in step with the CLI's. Regenerate it with `tests/gen-cleanup-fixtures.sh` after changing cleanup. GitHub Actions runs `ci.sh` on every push and pull request.
 
-- install-channel refresh and upgrade drift
-- invalid config repair
-- tmux vs inline usage errors
-- Raycast environment issues
-- vocab and mode recovery flows
+[`CONTRIBUTING.md`](CONTRIBUTING.md) covers the workflow. [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md) covers releases. [`CHANGELOG.md`](CHANGELOG.md) holds the release notes, with older entries in [`CHANGELOG.archive.md`](CHANGELOG.archive.md). [`ROADMAP.md`](ROADMAP.md) gives the direction.
 
-## Integrations
+## Privacy
 
-Raycast is an optional adapter around the CLI, and Lowkey is the native menu-bar app. Tmux Whisper remains usable without either one. For the supported integration matrix, install-channel expectations, environment boundaries, and stable-vs-experimental surface definitions, see [`docs/INTEGRATIONS.md`](docs/INTEGRATIONS.md).
-
-### Raycast
-
-Installer-managed Raycast scripts live at:
-
-- `~/.config/dictate/integrations/raycast/tmux-whisper-inline.sh`
-- `~/.config/dictate/integrations/raycast/tmux-whisper-toggle.sh`
-- `~/.config/dictate/integrations/raycast/tmux-whisper-cancel.sh`
-
-Recommended setup:
-
-- create three Raycast Script Commands that point at those installed files
-- use `tmux-whisper-inline.sh` for frontmost-app paste/send
-- use `tmux-whisper-toggle.sh` for pane-targeted tmux recording from a hotkey
-- use `tmux-whisper-cancel.sh` for discard/cancel behavior
-
-### Menu bar
-
-The SwiftBar plugin was retired in v0.11. [Lowkey](#lowkey-experimental-native-app) is the menu-bar app now: recording and processing state, cancel, and the Stats window for usage. Settings the plugin used to toggle are still available as `tmux-whisper` commands (`tmux-whisper help`) or in `~/.config/dictate/config.toml`. `tmux-whisper swiftbar` is kept as a no-op that says so. An old `[integrations.swiftbar]` table in your config is ignored.
-
-### Integration environment note
-
-Raycast often runs with a minimal shell environment. If you rely on `CEREBRAS_API_KEY`, custom PATH entries, or env-based overrides, put them in `~/.zshenv` so the integrations can see them consistently.
-
-### Integration lifecycle checks
-
-`tmux-whisper integrations` inspects the installed adapter surface. For v0.7 integration-platform work, lifecycle checks start with an observable doctor and a dry-run repair preview:
-
-```bash
-tmux-whisper integrations doctor
-tmux-whisper integrations repair --dry-run
-tmux-whisper integrations repair
-```
-
-`doctor` checks the installed binary, install receipt, Raycast scripts, executable bits, and adapter drift from the recorded source tree. `integrations` and `doctor` report each adapter as `current`, `missing`, `non-executable`, or `different` from source so update provenance is visible before repair. `repair --dry-run` shows the adapter-only refresh plan without changing files. `repair` refreshes only the installed Raycast scripts, creates missing adapter directories, fixes executable bits, and backs up replaced adapter files to `~/.config/dictate/backups/integrations/`. It works on Homebrew, bootstrap, and local installs; use `./install.sh --force` only when you need a full local runtime refresh.
-
-## Sounds
-
-Bundled sample sounds live in `assets/sounds/dictate/` and install by default to:
-
-```bash
-~/.local/share/sounds/dictate
-```
-
-Existing files in that folder are preserved by default (including when using `--force`).
-Use `--replace-sounds` only when you explicitly want to overwrite local sound files.
-
-## Development Workflow
-
-Use this repo as the source of truth and install to your local runtime path:
-
-```bash
-# from repo root
-./install.sh --force
-```
-
-Then test your local command:
-
-```bash
-tmux-whisper debug
-tmux-whisper bench 10
-tmux-whisper bench --json
-tmux-whisper bench-matrix 1
-```
-
-## Lowkey (experimental native app)
-
-Lowkey is the native macOS menu-bar front-end for inline dictation. It runs beside the CLI/Raycast setup, so you can compare the two. It handles the hotkey, microphone, sounds and paste natively. It sends each take straight to the Parakeet daemon (`tmux-whisperd`) and cleans the text up in Swift with the same rules as the CLI (vocab, modes, British spelling, tail rescue), so the text matches inline dictation exactly without starting the CLI. History, bench and usage are still written by the installed `tmux-whisper` (`inline record`), in the background after the text is pasted. Takes fall back to `tmux-whisper inline process` when LLM post-processing or silence trim is on, the CLI runs in a non-C locale, or the daemon can't be reached.
-
-```bash
-tools/make-signing-identity.sh   # once: local code-signing identity (keeps permissions across rebuilds)
-tools/build-lowkey-app.sh        # build, sign, install ~/Applications/Lowkey.app
-open ~/Applications/Lowkey.app
-```
-
-On first launch, allow Microphone, and Accessibility (for pasting) in System Settings → Privacy & Security. The default hotkey is `ctrl+option+space`. Change it in `~/.config/dictate/config.toml`:
-
-```toml
-[app]
-hotkey = "ctrl+option+space"   # e.g. "cmd+shift+d", "f13"
-native_pipeline = true         # false: always use `tmux-whisper inline process`
-verify_pipeline = true         # also run the CLI cleanup in the background and log any difference
-supervise_daemon = true        # keep the Parakeet daemon warm (launch, wake, recording start)
-```
-
-Then choose **Reload Settings** from the menu. Timings, errors, `supervisor:` and `verify:` results are in `~/Library/Logs/Lowkey/app.log`; `tools/lowkey-report.sh` summarises it (outcomes, fallback and failure rates, where the time goes, verify results) without printing any dictated text. The menu shows whether the Parakeet daemon is ready, and offers **Retry**/**Discard** for a take whose transcription timed out (its audio is kept privately for an hour; Retry transcribes, then **Paste retried dictation** pastes it where you are, without sending).
-
-**Stats…** in the menu opens a window with your lifetime words, words per minute, the estimated time saved against typing (labelled as an estimate), a 30/60/90-day activity heatmap, your streak and recorded bests. It reads `tmux-whisper usage --json --days all`, which holds counts and durations only, never what you said.
-
-## Repo Layout
-
-- `bin/tmux-whisper` is the main product orchestration layer.
-- `tmux-whisperd/` is the Swift package for the Parakeet backend: the `TmuxWhisperKit` library (daemon protocol, `ASREngine`, socket server; shared with the planned native app), the thin `tmux-whisperd` executable, and Swift Testing tests (`cd tmux-whisperd && swift test`). The CLI builds it on demand into `~/.local/share/tmux-whisper/native/tmux-whisperd` and rebuilds when the sources change.
-- `install.sh`, `config/`, `integrations/`, and `tests/` are active first-class parts of the app, not support-only extras.
-- `docs/` keeps active operator docs at the top level, while longer-term planning notes live under `docs/plans/`.
-
-## Testing and CI
-
-Run local checks:
-
-```bash
-./tests/ci.sh
-```
-
-This runs:
-
-- `bash -n` syntax checks across shipped shell scripts
-- `tests/test_lib.sh` (helper behavior)
-- `tests/test_cli.sh` (relocation behavior for brew installs)
-- `tests/test_regression.sh` (diagnostic/integration hardening guards)
-- `tests/test_flow_parity.sh` (stubbed tmux/inline lifecycle + send-path parity)
-- `tests/test_install.sh` (installer smoke tests)
-- `tests/test_bootstrap.sh` (bootstrap flow smoke test)
-
-GitHub Actions runs the same checks on push and pull requests.
-
-`tmux-whisper doctor` now includes config schema status (`meta.config_version`) and expects an exact schema match for this binary.
-
-`tmux-whisper version` reports the CLI version, expected config schema, and
-resolved running binary. `tmux-whisper version --json` also includes the
-install receipt's provenance when available. The receipt records how an install
-was created; it does not identify a source checkout as the running binary.
-
-## Changelog
-
-`CHANGELOG.md` in this repo mirrors the detailed project history from local development, including the active TODO/next queue.
-
-## Roadmap
-
-See `ROADMAP.md` for the current direction: inline daily dictation, a differentiated tmux workflow, and versioned integration adapters.
-
-## Contributing
-
-See `CONTRIBUTING.md` for branch, validation, and release expectations.
-
-Release operators should also follow `docs/RELEASE_CHECKLIST.md`.
-
-## Safety Notes
-
-- Runtime directories (`history`, caches, archives, temp logs) are not tracked.
-- API keys are not stored in this repository.
-- Existing local config is preserved by default, including when `--force` is used.
+- **Audio and text** stay on your Mac.
+- **What's saved:** history keeps transcripts for the retention period. Before a take reaches history, Lowkey spools its record (text included) to `~/Library/Application Support/Lowkey/pending/`, and removes it once history has it. Saved audio waits in `recovered/` beside it. The usage tally and `app.log` hold counts and timings, never text.
+- **The repository** holds no keys or personal settings. Your config is never overwritten by an install.
 
 ## License
 

@@ -38,10 +38,9 @@ public final class DaemonSupervisor: @unchecked Sendable {
 
     /// From app-config, or nil when supervision must stay off.
     public init?(config: AppConfig) {
-      guard config.supervisionBlocker == nil, let transcription = config.transcription,
-            let modelPath = transcription.modelPath else { return nil }
-      self.init(socketPath: transcription.socketPath, modelPath: modelPath,
-                modelVersion: transcription.modelVersion ?? "v3")
+      guard config.supervisionBlocker == nil, let modelPath = config.transcription.modelPath else { return nil }
+      self.init(socketPath: config.transcription.socketPath, modelPath: modelPath,
+                modelVersion: config.transcription.modelVersion ?? "v3")
     }
   }
 

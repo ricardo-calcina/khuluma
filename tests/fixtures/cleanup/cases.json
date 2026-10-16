@@ -4999,25 +4999,6 @@
    "input": "um so the color of the the api is open ai and get hub [blank audio] ok"
   },
   {
-   "id": "pipeline-019",
-   "config": "repo",
-   "app": "Ghostty",
-   "env": {
-    "DICTATE_POSTPROCESS": "1",
-    "CEREBRAS_API_KEY": "test-not-a-key"
-   },
-   "input": "um so the color of the the api is open ai and get hub [blank audio] ok"
-  },
-  {
-   "id": "pipeline-020",
-   "config": "repo",
-   "app": "Ghostty",
-   "env": {
-    "DICTATE_POSTPROCESS": "1"
-   },
-   "input": "um so the color of the the api is open ai and get hub [blank audio] ok"
-  },
-  {
    "id": "pipeline-021",
    "config": "repo",
    "app": "Ghostty",

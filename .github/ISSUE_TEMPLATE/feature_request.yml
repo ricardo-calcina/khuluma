@@ -15,7 +15,7 @@ body:
     id: proposal
     attributes:
       label: Proposed change
-      description: Describe behavior, CLI surface, and tradeoffs.
+      description: Describe behavior, where it lives (Lowkey or the CLI), and tradeoffs.
     validations:
       required: true
 
@@ -24,11 +24,11 @@ body:
     attributes:
       label: Roadmap area
       options:
-        - v0.4 hardening
-        - v0.5 UX/config maturity
-        - v0.6 terminal-first UX
-        - v0.7 integrations
-        - post-v1 experimental
+        - lowkey
+        - cli (back end, file transcription)
+        - daemon
+        - rename roadmap phase
+        - other
 
   - type: textarea
     id: risks

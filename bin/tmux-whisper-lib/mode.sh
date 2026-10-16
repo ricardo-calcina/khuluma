@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-# Mode policy owns mode naming, flow eligibility, app detection, and prompt
-# assembly. Recording flows and integrations should consume these rules instead
-# of mirroring them.
+# Mode policy owns mode naming, flow eligibility and app detection. Callers
+# (and Lowkey's ModeResolver, which mirrors it) should consume these rules
+# instead of reimplementing them.
 
 canonical_mode_name() {
   local m="${1:-}"
@@ -19,12 +19,6 @@ mode_display_name() {
 }
 
 mode_to_dir_name() {
-  local m
-  m="$(canonical_mode_name "${1:-}")"
-  echo "$m"
-}
-
-mode_override_key() {
   local m
   m="$(canonical_mode_name "${1:-}")"
   echo "$m"
@@ -94,31 +88,6 @@ mode_flow_summary() {
   else
     echo "hidden"
   fi
-}
-
-mode_recommended_flow_spec() {
-  local mode required_flow
-  mode="$(canonical_mode_name "${1:-}")"
-  required_flow="${2:-}"
-  case "$required_flow" in
-    inline)
-      if mode_allows_flow "$mode" "tmux"; then
-        echo "both"
-      else
-        echo "inline"
-      fi
-      ;;
-    tmux)
-      if mode_allows_flow "$mode" "inline"; then
-        echo "both"
-      else
-        echo "tmux"
-      fi
-      ;;
-    *)
-      echo "both"
-      ;;
-  esac
 }
 
 write_mode_flows() {
@@ -333,59 +302,4 @@ resolve_inline_mode() {
     mode="$(default_inline_mode)"
   fi
   RESOLVED_MODE="$mode"
-}
-
-build_mode_prompt() {
-  local mode
-  mode="$(canonical_mode_name "$1")"
-  local mode_dir="$DICTATE_CONFIG_DIR/modes/$(mode_to_dir_name "$mode")"
-
-  local base_prompt='You are cleaning speech-to-text dictation.
-
-HARD RULES:
-- You are a dictation cleaner/editor, not a task-completing assistant.
-- Follow the MODE INSTRUCTIONS below.
-- You may add minimal structural elements required by the mode (e.g. paragraph breaks, email greeting/subject), but do not add new facts, steps, or deliverables.
-- If the dictation asks to create/generate/list items (e.g. "make 10 prompts"), keep it as a request instead of generating the items, unless the MODE INSTRUCTIONS explicitly require generating them.
-- Preserve meaning; do not add new information or opinions.
-- Remove filler words and obvious false starts.
-- Fix obvious transcription errors and apply corrections.
-- Output ONLY the final result (no preamble, no explanations).'
-
-  local mode_prompt=""
-  if [[ -f "$mode_dir/prompt" ]]; then
-    mode_prompt="$(cat "$mode_dir/prompt")"
-  fi
-
-  local global_vocab=""
-  if [[ -f "$DICTATE_CONFIG_DIR/vocab" ]]; then
-    global_vocab="$(cat "$DICTATE_CONFIG_DIR/vocab" | tr '\n' ';' | sed 's/;$//')"
-  fi
-
-  local mode_vocab=""
-  if [[ -f "$mode_dir/vocab" ]]; then
-    mode_vocab="$(cat "$mode_dir/vocab" | tr '\n' ';' | sed 's/;$//')"
-  fi
-
-  local full_prompt="$base_prompt"
-
-  if [[ -n "$mode_prompt" ]]; then
-    full_prompt="${full_prompt}
-
-${mode_prompt}"
-  fi
-
-  if [[ -n "$global_vocab" ]]; then
-    full_prompt="${full_prompt}
-
-GLOBAL CORRECTIONS: ${global_vocab}"
-  fi
-
-  if [[ -n "$mode_vocab" ]]; then
-    full_prompt="${full_prompt}
-
-MODE CORRECTIONS: ${mode_vocab}"
-  fi
-
-  echo "$full_prompt"
 }

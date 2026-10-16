@@ -16,10 +16,10 @@ body:
     attributes:
       label: Affected flow
       options:
-        - tmux
-        - inline
-        - raycast
         - lowkey
+        - transcribe
+        - cli
+        - daemon
         - install/bootstrap
         - homebrew
     validations:
@@ -40,7 +40,7 @@ body:
     id: diagnostics
     attributes:
       label: Diagnostics
-      description: Paste key output from `tmux-whisper debug` and `tmux-whisper doctor`.
+      description: Paste key output from `tmux-whisper doctor` and `tmux-whisper status`.
       render: shell
 
   - type: textarea
@@ -50,5 +50,5 @@ body:
       placeholder: |
         macOS:
         install channel (brew/bootstrap/local):
-        whisper model:
-        tmux version (if relevant):
+        Parakeet model:
+        Lowkey line from app.log (`settings: ... cli X (contract N)`):

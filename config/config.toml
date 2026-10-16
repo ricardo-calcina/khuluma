@@ -4,14 +4,6 @@
 [meta]
 config_version = 1
 
-[audio]
-source = "auto"
-silence_trim = false
-silence_trim_mode = "edges"
-silence_threshold_db = -60
-silence_min_ms = 250
-silence_keep_ms = 50
-
 [clean]
 repeats_level = 1
 
@@ -24,47 +16,14 @@ model_path = ""
 model_version = ""
 socket_path = "~/.config/dictate/.cache/tmux-whisperd.sock"
 
-[postprocess]
-enabled = false
-llm = "gpt-oss-120b"
-max_tokens = 3000
-chunk_words = 700
-budget_long_words_threshold = 120
-
 [inline]
 autosend = true
 process_sound = true
 paste_target = "current"
 send_mode = "enter"
 
-[tmux]
-autosend = true
-paste_target = "origin"
-postprocess = false
-process_sound = true
-mode = "code"
-send_mode = "auto"
-
 [debug]
 keep_logs = false
-
-[ui.keybinds]
-tmux = "F12"
-inline = "F11"
-
-[ui.icons]
-recording = "🔴"
-processing = "🔲"
-ready = "🔳"
-error = "⚠️"
-base = ""
-code = ""
-long = ""
-email = ""
-chat = ""
-linkedin = ""
-twitter = ""
-cancel = "🚫"
 
 [audio.sounds]
 cancel = "~/.local/share/sounds/dictate/cancel.wav"
@@ -78,13 +37,3 @@ start = "~/.local/share/sounds/dictate/start.wav"
 start_enabled = true
 stop = "~/.local/share/sounds/dictate/stop.wav"
 stop_enabled = true
-
-[postprocess.budget_profiles.long]
-chunk_words = 1000
-llm = "gpt-oss-120b"
-max_tokens = 5200
-
-[postprocess.budget_profiles.short]
-chunk_words = 700
-llm = "gpt-oss-120b"
-max_tokens = 2000

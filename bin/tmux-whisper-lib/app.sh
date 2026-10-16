@@ -30,7 +30,6 @@ app_cleanup_settings_json() {
   APPCLEAN_CODE_PARAGRAPH_MIN_WORDS="${DICTATE_CODE_PARAGRAPH_MIN_WORDS:-70}" \
   APPCLEAN_LONG_PARAGRAPH_MIN_WORDS="${DICTATE_LONG_PARAGRAPH_MIN_WORDS:-55}" \
   APPCLEAN_FORCE_MODE="${DICTATE_FORCE_MODE:-}" \
-  APPCLEAN_POSTPROCESS="$(resolve_inline_postprocess_effective)" \
   APPCLEAN_LOCALE_CTYPE="${LC_ALL:-${LC_CTYPE:-${LANG:-}}}" \
   APPCLEAN_LOCALE_COLLATE="${LC_ALL:-${LC_COLLATE:-${LANG:-}}}" \
   APPCLEAN_CHILD_LC_ALL="$(printenv LC_ALL || true)" \
@@ -63,7 +62,6 @@ print(json.dumps({
     "code_paragraph_min_words": e["APPCLEAN_CODE_PARAGRAPH_MIN_WORDS"],
     "long_paragraph_min_words": e["APPCLEAN_LONG_PARAGRAPH_MIN_WORDS"],
     "force_mode": e["APPCLEAN_FORCE_MODE"] or None,
-    "postprocess": e["APPCLEAN_POSTPROCESS"] == "1",
     # Mode detection (grep -i, sed, glob order) and the blank check depend on
     # these; the native pipeline only reproduces the C locale.
     "locale_ctype": effective_locale("CTYPE"),
@@ -76,14 +74,12 @@ PYEOF
 # inline transcription would use them. Numeric env overrides stay raw strings
 # so the app can apply the CLI's exact parsing (and fall back when unsure).
 app_transcription_settings_json() {
-  local model_path model_version="" ffmpeg_ok="0" silence_trim="0" keep_logs="0" tail_rescue="0" chunking="0"
+  local model_path model_version="" ffmpeg_ok="0" keep_logs="0" tail_rescue="0"
   model_path="$(resolve_swift_parakeet_model_path 2>/dev/null || true)"
   [[ -n "$model_path" ]] && model_version="$(resolve_swift_parakeet_model_version "$model_path")"
   command -v ffmpeg >/dev/null 2>&1 && command -v ffprobe >/dev/null 2>&1 && ffmpeg_ok="1"
-  bool_is_on "${DICTATE_SILENCE_TRIM:-${CFG_AUDIO_SILENCE_TRIM:-0}}" && silence_trim="1"
   keep_logs_enabled && keep_logs="1"
   bool_is_on "${DICTATE_SWIFT_PARAKEET_TAIL_RESCUE:-1}" && tail_rescue="1"
-  bool_is_on "${DICTATE_SWIFT_PARAKEET_CHUNKING:-0}" && chunking="1"
 
   APPTR_SOCKET="$(resolve_swift_parakeet_socket_path)" \
   APPTR_MODEL_PATH="$model_path" \
@@ -94,8 +90,6 @@ app_transcription_settings_json() {
   APPTR_TAIL_RESCUE="$tail_rescue" \
   APPTR_TAIL_RESCUE_MS="${DICTATE_SWIFT_PARAKEET_TAIL_RESCUE_MS:-}" \
   APPTR_TAIL_RESCUE_MIN_MS="${DICTATE_SWIFT_PARAKEET_TAIL_RESCUE_MIN_MS:-}" \
-  APPTR_CHUNKING="$chunking" \
-  APPTR_SILENCE_TRIM="$silence_trim" \
   APPTR_KEEP_LOGS="$keep_logs" \
   APPTR_FFMPEG="$ffmpeg_ok" \
   APPTR_TIMEOUT="${DICTATE_SWIFT_PARAKEET_TIMEOUT_SECONDS:-600}" \
@@ -114,8 +108,6 @@ print(json.dumps({
     "tail_rescue": flag("APPTR_TAIL_RESCUE"),
     "tail_rescue_ms": e["APPTR_TAIL_RESCUE_MS"],
     "tail_rescue_min_ms": e["APPTR_TAIL_RESCUE_MIN_MS"],
-    "chunking": flag("APPTR_CHUNKING"),
-    "silence_trim": flag("APPTR_SILENCE_TRIM"),
     "keep_logs": flag("APPTR_KEEP_LOGS"),
     "ffmpeg": flag("APPTR_FFMPEG"),
     "timeout_seconds": e["APPTR_TIMEOUT"],
@@ -142,19 +134,18 @@ app_config_json() {
 
   env "${sound_env[@]}" \
     APPCFG_CLI_VERSION="$TMUX_WHISPER_CLI_VERSION" \
+    APPCFG_APP_CONTRACT="$TMUX_WHISPER_APP_CONTRACT" \
     APPCFG_HOTKEY="${DICTATE_APP_HOTKEY:-${CFG_APP_HOTKEY:-ctrl+option+space}}" \
     APPCFG_AUTOSEND="$APP_AUTOSEND" \
     APPCFG_SEND_MODE="$APP_SEND_MODE" \
     APPCFG_PASTE_TARGET="$APP_PASTE_TARGET" \
     APPCFG_ACTIVATE_DELAY_MS="$APP_ACTIVATE_DELAY_MS" \
     APPCFG_SEND_DELAY_MS="$APP_SEND_DELAY_MS" \
-    APPCFG_PROCESS_SOUND="${CFG_INLINE_PROCESS_SOUND:-1}" \
+    APPCFG_PROCESS_SOUND="${DICTATE_INLINE_PROCESS_SOUND:-${CFG_INLINE_PROCESS_SOUND:-1}}" \
     APPCFG_CLEANUP_JSON="$(app_cleanup_settings_json)" \
     APPCFG_TRANSCRIPTION_JSON="$(app_transcription_settings_json)" \
-    APPCFG_NATIVE_PIPELINE="${DICTATE_APP_NATIVE_PIPELINE:-${CFG_APP_NATIVE_PIPELINE:-1}}" \
     APPCFG_CONFIG_ERROR="${CFG_CONFIG_PARSE_ERROR:-}" \
     APPCFG_CONFIG_SOURCE="${CFG_CONFIG_SOURCE:-file}" \
-    APPCFG_VERIFY_PIPELINE="${DICTATE_APP_VERIFY_PIPELINE:-${CFG_APP_VERIFY_PIPELINE:-1}}" \
     APPCFG_SUPERVISE_DAEMON="${DICTATE_APP_SUPERVISE_DAEMON:-${CFG_APP_SUPERVISE_DAEMON:-1}}" \
     APPCFG_USAGE_PATH="$(usage_summary_file)" \
     python3 - <<'PYEOF'
@@ -169,6 +160,7 @@ for event in ("start", "stop", "process", "error", "cancel"):
 print(json.dumps({
     "schema_version": 1,
     "cli_version": e["APPCFG_CLI_VERSION"],
+    "app_contract": int(e["APPCFG_APP_CONTRACT"]),
     "hotkey": e["APPCFG_HOTKEY"],
     "sounds": sounds,
     "inline": {
@@ -185,19 +177,9 @@ print(json.dumps({
     # ("last_good") or, if there is none, the defaults.
     "config": {"error": e["APPCFG_CONFIG_ERROR"] or None, "source": e["APPCFG_CONFIG_SOURCE"]},
     "pipeline": {
-        "native": e["APPCFG_NATIVE_PIPELINE"].lower() in ("1", "true", "yes", "on"),
-        "verify": e["APPCFG_VERIFY_PIPELINE"].lower() in ("1", "true", "yes", "on"),
         # Lowkey keeps the daemon warm (it still never launches one itself).
         "supervise": e["APPCFG_SUPERVISE_DAEMON"].lower() in ("1", "true", "yes", "on"),
     },
-    # What this CLI supports, so a newer app can tell an older CLI apart:
-    # take_markers: Lowkey's whole-take markers count as busy and dead ones
-    #   are pruned; lifecycle_lock: daemon starts/restarts are serialized;
-    #   warmup_json: `warmup --json` reports ready/warming/unavailable;
-    #   usage_days: `usage --json --days N|all` has per-day buckets;
-    #   deferred_usage: `inline process --defer-usage` plus `inline record`
-    #   usage_only, with take ids deduplicated in the usage ledger.
-    "capabilities": ["take_markers", "lifecycle_lock", "warmup_json", "usage_days", "deferred_usage"],
     "usage": {"summary_path": e["APPCFG_USAGE_PATH"]},
 }))
 PYEOF
@@ -205,7 +187,7 @@ PYEOF
 
 # tmux-whisper inline process <wav> [--app NAME] [--record-ms N]
 #   [--startup-ms N] [--started-at-ms EPOCH_MS] [--defer-usage] --json
-# --defer-usage (capability deferred_usage): don't count the take in the
+# --defer-usage (what Lowkey always passes): don't count the take in the
 # usage ledger; the caller records it with `inline record` (usage_only) once
 # it has actually delivered the text.
 # Prints one JSON object: {ok, status, text, raw_text, mode, message,
@@ -242,15 +224,13 @@ inline_process_json() {
   # shellcheck disable=SC2064
   trap "rm -f '$log' '$work_wav'" EXIT
   cp "$wav" "$work_wav" || die "inline process: cannot read $wav"
-  INLINE_DELIVERY_MODE="external"
   INLINE_DEFER_USAGE="$defer_usage"
   INLINE_EXTERNAL_TEXT=""
   INLINE_EXTERNAL_RAW_TEXT=""
   INLINE_EXTERNAL_MODE=""
   INLINE_EXTERNAL_TIMINGS=""
-  # An empty session id is never "superseded" by CLI inline recordings.
   process_inline_recording "$work_wav" "$app" "$(current_transcribe_model_label)" "$record_ms" \
-    "$startup_ms" "0" "0" "0" "app:avaudioengine" "" "" "self" "$started_at_ms" >"$log" 2>&1 || rc=$?
+    "$startup_ms" "app:avaudioengine" "$started_at_ms" >"$log" 2>&1 || rc=$?
 
   eval "$(app_delivery_settings_env)"
   APPPROC_RC="$rc" \
@@ -275,8 +255,6 @@ if ok:
     status = "ok"
 elif any("No speech detected" in l for l in lines):
     status = "no_speech"
-elif any(l.startswith("Skipping stale inline result") for l in lines):
-    status = "superseded"
 else:
     status = "failed"
 timings = {}
@@ -310,8 +288,8 @@ PYEOF
 # tmux-whisper inline cleanup [--app NAME] --json   (transcript on stdin)
 # Runs only the deterministic text cleanup of an inline take (artefacts,
 # fillers/repeats, mode, vocab, paragraphs, British spelling), never the LLM.
-# Used to generate Lowkey's TextPipeline parity fixtures and for shadow
-# compares. Prints {ok, status, raw_text, text, mode, cleanup}.
+# Used to generate Lowkey's TextPipeline parity fixtures
+# (tests/gen-cleanup-fixtures.sh). Prints {ok, status, raw_text, text, mode, cleanup}.
 inline_cleanup_json() {
   local app=""
   while [[ $# -gt 0 ]]; do
@@ -327,13 +305,13 @@ inline_cleanup_json() {
   local raw txt="" final="" mode="" status="no_speech"
   # $(...) drops trailing newlines, like the transcription capture does.
   raw="$(cat)"
-  cleanup_raw_transcript "$raw" "0"
+  cleanup_raw_transcript "$raw"
   txt="$CLEANUP_TEXT"
   if [[ -n "${txt//[[:space:]]/}" ]]; then
     status="ok"
     resolve_inline_mode "$app"
     mode="$RESOLVED_MODE"
-    finish_transcript_text "$txt" "$mode" "0"
+    finish_transcript_text "$txt" "$mode"
     final="$CLEANUP_TEXT"
   fi
 
@@ -508,8 +486,8 @@ print(json.dumps({"ok": True, "take_id": os.environ["APPREC_TAKE_ID"], "duplicat
     if [[ -n "$REC_WAV_PATH" ]]; then
       local archive_prefix=""
       archive_prefix="$(inline_archive_prefix "${REC_TAKE_ID:-lowkey}" 2>/dev/null || true)"
-      archive_inline_debug_artifacts "$archive_prefix" "$REC_WAV_PATH" "" "" "$REC_STATUS" \
-        "$record_ms" "$transcribe_ms" "$clean_ms" "0" "$paste_ms" "$total_ms" "$REC_TAKE_ID"
+      archive_inline_debug_artifacts "$archive_prefix" "$REC_WAV_PATH" "" "$REC_STATUS" \
+        "$record_ms" "$transcribe_ms" "$clean_ms" "$paste_ms" "$total_ms" "$REC_TAKE_ID"
     fi
     inline_record_mark "$bench_ledger"
   fi
@@ -518,7 +496,7 @@ print(json.dumps({"ok": True, "take_id": os.environ["APPREC_TAKE_ID"], "duplicat
     [[ "$needs_history" == "1" ]] && history_saved="1"
   else
     local history_app="${REC_APP:-current}"
-    if save_history "$REC_RAW" "$REC_TEXT" "$mode" "$history_app" "$record_ms" "$transcribe_ms" "$clean_ms" "0" "$paste_ms" "$total_ms"; then
+    if save_history "$REC_RAW" "$REC_TEXT" "$mode" "$history_app" "$record_ms" "$transcribe_ms" "$clean_ms" "$paste_ms" "$total_ms"; then
       history_saved="1"
       history_done="1"
       inline_record_mark "$history_ledger"

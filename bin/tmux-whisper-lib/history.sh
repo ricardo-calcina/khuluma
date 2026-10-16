@@ -4,7 +4,7 @@
 # adding more weight to the main runtime/dispatch file.
 
 # Save a dictation to history
-# Usage: save_history "raw_transcript" "processed_text" "mode" "app" [record_ms] [transcribe_ms] [clean_ms] [postprocess_ms] [paste_ms] [total_ms]
+# Usage: save_history "raw_transcript" "processed_text" "mode" "app" [record_ms] [transcribe_ms] [clean_ms] [paste_ms] [total_ms]
 save_history() {
   local raw="$1"
   local processed="$2"
@@ -13,9 +13,8 @@ save_history() {
   local record_ms="${5:-}"
   local transcribe_ms="${6:-}"
   local clean_ms="${7:-}"
-  local postprocess_ms="${8:-}"
-  local paste_ms="${9:-}"
-  local total_ms="${10:-}"
+  local paste_ms="${8:-}"
+  local total_ms="${9:-}"
 
   mkdir -p "$HISTORY_DIR"
 
@@ -59,7 +58,6 @@ save_history() {
   append_metric_line "record_ms" "$record_ms"
   append_metric_line "transcribe_ms" "$transcribe_ms"
   append_metric_line "clean_ms" "$clean_ms"
-  append_metric_line "postprocess_ms" "$postprocess_ms"
   append_metric_line "paste_ms" "$paste_ms"
   append_metric_line "total_ms" "$total_ms"
 
@@ -86,30 +84,11 @@ save_history() {
   append_audio_line "capture_wav_ms" "${INLINE_CAPTURE_WAV_MS:-}"
   append_audio_line "capture_wav_bytes" "${INLINE_CAPTURE_WAV_BYTES:-}"
   append_audio_line "capture_gap_to_record_ms" "${INLINE_CAPTURE_GAP_TO_RECORD_MS:-}"
-  append_audio_line "capture_gap_to_record_plus_grace_ms" "${INLINE_CAPTURE_GAP_TO_RECORD_PLUS_GRACE_MS:-}"
   append_audio_line "archive_wav_ms" "${INLINE_ARCHIVE_WAV_MS:-}"
   append_audio_line "archive_wav_bytes" "${INLINE_ARCHIVE_WAV_BYTES:-}"
   append_audio_line "wav_retention_days" "${INLINE_DEBUG_WAV_RETENTION_DAYS:-}"
   append_audio_line "debug_archive_prefix" "${INLINE_DEBUG_ARCHIVE_PREFIX:-}" "string"
   append_audio_line "retention_note" "${INLINE_DEBUG_AUDIO_RETENTION_NOTE:-}" "string"
-
-  local budget_obs_lines=""
-  if [[ "${DICTATE_LAST_POSTPROCESS_BUDGET_OBS_ACTIVE:-0}" == "1" ]]; then
-    local _profile _llm
-    local profile_escaped llm_escaped
-    _profile="${DICTATE_LAST_POSTPROCESS_BUDGET_PROFILE:-}"
-    _llm="${DICTATE_LAST_POSTPROCESS_BUDGET_LLM_MODEL:-}"
-    profile_escaped="$(printf '%s' "$_profile" | jq -Rs .)"
-    llm_escaped="$(printf '%s' "$_llm" | jq -Rs .)"
-    budget_obs_lines="    \"numeric_sizing\": \"auto_dynamic\","$'\n'
-    budget_obs_lines="${budget_obs_lines}    \"profile\": ${profile_escaped}"
-    [[ "${DICTATE_LAST_POSTPROCESS_BUDGET_THRESHOLD:-}" =~ ^[0-9]+$ ]] && budget_obs_lines="${budget_obs_lines},"$'\n'"    \"threshold_words\": ${DICTATE_LAST_POSTPROCESS_BUDGET_THRESHOLD}"
-    [[ "${DICTATE_LAST_POSTPROCESS_BUDGET_WORD_COUNT:-}" =~ ^[0-9]+$ ]] && budget_obs_lines="${budget_obs_lines},"$'\n'"    \"word_count\": ${DICTATE_LAST_POSTPROCESS_BUDGET_WORD_COUNT}"
-    [[ "${DICTATE_LAST_POSTPROCESS_BUDGET_MAX_TOKENS:-}" =~ ^[0-9]+$ ]] && budget_obs_lines="${budget_obs_lines},"$'\n'"    \"max_tokens\": ${DICTATE_LAST_POSTPROCESS_BUDGET_MAX_TOKENS}"
-    [[ "${DICTATE_LAST_POSTPROCESS_BUDGET_CHUNK_WORDS:-}" =~ ^[0-9]+$ ]] && budget_obs_lines="${budget_obs_lines},"$'\n'"    \"chunk_words\": ${DICTATE_LAST_POSTPROCESS_BUDGET_CHUNK_WORDS}"
-    [[ "${DICTATE_LAST_POSTPROCESS_BUDGET_CHUNK_COUNT:-}" =~ ^[0-9]+$ ]] && budget_obs_lines="${budget_obs_lines},"$'\n'"    \"chunk_count\": ${DICTATE_LAST_POSTPROCESS_BUDGET_CHUNK_COUNT}"
-    [[ -n "$_llm" ]] && budget_obs_lines="${budget_obs_lines},"$'\n'"    \"llm\": ${llm_escaped}"
-  fi
 
   local extra_fields=""
   if [[ -n "$metrics_lines" ]]; then
@@ -117,9 +96,6 @@ save_history() {
   fi
   if [[ -n "$audio_lines" ]]; then
     extra_fields="${extra_fields},"$'\n'"  \"audio\": {"$'\n'"${audio_lines}"$'\n'"  }"
-  fi
-  if [[ -n "$budget_obs_lines" ]]; then
-    extra_fields="${extra_fields},"$'\n'"  \"postprocess_budget\": {"$'\n'"${budget_obs_lines}"$'\n'"  }"
   fi
 
   cat > "$filename" <<EOF
@@ -177,11 +153,14 @@ history_entry_json() {
     die "history entry $n not found"
   fi
 
+  # Entries from before v0.11 may carry the retired LLM fields: leave them on
+  # disk, out of the output.
   jq --argjson index "$n" --arg file "$file" '
     {
       index: $index,
       file: $file,
-      entry: .
+      entry: (del(.postprocess_budget)
+        | if (.metrics | type) == "object" then .metrics |= del(.postprocess_ms) else . end)
     }
   ' "$file"
 }
@@ -713,9 +692,8 @@ for path in files:
     metrics = data.get("metrics")
     if not isinstance(metrics, dict):
         metrics = {}
-    budget = data.get("postprocess_budget")
-    if not isinstance(budget, dict):
-        budget = {}
+    # Entries from before v0.11 may carry the retired LLM timing.
+    metrics = {k: v for k, v in metrics.items() if k != "postprocess_ms"}
     audio = data.get("audio")
     if not isinstance(audio, dict):
         audio = {}
@@ -733,7 +711,6 @@ for path in files:
             "processed_words": word_count(processed),
             "metrics": metrics,
             "audio": audio,
-            "postprocess_budget": budget,
         }
     )
 
@@ -872,9 +849,8 @@ for overall_index, path in enumerate(files, start=1):
     metrics = data.get("metrics")
     if not isinstance(metrics, dict):
         metrics = {}
-    budget = data.get("postprocess_budget")
-    if not isinstance(budget, dict):
-        budget = {}
+    # Entries from before v0.11 may carry the retired LLM timing.
+    metrics = {k: v for k, v in metrics.items() if k != "postprocess_ms"}
     audio = data.get("audio")
     if not isinstance(audio, dict):
         audio = {}
@@ -893,7 +869,6 @@ for overall_index, path in enumerate(files, start=1):
             "match_fields": match_fields,
             "metrics": metrics,
             "audio": audio,
-            "postprocess_budget": budget,
         }
     )
     if len(entries) >= limit:
@@ -909,7 +884,7 @@ history_render_entry_text() {
   [[ -n "$file" && -f "$file" ]] || die "history entry $n not found"
 
   local timestamp mode app raw processed
-  local metrics_lines audio_lines budget_lines
+  local metrics_lines audio_lines
   timestamp="$(jq -r '.timestamp // ""' "$file" 2>/dev/null)"
   mode="$(jq -r '.mode // "?"' "$file")"
   app="$(jq -r '.app // "?"' "$file")"
@@ -917,7 +892,7 @@ history_render_entry_text() {
   processed="$(jq -r '.processed // ""' "$file")"
   metrics_lines="$(jq -r '
     (.metrics // {}) as $m
-    | ["record_ms","transcribe_ms","clean_ms","postprocess_ms","paste_ms","total_ms"][]
+    | ["record_ms","transcribe_ms","clean_ms","paste_ms","total_ms"][]
     | select($m[.] != null)
     | "\(.) : \($m[.])"
   ' "$file" 2>/dev/null || true)"
@@ -927,13 +902,6 @@ history_render_entry_text() {
     | select($a[.] != null)
     | "\(.) : \($a[.])"
   ' "$file" 2>/dev/null || true)"
-  budget_lines="$(jq -r '
-    (.postprocess_budget // {}) as $b
-    | ["numeric_sizing","profile","threshold_words","word_count","max_tokens","chunk_words","chunk_count","llm"][]
-    | select($b[.] != null)
-    | "\(.) : \($b[.])"
-  ' "$file" 2>/dev/null || true)"
-
   echo "=== Entry $n ==="
   echo "File: $(basename "$file")"
   [[ -n "$timestamp" ]] && echo "Timestamp: $timestamp"
@@ -954,14 +922,6 @@ history_render_entry_text() {
       [[ -n "$line" ]] || continue
       echo "$line"
     done <<< "$audio_lines"
-  fi
-  if [[ -n "${budget_lines//[[:space:]]/}" ]]; then
-    echo ""
-    echo "--- Postprocess Budget ---"
-    while IFS= read -r line; do
-      [[ -n "$line" ]] || continue
-      echo "$line"
-    done <<< "$budget_lines"
   fi
   echo ""
   echo "--- Raw transcript ---"
@@ -1025,9 +985,8 @@ for path in files:
     metrics = data.get("metrics")
     if not isinstance(metrics, dict):
         metrics = {}
-    budget = data.get("postprocess_budget")
-    if not isinstance(budget, dict):
-        budget = {}
+    # Entries from before v0.11 may carry the retired LLM timing.
+    metrics = {k: v for k, v in metrics.items() if k != "postprocess_ms"}
     audio = data.get("audio")
     if not isinstance(audio, dict):
         audio = {}
@@ -1046,7 +1005,6 @@ for path in files:
             "processed_words": word_count(processed),
             "metrics": metrics,
             "audio": audio,
-            "postprocess_budget": budget,
         }
     )
 
@@ -1126,12 +1084,11 @@ for path in files:
     metrics = data.get("metrics")
     if not isinstance(metrics, dict):
         metrics = {}
+    # Entries from before v0.11 may carry the retired LLM timing.
+    metrics = {k: v for k, v in metrics.items() if k != "postprocess_ms"}
     audio = data.get("audio")
     if not isinstance(audio, dict):
         audio = {}
-    budget = data.get("postprocess_budget")
-    if not isinstance(budget, dict):
-        budget = {}
 
     sessions.append(
         {
@@ -1147,7 +1104,6 @@ for path in files:
             "metrics": metrics,
             "audio": audio,
             "debug_notes": compact_debug_notes(audio),
-            "postprocess_budget": budget,
         }
     )
 
@@ -1160,7 +1116,6 @@ payload = {
     "next_commands": [
         "tmux-whisper history stats",
         "tmux-whisper bench 10",
-        "tmux-whisper logs tail transcribe --lines 40",
     ],
 }
 
@@ -1182,7 +1137,6 @@ for session in sessions:
     for key, label in (
         ("record_ms", "record"),
         ("transcribe_ms", "transcribe"),
-        ("postprocess_ms", "postprocess"),
         ("paste_ms", "paste"),
         ("total_ms", "total"),
     ):
@@ -1212,7 +1166,6 @@ print("")
 print("Next:")
 print("  tmux-whisper history stats")
 print("  tmux-whisper bench 10")
-print("  tmux-whisper logs tail transcribe --lines 40")
 PYEOF
 }
 
@@ -1245,7 +1198,7 @@ show_last_history() {
   fi
 
   local timestamp mode app raw processed
-  local raw_words processed_words metrics_compact budget_compact preview
+  local raw_words processed_words metrics_compact preview
   local record_ms total_ms dictation_wpm typing_wpm typing_equivalent_ms typing_delta_ms
   timestamp="$(jq -r '.timestamp // ""' "$file" 2>/dev/null)"
   mode="$(jq -r '.mode // "?"' "$file" 2>/dev/null)"
@@ -1273,21 +1226,9 @@ show_last_history() {
   fi
   metrics_compact="$(jq -r '
     (.metrics // {}) as $m
-    | ["record_ms","transcribe_ms","clean_ms","postprocess_ms","paste_ms","total_ms"]
+    | ["record_ms","transcribe_ms","clean_ms","paste_ms","total_ms"]
     | map(select($m[.] != null) | "\(.)=\($m[.])ms")
     | join(" ")
-  ' "$file" 2>/dev/null || true)"
-  budget_compact="$(jq -r '
-    (.postprocess_budget // {}) as $b
-    | if ($b | length) == 0 then ""
-      else
-        [
-          (if $b.profile != null then "profile=\($b.profile)" else empty end),
-          (if $b.word_count != null then "words=\($b.word_count)" else empty end),
-          (if $b.max_tokens != null then "max_tokens=\($b.max_tokens)" else empty end),
-          (if $b.chunk_count != null then "chunks=\($b.chunk_count)" else empty end)
-        ] | join(" ")
-      end
   ' "$file" 2>/dev/null || true)"
   preview="$(printf '%s' "$processed" | tr '\n' ' ' | head -c 120)"
 
@@ -1315,60 +1256,7 @@ show_last_history() {
   if [[ -n "${metrics_compact//[[:space:]]/}" ]]; then
     echo "  metrics: $metrics_compact"
   fi
-  if [[ -n "${budget_compact//[[:space:]]/}" ]]; then
-    echo "  budget: $budget_compact"
-  fi
   echo "  preview: ${preview}..."
-}
-
-# Reprocess a history entry with a different mode
-reprocess_history() {
-  local n="${1:-1}"
-  local target_mode="${2:-}"
-
-  if [[ -z "${CEREBRAS_API_KEY:-}" ]]; then
-    die "reprocess requires CEREBRAS_API_KEY"
-  fi
-
-  if [[ ! -d "$HISTORY_DIR" ]]; then
-    die "no history directory"
-  fi
-
-  local file
-  file="$(ls -1t "$HISTORY_DIR"/*.json 2>/dev/null | sed -n "${n}p")"
-
-  if [[ -z "$file" || ! -f "$file" ]]; then
-    die "history entry $n not found"
-  fi
-
-  local raw
-  raw="$(jq -r '.raw // ""' "$file")"
-
-  if [[ -z "$raw" ]]; then
-    die "no raw transcript in entry $n"
-  fi
-
-  # Determine mode
-  if [[ -z "$target_mode" ]]; then
-    target_mode="$(get_current_mode)"
-  else
-    target_mode="$(canonical_mode_name "$target_mode")"
-    if [[ ! -d "$DICTATE_CONFIG_DIR/modes/$(mode_to_dir_name "$target_mode")" ]]; then
-      die "unknown mode: $target_mode"
-    fi
-  fi
-
-  echo "🔄 Reprocessing entry $n with $(mode_display_name "$target_mode") mode..."
-
-  local result
-  result="$(DICTATE_FORCE_MODE="$target_mode" postprocess_llm "$raw" "")"
-  result="$(printf "%s" "$result" | auto_paragraphs "$target_mode" | normalize_british_spelling)"
-
-  printf "%s" "$result" | pbcopy
-
-  echo "✅ Done. Result copied to clipboard:"
-  echo ""
-  echo "$result"
 }
 
 # Main history command handler
@@ -1424,7 +1312,7 @@ history_dir = os.path.expanduser(sys.argv[1])
 json_output = sys.argv[2] == "1"
 files = sorted(glob.glob(os.path.join(history_dir, "*.json")))
 
-METRIC_NAMES = ("record_ms", "transcribe_ms", "clean_ms", "postprocess_ms", "paste_ms", "total_ms")
+METRIC_NAMES = ("record_ms", "transcribe_ms", "clean_ms", "paste_ms", "total_ms")
 
 def word_count(s: str) -> int:
     return len(re.findall(r"\b\w+\b", s or ""))
@@ -1575,7 +1463,6 @@ for path in files:
             "raw_words": word_count(raw),
             "processed_words": word_count(processed),
             "metrics": metrics,
-            "budget": data.get("postprocess_budget") if isinstance(data.get("postprocess_budget"), dict) else {},
         }
     )
 
@@ -1603,7 +1490,6 @@ if not rows:
             "dictation_wpm_overall": 0,
             "dictation_wpm": empty_metric,
         },
-        "postprocess_budget": {"entries": 0},
     }
     if json_output:
         print(json.dumps(payload, indent=2, sort_keys=True))
@@ -1615,30 +1501,6 @@ raw_chars = [r["raw_chars"] for r in rows]
 raw_words = [r["raw_words"] for r in rows]
 proc_chars = [r["processed_chars"] for r in rows]
 proc_words = [r["processed_words"] for r in rows]
-
-budget_rows = []
-for row in rows:
-    budget = row["budget"]
-    if budget:
-        budget_rows.append(
-            {
-                "profile": str(budget.get("profile", "") or ""),
-                "word_count": to_int(budget.get("word_count")) or 0,
-                "threshold_words": to_int(budget.get("threshold_words")) or 0,
-                "max_tokens": to_int(budget.get("max_tokens")) or 0,
-                "chunk_words": to_int(budget.get("chunk_words")) or 0,
-                "chunk_count": to_int(budget.get("chunk_count")) or 0,
-                "postprocess_ms": row["metrics"].get("postprocess_ms", 0),
-                "numeric_sizing": str(budget.get("numeric_sizing", "") or ""),
-            }
-        )
-
-profile_counts = {}
-for row in budget_rows:
-    profile = row.get("profile") or "<unset>"
-    profile_counts[profile] = profile_counts.get(profile, 0) + 1
-numeric_modes = sorted({row.get("numeric_sizing", "") for row in budget_rows if row.get("numeric_sizing", "")})
-thresholds = sorted({row.get("threshold_words", 0) for row in budget_rows if row.get("threshold_words", 0) > 0})
 
 recent_24h_rows = [r for r in rows if r["timestamp_dt"] is not None and r["timestamp_dt"] >= (now_utc - timedelta(hours=24))]
 recent_7d_rows = [r for r in rows if r["timestamp_dt"] is not None and r["timestamp_dt"] >= (now_utc - timedelta(days=7))]
@@ -1682,17 +1544,6 @@ payload = {
         "delta_vs_end_to_end_ms": (typing_time_ms - total_ms_total) if total_ms_total > 0 else 0,
         "dictation_wpm_overall": dictation_wpm_overall,
         "dictation_wpm": metric_summary(dictation_wpm_samples),
-    },
-    "postprocess_budget": {
-        "entries": len(budget_rows),
-        "profile_counts": profile_counts,
-        "numeric_sizing": numeric_modes,
-        "threshold_words": thresholds,
-        "word_count": metric_summary([r["word_count"] for r in budget_rows if int(r["word_count"]) > 0]),
-        "max_tokens": metric_summary([r["max_tokens"] for r in budget_rows if int(r["max_tokens"]) > 0]),
-        "chunk_words": metric_summary([r["chunk_words"] for r in budget_rows if int(r["chunk_words"]) > 0]),
-        "chunk_count": metric_summary([r["chunk_count"] for r in budget_rows if int(r["chunk_count"]) > 0]),
-        "postprocess_ms": metric_summary([r["postprocess_ms"] for r in budget_rows if int(r["postprocess_ms"]) > 0]),
     },
 }
 
@@ -1766,7 +1617,6 @@ metric_labels = {
     "record_ms": "metrics.record_ms",
     "transcribe_ms": "metrics.transcribe_ms",
     "clean_ms": "metrics.clean_ms",
-    "postprocess_ms": "metrics.postprocess_ms",
     "paste_ms": "metrics.paste_ms",
     "total_ms": "metrics.total_ms",
 }
@@ -1781,24 +1631,6 @@ if available_metrics:
             f"median={metric['median']} p95={metric['p95']} max={metric['max']}"
         )
 
-if budget_rows:
-    print("")
-    print(f"Postprocess budget observability entries: {payload['postprocess_budget']['entries']}")
-    if profile_counts:
-        print("budget_profile_counts: " + ", ".join(f"{k}={v}" for k, v in sorted(profile_counts.items())))
-    if numeric_modes:
-        print("budget_numeric_sizing: " + ", ".join(numeric_modes))
-    if thresholds:
-        print("budget_threshold_words: " + ", ".join(str(x) for x in thresholds))
-    for label, key in (
-        ("budget.word_count", "word_count"),
-        ("budget.max_tokens", "max_tokens"),
-        ("budget.chunk_words", "chunk_words"),
-        ("budget.chunk_count", "chunk_count"),
-        ("metrics.postprocess_ms", "postprocess_ms"),
-    ):
-        metric = payload["postprocess_budget"][key]
-        print(f"{label}: n={metric['n']} median={metric['median']} p95={metric['p95']} max={metric['max']}")
 PYEOF
       ;;
     sessions)
@@ -1812,9 +1644,6 @@ PYEOF
         echo "No history to clear."
       fi
       ;;
-    reprocess)
-      reprocess_history "${1:-1}" "${2:-}"
-      ;;
     [0-9]*)
       if [[ "$json_output" == "1" ]]; then
         history_entry_json "$subcmd"
@@ -1823,7 +1652,7 @@ PYEOF
       fi
       ;;
     *)
-      die "unknown history command: $subcmd (use: list, search, export, sessions, N, reprocess, clear, stats)"
+      die "unknown history command: $subcmd (use: list, search, export, sessions, N, clear, stats)"
       ;;
   esac
 }
