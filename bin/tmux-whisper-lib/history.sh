@@ -153,11 +153,14 @@ history_entry_json() {
     die "history entry $n not found"
   fi
 
+  # Entries from before v0.11 may carry the retired LLM fields: leave them on
+  # disk, out of the output.
   jq --argjson index "$n" --arg file "$file" '
     {
       index: $index,
       file: $file,
-      entry: .
+      entry: (del(.postprocess_budget)
+        | if (.metrics | type) == "object" then .metrics |= del(.postprocess_ms) else . end)
     }
   ' "$file"
 }
@@ -689,6 +692,8 @@ for path in files:
     metrics = data.get("metrics")
     if not isinstance(metrics, dict):
         metrics = {}
+    # Entries from before v0.11 may carry the retired LLM timing.
+    metrics = {k: v for k, v in metrics.items() if k != "postprocess_ms"}
     audio = data.get("audio")
     if not isinstance(audio, dict):
         audio = {}
@@ -844,6 +849,8 @@ for overall_index, path in enumerate(files, start=1):
     metrics = data.get("metrics")
     if not isinstance(metrics, dict):
         metrics = {}
+    # Entries from before v0.11 may carry the retired LLM timing.
+    metrics = {k: v for k, v in metrics.items() if k != "postprocess_ms"}
     audio = data.get("audio")
     if not isinstance(audio, dict):
         audio = {}
@@ -978,6 +985,8 @@ for path in files:
     metrics = data.get("metrics")
     if not isinstance(metrics, dict):
         metrics = {}
+    # Entries from before v0.11 may carry the retired LLM timing.
+    metrics = {k: v for k, v in metrics.items() if k != "postprocess_ms"}
     audio = data.get("audio")
     if not isinstance(audio, dict):
         audio = {}
@@ -1075,6 +1084,8 @@ for path in files:
     metrics = data.get("metrics")
     if not isinstance(metrics, dict):
         metrics = {}
+    # Entries from before v0.11 may carry the retired LLM timing.
+    metrics = {k: v for k, v in metrics.items() if k != "postprocess_ms"}
     audio = data.get("audio")
     if not isinstance(audio, dict):
         audio = {}

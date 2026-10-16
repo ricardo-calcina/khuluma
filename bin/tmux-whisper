@@ -3251,7 +3251,7 @@ bool_is_on() {
 }
 
 # The inline pipeline behind `inline process --json`: transcribe a WAV, clean
-# it up (and post-process it if enabled), record bench, usage and history, and
+# it up, record bench, usage and history, and
 # hand the text back in INLINE_EXTERNAL_* for the caller (Lowkey) to deliver.
 process_inline_recording() {
   local wav="$1"
