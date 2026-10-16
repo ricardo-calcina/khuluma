@@ -120,10 +120,10 @@ struct TranscriptionSettingsTests {
 
     let older = try #require(mismatch(AppConfigFixture.json.replacingOccurrences(
       of: #""app_contract":2"#, with: #""app_contract":1"#)))
-    #expect(older.localizedDescription == "tmux-whisper 0.10.0-dev (contract 1) is older than this Lowkey (contract 2): run ./install.sh --force")
+    #expect(older.localizedDescription == "tmux-whisper 0.10.0-dev (contract 1) is older than this Khuluma (contract 2): run ./install.sh --force")
     let newer = try #require(mismatch(AppConfigFixture.json.replacingOccurrences(
       of: #""app_contract":2"#, with: #""app_contract":3"#)))
-    #expect(newer.localizedDescription.contains("rebuild it with tools/build-lowkey-app.sh"))
+    #expect(newer.localizedDescription.contains("rebuild it with tools/build-khuluma-app.sh"))
     #expect(mismatch(AppConfigFixture.json) == nil)
   }
 }
@@ -460,7 +460,7 @@ struct TakeRecordTests {
     let dir = NSTemporaryDirectory() + "lk-markers-\(UUID().uuidString)"
     defer { try? FileManager.default.removeItem(atPath: dir) }
     let marker = try #require(TakeMarker.create(directory: dir, takeId: "abc-123/../x", phase: .recording, pid: 4242))
-    #expect(marker.url.lastPathComponent == "inline-lowkey-abc-123x")
+    #expect(marker.url.lastPathComponent == "inline-khuluma-abc-123x")
     var body = try String(contentsOf: marker.url, encoding: .utf8)
     #expect(body.hasPrefix("pid=4242\nkind=inline\nsession_id=abc-123x\nphase=recording\n"))
     for phase in [TakeMarker.Phase.queued, .processing, .cli] {
@@ -470,7 +470,7 @@ struct TakeRecordTests {
       #expect(body.hasPrefix("pid=4242\n"))
     }
     // Renamed into place: no temp files left where the CLI's glob would see them.
-    #expect(try FileManager.default.contentsOfDirectory(atPath: dir) == ["inline-lowkey-abc-123x"])
+    #expect(try FileManager.default.contentsOfDirectory(atPath: dir) == ["inline-khuluma-abc-123x"])
     marker.remove()
     #expect(!FileManager.default.fileExists(atPath: marker.url.path))
     // A late update never brings a finished take back.
@@ -486,11 +486,22 @@ struct TakeRecordTests {
     _ = try #require(TakeMarker.create(directory: dir, takeId: "reused-pid", phase: .queued, pid: 333))
     _ = try #require(TakeMarker.create(directory: dir, takeId: "mine", phase: .recording, pid: 444))
     try "pid=555\nkind=inline\n".write(toFile: dir + "/inline-12345", atomically: true, encoding: .utf8)
-    // 222 is another running Lowkey; 333 was reused by some other program.
-    let removed = TakeMarker.removeStale(directory: dir, ownPid: 444, isLowkey: { $0 == 222 })
-    #expect(Set(removed) == ["inline-lowkey-dead", "inline-lowkey-reused-pid"])
+    // 222 is another running Khuluma; 333 was reused by some other program.
+    let removed = TakeMarker.removeStale(directory: dir, ownPid: 444, isKhuluma: { $0 == 222 })
+    #expect(Set(removed) == ["inline-khuluma-dead", "inline-khuluma-reused-pid"])
     #expect(Set(try FileManager.default.contentsOfDirectory(atPath: dir))
-            == ["inline-lowkey-other-app", "inline-lowkey-mine", "inline-12345"])
-    #expect(TakeMarker.isRunningLowkey(getpid()) == false)
+            == ["inline-khuluma-other-app", "inline-khuluma-mine", "inline-12345"])
+    #expect(TakeMarker.isRunningKhuluma(getpid()) == false)
+  }
+
+  @Test func markersFromLowkeyBuildsAreSweptToo() throws {
+    let dir = NSTemporaryDirectory() + "lk-markers-\(UUID().uuidString)"
+    defer { try? FileManager.default.removeItem(atPath: dir) }
+    try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+    try "pid=111\nkind=inline\n".write(toFile: dir + "/inline-lowkey-dead", atomically: true, encoding: .utf8)
+    try "pid=222\nkind=inline\n".write(toFile: dir + "/inline-lowkey-alive", atomically: true, encoding: .utf8)
+    let removed = TakeMarker.removeStale(directory: dir, ownPid: 444, isKhuluma: { $0 == 222 })
+    #expect(removed == ["inline-lowkey-dead"])
+    #expect(try FileManager.default.contentsOfDirectory(atPath: dir) == ["inline-lowkey-alive"])
   }
 }

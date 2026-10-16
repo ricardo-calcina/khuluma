@@ -1,6 +1,6 @@
 import Foundation
 
-/// Audio of takes that were still recording when Lowkey quit. Written before
+/// Audio of takes that were still recording when Khuluma quit. Written before
 /// anything else happens at quit, so a dictation survives even if there's no
 /// time to transcribe it; the next launch transcribes leftovers into history.
 public struct RecoveredTakes: Sendable {
@@ -8,7 +8,7 @@ public struct RecoveredTakes: Sendable {
 
   public static var standard: RecoveredTakes {
     RecoveredTakes(directory: FileManager.default.homeDirectoryForCurrentUser
-      .appendingPathComponent("Library/Application Support/Lowkey/recovered", isDirectory: true))
+      .appendingPathComponent("Library/Application Support/Khuluma/recovered", isDirectory: true))
   }
 
   public init(directory: URL) {

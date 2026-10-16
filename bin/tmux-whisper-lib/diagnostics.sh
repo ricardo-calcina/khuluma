@@ -72,7 +72,7 @@ doctor_mode_flow_fix_suggestion() {
   local mode
   mode="$(canonical_mode_name "${1:-}")"
   [[ -n "$mode" ]] || return 1
-  printf "Let Lowkey use '%s': tmux-whisper mode flows %s inline\n" "$mode" "$mode"
+  printf "Let Khuluma use '%s': tmux-whisper mode flows %s inline\n" "$mode" "$mode"
 }
 
 doctor_mode_inventory_tsv() {

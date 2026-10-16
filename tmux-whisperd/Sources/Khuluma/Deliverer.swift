@@ -29,8 +29,8 @@ enum Deliverer {
       remaining = remaining.dropFirst()
     }
     guard isTrusted(prompt: false) else {
-      throw NSError(domain: "Lowkey", code: 2, userInfo: [
-        NSLocalizedDescriptionKey: "Accessibility permission missing: text is on the clipboard (System Settings → Privacy & Security → Accessibility → Lowkey)",
+      throw NSError(domain: "Khuluma", code: 2, userInfo: [
+        NSLocalizedDescriptionKey: "Accessibility permission missing: text is on the clipboard (System Settings → Privacy & Security → Accessibility → Khuluma)",
       ])
     }
 
@@ -44,10 +44,10 @@ enum Deliverer {
     for step in remaining {
       if target == nil, step.postsKey {
         let front = DispatchQueue.main.sync { NSWorkspace.shared.frontmostApplication }
-        // E.g. Lowkey's own window in front: paste and send nothing.
+        // E.g. Khuluma's own window in front: paste and send nothing.
         if DeliveryTarget.isSelf(frontmostPID: front?.processIdentifier, ownPID: getpid()) {
-          throw NSError(domain: "Lowkey", code: 4, userInfo: [
-            NSLocalizedDescriptionKey: "Lowkey was in front: text is on the clipboard",
+          throw NSError(domain: "Khuluma", code: 4, userInfo: [
+            NSLocalizedDescriptionKey: "Khuluma was in front: text is on the clipboard",
           ])
         }
         target = front?.localizedName ?? "-"
@@ -67,7 +67,7 @@ enum Deliverer {
       case .shortcut(let character, let command, let control):
         let code = DispatchQueue.main.sync { KeyboardLayout.keyCode(for: character) }
         guard let code else {
-          throw NSError(domain: "Lowkey", code: 3, userInfo: [
+          throw NSError(domain: "Khuluma", code: 3, userInfo: [
             NSLocalizedDescriptionKey: "no key types \"\(character)\" in the current keyboard layout: text is on the clipboard",
           ])
         }

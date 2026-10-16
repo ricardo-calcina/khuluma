@@ -4,7 +4,7 @@ import Foundation
 /// `resolve_inline_mode` → `get_current_mode` / `detect_mode` /
 /// `default_inline_mode`), reading the same files under the config dir.
 ///
-/// The CLI that Lowkey starts runs in the C locale, so names compare as bytes,
+/// The CLI that Khuluma starts runs in the C locale, so names compare as bytes,
 /// case folding is ASCII-only and mode folders are visited in byte order.
 public struct ModeResolver: Sendable {
   public let configDir: String
@@ -13,7 +13,7 @@ public struct ModeResolver: Sendable {
     self.configDir = configDir
   }
 
-  /// Mode for an inline take. `app` is the target app's name (Lowkey passes
+  /// Mode for an inline take. `app` is the target app's name (Khuluma passes
   /// the frontmost app). With no app the CLI asks System Events for the
   /// frontmost process; here the default inline mode is used instead.
   public func resolveInlineMode(app: String?, forceMode: String? = nil) -> String {

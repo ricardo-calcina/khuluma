@@ -30,7 +30,7 @@ public struct ObjCException: LocalizedError, Equatable, CustomStringConvertible 
 /// Starts one take at a time, and never leaves its take marker behind.
 ///
 /// A marker published for a start that never finishes keeps the CLI's idle
-/// check busy (blocking daemon upgrades) for as long as Lowkey runs. That
+/// check busy (blocking daemon upgrades) for as long as Khuluma runs. That
 /// happened when AVAudioEngine raised an Objective-C exception from the
 /// hotkey handler: Swift's `catch` never ran, HIToolbox swallowed the
 /// exception, and every later press replayed the chime and leaked another

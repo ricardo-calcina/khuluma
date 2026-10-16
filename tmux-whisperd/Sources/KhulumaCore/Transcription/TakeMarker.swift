@@ -1,10 +1,10 @@
 import Darwin
 import Foundation
 
-/// Marks one Lowkey take as in progress, from before capture starts until
+/// Marks one Khuluma take as in progress, from before capture starts until
 /// it is delivered, fails or is cancelled. The CLI's idle check reads it
 /// (so a daemon upgrade never lands mid-take): a file in the processing dir
-/// named `inline-lowkey-<id>` whose first line is `pid=<Lowkey's pid>`, like
+/// named `inline-khuluma-<id>` whose first line is `pid=<Khuluma's pid>`, like
 /// the CLI's own markers.
 public final class TakeMarker: @unchecked Sendable {
   public enum Phase: String, Sendable {
@@ -12,14 +12,14 @@ public final class TakeMarker: @unchecked Sendable {
     case recording
     /// Stopped, waiting for earlier takes or the settings.
     case queued
-    /// Transcribing, cleaning up or delivering in Lowkey.
+    /// Transcribing, cleaning up or delivering in Khuluma.
     case processing
     /// Handed to `tmux-whisper inline process`, which has its own marker;
     /// still busy for the idle check.
     case cli
   }
 
-  public static let prefix = "inline-lowkey-"
+  public static let prefix = "inline-khuluma-"
   /// The CLI's processing dir when DICTATE_PROCESSING_DIR is unset.
   public static let defaultDirectory = "/tmp/dictate-processing"
 
@@ -86,31 +86,33 @@ public final class TakeMarker: @unchecked Sendable {
     return true
   }
 
-  /// Removes markers a previous Lowkey left behind (crash, force quit), so
+  /// Removes markers a previous Khuluma left behind (crash, force quit), so
   /// a reused pid can't keep the CLI waiting for a take that will never
   /// finish. Keeps this process's markers and those of another running
-  /// Lowkey. Returns the names removed.
+  /// Khuluma. Returns the names removed.
   @discardableResult
   public static func removeStale(directory: String, ownPid: Int32 = getpid(),
-                                 isLowkey: (Int32) -> Bool = TakeMarker.isRunningLowkey) -> [String] {
+                                 isKhuluma: (Int32) -> Bool = TakeMarker.isRunningKhuluma) -> [String] {
     let dir = URL(fileURLWithPath: directory, isDirectory: true)
     guard let names = try? FileManager.default.contentsOfDirectory(atPath: dir.path) else { return [] }
     var removedNames: [String] = []
-    for name in names where name.hasPrefix(prefix) {
+    for name in names where name.hasPrefix(prefix) || name.hasPrefix(LegacyNames.markerPrefix) {
       let url = dir.appendingPathComponent(name)
       let firstLine = (try? String(contentsOf: url, encoding: .utf8))?.split(separator: "\n").first ?? ""
       let pid = firstLine.hasPrefix("pid=") ? Int32(firstLine.dropFirst(4)) : nil
-      if let pid, pid == ownPid || isLowkey(pid) { continue }
+      if let pid, pid == ownPid || isKhuluma(pid) { continue }
       try? FileManager.default.removeItem(at: url)
       removedNames.append(name)
     }
     return removedNames
   }
 
-  /// True when `pid` is a live process whose executable is named Lowkey.
-  public static func isRunningLowkey(_ pid: Int32) -> Bool {
+  /// True when `pid` is a live process whose executable is named Khuluma
+  /// (or Lowkey, from before the rename).
+  public static func isRunningKhuluma(_ pid: Int32) -> Bool {
     var buffer = [CChar](repeating: 0, count: 4 * Int(MAXPATHLEN))
     guard proc_pidpath(pid, &buffer, UInt32(buffer.count)) > 0 else { return false }
-    return URL(fileURLWithPath: String(cString: buffer)).lastPathComponent == "Lowkey"
+    let name = URL(fileURLWithPath: String(cString: buffer)).lastPathComponent
+    return name == "Khuluma" || name == LegacyNames.executable
   }
 }

@@ -42,7 +42,7 @@ public struct TimedOutTakes: Sendable {
 
   public static var standard: TimedOutTakes {
     TimedOutTakes(directory: FileManager.default.temporaryDirectory
-      .appendingPathComponent("lowkey-timed-out", isDirectory: true))
+      .appendingPathComponent("khuluma-timed-out", isDirectory: true))
   }
 
   public init(directory: URL) {

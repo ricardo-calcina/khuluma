@@ -1,6 +1,6 @@
 # CLI Contracts
 
-Tmux Whisper is CLI-first for operator work. Text output should stay useful for humans, but the `--json` surfaces below are the preferred contract for scripts, agents, Lowkey, and later UI layers.
+Tmux Whisper is CLI-first for operator work. Text output should stay useful for humans, but the `--json` surfaces below are the preferred contract for scripts, agents, Khuluma, and later UI layers.
 
 ## Stable Read Contracts
 
@@ -65,10 +65,10 @@ These commands are safe to build integrations on:
     `full_elapsed_ms`, `longest_recording_ms`, `most_words`. Only these
     validated numbers are emitted.
 - `tmux-whisper app-config --json` (app integration)
-  - Lowkey's settings: hotkey, sounds, inline delivery, cleanup,
+  - Khuluma's settings: hotkey, sounds, inline delivery, cleanup,
     transcription, `pipeline.supervise`, `config` (source and error) and
     `usage.summary_path`. `app_contract` is an integer that changes whenever
-    Lowkey and the CLI must change together; Lowkey takes no dictation from a
+    Khuluma and the CLI must change together; Khuluma takes no dictation from a
     CLI whose contract differs from the one it was built with. Contract 2
     (v0.11) removed `cleanup.postprocess`, `transcription.chunking` and
     `transcription.silence_trim`.

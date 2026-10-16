@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// The one stats window, kept for reuse. Lowkey has no main menu (it's a
+/// The one stats window, kept for reuse. Khuluma has no main menu (it's a
 /// menu-bar app), so Escape and ⌘W are handled by the window itself.
 @MainActor
 final class StatsWindowController: NSWindowController, NSWindowDelegate {
@@ -13,7 +13,7 @@ final class StatsWindowController: NSWindowController, NSWindowDelegate {
       contentRect: NSRect(x: 0, y: 0, width: 560, height: 640),
       styleMask: [.titled, .closable, .miniaturizable, .resizable],
       backing: .buffered, defer: false)
-    window.title = "Lowkey Stats"
+    window.title = "Khuluma Stats"
     window.isReleasedWhenClosed = false
     window.contentMinSize = NSSize(width: 480, height: 400)
     window.contentViewController = NSHostingController(rootView: StatsView(model: model))
@@ -30,10 +30,10 @@ final class StatsWindowController: NSWindowController, NSWindowDelegate {
     fatalError("init(coder:) is not used")
   }
 
-  /// `-LowkeyStatsAppearance light|dark` forces the window's appearance, to
+  /// `-KhulumaStatsAppearance light|dark` forces the window's appearance, to
   /// check both without changing the system setting.
   static var forcedAppearance: NSAppearance? {
-    switch UserDefaults.standard.string(forKey: "LowkeyStatsAppearance") {
+    switch UserDefaults.standard.string(forKey: "KhulumaStatsAppearance") {
     case "light": return NSAppearance(named: .aqua)
     case "dark": return NSAppearance(named: .darkAqua)
     default: return nil

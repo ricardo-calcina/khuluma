@@ -41,7 +41,7 @@ struct TakeStarterTests {
 
   @Test func pressesAfterAnEngineExceptionLeaveNoMarkers() {
     // Four presses, each one raising from AVAudioEngine: before the fix each
-    // left an `inline-lowkey-*` marker that kept the CLI busy until restart.
+    // left an `inline-khuluma-*` marker that kept the CLI busy until restart.
     let dir = markerDir()
     defer { try? FileManager.default.removeItem(atPath: dir) }
     let starter = TakeStarter()
@@ -88,7 +88,7 @@ struct TakeStarterTests {
     }
     #expect(engineMs == 12.5)
     #expect(try #require(marker).phase == .recording)
-    #expect(markers(in: dir) == ["inline-lowkey-t"])
+    #expect(markers(in: dir) == ["inline-khuluma-t"])
   }
 
   @Test func aPressDuringAStartIsRefused() {
@@ -119,7 +119,7 @@ struct TakeStarterTests {
       return
     }
     #expect(markersMade == 1)
-    #expect(markers(in: dir) == ["inline-lowkey-outer"])
+    #expect(markers(in: dir) == ["inline-khuluma-outer"])
     #expect(!starter.isStarting)
   }
 }

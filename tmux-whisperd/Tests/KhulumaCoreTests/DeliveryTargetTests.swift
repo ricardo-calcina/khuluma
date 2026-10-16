@@ -3,18 +3,18 @@ import Testing
 @testable import KhulumaCore
 
 struct DeliveryTargetTests {
-  @Test func neverDeliversToLowkeyItself() {
+  @Test func neverDeliversToKhulumaItself() {
     #expect(DeliveryTarget.isSelf(frontmostPID: 42, ownPID: 42))
     #expect(!DeliveryTarget.isSelf(frontmostPID: 7, ownPID: 42))
     #expect(!DeliveryTarget.isSelf(frontmostPID: nil, ownPID: 42))
   }
 
-  @Test func aTakeStartedWithLowkeyInFrontIsForTheLastOtherApp() {
-    let isSelf = { (app: String) in app == "Lowkey" }
+  @Test func aTakeStartedWithKhulumaInFrontIsForTheLastOtherApp() {
+    let isSelf = { (app: String) in app == "Khuluma" }
     #expect(DeliveryTarget.original(frontmost: "Ghostty", lastExternal: "Claude", isSelf: isSelf) == "Ghostty")
-    #expect(DeliveryTarget.original(frontmost: "Lowkey", lastExternal: "Claude", isSelf: isSelf) == "Claude")
-    #expect(DeliveryTarget.original(frontmost: "Lowkey", lastExternal: nil, isSelf: isSelf) == nil)
-    #expect(DeliveryTarget.original(frontmost: "Lowkey", lastExternal: "Lowkey", isSelf: isSelf) == nil)
+    #expect(DeliveryTarget.original(frontmost: "Khuluma", lastExternal: "Claude", isSelf: isSelf) == "Claude")
+    #expect(DeliveryTarget.original(frontmost: "Khuluma", lastExternal: nil, isSelf: isSelf) == nil)
+    #expect(DeliveryTarget.original(frontmost: "Khuluma", lastExternal: "Khuluma", isSelf: isSelf) == nil)
     #expect(DeliveryTarget.original(frontmost: nil as String?, lastExternal: "Claude", isSelf: isSelf) == nil)
   }
 }
@@ -52,9 +52,9 @@ struct ModeAppTests {
                                    frontmostAtStop: "Safari") == "Safari")
     #expect(DeliveryTarget.modeApp(pasteTarget: "restore", retargeted: false, original: "Ghostty",
                                    frontmostAtStop: "Safari") == "Ghostty")
-    // Started with Lowkey in front: delivered to Ghostty, so Ghostty's mode.
+    // Started with Khuluma in front: delivered to Ghostty, so Ghostty's mode.
     #expect(DeliveryTarget.modeApp(pasteTarget: "current", retargeted: true, original: "Ghostty",
-                                   frontmostAtStop: "Lowkey") == "Ghostty")
+                                   frontmostAtStop: "Khuluma") == "Ghostty")
     #expect(DeliveryTarget.modeApp(pasteTarget: nil, retargeted: false, original: "Ghostty",
                                    frontmostAtStop: "Safari") == "Safari")
   }

@@ -9,7 +9,7 @@ struct Take {
   let startedEpochMs: Int
   let startupMs: Int
   let originalApp: NSRunningApplication?
-  /// Lowkey was in front at the hotkey, so `originalApp` is the app before
+  /// Khuluma was in front at the hotkey, so `originalApp` is the app before
   /// it and must be re-activated for delivery.
   let retargeted: Bool
   /// Settings read while recording, so each take uses what the CLI would
@@ -40,7 +40,7 @@ struct UnsavedTake {
 final class SettingsFetch: @unchecked Sendable {
   enum Outcome {
     case config(AppConfig)
-    /// The CLI isn't the one Lowkey was built with: no take may use it.
+    /// The CLI isn't the one Khuluma was built with: no take may use it.
     case mismatch(AppContract.Mismatch)
     /// Not read (in time): the CLI path reads its own settings.
     case unavailable(String)

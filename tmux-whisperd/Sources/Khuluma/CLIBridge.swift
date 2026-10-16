@@ -25,7 +25,7 @@ struct CLIBridge {
   static func locate() -> CLIBridge? {
     let home = FileManager.default.homeDirectoryForCurrentUser.path
     let candidates = [
-      ProcessInfo.processInfo.environment["LOWKEY_CLI"],
+      ProcessInfo.processInfo.environment["KHULUMA_CLI"],
       "\(home)/.local/bin/tmux-whisper",
       "/opt/homebrew/bin/tmux-whisper",
       "/usr/local/bin/tmux-whisper",
@@ -36,8 +36,8 @@ struct CLIBridge {
     return nil
   }
 
-  /// The settings, checked first against Lowkey's app contract: throws
-  /// `AppContract.Mismatch` for a CLI that isn't the one Lowkey was built with.
+  /// The settings, checked first against Khuluma's app contract: throws
+  /// `AppContract.Mismatch` for a CLI that isn't the one Khuluma was built with.
   func appConfig() throws -> AppConfig {
     let data = try run(["app-config", "--json"], timeout: 15)
     do {
@@ -108,8 +108,8 @@ struct CLIBridge {
       base: ProcessInfo.processInfo.environment, home: FileManager.default.homeDirectoryForCurrentUser.path)
 
     // Temp files, not pipes: a child left running can't block us on a full pipe.
-    let outURL = FileManager.default.temporaryDirectory.appendingPathComponent("lowkey-cli-\(UUID().uuidString).out")
-    let errURL = FileManager.default.temporaryDirectory.appendingPathComponent("lowkey-cli-\(UUID().uuidString).err")
+    let outURL = FileManager.default.temporaryDirectory.appendingPathComponent("khuluma-cli-\(UUID().uuidString).out")
+    let errURL = FileManager.default.temporaryDirectory.appendingPathComponent("khuluma-cli-\(UUID().uuidString).err")
     FileManager.default.createFile(atPath: outURL.path, contents: nil)
     FileManager.default.createFile(atPath: errURL.path, contents: nil)
     defer {
@@ -122,7 +122,7 @@ struct CLIBridge {
     process.standardError = errHandle
     var inURL: URL?
     if let input {
-      let url = FileManager.default.temporaryDirectory.appendingPathComponent("lowkey-cli-\(UUID().uuidString).in")
+      let url = FileManager.default.temporaryDirectory.appendingPathComponent("khuluma-cli-\(UUID().uuidString).in")
       guard FileManager.default.createFile(atPath: url.path, contents: input, attributes: [.posixPermissions: 0o600]),
             let handle = FileHandle(forReadingAtPath: url.path) else {
         throw BridgeError.failed("cannot stage input for tmux-whisper")

@@ -2,7 +2,7 @@ import AppKit
 import KhulumaCore
 import SwiftUI
 
-/// `Lowkey -LowkeyStatsSnapshot <dir>`: renders the stats window from fixed
+/// `Khuluma -KhulumaStatsSnapshot <dir>`: renders the stats window from fixed
 /// data, in light and dark, to PNGs, then exits. For checking the layout
 /// and contrast without screen recording or a real ledger.
 @MainActor

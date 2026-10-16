@@ -29,7 +29,7 @@ install_test_runtime "$BIN_DIR"
 # Ensure the default ~/.local/bin path is unavailable and fallback-to-sibling works.
 output="$(HOME="$HOME_DIR" PATH="$BIN_DIR:/usr/bin:/bin" DICTATE_LIB_PATH= "$BIN_DIR/tmux-whisper" --help)"
 
-if [[ "$output" != *"tmux-whisper: the back end for Lowkey (the menu-bar dictation app) and file transcription"* ]]; then
+if [[ "$output" != *"tmux-whisper: the back end for Khuluma (the menu-bar dictation app) and file transcription"* ]]; then
   echo "Expected help output from tmux-whisper command" >&2
   exit 1
 fi

@@ -17,14 +17,14 @@ public enum DeliveryStep: Equatable, Sendable {
 
 /// Which app a take is delivered to.
 public enum DeliveryTarget {
-  /// Lowkey never pastes into itself (e.g. with its own window in front):
+  /// Khuluma never pastes into itself (e.g. with its own window in front):
   /// the text would land nowhere yet count as delivered.
   public static func isSelf(frontmostPID: Int32?, ownPID: Int32) -> Bool {
     frontmostPID == ownPID
   }
 
   /// The take's original app: the frontmost one, or the last other app that
-  /// was active when Lowkey itself is in front at the hotkey.
+  /// was active when Khuluma itself is in front at the hotkey.
   public static func original<App>(frontmost: App?, lastExternal: App?, isSelf: (App) -> Bool) -> App? {
     guard let frontmost, isSelf(frontmost) else { return frontmost }
     return lastExternal.flatMap { isSelf($0) ? nil : $0 }
