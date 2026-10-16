@@ -17,11 +17,12 @@ let package = Package(
       name: "TmuxWhisperKit",
       targets: ["TmuxWhisperKit"]
     ),
-    // Lowkey: the native menu-bar dictation app (assembled into Lowkey.app by
-    // tools/build-lowkey-app.sh).
+    // Khuluma (working name Lowkey): the native menu-bar dictation app,
+    // assembled into Lowkey.app by tools/build-lowkey-app.sh. The product
+    // keeps the old name until the app itself is renamed.
     .executable(
       name: "Lowkey",
-      targets: ["Lowkey"]
+      targets: ["Khuluma"]
     ),
   ],
   dependencies: [
@@ -51,29 +52,29 @@ let package = Package(
     // Catches Objective-C exceptions (AVAudioEngine raises them), which
     // Swift can't.
     .target(
-      name: "LowkeyObjC",
-      path: "Sources/LowkeyObjC"
+      name: "KhulumaObjC",
+      path: "Sources/KhulumaObjC"
     ),
-    // Pure, testable logic for Lowkey (no AppKit).
+    // Pure, testable logic for the app (no AppKit).
     .target(
-      name: "LowkeyCore",
-      dependencies: ["LowkeyObjC"],
-      path: "Sources/LowkeyCore"
+      name: "KhulumaCore",
+      dependencies: ["KhulumaObjC"],
+      path: "Sources/KhulumaCore"
     ),
     .executableTarget(
-      name: "Lowkey",
-      dependencies: ["LowkeyCore"],
-      path: "Sources/Lowkey",
+      name: "Khuluma",
+      dependencies: ["KhulumaCore"],
+      path: "Sources/Khuluma",
       // AppKit/Carbon/AVAudioEngine callbacks predate strict concurrency;
       // the app shell uses Swift 5 mode, the core stays in Swift 6 mode.
       swiftSettings: [.swiftLanguageMode(.v5)]
     ),
     .testTarget(
-      name: "LowkeyCoreTests",
+      name: "KhulumaCoreTests",
       // TmuxWhisperKit only to check DaemonClient against the real server
       // and protocol types.
-      dependencies: ["LowkeyCore", "TmuxWhisperKit"],
-      path: "Tests/LowkeyCoreTests"
+      dependencies: ["KhulumaCore", "TmuxWhisperKit"],
+      path: "Tests/KhulumaCoreTests"
     ),
   ]
 )

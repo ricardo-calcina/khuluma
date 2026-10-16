@@ -1192,8 +1192,8 @@ EOF
   assert_equals "daemon_no_rebuild_when_current" "$(grep -c . "$build_log")" "1"
 
   # Lowkey app sources share the package but are not part of the daemon.
-  mkdir -p "$src/Sources/Lowkey"
-  printf '%s\n' '// app-only change' >"$src/Sources/Lowkey/AppController.swift"
+  mkdir -p "$src/Sources/Khuluma"
+  printf '%s\n' '// app-only change' >"$src/Sources/Khuluma/AppController.swift"
   "$DICTATE_BIN" warmup --restart-stale >/dev/null
   assert_equals "daemon_ignores_app_sources" "$(grep -c . "$build_log")" "1"
 
@@ -1639,7 +1639,7 @@ assert "capabilities" not in c, c
   # Lowkey refuses takes unless the CLI speaks its contract: the two numbers
   # must move together.
   local swift_contract
-  swift_contract="$(sed -nE 's/^ *public static let version = ([0-9]+).*/\1/p' "$ROOT/tmux-whisperd/Sources/LowkeyCore/CLIModels.swift")"
+  swift_contract="$(sed -nE 's/^ *public static let version = ([0-9]+).*/\1/p' "$ROOT/tmux-whisperd/Sources/KhulumaCore/CLIModels.swift")"
   [[ -n "$swift_contract" ]] || fail "app_contract_swift_constant_found"
   assert_equals "app_config_contract_matches_lowkey" "$(json_field "$out" app_contract)" "$swift_contract"
   assert_equals "app_config_usage_path" "$(json_field "$out" usage.summary_path)" "$DICTATE_CONFIG_DIR/usage.json"

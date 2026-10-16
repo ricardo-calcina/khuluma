@@ -19,7 +19,7 @@ DICTATE_CONFIG_SCHEMA_VERSION=1
 TMUX_WHISPER_CLI_VERSION="0.10.0-dev"
 # What `app-config --json` and the commands Lowkey runs promise the app.
 # Lowkey refuses takes unless its own contract number (AppContract.version
-# in tmux-whisperd/Sources/LowkeyCore/CLIModels.swift) is the same: bump
+# in tmux-whisperd/Sources/KhulumaCore/CLIModels.swift) is the same: bump
 # both together whenever either side needs the other to change.
 TMUX_WHISPER_APP_CONTRACT=2
 

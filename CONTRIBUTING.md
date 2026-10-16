@@ -6,7 +6,7 @@ Thanks for contributing to Tmux Whisper, which is becoming Lowkey ([`ROADMAP.md`
 
 - Lowkey, the menu-bar app, is the product. The CLI is its back end and is being retired step by step, so new user-facing features belong in Lowkey.
 - CLI changes should serve Lowkey, file transcription, or the phase 1 ports (`docs/plans/LOWKEY_RENAME_ROADMAP.md`). Changes to the JSON contracts in `docs/CLI_CONTRACTS.md` are additive only, unless Lowkey changes with them and the app contract number goes up on both sides.
-- Keep changes minimal and production-oriented. Pure logic goes in `LowkeyCore` (no AppKit) with tests; the `Lowkey` target stays a thin shell.
+- Keep changes minimal and production-oriented. Pure logic goes in `KhulumaCore` (no AppKit) with tests; the `Khuluma` target stays a thin shell.
 
 ## Development Setup
 
