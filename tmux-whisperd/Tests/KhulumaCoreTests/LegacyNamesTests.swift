@@ -56,12 +56,47 @@ struct LegacyNamesTests {
     try write("new only", support.appendingPathComponent("Khuluma/pending/3-new.json"))
 
     let lines = LegacyNames.migrate(home: home, temporary: temp)
-    #expect(lines == ["moved Lowkey → \(support.appendingPathComponent("Khuluma").path); left in place (name taken): 2-same.json"])
+    #expect(lines == ["moved Lowkey → \(support.appendingPathComponent("Khuluma").path); left in place: 2-same.json (name taken)"])
     #expect(read(support.appendingPathComponent("Khuluma/recovered/1-old.wav")) == "old only")
     #expect(read(support.appendingPathComponent("Khuluma/pending/2-same.json")) == "new clash")
     #expect(read(support.appendingPathComponent("Khuluma/pending/3-new.json")) == "new only")
     // The clashing file keeps its old place, so nothing is lost.
     #expect(read(support.appendingPathComponent("Lowkey/pending/2-same.json")) == "old clash")
     #expect(!FileManager.default.fileExists(atPath: support.appendingPathComponent("Lowkey/recovered").path))
+  }
+
+  @Test func aTimedOutTakesAudioAndSidecarStayTogether() throws {
+    let (home, temp) = try scratch()
+    defer { try? FileManager.default.removeItem(at: home.deletingLastPathComponent()) }
+    try write("old audio", temp.appendingPathComponent("lowkey-timed-out/t1.wav"))
+    try write("old info", temp.appendingPathComponent("lowkey-timed-out/t1.json"))
+    try write("old audio 2", temp.appendingPathComponent("lowkey-timed-out/t2.wav"))
+    try write("old info 2", temp.appendingPathComponent("lowkey-timed-out/t2.json"))
+    // Only the sidecar's name is taken: the audio must not move without it.
+    try write("new info", temp.appendingPathComponent("khuluma-timed-out/t1.json"))
+
+    LegacyNames.migrate(home: home, temporary: temp)
+    #expect(read(temp.appendingPathComponent("lowkey-timed-out/t1.wav")) == "old audio")
+    #expect(read(temp.appendingPathComponent("lowkey-timed-out/t1.json")) == "old info")
+    #expect(read(temp.appendingPathComponent("khuluma-timed-out/t1.json")) == "new info")
+    #expect(!FileManager.default.fileExists(atPath: temp.appendingPathComponent("khuluma-timed-out/t1.wav").path))
+    #expect(read(temp.appendingPathComponent("khuluma-timed-out/t2.wav")) == "old audio 2")
+    #expect(read(temp.appendingPathComponent("khuluma-timed-out/t2.json")) == "old info 2")
+  }
+
+  @Test func symlinksAreNeverFollowed() throws {
+    let (home, temp) = try scratch()
+    defer { try? FileManager.default.removeItem(at: home.deletingLastPathComponent()) }
+    let elsewhere = home.deletingLastPathComponent().appendingPathComponent("elsewhere")
+    try write("not ours", elsewhere.appendingPathComponent("pending/x.json"))
+    let support = home.appendingPathComponent("Library/Application Support")
+    try FileManager.default.createDirectory(at: support, withIntermediateDirectories: true)
+    try FileManager.default.createSymbolicLink(at: support.appendingPathComponent("Lowkey"), withDestinationURL: elsewhere)
+    try write("mine", support.appendingPathComponent("Khuluma/pending/y.json"))
+
+    let lines = LegacyNames.migrate(home: home, temporary: temp)
+    #expect(lines == ["moved Lowkey → \(support.appendingPathComponent("Khuluma").path); left in place: Lowkey (symlink)"])
+    #expect(read(elsewhere.appendingPathComponent("pending/x.json")) == "not ours")
+    #expect(!FileManager.default.fileExists(atPath: support.appendingPathComponent("Khuluma/pending/x.json").path))
   }
 }

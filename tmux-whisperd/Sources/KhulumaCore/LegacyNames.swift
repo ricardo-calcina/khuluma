@@ -36,41 +36,89 @@ public enum LegacyNames {
   public static func migrate(home: URL = FileManager.default.homeDirectoryForCurrentUser,
                              temporary: URL = FileManager.default.temporaryDirectory) -> [String] {
     moves(home: home, temporary: temporary).compactMap { move in
-      let fm = FileManager.default
-      guard fm.fileExists(atPath: move.from.path) else { return nil }
+      guard exists(move.from) else { return nil }
       var left: [String] = []
       merge(move.from, into: move.to, left: &left)
       let name = "\(move.from.lastPathComponent) → \(move.to.path)"
-      return left.isEmpty ? "moved \(name)" : "moved \(name); left in place (name taken): \(left.joined(separator: ", "))"
+      return left.isEmpty ? "moved \(name)" : "moved \(name); left in place: \(left.joined(separator: ", "))"
     }
   }
 
-  /// Moves `source` to `destination`, merging folders file by file.
+  private static func exists(_ url: URL) -> Bool {
+    (try? FileManager.default.attributesOfItem(atPath: url.path)) != nil
+  }
+
+  /// Not followed: a link could point anywhere, so it's left alone.
+  private static func isSymlink(_ url: URL) -> Bool {
+    (try? FileManager.default.attributesOfItem(atPath: url.path))?[.type] as? FileAttributeType == .typeSymbolicLink
+  }
+
+  private static func isDirectory(_ url: URL) -> Bool {
+    (try? FileManager.default.attributesOfItem(atPath: url.path))?[.type] as? FileAttributeType == .typeDirectory
+  }
+
+  /// Moves `source` to `destination`. When both are folders, their contents
+  /// merge: files sharing a name before the extension (a timed-out take's
+  /// .wav and .json) move together or not at all.
   private static func merge(_ source: URL, into destination: URL, left: inout [String]) {
     let fm = FileManager.default
-    var isDirectory: ObjCBool = false
-    guard fm.fileExists(atPath: destination.path, isDirectory: &isDirectory) else {
+    if isSymlink(source) || isSymlink(destination) {
+      left.append("\(source.lastPathComponent) (symlink)")
+      return
+    }
+    guard exists(destination) else {
       do {
         try fm.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
         try fm.moveItem(at: source, to: destination)
       } catch {
-        left.append(source.lastPathComponent)
+        left.append("\(source.lastPathComponent) (\(error.localizedDescription))")
       }
       return
     }
-    var sourceIsDirectory: ObjCBool = false
-    guard isDirectory.boolValue, fm.fileExists(atPath: source.path, isDirectory: &sourceIsDirectory),
-          sourceIsDirectory.boolValue,
+    guard isDirectory(source), isDirectory(destination),
           let children = try? fm.contentsOfDirectory(atPath: source.path) else {
-      left.append(source.lastPathComponent)
+      left.append("\(source.lastPathComponent) (name taken)")
       return
     }
-    for child in children {
-      merge(source.appendingPathComponent(child), into: destination.appendingPathComponent(child), left: &left)
+    let groups = Dictionary(grouping: children) { ($0 as NSString).deletingPathExtension }
+    for stem in groups.keys.sorted() {
+      let names = groups[stem]!.sorted()
+      if names.count == 1, isDirectory(source.appendingPathComponent(names[0])) {
+        merge(source.appendingPathComponent(names[0]), into: destination.appendingPathComponent(names[0]), left: &left)
+        continue
+      }
+      moveTogether(names, from: source, to: destination, left: &left)
     }
     // Only an empty folder goes; anything left keeps its place.
     if (try? fm.contentsOfDirectory(atPath: source.path))?.isEmpty == true {
       try? fm.removeItem(at: source)
+    }
+  }
+
+  /// Moves files that belong together, or none of them: if one can't move,
+  /// those already moved go back.
+  private static func moveTogether(_ names: [String], from source: URL, to destination: URL, left: inout [String]) {
+    let fm = FileManager.default
+    if let taken = names.first(where: { exists(destination.appendingPathComponent($0)) }) {
+      left.append(contentsOf: names.map { "\($0) (\(taken == $0 ? "name taken" : "kept with \(taken)"))" })
+      return
+    }
+    if names.contains(where: { isSymlink(source.appendingPathComponent($0)) || isDirectory(source.appendingPathComponent($0)) }) {
+      left.append(contentsOf: names.map { "\($0) (not a plain file group)" })
+      return
+    }
+    var moved: [String] = []
+    for name in names {
+      do {
+        try fm.moveItem(at: source.appendingPathComponent(name), to: destination.appendingPathComponent(name))
+        moved.append(name)
+      } catch {
+        for back in moved {
+          try? fm.moveItem(at: destination.appendingPathComponent(back), to: source.appendingPathComponent(back))
+        }
+        left.append(contentsOf: names.map { "\($0) (\(error.localizedDescription))" })
+        return
+      }
     }
   }
 }

@@ -87,6 +87,12 @@ codesign --verify --strict "$stage"
 
 LSREGISTER=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
 
+# The executable an installed bundle runs (Lowkey for builds from before the
+# rename).
+bundle_executable() {
+  plutil -extract CFBundleExecutable raw -o - "$1/Contents/Info.plist" 2>/dev/null || echo "$APP_NAME"
+}
+
 # Quits the app at bundle path $1 (executable $2) if it's running, after
 # letting a dictation in progress finish. Sets was_running=1 if it was.
 # Exits if it won't quit.
@@ -152,26 +158,39 @@ if [[ "$INSTALL" == "1" || "$OUT" != "$HOME/Applications/$APP_NAME.app" ]]; then
   mkdir -p "$(dirname "$OUT")"
   was_running=0
   # Before the rename the app was ~/Applications/Lowkey.app (same bundle id).
-  # Quit it like a running copy, then move it to the Trash, so only one app
-  # answers to the bundle id.
+  # Quit it like a running copy; once the new app is installed and verified,
+  # move it to the Trash, so only one app answers to the bundle id.
   legacy="$HOME/Applications/Lowkey.app"
+  retire_legacy=0
   if [[ "$OUT" == "$HOME/Applications/$APP_NAME.app" && -d "$legacy" && ! -L "$legacy" ]] \
     && [[ "$(plutil -extract CFBundleIdentifier raw -o - "$legacy/Contents/Info.plist" 2>/dev/null || true)" == "$BUNDLE_ID" ]]; then
-    quit_running "$legacy" "Lowkey"
-    "$LSREGISTER" -u "$legacy" >/dev/null 2>&1 || true
-    trashed="$HOME/.Trash/Lowkey $(date '+%Y-%m-%d %H.%M.%S').app"
-    mv "$legacy" "$trashed"
-    echo "Moved the old Lowkey.app to the Trash. If you used Start at Login, turn it on again in Khuluma's menu."
+    quit_running "$legacy" "$(bundle_executable "$legacy")"
+    retire_legacy=1
   fi
   if [[ -d "$OUT" ]]; then
     # Quit a running copy so the new build takes over. The app finishes a
     # take in progress (transcribe, paste, record) before it exits, so wait
     # for the process to go rather than replacing the bundle underneath it.
-    quit_running "$OUT" "$APP_NAME"
+    quit_running "$OUT" "$(bundle_executable "$OUT")"
     rm -rf "$OUT"
   fi
-  ditto "$stage" "$OUT"
+  if ! ditto "$stage" "$OUT" || ! codesign --verify --strict "$OUT"; then
+    echo "error: could not install $OUT" >&2
+    if [[ "$retire_legacy" == "1" && "$was_running" == "1" ]]; then
+      open "$legacy" && echo "Relaunched the old Lowkey.app." >&2
+    fi
+    exit 1
+  fi
   echo "Installed: $OUT"
+  if [[ "$retire_legacy" == "1" ]]; then
+    "$LSREGISTER" -u "$legacy" >/dev/null 2>&1 || true
+    trashed="$HOME/.Trash/Lowkey $(date '+%Y-%m-%d %H.%M.%S').app"
+    if mv "$legacy" "$trashed"; then
+      echo "Moved the old Lowkey.app to the Trash. If you used Start at Login, turn it on again in Khuluma's menu."
+    else
+      echo "warning: could not move $legacy to the Trash; remove it by hand." >&2
+    fi
+  fi
   # Register with Launch Services and Spotlight, so "Khuluma" shows up in
   # Spotlight/Launchpad even from ~/Applications (Finder's Applications
   # sidebar item is /Applications).

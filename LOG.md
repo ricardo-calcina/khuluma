@@ -1,7 +1,7 @@
 # Log
 
 ## Now
-Turn tmux-whisper into Khuluma (working name Lowkey): rename, make the app the main tool, sunset the CLI. Plan: `docs/plans/KHULUMA_RENAME_ROADMAP.md`. Phase 0: P0b tidy-up done (PRs #66–#72), pending a week of daily use with `tools/lowkey-report.sh` gates still met. Public name chosen: Khuluma (P0a). Renaming the app to Khuluma now in three PRs (code, app, docs); the bundle id, signing identity and CLI names wait for phase 2.
+Turn tmux-whisper into Khuluma (working name Lowkey): rename, make the app the main tool, sunset the CLI. Plan: `docs/plans/KHULUMA_RENAME_ROADMAP.md`. Phase 0: P0b tidy-up done (PRs #66–#72), pending a week of daily use with `tools/khuluma-report.sh` gates still met. Public name chosen: Khuluma (P0a). Renaming the app to Khuluma now in three PRs (code, app, docs); the bundle id, signing identity and CLI names wait for phase 2.
 
 ## Next
 - [x] P0 · Name check: Lowkey vs other spellings or a longer store name (roadmap P0a) · added 2026-10-15
