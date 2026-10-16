@@ -1,8 +1,20 @@
 # Name check (roadmap P0a)
 
-Status: **open.** "Lowkey" is ruled out as the public name (2026-10-16). No replacement chosen yet: decide once the P0b tidy-up is done, before phase 2 puts the name into the repo, cask, bundle and TCC grants. Until then "Lowkey" stays the working name in code and docs. Nothing has been renamed.
+Status: **chosen: Khuluma** (2026-10-17). "Lowkey" is ruled out as the public name (2026-10-16) and stays the working name in code and docs until the phase 2 rename. Nothing has been renamed yet.
 
-Pinned, not checked yet: **DTNSND** ("dictate 'n' send"), 2026-10-16.
+## Khuluma
+*Khuluma* is isiNdebele (Zimbabwe) and isiZulu for "speak, talk", pronounced koo-LOO-mah (aspirated k). Meaning confirmed in *Lessons in Ndebele* (1987) and Zulu dictionaries; no unwanted meanings found in Ndebele, Zulu, Xhosa or Shona. Watch for the typo *khumula*, Zulu for "undress".
+
+Checks (2026-10-17):
+- USPTO (tmsearch, searched directly): no KHULUMA marks.
+- UK, EU, WIPO, South Africa (mirrors and published journals; the live registers block automated searches): no software marks. SABC holds KHULUMA in classes 16/41 in South Africa (print and broadcasting, filed 2005).
+- Existing uses: a small 2023 ChatGPT voicebot repo, a Unilever South Africa chatbot, and Khulumani (a different word: an AI relationship-automation platform and an SA support group). No dictation or transcription product.
+- GitHub `ricardo-nth/khuluma` free; no `khuluma` formula or cask; no App Store app named Khuluma.
+- Domains: khuluma.app, khuluma.dev, getkhuluma.app and usekhuluma.app unregistered; khuluma.com taken.
+- Still to do by hand before phase 2: search UKIPO and EUIPO (TMview) for KHULUMA, and register the domain.
+
+Runner-up: **Thumela** ("send", the autosend), equally clear apart from South African delivery services. A tagline candidate: "Khuluma. Thumela." (Speak. Send.)
+
 
 ## Why not Lowkey
 1313Labs Ltd (London) holds LOWKEY as a word mark covering software in all three markets that matter:
@@ -12,11 +24,17 @@ Pinned, not checked yet: **DTNSND** ("dictate 'n' send"), 2026-10-16.
 
 Other live US LOWKEY marks: LOWKEY, Inc. (gaming-clip software, 9/42, serial 90354659) and Lowkey Enterprises (health/messaging apps, 9/42/44, pending, serial 50059333). Respellings (Lowkee, Lowki, LowKey) sound the same, so the same marks apply; "Lowkey Dictation" only adds a descriptive word. The App Store has several Lowkey apps already, lowkey.app is for resale, and "lowkey" as a search term is all slang and the UK rapper.
 
-## Candidates checked (2026-10-16)
+## Candidates checked (2026-10-16/17)
 Checks per name: `ricardo-nth/<name>` on GitHub, `brew search` (formula and cask), the iTunes Search API (Mac and iOS, GB store), GitHub repos describing voice or dictation, RDAP for `.app`/`.com`/`.dev` plus `get…`/`use…` fallbacks, USPTO tmsearch (searched directly, by typing in the search box: URL queries don't run), UKIPO and EUIPO through mirrors (trademarkelite, trademarkia), and a web search for existing products.
 
 | Name | Result | Why |
 | --- | --- | --- |
+| Khuluma | **Chosen** | See above |
+| Thumela | Clear on paper; runner-up | SA delivery services (Thumela logistics, Thumela eKhaya); thumela.app/.dev free |
+| Izwi | Avoid | izwi-ai/izwi: local transcription runtime for macOS (izwiai.com); UK IZWI mark (35/41) |
+| Ilizwi | Avoid | ilizwi.com transcription platform; Ilizwi FM radio app |
+| Detto | Avoid | Gremble-io/Detto: local Mac dictation, "hold a key, speak, release" (detto.app) |
+| DTNSND, Dictum | Not checked | Dropped on sound before checking |
 | Undersay | Clear on paper; not chosen | No marks or products found; `.app`/`.dev` free. Didn't resonate |
 | Tacy | Some risk; not chosen | Thomas Cook India's TACY travel assistant; TACIT silent-speech marks (UK/EU 9/42) nearby. Didn't resonate |
 | Kwiet | Some risk | Sounds like QUIET, which has EU/Madrid software marks (9/38/42) |

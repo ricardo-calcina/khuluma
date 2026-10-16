@@ -1,18 +1,18 @@
 # Lowkey roadmap: rename, CLI sunset, App Store later
 
-**Name: open.** "Lowkey" is ruled out as the public name: 1313Labs Ltd holds LOWKEY for software in the UK, US and EU (checked 2026-10-16, see `LOWKEY_NAME_CHECK.md`). "Lowkey" stays the working name in this document and the code until a new name is chosen after the P0b tidy-up.
+**Name: Khuluma** (isiNdebele and isiZulu for "speak"), chosen 2026-10-17; checks in `LOWKEY_NAME_CHECK.md`. "Lowkey" was ruled out (1313Labs Ltd holds LOWKEY for software in the UK, US and EU) and stays the working name in this document and the code until the phase 2 rename. Where this document writes `lowkey` for the repo, cask, CLI or paths, read `khuluma`: `ricardo-nth/khuluma`, cask `khuluma`, `~/Library/Application Support/Khuluma/`, `~/Library/Logs/Khuluma`.
 
 Status: approved (2026-10-15). Phases 0–5 are the plan; phase 6 (Mac App Store) is parked until Lowkey has proven itself in daily use and been improved further. Start with phase 0. Nothing is renamed by this document. Follows phase 3c (`archive/LOWKEY_PHASE3C_PLAN.md`) and the stats window (`archive/LOWKEY_STATS_PLAN.md`).
 
 Three goals, in order of commitment:
-1. **Rename the project to Lowkey** (working name; final name open, see P0a). Lowkey (`tmux-whisperd/`, bundle id `com.ricardo-nth.lowkey`) is already the daily driver; "tmux-whisper" describes the CLI's tmux flow, which is no longer the main path.
+1. **Rename the project to Khuluma** (working name Lowkey until phase 2). Lowkey (`tmux-whisperd/`, bundle id `com.ricardo-nth.lowkey`) is already the daily driver; "tmux-whisper" describes the CLI's tmux flow, which is no longer the main path.
 2. **Make Lowkey the main tool**, then sunset the bash CLI (`bin/tmux-whisper`) and archive the `tmux-whisper` repo.
 3. **Maybe list Lowkey on the Mac App Store, later.** Parked: no work planned. The research in "App Store blockers" stays here so a sandboxed build isn't designed out by accident.
 
 ## Decisions this roadmap proposes
 - **New repo, archive the old one** (recommended; confirm in phase 0) rather than renaming `ricardo-nth/tmux-whisper` in place. Lowkey moves to `ricardo-nth/lowkey` with its history (`git filter-repo` on `tmux-whisperd/`, `docs/plans/LOWKEY_*`, `tools/*lowkey*`). The old repo gets a final CLI release and is archived. Archive URLs (Homebrew formula, `bootstrap.sh`, release tarballs) keep working without depending on rename redirects, and an archived repo can't be confused with the live product. The cost: issues, stars and watchers stay behind (transfer the open ones). Renaming in place keeps them, but then there's no repo to archive, and the redirects break if anything is ever created under the old name. GitHub doesn't promise that rename redirects cover tag archives or `raw.githubusercontent.com` links, which are exactly what the formula and `bootstrap.sh` use ([gh-rename]). Archiving makes code, releases, issues and PRs read-only, and doesn't close open issues ([gh-archive]).
 - **Direct download only for now.** Ship Lowkey signed with Developer ID and notarized, as a Homebrew cask in `ricardo-nth/tap`. The App Store needs a sandboxed build with a different shape (see blockers) and is parked.
-- **Keep the bundle id** `com.ricardo-nth.lowkey`. It's already Lowkey's. Moving from the local self-signed identity to Developer ID changes the signing identity, so Microphone and Accessibility are granted once more. TCC identifies an app by bundle id **plus** its code requirement, and the self-signed requirement very likely won't match a Developer ID signature ([tcc-identity], [tn2206], [dts-tcc]). The same applies to a later move to App Store signing, which isn't documented as preserving grants: test it.
+- **Bundle id: proposed `com.ricardo-nth.khuluma`** at the phase 2 rename (confirm then). Keeping `com.ricardo-nth.lowkey` would leave the dropped name in the bundle for good, and the move to Developer ID re-prompts anyway. Moving from the local self-signed identity to Developer ID changes the signing identity, so Microphone and Accessibility are granted once more. TCC identifies an app by bundle id **plus** its code requirement, and the self-signed requirement very likely won't match a Developer ID signature ([tcc-identity], [tn2206], [dts-tcc]). The same applies to a later move to App Store signing, which isn't documented as preserving grants: test it.
 - **The tmux flow ends with the CLI.** Lowkey already pastes into the frontmost app, terminals included. tmux's distinct features (origin-pane targeting, the async queue) aren't carried over unless real use shows they're missed.
 
 ## What depends on the names today
@@ -57,7 +57,7 @@ Anything not listed (tmux flow, CLI inline capture, `bench-matrix`, `budget`, `k
 Two pieces of work before anything is renamed or ported, so the rename and phase 1 only touch code that survives.
 
 **P0a. Name check.** The last cheap moment to change the name: after phase 2 it's in the repo, the cask, the bundle and your TCC grants.
-- **Outcome (2026-10-16): Lowkey ruled out, replacement open.** Live LOWKEY word marks covering computer software and apps in the UK (UK00003672761), US (7813710) and EU (018610302), all 1313Labs Ltd. Respellings sound the same and "Lowkey Dictation" only adds a descriptive word. About 70 replacements were screened; none chosen yet. Findings, the method and every name checked: `LOWKEY_NAME_CHECK.md`. Decide after P0b, before phase 2.
+- **Outcome: Khuluma (chosen 2026-10-17).** Lowkey was ruled out on 2026-10-16: live LOWKEY word marks covering computer software and apps in the UK (UK00003672761), US (7813710) and EU (018610302), all 1313Labs Ltd; respellings sound the same and "Lowkey Dictation" only adds a descriptive word. About 75 replacements screened over four rounds. Khuluma: no USPTO marks, no software marks found in the UK, EU or South Africa, no dictation product with the name, `ricardo-nth/khuluma` and the `khuluma` cask free, khuluma.app and khuluma.dev unregistered. Thumela ("send") is the runner-up and a tagline candidate. Details: `LOWKEY_NAME_CHECK.md`. Before phase 2: search the official UKIPO and EUIPO registers by hand (they block automated searches) and register the domain.
 - Known before the check (2026-10-14): an App Store name can be used by one app per localization, and only App Store Connect says whether it's free ([asc-name]). Existing "Lowkey" apps: an iPhone group chat app ([lowkey-chat]), lowkey.fyi on iPhone/iPad ([lowkey-fyi]), and a gaming-clips product acquired by Niantic ([lowkey-yc]).
 - Check: trademark registers (USPTO, UKIPO, EUIPO) in software classes (9, 42); the Mac and iOS App Stores; `ricardo-nth/lowkey` on GitHub and a cask named `lowkey` in `homebrew/cask` (`brew search --cask lowkey`); a domain if you want one; and how findable it is, since "lowkey" is everyday slang and a search for it won't find the app.
 - Compare "Lowkey" as is, a different spelling (e.g. Lowkee, Lowki, LowKey) and a longer store/display name ("Lowkey Dictation"), against the same checks.
@@ -140,7 +140,7 @@ Reference for the parked phase 6. Checked 2026-10-14 against Apple's guidelines,
 
 ## Open questions
 - Lowkey versioning: start at 1.0 in the new repo, or continue the CLI's 0.x?
-- Still open from phase 0: the name (P0a, Lowkey ruled out, decide after P0b); new repo vs rename in place. (Tmux flow, CLI capture, LLM post-processing, silence trim and chunking: dropped, see P0b.)
+- Settled in phase 0: the name (Khuluma, P0a). Still open: new repo vs rename in place. (Tmux flow, CLI capture, LLM post-processing, silence trim and chunking: dropped, see P0b.)
 - Parked with phase 6: free or paid on the App Store (paid needs the Paid Apps agreement and tax/banking in App Store Connect).
 
 ## Sources
