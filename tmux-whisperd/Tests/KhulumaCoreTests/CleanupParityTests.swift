@@ -23,37 +23,17 @@ struct CleanupParityTests {
     let output: String
   }
 
-  /// `current_mode`: absent keeps the fixture's file, a string replaces it,
-  /// `false` deletes it.
-  enum CurrentMode: Decodable {
-    case write(String)
-    case delete
-
-    init(from decoder: Decoder) throws {
-      let container = try decoder.singleValueContainer()
-      if let text = try? container.decode(String.self) {
-        self = .write(text)
-      } else {
-        self = .delete
-      }
-    }
-  }
-
   struct PipelineCase: Decodable {
     let id: String
     let config: String
-    let app: String
     let input: String
-    let currentMode: CurrentMode?
     let settings: CleanupSettings
     let status: String
     let rawText: String
     let text: String
-    let mode: String?
 
     enum CodingKeys: String, CodingKey {
-      case id, config, app, input, settings, status, text, mode
-      case currentMode = "current_mode"
+      case id, config, input, settings, status, text
       case rawText = "raw_text"
     }
   }
@@ -96,7 +76,6 @@ struct CleanupParityTests {
     var failures = 0
     for item in cases {
       let arg0 = item.args.first ?? ""
-      let arg1 = item.args.count > 1 ? item.args[1] : ""
       let actual: String
       switch item.fn {
       case "sanitize": actual = TextCleanup.sanitizeArtifacts(item.input)
@@ -105,8 +84,7 @@ struct CleanupParityTests {
         // dictate_lib_clean_repeats defaults an empty level to 1.
         actual = TextCleanup.cleanRepeats(item.input, level: PerlText.perlInt(arg0.isEmpty ? "1" : arg0))
       case "british": actual = TextCleanup.normalizeBritishSpelling(item.input, enabled: arg0)
-      case "paragraphs": actual = TextCleanup.autoParagraphs(item.input, mode: arg0, minWords: arg1)
-      case "vocab": actual = VocabCorrector(configDir: Self.configPath(arg1), mode: arg0).apply(item.input)
+      case "vocab": actual = VocabCorrector(configDir: Self.configPath(arg0)).apply(item.input)
       case "merge": actual = TranscriptMerge.mergeTailRescue(full: item.input, tail: arg0)
       default:
         Issue.record("\(item.id): unknown stage \(item.fn)")
@@ -119,7 +97,7 @@ struct CleanupParityTests {
 
   @Test func pipelineMatchesInlineCleanup() throws {
     let cases = try Self.loadExpected().pipeline
-    #expect(cases.count > 100)
+    #expect(cases.count > 40)
     let fm = FileManager.default
     let scratch = fm.temporaryDirectory.appendingPathComponent("khuluma-cleanup-parity-\(UUID().uuidString)")
     try fm.createDirectory(at: scratch, withIntermediateDirectories: true)
@@ -129,17 +107,11 @@ struct CleanupParityTests {
     for (index, item) in cases.enumerated() {
       let configDir = scratch.appendingPathComponent("\(index)").path
       try fm.copyItem(atPath: Self.configPath(item.config), toPath: configDir)
-      let modeFile = configDir + "/current-mode"
-      switch item.currentMode {
-      case .write(let text): try Data(text.utf8).write(to: URL(fileURLWithPath: modeFile))
-      case .delete: try? fm.removeItem(atPath: modeFile)
-      case nil: break
-      }
 
       var settings = item.settings
       #expect(settings.configDir == "@config")
       settings.configDir = configDir
-      let outcome = TextPipeline(settings: settings).process(transcript: item.input, app: item.app)
+      let outcome = TextPipeline(settings: settings).process(transcript: item.input)
 
       if settings.requiresCLI {
         sawLocale = true
@@ -149,10 +121,9 @@ struct CleanupParityTests {
       switch (item.status, outcome) {
       case ("no_speech", .noSpeech):
         break
-      case ("ok", .text(let raw, let text, let mode)):
+      case ("ok", .text(let raw, let text)):
         Self.check(item.id, "raw_text", actual: raw, expected: item.rawText, failures: &failures)
         Self.check(item.id, "text", actual: text, expected: item.text, failures: &failures)
-        Self.check(item.id, "mode", actual: mode, expected: item.mode ?? "", failures: &failures)
       default:
         failures += 1
         Issue.record("\(item.id): bash status \(item.status) but Swift gave \(outcome)")
@@ -167,47 +138,39 @@ struct CleanupParityTests {
     #expect(!CleanupSettings(configDir: "/c", localeCtype: "POSIX", localeCollate: nil).requiresCLI)
     let utf8 = CleanupSettings(configDir: "/c", localeCtype: "en_US.UTF-8", localeCollate: "en_US.UTF-8")
     #expect(utf8.requiresCLI)
-    #expect(TextPipeline(settings: utf8).process(transcript: "hello", app: "Ghostty") == .needsCLI)
+    #expect(TextPipeline(settings: utf8).process(transcript: "hello") == .needsCLI)
   }
 
   @Test func appConfigCleanupSectionDecodes() throws {
     let json = """
       {"config_dir": "/tmp/x", "clean": "1", "repeats_level": "2", "vocab_clean": "1",
-       "british_spelling": "0", "code_paragraph_min_words": "70", "long_paragraph_min_words": "55",
-       "force_mode": null}
+       "british_spelling": "0", "locale_ctype": "C", "locale_collate": ""}
       """
     let settings = try JSONDecoder().decode(CleanupSettings.self, from: Data(json.utf8))
     #expect(settings == CleanupSettings(
-      configDir: "/tmp/x", clean: "1", repeatsLevel: "2", britishSpelling: "0"))
+      configDir: "/tmp/x", clean: "1", repeatsLevel: "2", britishSpelling: "0", localeCtype: "C", localeCollate: ""))
   }
 }
 
 struct ShadowCompareTests {
   @Test func agreesOnIdenticalResults() {
-    let native = CleanupOutcome.text(raw: "open ai", text: "OpenAI", mode: "code")
-    #expect(ShadowCompare.mismatch(native: native, cliStatus: "ok", cliRawText: "open ai", cliText: "OpenAI", cliMode: "code") == nil)
-    #expect(ShadowCompare.mismatch(native: .noSpeech, cliStatus: "no_speech", cliRawText: "", cliText: "", cliMode: nil) == nil)
-    #expect(ShadowCompare.mismatch(native: .needsCLI, cliStatus: "failed", cliRawText: "", cliText: "", cliMode: nil) == nil)
+    let native = CleanupOutcome.text(raw: "open ai", text: "OpenAI")
+    #expect(ShadowCompare.mismatch(native: native, cliStatus: "ok", cliRawText: "open ai", cliText: "OpenAI") == nil)
+    #expect(ShadowCompare.mismatch(native: .noSpeech, cliStatus: "no_speech", cliRawText: "", cliText: "") == nil)
+    #expect(ShadowCompare.mismatch(native: .needsCLI, cliStatus: "failed", cliRawText: "", cliText: "") == nil)
   }
 
   @Test func reportsCanonicallyEquivalentButDifferentBytes() {
-    let native = CleanupOutcome.text(raw: "cafe\u{301}", text: "cafe\u{301}", mode: "base")
-    let report = ShadowCompare.mismatch(native: native, cliStatus: "ok", cliRawText: "caf\u{E9}", cliText: "caf\u{E9}", cliMode: "base")
+    let native = CleanupOutcome.text(raw: "cafe\u{301}", text: "cafe\u{301}")
+    let report = ShadowCompare.mismatch(native: native, cliStatus: "ok", cliRawText: "caf\u{E9}", cliText: "caf\u{E9}")
     #expect(report?.contains("raw native=") == true)
     #expect(report?.contains("text native=") == true)
-    #expect(report?.contains("mode") == false)
-    let modeReport = ShadowCompare.mismatch(
-      native: .text(raw: "x", text: "x", mode: "cafe\u{301}"), cliStatus: "ok", cliRawText: "x", cliText: "x",
-      cliMode: "caf\u{E9}")
-    #expect(modeReport?.contains("mode native=") == true)
   }
 
-  @Test func reportsStatusAndModeDifferences() {
-    let native = CleanupOutcome.text(raw: "hi", text: "hi", mode: "code")
-    #expect(ShadowCompare.mismatch(native: native, cliStatus: "no_speech", cliRawText: "", cliText: "", cliMode: nil)?
+  @Test func reportsStatusDifferences() {
+    let native = CleanupOutcome.text(raw: "hi", text: "hi")
+    #expect(ShadowCompare.mismatch(native: native, cliStatus: "no_speech", cliRawText: "", cliText: "")?
       .contains("cli=no_speech") == true)
-    #expect(ShadowCompare.mismatch(native: native, cliStatus: "ok", cliRawText: "hi", cliText: "hi", cliMode: "base")?
-      .contains("mode native=") == true)
   }
 }
 

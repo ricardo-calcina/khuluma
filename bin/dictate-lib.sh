@@ -117,86 +117,14 @@ dictate_lib_normalize_british_spelling() {
   '
 }
 
-# Insert a single paragraph break for long code/long mode outputs that come
-# back as one dense block. This only adds structure; it does not rewrite wording.
-# Usage: printf "%s" "$text" | dictate_lib_auto_paragraphs <mode> [min_words]
-dictate_lib_auto_paragraphs() {
-  local mode="${1:-}"
-  local min_words="${2:-80}"
-  [[ "$min_words" =~ ^[0-9]+$ ]] || min_words="80"
-
-  DICTATE_PARAGRAPH_MODE="$mode" DICTATE_PARAGRAPH_MIN_WORDS="$min_words" perl -0777 -pe '
-    BEGIN {
-      $mode = lc($ENV{DICTATE_PARAGRAPH_MODE} // "");
-      $min = int($ENV{DICTATE_PARAGRAPH_MIN_WORDS} // 80);
-      $min = 80 if $min <= 0;
-    }
-
-    # Only apply to code/long cleanup modes.
-    if ($mode ne "code" && $mode ne "long") {
-      $_ = $_;
-      next;
-    }
-
-    # Keep existing structure intact.
-    if (/\n/) {
-      $_ = $_;
-      next;
-    }
-
-    my @words = /[A-Za-z0-9_'\''-]+/g;
-    if (scalar(@words) < $min) {
-      $_ = $_;
-      next;
-    }
-
-    my @sent = split(/(?<=[.!?])\s+/, $_);
-    if (scalar(@sent) < 3) {
-      $_ = $_;
-      next;
-    }
-
-    my $target = int(scalar(@words) / 2);
-    my $cum = 0;
-    my $best_idx = -1;
-    my $best_dist = 10**9;
-    for (my $i = 0; $i < scalar(@sent) - 1; $i++) {
-      my @sw = ($sent[$i] =~ /[A-Za-z0-9_'\''-]+/g);
-      $cum += scalar(@sw);
-      my $dist = abs($cum - $target);
-      if ($dist < $best_dist) {
-        $best_dist = $dist;
-        $best_idx = $i;
-      }
-    }
-
-    # Require at least one sentence on each side.
-    if ($best_idx < 1 || $best_idx >= scalar(@sent) - 1) {
-      $_ = $_;
-      next;
-    }
-
-    my $a = join(" ", @sent[0 .. $best_idx]);
-    my $b = join(" ", @sent[$best_idx + 1 .. $#sent]);
-    $a =~ s/\s+$//;
-    $b =~ s/^\s+//;
-    if (length($a) && length($b)) {
-      $_ = $a . "\n\n" . $b;
-    }
-  '
-}
-
-# Apply global + mode-specific vocab corrections as a deterministic text pass.
-# Usage: printf "%s" "$text" | dictate_lib_apply_vocab_corrections <mode> [config_dir]
+# Apply the vocab file's corrections as a deterministic text pass.
+# Usage: printf "%s" "$text" | dictate_lib_apply_vocab_corrections [config_dir]
 dictate_lib_apply_vocab_corrections() {
-  local mode="${1:-}"
-  local config_dir="${2:-${DICTATE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/dictate}}"
-  local global_vocab="$config_dir/vocab"
-  local mode_vocab="$config_dir/modes/$mode/vocab"
+  local config_dir="${1:-${DICTATE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/dictate}}"
+  local vocab_file="$config_dir/vocab"
   local files=()
 
-  [[ -f "$global_vocab" ]] && files+=("$global_vocab")
-  [[ -n "$mode" && -f "$mode_vocab" ]] && files+=("$mode_vocab")
+  [[ -f "$vocab_file" ]] && files+=("$vocab_file")
 
   if [[ "${#files[@]}" -eq 0 ]]; then
     cat

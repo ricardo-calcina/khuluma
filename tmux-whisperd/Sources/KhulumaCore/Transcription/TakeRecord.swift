@@ -10,7 +10,6 @@ public struct TakeRecord: Codable, Equatable, Sendable {
   public var delivered: Bool
   public var rawText: String = ""
   public var text: String = ""
-  public var mode: String?
   public var app: String?
   /// Model label at the time of the take (bench `model`).
   public var model: String?
@@ -43,7 +42,7 @@ public struct TakeRecord: Codable, Equatable, Sendable {
 
   enum CodingKeys: String, CodingKey {
     case takeId = "take_id"
-    case status, delivered, text, mode, app, model
+    case status, delivered, text, app, model
     case rawText = "raw_text"
     case recordMs = "record_ms"
     case transcribeMs = "transcribe_ms"

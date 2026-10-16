@@ -14,7 +14,7 @@ Khuluma, the native menu-bar app in `tmux-whisperd/`, is the main way to dictate
 | Surface | Status | Install/update path | Notes |
 | --- | --- | --- | --- |
 | Khuluma (native menu-bar app) | Daily driver | `tools/build-khuluma-app.sh` (see the README) | Owns the hotkey, capture, sounds, paste and the Stats window. Transcribes over the daemon socket and cleans text natively; uses the installed CLI for settings, history, usage and the daemon lifecycle (`docs/CLI_CONTRACTS.md`). |
-| `tmux-whisper` CLI | Supported (Khuluma's back end) | Local `./install.sh --force` for Khuluma; Homebrew or bootstrap for the CLI alone | Source of truth for config, modes, vocab, history, usage, status and doctor. Khuluma needs the CLI from its own checkout (app contract). |
+| `tmux-whisper` CLI | Supported (Khuluma's back end) | Local `./install.sh --force` for Khuluma; Homebrew or bootstrap for the CLI alone | Source of truth for config, vocab, history, usage, status and doctor. Khuluma needs the CLI from its own checkout (app contract). |
 | CLI inline and tmux dictation | Retired (v0.11) | None | Khuluma replaces both. `inline process`, `inline record` and `inline cleanup` stay as Khuluma's back end. |
 | Finder Quick Action (transcribe files) | Supported | `tmux-whisper finder install` | Runs `integrations/finder/tmux-whisper-transcribe.sh`, which calls `tmux-whisper transcribe --beside --clipboard`. The handler is installed beside the binary (Homebrew's `share/tmux-whisper`, or `~/.local/share/tmux-whisper/integrations`). |
 | Agent skill (`integrations/agents/transcribe-audio/`) | Supported | Copy into your agent's skills folder | Tells Claude Code and Codex to use `tmux-whisper transcribe` for audio files. |

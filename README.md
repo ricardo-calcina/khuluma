@@ -6,7 +6,7 @@ The project is being renamed after its menu-bar app, **Khuluma** (isiNdebele and
 
 - **Khuluma** (`tmux-whisperd/Sources/Khuluma`): the menu-bar app you dictate with. It owns the hotkey, the microphone, the sounds, delivery (paste, optionally send) and the Stats window. It transcribes over the daemon's socket and cleans the text up in Swift.
 - **`tmux-whisperd`**: the local Parakeet daemon that keeps the model loaded.
-- **The `tmux-whisper` CLI** (`bin/`): Khuluma's back end for now. It holds config, modes, vocab, history and usage, starts and warms the daemon, and transcribes audio files. Khuluma calls it through a small set of JSON commands ([`docs/CLI_CONTRACTS.md`](docs/CLI_CONTRACTS.md)).
+- **The `tmux-whisper` CLI** (`bin/`): Khuluma's back end for now. It holds config, vocab, history and usage, starts and warms the daemon, and transcribes audio files. Khuluma calls it through a small set of JSON commands ([`docs/CLI_CONTRACTS.md`](docs/CLI_CONTRACTS.md)).
 
 The tmux pane flow, CLI recording, LLM post-processing, the Raycast scripts and the SwiftBar plugin were removed in v0.11 (see `CHANGELOG.md`).
 
@@ -24,7 +24,7 @@ Khuluma is built from a clone, and it needs the CLI from the same checkout: the 
 ```bash
 git clone https://github.com/ricardo-nth/tmux-whisper.git
 cd tmux-whisper
-./install.sh                     # the CLI, default config, modes, vocab and sounds
+./install.sh                     # the CLI, default config, vocab and sounds
 tools/make-signing-identity.sh   # once: a local code-signing identity, so permissions survive rebuilds
 tools/build-khuluma-app.sh        # build, sign and install ~/Applications/Khuluma.app
 open ~/Applications/Khuluma.app
@@ -44,7 +44,7 @@ tools/build-khuluma-app.sh
 
 **Upgrading from Lowkey.app:** the first `build-khuluma-app.sh` quits `~/Applications/Lowkey.app`, moves it to the Trash and installs `Khuluma.app`. Microphone and Accessibility carry over: the bundle id (`com.ricardo-nth.lowkey`) and the signing identity keep their old names until Developer ID signing. On its first launch Khuluma moves the log and any saved takes to `~/Library/Logs/Khuluma` and `~/Library/Application Support/Khuluma`. If you used Start at Login, turn it on again in the menu.
 
-`install.sh` keeps your config, modes, vocab and sounds, including with `--force`, which only refreshes the scripts and adds missing defaults. Other flags: `--no-sounds`, `--with-sounds`, `--replace-sounds` (overwrite your sound files with the bundled ones). It ends with a daemon warm-up, and writes an install receipt to `~/.config/dictate/install-receipt.env`.
+`install.sh` keeps your config, vocab and sounds, including with `--force`, which only refreshes the scripts and adds missing defaults. Other flags: `--no-sounds`, `--with-sounds`, `--replace-sounds` (overwrite your sound files with the bundled ones). It ends with a daemon warm-up, and writes an install receipt to `~/.config/dictate/install-receipt.env`.
 
 **CLI only:** Homebrew (`brew install ricardo-nth/tap/tmux-whisper`, at v0.9.0) and `bootstrap.sh` install the CLI without Khuluma. They are for file transcription, or a pinned CLI on another machine:
 
@@ -89,26 +89,22 @@ tmux-whisper sound start|stop|process|error on|off
 
 **Logs:** `~/Library/Logs/Khuluma/app.log` has one `take:` line per take (path, outcome, timings; no text). `tools/khuluma-report.sh` summarises it: outcomes, fallback and failure rates, and where the time goes.
 
-## Modes and vocab
+## Vocab
 
-Cleanup removes fillers and repeats, applies your vocab corrections and British spelling, and then follows the mode for the app you're dictating into.
-
-```bash
-tmux-whisper mode                  # the current policy and all modes
-tmux-whisper mode auto             # pick the mode from the frontmost app (default)
-tmux-whisper mode code             # or force one: code, long, email, chat, base
-tmux-whisper mode apps add Ghostty # the current mode's trigger apps
-tmux-whisper mode flows code inline # let Khuluma use a mode that was tmux-only
-tmux-whisper mode create notes
-```
-
-Each mode is a folder under `~/.config/dictate/modes/<name>/` with an `apps` list, a `flows` file and optional `vocab`. A mode whose `flows` file says only `tmux` is hidden from Khuluma; `tmux-whisper doctor` flags this.
+Cleanup removes fillers and repeats, applies your vocab corrections and British spelling. There is one vocab file, `~/.config/dictate/vocab`, used for every take in every app.
 
 ```bash
 tmux-whisper vocab add "clawed::Claude"     # also "wrong -> right"
 tmux-whisper vocab import --dry-run fixes.txt
 tmux-whisper vocab dedupe                   # backs up first
 tmux-whisper vocab rm "literal text"        # --regex to match a pattern
+```
+
+Modes were removed in v0.11. If an older install left `modes/` or `current-mode` in `~/.config/dictate`, `./install.sh` folds each `modes/*/vocab` into `vocab` (skipping rules it already has) and moves the old files to `modes-archive/`. To run it yourself, or preview it first:
+
+```bash
+tmux-whisper migrate-modes --dry-run
+tmux-whisper migrate-modes --skip code   # leave a mode's rules out (still archived)
 ```
 
 ## Transcribe audio files
@@ -153,7 +149,7 @@ Most read commands take `--json`. The stable ones are listed in [`docs/CLI_CONTR
 ## Health checks and repair
 
 ```bash
-tmux-whisper doctor     # install, config, modes and daemon, with suggested fixes
+tmux-whisper doctor     # install, config, vocab and daemon, with suggested fixes
 tmux-whisper status     # what's running and the effective settings
 tmux-whisper version    # CLI version, config schema, running binary, install provenance
 tmux-whisper warmup     # start the daemon and load the model
@@ -179,7 +175,7 @@ Khuluma and Finder run the CLI with a minimal environment. Put custom `PATH` ent
   - `KhulumaCore`: Khuluma's AppKit-free logic, with most of the tests;
   - `Khuluma`: the app shell.
 - The CLI builds the daemon on demand into `~/.local/share/tmux-whisper/native/` and rebuilds it when the sources change.
-- `config/` holds the defaults that `install.sh` seeds: config, modes and vocab.
+- `config/` holds the defaults that `install.sh` seeds: config and vocab.
 - `tools/` holds the Khuluma build and report scripts and the Homebrew formula updater.
 - `docs/plans/` holds the active plan. Finished plans move to `docs/plans/archive/`.
 

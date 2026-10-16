@@ -1,6 +1,0 @@
-source slash::src/
-source forward slash::src/
-at source slash::@src/
-at source forward slash::@src/
-at saw slash::@src/
-atsaw slash::@src/

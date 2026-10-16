@@ -15,29 +15,21 @@ public struct CleanupSettings: Codable, Equatable, Sendable {
   public var vocabClean: String
   /// `DICTATE_BRITISH_SPELLING`: off for 0/off/false/no.
   public var britishSpelling: String
-  public var codeParagraphMinWords: String
-  public var longParagraphMinWords: String
-  /// `DICTATE_FORCE_MODE`, if set.
-  public var forceMode: String?
   /// The CLI's effective LC_CTYPE / LC_COLLATE (LC_ALL, else the category,
-  /// else LANG; "" when unset). grep -i, sed trimming, glob order and the
-  /// blank check depend on them; only the C locale is reproduced natively.
+  /// else LANG; "" when unset). The blank check and the filters' character
+  /// classes depend on them; only the C locale is reproduced natively.
   public var localeCtype: String?
   public var localeCollate: String?
 
   public init(
     configDir: String, clean: String = "0", repeatsLevel: String = "1", vocabClean: String = "1",
-    britishSpelling: String = "1", codeParagraphMinWords: String = "70", longParagraphMinWords: String = "55",
-    forceMode: String? = nil, localeCtype: String? = nil, localeCollate: String? = nil
+    britishSpelling: String = "1", localeCtype: String? = nil, localeCollate: String? = nil
   ) {
     self.configDir = configDir
     self.clean = clean
     self.repeatsLevel = repeatsLevel
     self.vocabClean = vocabClean
     self.britishSpelling = britishSpelling
-    self.codeParagraphMinWords = codeParagraphMinWords
-    self.longParagraphMinWords = longParagraphMinWords
-    self.forceMode = forceMode
     self.localeCtype = localeCtype
     self.localeCollate = localeCollate
   }
@@ -48,9 +40,6 @@ public struct CleanupSettings: Codable, Equatable, Sendable {
     case repeatsLevel = "repeats_level"
     case vocabClean = "vocab_clean"
     case britishSpelling = "british_spelling"
-    case codeParagraphMinWords = "code_paragraph_min_words"
-    case longParagraphMinWords = "long_paragraph_min_words"
-    case forceMode = "force_mode"
     case localeCtype = "locale_ctype"
     case localeCollate = "locale_collate"
   }
@@ -75,7 +64,7 @@ public struct CleanupSettings: Codable, Equatable, Sendable {
 public enum CleanupOutcome: Equatable, Sendable {
   /// `raw` is the text after the first pass (what history stores as raw);
   /// `text` is the final text to deliver.
-  case text(raw: String, text: String, mode: String)
+  case text(raw: String, text: String)
   /// Nothing left after artefact/filler cleanup ("No speech detected").
   case noSpeech
   /// The CLI runs in a non-C locale: only the CLI can produce the result.
@@ -83,7 +72,7 @@ public enum CleanupOutcome: Equatable, Sendable {
 }
 
 /// Swift port of the inline cleanup in `process_inline_recording`
-/// (`cleanup_raw_transcript`, `resolve_inline_mode`, `finish_transcript_text`),
+/// (`cleanup_raw_transcript`, `finish_transcript_text`),
 /// stage for stage, including bash's `$(...)` newline stripping between
 /// stages. Proven byte-identical by tests/fixtures/cleanup.
 public struct TextPipeline: Sendable {
@@ -93,14 +82,12 @@ public struct TextPipeline: Sendable {
     self.settings = settings
   }
 
-  /// `transcript` is the transcriber's output; `app` the target app's name.
-  public func process(transcript: String, app: String?) -> CleanupOutcome {
+  /// `transcript` is the transcriber's output.
+  public func process(transcript: String) -> CleanupOutcome {
     if settings.requiresCLI { return .needsCLI }
     let raw = cleanRaw(PerlText.bashCapture(transcript))
     if PerlText.isBlank(raw) { return .noSpeech }
-    let mode = ModeResolver(configDir: settings.configDir)
-      .resolveInlineMode(app: app, forceMode: settings.forceMode)
-    return .text(raw: raw, text: finish(raw, mode: mode), mode: mode)
+    return .text(raw: raw, text: finish(raw))
   }
 
   /// `cleanup_raw_transcript`.
@@ -117,21 +104,10 @@ public struct TextPipeline: Sendable {
   }
 
   /// `finish_transcript_text`.
-  func finish(_ text: String, mode: String) -> String {
+  func finish(_ text: String) -> String {
     var out = text
     if settings.vocabEnabled {
-      out = PerlText.bashCapture(VocabCorrector(configDir: settings.configDir, mode: mode).apply(out))
-    }
-    // apply_mode_cleanup matches the mode name exactly.
-    switch mode {
-    case "code":
-      out = PerlText.bashCapture(
-        TextCleanup.autoParagraphs(out, mode: mode, minWords: settings.codeParagraphMinWords))
-    case "long":
-      out = PerlText.bashCapture(
-        TextCleanup.autoParagraphs(out, mode: mode, minWords: settings.longParagraphMinWords))
-    default:
-      break
+      out = PerlText.bashCapture(VocabCorrector(configDir: settings.configDir).apply(out))
     }
     return PerlText.bashCapture(TextCleanup.normalizeBritishSpelling(out, enabled: settings.britishSpelling))
   }

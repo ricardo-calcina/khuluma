@@ -21,11 +21,11 @@ TMUX_WHISPER_CLI_VERSION="0.10.0-dev"
 # Khuluma refuses takes unless its own contract number (AppContract.version
 # in tmux-whisperd/Sources/KhulumaCore/CLIModels.swift) is the same: bump
 # both together whenever either side needs the other to change.
-TMUX_WHISPER_APP_CONTRACT=2
+TMUX_WHISPER_APP_CONTRACT=3
 
 usage() {
   cat <<'EOF'
-tmux-whisper: the back end for Khuluma (the menu-bar dictation app) and file transcription, with a warm Swift/CoreML Parakeet backend and mode-aware cleanup.
+tmux-whisper: the back end for Khuluma (the menu-bar dictation app) and file transcription, with a warm Swift/CoreML Parakeet backend and vocab-based cleanup.
 
 STATUS:
   tmux-whisper status [--json] [--preset compact]    # show runtime + effective settings snapshot
@@ -45,7 +45,7 @@ NATIVE APP BACK-END (used by the menu-bar app):
   tmux-whisper inline process <wav> --json # inline pipeline without paste (app delivers)
 
 DIAGNOSTICS:
-  tmux-whisper doctor [--json]    # quick health summary (install, config, modes, daemon)
+  tmux-whisper doctor [--json]    # quick health summary (install, config, vocab, daemon)
   tmux-whisper config [--json]    # show config path + schema health + key values
   tmux-whisper config path [--json] # print active config path
   tmux-whisper config get <path> [--json] # inspect one config value (file/default)
@@ -54,7 +54,7 @@ DIAGNOSTICS:
   tmux-whisper warmup            # preload the Swift Parakeet daemon/model
   tmux-whisper keep-logs          # show persistent log retention setting
   tmux-whisper keep-logs on|off   # persist log retention in config
-  tmux-whisper bench [N|all] [--json] [--status STATUS] [--mode MODE] [--slow-total-ms N] # summarize recent stage timings
+  tmux-whisper bench [N|all] [--json] [--status STATUS] [--slow-total-ms N] # summarize recent stage timings
   tmux-whisper bench export [N|all] [--json] [filters] # export raw bench rows (default: 30 recent)
   tmux-whisper changelog          # show recent Tmux Whisper changes
 
@@ -71,18 +71,6 @@ SOUNDS:
   tmux-whisper sound process on|off # toggle process sound
   tmux-whisper sound error on|off # toggle error sound
 
-MODES (per-app cleanup rules):
-  tmux-whisper mode               # show current inline mode policy + list all
-  tmux-whisper mode auto          # auto-detect inline mode from app (default)
-  tmux-whisper mode code          # force code mode for inline cleanup
-  tmux-whisper mode long          # long-form cleanup mode
-  tmux-whisper mode email         # email mode (formal, professional)
-  tmux-whisper mode chat          # chat mode (casual, minimal intervention)
-  tmux-whisper mode apps          # list apps that trigger current mode
-  tmux-whisper mode apps add X    # add app to current mode's trigger list
-  tmux-whisper mode flows [name] [inline] # show/set whether Khuluma uses a mode
-  tmux-whisper mode create <name> # create new custom mode
-
 VOCABULARY:
   tmux-whisper vocab              # show custom word corrections
   tmux-whisper vocab add "X::Y" ["A::B"...] # add one or more corrections
@@ -90,8 +78,9 @@ VOCABULARY:
   tmux-whisper vocab export <file> # export normalized/deduped corrections to file
   tmux-whisper vocab clipboard [--dry-run] # import corrections from clipboard lines
   tmux-whisper vocab dedupe       # normalize + remove duplicate entries
-  tmux-whisper vocab edit         # open global vocab file in $EDITOR
+  tmux-whisper vocab edit         # open the vocab file in $EDITOR
   tmux-whisper vocab rm [--dry-run] [--regex] "pattern" # remove entries by literal match (regex opt-in)
+  tmux-whisper migrate-modes [--dry-run] [--skip <mode>]... # fold old modes/*/vocab into vocab, archive modes/ (install.sh runs this)
 
 DELIVERY (how Khuluma pastes and sends):
   tmux-whisper autosend           # show auto-send setting
@@ -127,7 +116,6 @@ ENV OPTIONS:
   DICTATE_INLINE_SEND_DELAY_MS=35 # delay between Cmd+V and the send key when autosend=on
   DICTATE_INLINE_SEND_MODE=enter|ctrl_j|cmd_enter # autosend key (default: enter)
   DICTATE_BRITISH_SPELLING=1 # enforce UK spellings (default on; set 0 to disable)
-  DICTATE_PARAGRAPH_MIN_WORDS=80 # auto split long short/long outputs into paragraphs
   DICTATE_TRANSCRIBE_TAIL_PAD_MS=500 # append a little silence before ASR to preserve final words
   DICTATE_SWIFT_PARAKEET_TAIL_RESCUE=0|1 # re-transcribe final seconds and merge when full-file ASR drops the tail
   DICTATE_KEEP_LOGS=1        # keep /tmp logs even on success
@@ -138,10 +126,7 @@ ENV OPTIONS:
 
 CONFIG FILES (kept under ~/.config/dictate/ for now):
   config.toml                # main settings (Parakeet backend, autosend, Khuluma's hotkey)
-  vocab                      # global corrections (one per line: wrong → right)
-  current-mode               # mode selection (code/email/etc)
-  modes/<mode>/apps          # apps that trigger this mode (one per line)
-  modes/<mode>/vocab         # mode-specific corrections
+  vocab                      # corrections for every take (one per line: wrong -> right, or wrong::right)
   history/                   # saved transcripts + stats metadata (JSON auto-cleaned after history.retention_days)
   history/inline-debug/      # keep_logs artifacts; WAVs auto-pruned after history.audio_retention_days
   sounds/                    # sample sounds still install under ~/.local/share/sounds/dictate in this phase
@@ -180,7 +165,7 @@ if [[ ! -r "$DICTATE_INTERNAL_LIB_DIR/app.sh" ]]; then
     DICTATE_INTERNAL_LIB_DIR="$FALLBACK_INTERNAL_LIB_DIR"
   fi
 fi
-for internal_runtime_module in config.sh mode.sh integrations.sh history.sh diagnostics.sh version.sh transcribe_file.sh app.sh; do
+for internal_runtime_module in config.sh migrate.sh integrations.sh history.sh diagnostics.sh version.sh transcribe_file.sh app.sh; do
   [[ -r "$DICTATE_INTERNAL_LIB_DIR/$internal_runtime_module" ]] || die "missing internal runtime module: $DICTATE_INTERNAL_LIB_DIR/$internal_runtime_module"
   # shellcheck disable=SC1090
   source "$DICTATE_INTERNAL_LIB_DIR/$internal_runtime_module"
@@ -216,35 +201,13 @@ sanitize_transcript_artifacts() {
   dictate_lib_sanitize_transcript_artifacts
 }
 
-auto_paragraphs() {
-  local mode="${1:-}"
-  local min_words="${2:-${DICTATE_PARAGRAPH_MIN_WORDS:-80}}"
-  dictate_lib_auto_paragraphs "$mode" "$min_words"
-}
-
-apply_mode_cleanup() {
-  local mode="${1:-}"
-  case "$mode" in
-    code)
-      auto_paragraphs "$mode" "${DICTATE_CODE_PARAGRAPH_MIN_WORDS:-70}"
-      ;;
-    long)
-      auto_paragraphs "$mode" "${DICTATE_LONG_PARAGRAPH_MIN_WORDS:-55}"
-      ;;
-    *)
-      cat
-      ;;
-  esac
-}
-
 normalize_british_spelling() {
   local enabled="${DICTATE_BRITISH_SPELLING:-1}"
   dictate_lib_normalize_british_spelling "$enabled"
 }
 
 apply_vocab_corrections() {
-  local mode="${1:-}"
-  dictate_lib_apply_vocab_corrections "$mode" "$DICTATE_CONFIG_DIR"
+  dictate_lib_apply_vocab_corrections "$DICTATE_CONFIG_DIR"
 }
 
 # First cleanup pass on a fresh transcript: artefacts, then fillers/repeats
@@ -267,16 +230,14 @@ cleanup_raw_transcript() {
   CLEANUP_TEXT="$txt"
 }
 
-# Final deterministic pass: vocab corrections, mode paragraphs, British
-# spelling. Sets CLEANUP_TEXT (see cleanup_raw_transcript).
-# Usage: finish_transcript_text <text> <mode>; txt="$CLEANUP_TEXT"
+# Final deterministic pass: vocab corrections, then British spelling. Sets
+# CLEANUP_TEXT (see cleanup_raw_transcript).
+# Usage: finish_transcript_text <text>; txt="$CLEANUP_TEXT"
 finish_transcript_text() {
   local txt="$1"
-  local mode="$2"
   if bool_is_on "${DICTATE_VOCAB_CLEAN:-1}"; then
-    txt="$(printf "%s" "$txt" | apply_vocab_corrections "$mode")"
+    txt="$(printf "%s" "$txt" | apply_vocab_corrections)"
   fi
-  txt="$(printf "%s" "$txt" | apply_mode_cleanup "$mode")"
   txt="$(printf "%s" "$txt" | normalize_british_spelling)"
   CLEANUP_TEXT="$txt"
 }
@@ -284,7 +245,6 @@ finish_transcript_text() {
 XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 DICTATE_CONFIG_DIR="${DICTATE_CONFIG_DIR:-$XDG_CONFIG_HOME/dictate}"
 DICTATE_CONFIG_FILE="${DICTATE_CONFIG_FILE:-$DICTATE_CONFIG_DIR/config.toml}"
-MODE_FILE="$DICTATE_CONFIG_DIR/current-mode"
 
 mkdir -p "$DICTATE_CONFIG_DIR"
 
@@ -2762,27 +2722,27 @@ bench_field() {
   printf "%s" "${1:-}" | tr '\t\r\n' '   '
 }
 
-# The TSV keeps its 19 columns so older rows still parse; the postprocess
-# (5, 11) and CLI capture (15-17) arguments are always 0 now.
+# The TSV keeps its 19 columns so older rows still parse: the mode column is
+# always "none" now, and the postprocess (4, 10) and CLI capture (14-16)
+# arguments are always 0.
 append_bench_entry() {
   local flow="${1:-unknown}"
   local status="${2:-ok}"
   local model="${3:-unknown}"
-  local mode="${4:-none}"
-  local postprocess="${5:-0}"
-  local raw_chars="${6:-0}"
-  local out_chars="${7:-0}"
-  local record_ms="${8:-0}"
-  local transcribe_ms="${9:-0}"
-  local clean_ms="${10:-0}"
-  local postprocess_ms="${11:-0}"
-  local paste_ms="${12:-0}"
-  local total_ms="${13:-0}"
-  local startup_total_ms="${14:-0}"
-  local startup_audio_ms="${15:-0}"
-  local startup_ffmpeg_live_ms="${16:-0}"
-  local startup_target_ms="${17:-0}"
-  local startup_audio_source="${18:-}"
+  local postprocess="${4:-0}"
+  local raw_chars="${5:-0}"
+  local out_chars="${6:-0}"
+  local record_ms="${7:-0}"
+  local transcribe_ms="${8:-0}"
+  local clean_ms="${9:-0}"
+  local postprocess_ms="${10:-0}"
+  local paste_ms="${11:-0}"
+  local total_ms="${12:-0}"
+  local startup_total_ms="${13:-0}"
+  local startup_audio_ms="${14:-0}"
+  local startup_ffmpeg_live_ms="${15:-0}"
+  local startup_target_ms="${16:-0}"
+  local startup_audio_source="${17:-}"
 
   mkdir -p "$HISTORY_DIR" 2>/dev/null || return 0
   # Appends and trims share one lock: Khuluma's background `inline record` and
@@ -2796,7 +2756,7 @@ append_bench_entry() {
     "$(bench_field "$flow")" \
     "$(bench_field "$status")" \
     "$(bench_field "$model")" \
-    "$(bench_field "$mode")" \
+    "none" \
     "$(bench_field "$postprocess")" \
     "$(bench_field "$raw_chars")" \
     "$(bench_field "$out_chars")" \
@@ -2849,7 +2809,7 @@ bench() {
   local args=()
   local filter_args=()
   local arg
-  local usage="usage: tmux-whisper bench [N|all] [--json] [--flow FLOW] [--status STATUS] [--mode MODE] [--model MODEL] [--slow-startup-ms N] [--slow-total-ms N] | bench export [N|all] [--json] [filters] | bench clear"
+  local usage="usage: tmux-whisper bench [N|all] [--json] [--flow FLOW] [--status STATUS] [--model MODEL] [--slow-startup-ms N] [--slow-total-ms N] | bench export [N|all] [--json] [filters] | bench clear"
 
   while [[ $# -gt 0 ]]; do
     arg="${1:-}"
@@ -2857,12 +2817,12 @@ bench() {
       --json)
         json_output="1"
         ;;
-      --flow|--status|--mode|--model)
+      --flow|--status|--model)
         shift
         [[ $# -gt 0 && -n "${1:-}" ]] || die "$usage"
         filter_args+=("${arg#--}=${1:-}")
         ;;
-      --flow=*|--status=*|--mode=*|--model=*)
+      --flow=*|--status=*|--model=*)
         filter_args+=("${arg#--}")
         ;;
       --slow-startup-ms|--slow-startup-total-ms)
@@ -2960,7 +2920,6 @@ filter_args = sys.argv[5:]
 FILTER_LABELS = {
     "flow": "flow",
     "status": "status",
-    "mode": "mode",
     "model": "model",
     "min_record_ms": "record_ms",
     "min_transcribe_ms": "transcribe_ms",
@@ -2972,7 +2931,6 @@ FILTER_LABELS = {
 filters = {
     "flow": None,
     "status": None,
-    "mode": None,
     "model": None,
     "minimums": {},
 }
@@ -2982,7 +2940,7 @@ for item in filter_args:
     key, value = item.split("=", 1)
     key = key.strip()
     value = value.strip()
-    if key in {"flow", "status", "mode", "model"}:
+    if key in {"flow", "status", "model"}:
         filters[key] = value
     elif key in FILTER_LABELS:
         try:
@@ -3003,8 +2961,9 @@ if os.path.isfile(path):
             parts = line.rstrip("\n").split("\t")
             if len(parts) < 14:
                 continue
-            ts, flow, status, model, mode, post, rawc, outc, rec, trn, cln, pps, pst, tot = parts[:14]
-            # Columns 6 and 12 held the LLM post-processing flag and time,
+            ts, flow, status, model, _mode, post, rawc, outc, rec, trn, cln, pps, pst, tot = parts[:14]
+            # Column 5 held the cleanup mode (removed in v0.11; new rows write
+            # "none"), columns 6 and 12 the LLM post-processing flag and time,
             # and 15-17 CLI capture timings (audio resolve, ffmpeg live check,
             # target capture); new rows write 0 there.
             startup_total = parts[14] if len(parts) > 14 else "0"
@@ -3023,7 +2982,6 @@ if os.path.isfile(path):
                     "flow": flow,
                     "status": status,
                     "model": model,
-                    "mode": mode,
                     "raw_chars": to_int(rawc),
                     "out_chars": to_int(outc),
                     "record_ms": to_int(rec),
@@ -3045,7 +3003,7 @@ def select_subset(rows, raw_spec):
     return rows[-limit:]
 
 def matches_filters(row):
-    for key in ("flow", "status", "mode", "model"):
+    for key in ("flow", "status", "model"):
         raw_value = filters.get(key)
         if raw_value is None:
             continue
@@ -3111,7 +3069,6 @@ if subcmd == "export":
         print(f"Flow: {entry['flow']}")
         print(f"Status: {entry['status']}")
         print(f"Model: {entry['model']}")
-        print(f"Mode: {entry['mode']}")
         print("")
         print("Metrics:")
         for key in (
@@ -3183,7 +3140,7 @@ else:
 print(f"Source: {path}")
 if active_filters:
     print("Filters:")
-    for key in ("flow", "status", "mode", "model"):
+    for key in ("flow", "status", "model"):
         if filters.get(key) is not None:
             print(f"  {key}: {filters[key]}")
     for key, minimum in sorted(filters["minimums"].items()):
@@ -3215,7 +3172,7 @@ if latest is not None:
     print(
         "  "
         + f"{latest['timestamp']} flow={latest['flow']} status={latest['status']} "
-        + f"model={latest['model']} mode={latest['mode']}"
+        + f"model={latest['model']}"
     )
     print(
         (
@@ -3269,7 +3226,6 @@ process_inline_recording() {
   inline_proc_file="$PROCESSING_MARKER_FILE"
   trap 'processing_marker_stop "$inline_proc_file"; trap - RETURN' RETURN
 
-  local detected_mode="none"
   local flow_started_ms
   local transcribe_ms=0 clean_ms=0 paste_ms=0 total_ms=0
   local stage_started_ms
@@ -3298,7 +3254,7 @@ process_inline_recording() {
   if [[ ! -s "$wav" ]]; then
     echo "No audio recorded"
     total_ms=$(( $(now_ms) - flow_started_ms ))
-    append_bench_entry "inline" "record_failed" "$model_id" "$detected_mode" "0" "0" "0" "$record_ms" "0" "0" "0" "0" "$total_ms" \
+    append_bench_entry "inline" "record_failed" "$model_id" "0" "0" "0" "$record_ms" "0" "0" "0" "0" "$total_ms" \
       "$startup_total_ms" "0" "0" "0" "$startup_audio_source"
     archive_inline_debug_artifacts "$archive_prefix" "$wav" "$transcribe_log" "record_failed" \
       "$record_ms" "0" "0" "0" "$total_ms"
@@ -3322,7 +3278,7 @@ process_inline_recording() {
     echo "Transcription failed (backend exit $whisper_rc)"
     echo "Log: $transcribe_log"
     total_ms=$(( $(now_ms) - flow_started_ms ))
-    append_bench_entry "inline" "transcribe_failed" "$model_id" "$detected_mode" "0" "0" "0" "$record_ms" "$transcribe_ms" "0" "0" "0" "$total_ms" \
+    append_bench_entry "inline" "transcribe_failed" "$model_id" "0" "0" "0" "$record_ms" "$transcribe_ms" "0" "0" "0" "$total_ms" \
       "$startup_total_ms" "0" "0" "0" "$startup_audio_source"
     archive_inline_debug_artifacts "$archive_prefix" "$wav" "$transcribe_log" "transcribe_failed" \
       "$record_ms" "$transcribe_ms" "0" "0" "$total_ms"
@@ -3337,7 +3293,7 @@ process_inline_recording() {
   if [[ -z "${txt//[[:space:]]/}" ]]; then
     echo "No speech detected"
     total_ms=$(( $(now_ms) - flow_started_ms ))
-    append_bench_entry "inline" "no_speech" "$model_id" "$detected_mode" "0" "0" "0" "$record_ms" "$transcribe_ms" "$clean_ms" "0" "0" "$total_ms" \
+    append_bench_entry "inline" "no_speech" "$model_id" "0" "0" "0" "$record_ms" "$transcribe_ms" "$clean_ms" "0" "0" "$total_ms" \
       "$startup_total_ms" "0" "0" "0" "$startup_audio_source"
     archive_inline_debug_artifacts "$archive_prefix" "$wav" "$transcribe_log" "no_speech" \
       "$record_ms" "$transcribe_ms" "$clean_ms" "0" "$total_ms"
@@ -3346,17 +3302,14 @@ process_inline_recording() {
 
   # Save raw transcript for history
   local raw_txt="$txt"
-  resolve_inline_mode "$target_app"
-  detected_mode="$RESOLVED_MODE"
 
-  finish_transcript_text "$txt" "$detected_mode"
+  finish_transcript_text "$txt"
   txt="$CLEANUP_TEXT"
 
   # The caller pastes/sends and plays sounds itself; hand the final text
   # back. History, bench and usage are still recorded below.
   INLINE_EXTERNAL_TEXT="$txt"
   INLINE_EXTERNAL_RAW_TEXT="$raw_txt"
-  INLINE_EXTERNAL_MODE="$detected_mode"
 
   local delivery_completed_ms
   delivery_completed_ms="$(now_ms)"
@@ -3376,7 +3329,7 @@ process_inline_recording() {
     usage_record_delivery "inline" "$txt" "$record_ms" "$usage_full_elapsed_ms" || \
       echo "[usage] unable to record delivered dictation summary" >&2
   fi
-  append_bench_entry "inline" "ok" "$model_id" "$detected_mode" "0" "${#raw_txt}" "${#txt}" "$record_ms" "$transcribe_ms" "$clean_ms" "0" "$paste_ms" "$total_ms" \
+  append_bench_entry "inline" "ok" "$model_id" "0" "${#raw_txt}" "${#txt}" "$record_ms" "$transcribe_ms" "$clean_ms" "0" "$paste_ms" "$total_ms" \
     "$startup_total_ms" "0" "0" "0" "$startup_audio_source"
 
   INLINE_EXTERNAL_TIMINGS="record_ms=$record_ms transcribe_ms=$transcribe_ms clean_ms=$clean_ms total_ms=$total_ms"
@@ -3388,7 +3341,7 @@ process_inline_recording() {
   # on JSON + file I/O.
   local history_app="${target_app:-current}"
   (
-    save_history "$raw_txt" "$txt" "$detected_mode" "${history_app:-unknown}" "$record_ms" "$transcribe_ms" "$clean_ms" "$paste_ms" "$total_ms"
+    save_history "$raw_txt" "$txt" "${history_app:-unknown}" "$record_ms" "$transcribe_ms" "$clean_ms" "$paste_ms" "$total_ms"
   ) >/dev/null 2>&1 &
 }
 
@@ -3988,145 +3941,6 @@ manage_vocab() {
   esac
 }
 
-manage_mode() {
-  local subcmd="${1:-}"
-  shift 2>/dev/null || true
-  
-  mkdir -p "$DICTATE_CONFIG_DIR/modes"
-  
-  case "$subcmd" in
-    apps)
-      local apps_subcmd="${1:-}"
-      shift 2>/dev/null || true
-      
-      # Get current mode for apps command
-      local current_mode
-      current_mode="$(get_current_mode)"
-      
-      local apps_file="$DICTATE_CONFIG_DIR/modes/$(mode_to_dir_name "$current_mode")/apps"
-      
-      case "$apps_subcmd" in
-        add)
-          local app_name="$*"
-          if [[ -z "$app_name" ]]; then
-            die "usage: tmux-whisper mode apps add \"AppName\""
-          fi
-          mkdir -p "$(dirname "$apps_file")"
-          echo "$app_name" >> "$apps_file"
-          echo "Added '$app_name' to $(mode_display_name "$current_mode") mode"
-          ;;
-        "")
-          echo "Apps for $(mode_display_name "$current_mode") mode:"
-          if [[ -f "$apps_file" ]]; then
-            cat "$apps_file" | sed 's/^/  /'
-          else
-            echo "  (none configured)"
-          fi
-          ;;
-        *) die "unknown apps command: $apps_subcmd (use: add)" ;;
-      esac
-      ;;
-    create)
-      local new_mode="$1"
-      if [[ -z "$new_mode" ]]; then
-        die "usage: tmux-whisper mode create <name>"
-      fi
-      local new_dir="$DICTATE_CONFIG_DIR/modes/$new_mode"
-      if [[ -d "$new_dir" ]]; then
-        die "mode '$new_mode' already exists"
-      fi
-      mkdir -p "$new_dir"
-      touch "$new_dir/apps"
-      touch "$new_dir/vocab"
-      echo "Created mode: $new_mode"
-      echo "  Edit apps: tmux-whisper mode apps add \"AppName\""
-      ;;
-    flows)
-      local flow_target="${1:-}"
-      local flow_spec="${2:-}"
-      local target_mode=""
-      case "$flow_target" in
-        "" )
-          target_mode="$(get_current_mode)"
-          ;;
-        inline|tmux|both|all|clear|reset)
-          target_mode="$(get_current_mode)"
-          flow_spec="$flow_target"
-          ;;
-        *)
-          target_mode="$(canonical_mode_name "$flow_target")"
-          mode_exists "$target_mode" || die "unknown mode: $flow_target"
-          ;;
-      esac
-      [[ -n "$target_mode" ]] || target_mode="$(get_current_mode)"
-      if [[ -z "$flow_spec" ]]; then
-        show_mode_flows "$target_mode"
-      else
-        write_mode_flows "$target_mode" "$flow_spec"
-        show_mode_flows "$target_mode"
-      fi
-      ;;
-    "")
-      # Show current mode and list all
-      local current_raw current
-      if [[ -f "$MODE_FILE" ]]; then
-        current_raw="$(head -n 1 "$MODE_FILE" 2>/dev/null | tr -d '\r' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
-      else
-        current_raw="auto"
-      fi
-      if [[ -z "$current_raw" || "$current_raw" == "auto" ]]; then
-        current="$(get_current_mode)"
-        echo "Current mode: auto (app-detected, current=$(mode_display_name "$current"))"
-      else
-        current="$(canonical_mode_name "$current_raw")"
-        echo "Current mode: $(mode_display_name "$current") (fixed)"
-      fi
-      echo ""
-      echo "Available modes:"
-      local mode_name mode_dir app_count flows_desc listed_any="0"
-      while IFS= read -r mode_name; do
-        [[ -n "$mode_name" ]] || continue
-        listed_any="1"
-        mode_dir="$DICTATE_CONFIG_DIR/modes/$(mode_to_dir_name "$mode_name")"
-        app_count=0
-        [[ -f "$mode_dir/apps" ]] && app_count="$(wc -l < "$mode_dir/apps" | tr -d ' ')"
-        if mode_allows_flow "$mode_name" "inline"; then
-          flows_desc="used by Khuluma"
-        else
-          flows_desc="hidden (flows file excludes inline)"
-        fi
-        echo "  $(mode_display_name "$mode_name") ($app_count apps, $flows_desc)"
-      done < <(list_modes "")
-      [[ "$listed_any" == "1" ]] || echo "  (none)"
-      echo ""
-      echo "Commands:"
-      echo "  tmux-whisper mode auto       - app-detect inline mode"
-      echo "  tmux-whisper mode <name>     - set fixed mode (e.g. code)"
-      echo "  tmux-whisper mode apps       - list apps for current mode"
-      echo "  tmux-whisper mode apps add X - add app to current mode"
-      echo "  tmux-whisper mode flows X inline - let Khuluma use mode X"
-      echo "  tmux-whisper mode create X   - create new mode"
-      echo "  tmux-whisper mode flows X    - show current flow config for mode X"
-      ;;
-    auto)
-      printf '%s\n' "auto" > "$MODE_FILE"
-      current="$(get_current_mode)"
-      echo "Mode set: auto (app-detected, current=$(mode_display_name "$current"))"
-      ;;
-    *)
-      # Check if it's a custom mode name
-      local canonical
-      canonical="$(canonical_mode_name "$subcmd")"
-      if [[ -d "$DICTATE_CONFIG_DIR/modes/$(mode_to_dir_name "$canonical")" ]]; then
-        echo "$canonical" > "$MODE_FILE"
-        echo "Mode set: $(mode_display_name "$canonical") (fixed)"
-      else
-        die "unknown mode: $subcmd"
-      fi
-      ;;
-  esac
-}
-
 manage_sounds() {
   local target="${1:-}"
   local val="${2:-}"
@@ -4210,7 +4024,8 @@ case "$cmd" in
   send-mode|send_mode|sendmode) set_inline_send_mode "${2:-}" ;;
   target|paste_target) set_paste_target "${2:-}" ;;
   vocab) manage_vocab "${2:-}" "${@:3}" ;;
-  mode) manage_mode "${2:-}" "${@:3}" ;;
+  mode) die "modes were removed in v0.11: every take uses $DICTATE_CONFIG_DIR/vocab (tmux-whisper vocab). Old modes/*/vocab entries are folded in by: tmux-whisper migrate-modes" ;;
+  migrate-modes) migrate_modes "${@:2}" ;;
   history) manage_history "${@:2}" ;;
   version|--version) show_version "${@:2}" ;;
   usage)

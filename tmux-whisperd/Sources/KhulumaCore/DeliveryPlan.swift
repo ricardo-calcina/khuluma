@@ -30,10 +30,10 @@ public enum DeliveryTarget {
     return lastExternal.flatMap { isSelf($0) ? nil : $0 }
   }
 
-  /// The app whose cleanup mode applies (and is recorded in history): the
-  /// one the text is delivered to. "restore" and retargeted takes go to the
-  /// app from recording start; "current" to whatever is frontmost at stop.
-  public static func modeApp(pasteTarget: String?, retargeted: Bool, original: String?,
+  /// The app recorded in history: the one the text is delivered to.
+  /// "restore" and retargeted takes go to the app from recording start;
+  /// "current" to whatever is frontmost at stop.
+  public static func deliveryApp(pasteTarget: String?, retargeted: Bool, original: String?,
                              frontmostAtStop: String?) -> String? {
     pasteTarget == "restore" || retargeted ? original : frontmostAtStop
   }

@@ -5,7 +5,7 @@ import Foundation
 /// to speak exactly this version (`app_contract` in `app-config --json`,
 /// `TMUX_WHISPER_APP_CONTRACT` in `bin/tmux-whisper`; CI keeps them equal).
 public enum AppContract {
-  public static let version = 2
+  public static let version = 3
 
   /// The installed CLI speaks a different contract: Khuluma takes no
   /// dictations until the two match.
@@ -172,7 +172,6 @@ public struct ProcessResult: Decodable, Equatable, Sendable {
   public let status: String
   public let text: String
   public let rawText: String
-  public let mode: String?
   public let message: String?
   public let delivery: Delivery
   public let timings: [String: Int]
@@ -180,7 +179,7 @@ public struct ProcessResult: Decodable, Equatable, Sendable {
   public let usageDeferred: Bool
 
   enum CodingKeys: String, CodingKey {
-    case ok, status, text, mode, message, delivery, timings
+    case ok, status, text, message, delivery, timings
     case rawText = "raw_text"
     case usageDeferred = "usage_deferred"
   }
