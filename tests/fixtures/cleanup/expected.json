@@ -2256,7 +2256,7 @@
     "repo"
    ],
    "input": "get hub GET HUB",
-   "output": "GitHub GitHub"
+   "output": "get hub GET HUB"
   },
   {
    "id": "vocab-117",
@@ -2373,7 +2373,7 @@
     "repo"
    ],
    "input": "wez term zzz",
-   "output": "WezTerm zzz"
+   "output": "wez term zzz"
   },
   {
    "id": "vocab-130",
@@ -5149,7 +5149,7 @@
     "repo"
    ],
    "input": "regards, Straße k8s like, a p i, k8s wez term\t. teh ( blank_audio ) it's api actually like. I mean,, node.js (, Colors, basically, like, ",
-   "output": "regards, Straße k8s like, api, k8s WezTerm\t. teh ( blank_audio ) it's api actually like. I mean,, node.js (, Colors, basically, like,"
+   "output": "regards, Straße k8s like, api, k8s wez term\t. teh ( blank_audio ) it's api actually like. I mean,, node.js (, Colors, basically, like,"
   },
   {
    "id": "fuzz-vocab-005",
@@ -5158,7 +5158,7 @@
     "repo"
    ],
    "input": "the the  Colors. tmux whisperum, get hub",
-   "output": "the the Colors. tmux whisperum, GitHub"
+   "output": "the the Colors. tmux whisperum, get hub"
   },
   {
    "id": "fuzz-vocab-006",
@@ -5320,7 +5320,7 @@
     "repo"
    ],
    "input": "x x xc++anyways source slash. \u000b K8s wez term OPEN  AI ; the . ( blank_audio ). ",
-   "output": "x x xc++anyways source slash. \u000b K8s WezTerm OpenAI ; the . ( blank_audio )."
+   "output": "x x xc++anyways source slash. \u000b K8s wez term OpenAI ; the . ( blank_audio )."
   },
   {
    "id": "fuzz-vocab-024",
@@ -5347,7 +5347,7 @@
     "repo"
    ],
    "input": ";Umm., ſo yeah\r. iTerm2, \f, 1.5 ...npmColors get hub  , naïve, to be honest. K8s. a b c d e f g h i ſo yeah hmm like. \t ",
-   "output": ";Umm., ſo yeah\r. iTerm2, \f, 1.5 ...npmColors GitHub  , naïve, to be honest. K8s. abcdefgh i ſo yeah hmm like."
+   "output": ";Umm., ſo yeah\r. iTerm2, \f, 1.5 ...npmColors get hub  , naïve, to be honest. K8s. abcdefgh i ſo yeah hmm like."
   },
   {
    "id": "fuzz-vocab-027",
@@ -5356,7 +5356,7 @@
     "repo"
    ],
    "input": "color g-p-t. actuallyish. wez term jason go to go to The \r\n at saw slash   c++ cOlOr,   npm, OPEN  AI \t. naïve ",
-   "output": "color gpt. actuallyish. WezTerm jason go to go to The \r\n@src/   c++ cOlOr,   npm, OpenAI . naïve"
+   "output": "color gpt. actuallyish. wez term jason go to go to The \r\n@src/   c++ cOlOr,   npm, OpenAI . naïve"
   },
   {
    "id": "fuzz-vocab-028",
@@ -5437,7 +5437,7 @@
     "repo"
    ],
    "input": "api Dr. Smith. node.js, ] Dr. Smith. ſo yeah get hub so yeahOPEN  AI ",
-   "output": "api Dr. Smith. node.js, ] Dr. Smith. ſo yeah GitHub so yeahOPEN AI"
+   "output": "api Dr. Smith. node.js, ] Dr. Smith. ſo yeah get hub so yeahOPEN AI"
   },
   {
    "id": "fuzz-vocab-037",
@@ -5464,7 +5464,7 @@
     "repo"
    ],
    "input": "foo_bar. to be honestx x x k8s 　 npm. \u000bwez term ",
-   "output": "foo_bar. to be honestx x x k8s 　 npm. \u000bWezTerm"
+   "output": "foo_bar. to be honestx x x k8s 　 npm. \u000bwez term"
   },
   {
    "id": "fuzz-vocab-040",
@@ -5482,7 +5482,7 @@
     "repo"
    ],
    "input": " . actuallyish　é. node.js, [blank], a b c d e f g h iSTRASSE iTerm2{BLANK - AUDIO}. get hub,   OPEN  AI STRASSE. ( blank_audio ). g-p-t like \f, THE   zzz ",
-   "output": " . actuallyish　é. node.js, [blank], abcdefgh iSTRASSE iTerm2{BLANK - AUDIO}. GitHub,   OpenAI STRASSE. ( blank_audio ). gpt like \f, THE zzz"
+   "output": " . actuallyish　é. node.js, [blank], abcdefgh iSTRASSE iTerm2{BLANK - AUDIO}. get hub,   OpenAI STRASSE. ( blank_audio ). gpt like \f, THE zzz"
   },
   {
    "id": "fuzz-vocab-042",
@@ -5518,7 +5518,7 @@
     "repo"
    ],
    "input": "\n tmux whisper. [blank audio]. K8s teamux, \r iTerm2basically,   . ..., \t. like,. open\tai zzz (   \n ",
-   "output": "\ntmux whisper. [blank audio]. K8s tmux, \r iTerm2basically,   . ..., . like,. OpenAI zzz (  \n"
+   "output": "\ntmux whisper. [blank audio]. K8s teamux, \r iTerm2basically,   . ..., . like,. OpenAI zzz (  \n"
   },
   {
    "id": "fuzz-vocab-046",
@@ -5554,7 +5554,7 @@
     "repo"
    ],
    "input": "Behavior. iTerm2, wez term umSTRASSErealized, THE A.P.Ier. (Jason's Straße c++ favorite npm:, COLOR, A.P.I [ to be honest x x x",
-   "output": "Behavior. iTerm2, WezTerm umSTRASSErealized, THE A.P.Ier. (Jason's Straße c++ favorite npm:, COLOR, API [ to be honest x x x"
+   "output": "Behavior. iTerm2, wez term umSTRASSErealized, THE A.P.Ier. (Jason's Straße c++ favorite npm:, COLOR, API [ to be honest x x x"
   },
   {
    "id": "fuzz-vocab-050",
@@ -5581,7 +5581,7 @@
     "repo"
    ],
    "input": "[ er. wez term 　 ( blank_audio ). foo_bar, Behavior zzzlike, anyways at saw slash",
-   "output": "[ er. WezTerm 　 ( blank_audio ). foo_bar, Behavior zzzlike, anyways @src/"
+   "output": "[ er. wez term 　 ( blank_audio ). foo_bar, Behavior zzzlike, anyways @src/"
   },
   {
    "id": "fuzz-vocab-053",
@@ -5590,7 +5590,7 @@
     "repo"
    ],
    "input": "teamux \r\n get hub, to be honest, ſo yeah Behavior ( blank_audio )a b c d e f g h i zzz \t. a b c d e f g h i ",
-   "output": "tmux \r\nGitHub, to be honest, ſo yeah Behavior ( blank_audio )abcdefgh i zzz . abcdefgh i"
+   "output": "teamux \r\nget hub, to be honest, ſo yeah Behavior ( blank_audio )abcdefgh i zzz . abcdefgh i"
   },
   {
    "id": "fuzz-vocab-054",
@@ -5608,7 +5608,7 @@
     "repo"
    ],
    "input": "er get hub g-p-t, a p i uh, anyways, café .... StraßeThe, The, ",
-   "output": "er GitHub gpt, api uh, anyways, café .... StraßeThe, The,"
+   "output": "er get hub gpt, api uh, anyways, café .... StraßeThe, The,"
   },
   {
    "id": "fuzz-vocab-056",
@@ -5698,7 +5698,7 @@
     "repo"
    ],
    "input": "api ;. [. get hub regardsStraße. get hub, . hmm Umm.. er, realized",
-   "output": "api ;. [. GitHub regardsStraße. GitHub, . hmm Umm.. er, realized"
+   "output": "api ;. [. get hub regardsStraße. get hub, . hmm Umm.. er, realized"
   },
   {
    "id": "fuzz-vocab-066",
@@ -5725,7 +5725,7 @@
     "repo"
    ],
    "input": "wez term, ), é ",
-   "output": "WezTerm, ), é"
+   "output": "wez term, ), é"
   },
   {
    "id": "fuzz-vocab-069",
@@ -5851,7 +5851,7 @@
     "repo"
    ],
    "input": "[blank audio] 1.5 ? api, .. STRASSE gpt-4 open ai node.js, [blank], [, tmux whisper to be honest. a p i ]. \r\n like\u000b, actuallyish ( blank_audio )... actually ",
-   "output": "[blank audio] 1.5 ? api, .. STRASSE gpt-4 OpenAI node.js, [blank], [, tmux-whisper to be honest. api ]. \r\nlike\u000b, actuallyish ( blank_audio )... actually"
+   "output": "[blank audio] 1.5 ? api, .. STRASSE gpt-4 OpenAI node.js, [blank], [, tmux whisper to be honest. api ]. \r\nlike\u000b, actuallyish ( blank_audio )... actually"
   },
   {
    "id": "fuzz-vocab-083",
@@ -7581,7 +7581,7 @@
    },
    "status": "ok",
    "raw_text": "um so the color of the the api is open ai and get hub ok",
-   "text": "um so the colour of the the api is OpenAI and GitHub ok"
+   "text": "um so the colour of the the api is OpenAI and get hub ok"
   },
   {
    "id": "pipeline-009",
@@ -7601,7 +7601,7 @@
    },
    "status": "ok",
    "raw_text": "so the color of the api is open ai and get hub ok",
-   "text": "so the colour of the api is OpenAI and GitHub ok"
+   "text": "so the colour of the api is OpenAI and get hub ok"
   },
   {
    "id": "pipeline-010",
@@ -7621,7 +7621,7 @@
    },
    "status": "ok",
    "raw_text": "um so the color of the the api is open ai and get hub ok",
-   "text": "um so the colour of the the api is OpenAI and GitHub ok"
+   "text": "um so the colour of the the api is OpenAI and get hub ok"
   },
   {
    "id": "pipeline-011",
@@ -7642,7 +7642,7 @@
    },
    "status": "ok",
    "raw_text": "so the color of the the api is open ai and get hub ok",
-   "text": "so the colour of the the api is OpenAI and GitHub ok"
+   "text": "so the colour of the the api is OpenAI and get hub ok"
   },
   {
    "id": "pipeline-012",
@@ -7703,7 +7703,7 @@
    },
    "status": "ok",
    "raw_text": "um so the color of the the api is open ai and get hub ok",
-   "text": "um so the color of the the api is OpenAI and GitHub ok"
+   "text": "um so the color of the the api is OpenAI and get hub ok"
   },
   {
    "id": "pipeline-015",
@@ -7743,7 +7743,7 @@
    },
    "status": "ok",
    "raw_text": "um so the color of the the api is open ai and get hub ok",
-   "text": "um so the colour of the the api is OpenAI and GitHub ok"
+   "text": "um so the colour of the the api is OpenAI and get hub ok"
   },
   {
    "id": "pipeline-021",
@@ -8552,7 +8552,7 @@
    },
    "status": "ok",
    "raw_text": "COLOR,.,. it's kind regards, like, npm,   tmux whisper K8s. color don't don't😀. gpt-4  ],",
-   "text": "COLOUR,.,. it's kind regards, like, npm,   tmux-whisper K8s. colour don't don't😀. gpt-4  ],"
+   "text": "COLOUR,.,. it's kind regards, like, npm,   tmux whisper K8s. colour don't don't😀. gpt-4  ],"
   },
   {
    "id": "fuzz-pipeline-028",

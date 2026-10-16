@@ -104,7 +104,7 @@ Modes were removed in v0.11. If an older install left `modes/` or `current-mode`
 
 ```bash
 tmux-whisper migrate-modes --dry-run
-tmux-whisper migrate-modes
+tmux-whisper migrate-modes --skip code   # leave a mode's rules out (still archived)
 ```
 
 ## Transcribe audio files

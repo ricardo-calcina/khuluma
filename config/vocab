@@ -11,37 +11,10 @@ parakeet -> Parakeet
 cerebras -> Cerebras
 open ai -> OpenAI
 
-# Paths and developer terms (from the old base and code modes)
+# Paths (from the old base mode)
 source slash::src/
 source forward slash::src/
 at source slash::@src/
 at source forward slash::@src/
 at saw slash::@src/
 atsaw slash::@src/
-where's term::WezTerm
-wez term::WezTerm
-west term::WezTerm
-wheres term::WezTerm
-ray cast::Raycast
-swift bar::SwiftBar
-tmux whisper::tmux-whisper
-teamux whisper::tmux-whisper
-teamux::tmux
-team ux::tmux
-qwen three point five::Qwen 3.5
-qwen three dot five::Qwen 3.5
-health lag::help flag
-health like::help flag
-amp code::Amp
-P and P M::pnpm
-P N P M::pnpm
-you V::uv
-you vee::uv
-get hub::GitHub
-java script::JavaScript
-type script::TypeScript
-yam ul::YAML
-a sink function::async function
-a weight keyword::await
-goasty::Ghostty
-ghost tea::Ghostty

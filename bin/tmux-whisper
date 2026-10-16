@@ -80,7 +80,7 @@ VOCABULARY:
   tmux-whisper vocab dedupe       # normalize + remove duplicate entries
   tmux-whisper vocab edit         # open the vocab file in $EDITOR
   tmux-whisper vocab rm [--dry-run] [--regex] "pattern" # remove entries by literal match (regex opt-in)
-  tmux-whisper migrate-modes [--dry-run] # fold old modes/*/vocab into vocab, archive modes/ (install.sh runs this)
+  tmux-whisper migrate-modes [--dry-run] [--skip <mode>]... # fold old modes/*/vocab into vocab, archive modes/ (install.sh runs this)
 
 DELIVERY (how Khuluma pastes and sends):
   tmux-whisper autosend           # show auto-send setting

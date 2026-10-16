@@ -22,18 +22,24 @@ vocab_rule_count() {
   ' "$file" 2>/dev/null || echo 0
 }
 
-# tmux-whisper migrate-modes [--dry-run]
+# tmux-whisper migrate-modes [--dry-run] [--skip <mode>]...
 # Appends each modes/*/vocab rule that vocab doesn't already have (same
 # words, ignoring case and spacing, as the corrector matches them), then
 # moves modes/ and current-mode into modes-archive/<date>-modes-removed/
-# with a copy of the old vocab. Nothing is deleted; running it again does
+# with a copy of the old vocab. --skip leaves a mode's vocab out of the
+# merge (it is still archived). Nothing is deleted; running it again does
 # nothing.
 migrate_modes() {
-  local dry_run="0"
+  local dry_run="0" skip=""
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --dry-run) dry_run="1" ;;
-      *) die "usage: tmux-whisper migrate-modes [--dry-run]" ;;
+      --skip)
+        [[ -n "${2:-}" ]] || die "usage: tmux-whisper migrate-modes [--dry-run] [--skip <mode>]..."
+        skip+="$2"$'\n'
+        shift
+        ;;
+      *) die "usage: tmux-whisper migrate-modes [--dry-run] [--skip <mode>]..." ;;
     esac
     shift
   done
@@ -46,6 +52,7 @@ migrate_modes() {
 
   MIGRATE_CONFIG_DIR="$DICTATE_CONFIG_DIR" \
   MIGRATE_DRY_RUN="$dry_run" \
+  MIGRATE_SKIP="$skip" \
   MIGRATE_STAMP="$(date '+%Y-%m-%d-%H%M%S')" \
   MIGRATE_DATE="$(date '+%Y-%m-%d')" \
   python3 - <<'PYEOF'
@@ -53,6 +60,7 @@ import os, re, shutil, sys
 
 config_dir = os.environ["MIGRATE_CONFIG_DIR"]
 dry_run = os.environ["MIGRATE_DRY_RUN"] == "1"
+skip = {s for s in os.environ.get("MIGRATE_SKIP", "").split("\n") if s}
 modes_dir = os.path.join(config_dir, "modes")
 mode_file = os.path.join(config_dir, "current-mode")
 vocab_path = os.path.join(config_dir, "vocab")
@@ -123,11 +131,17 @@ mode_names = sorted(
     name for name in (os.listdir(modes_dir) if os.path.isdir(modes_dir) else [])
     if not name.startswith(".") and os.path.isdir(os.path.join(modes_dir, name))
 )
+for name in sorted(skip - set(mode_names)):
+    print(f"No mode named {name} to skip.")
 blocks = []
 report = []
 for name in mode_names:
     path = os.path.join(modes_dir, name, "vocab")
     if not os.path.isfile(path):
+        continue
+    if name in skip:
+        rules = sum(1 for line in read_lines(path) if parse(line))
+        report.append((name, None, rules, []))
         continue
     added, duplicates, conflicts = [], 0, []
     for line in read_lines(path):
@@ -157,6 +171,9 @@ while os.path.exists(archive):
 
 verb = "Would add" if dry_run else "Added"
 for name, added, duplicates, conflicts in report:
+    if added is None:
+        print(f"Skipped modes/{name}/vocab: {duplicates} rule(s) not merged (archived with modes/)")
+        continue
     print(f"{verb} {added} rule(s) from modes/{name}/vocab ({duplicates} already in vocab)")
     for conflict in conflicts:
         print(f"  skipped, vocab already corrects this differently: {conflict}")

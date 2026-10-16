@@ -98,6 +98,17 @@ assert_json_equals() {
   assert_equals "$name" "$actual" "$expected"
 }
 
+assert_file_not_contains() {
+  local name="$1"
+  local file="$2"
+  local needle="$3"
+  if rg -q --fixed-strings "$needle" "$file"; then
+    echo "FAIL: $name" >&2
+    echo "Unexpected pattern in $file: $needle" >&2
+    exit 1
+  fi
+}
+
 assert_file_contains() {
   local name="$1"
   local file="$2"
@@ -383,6 +394,8 @@ source = "auto"
 EOF
 printf '%s\n' '# comment' 'open ai -> OpenAI' 'get hub::GitHub' 'not a rule' >"$MODECHECK_CFG/vocab"
 printf '%s\n' 'ghost tea::Ghostty' >"$MODECHECK_CFG/modes/code/vocab"
+mkdir -p "$MODECHECK_CFG/modes/email"
+printf '%s\n' 'kind regards::Kind regards,' >"$MODECHECK_CFG/modes/email/vocab"
 printf '%s\n' "code" >"$MODECHECK_CFG/current-mode"
 modecheck_env=(HOME="$MODECHECK_HOME" PATH="$MODECHECK_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$MODECHECK_CFG" DICTATE_CONFIG_FILE="$MODECHECK_CFG/config.toml")
 modecheck_doctor="$(env "${modecheck_env[@]}" tmux-whisper doctor || true)"
@@ -405,7 +418,12 @@ modecheck_dry="$(env "${modecheck_env[@]}" tmux-whisper migrate-modes --dry-run)
 assert_contains "migrate_dry_run_reports" "$modecheck_dry" "Would add 1 rule(s) from modes/code/vocab"
 assert_file_exists "migrate_dry_run_keeps_modes" "$MODECHECK_CFG/modes/code/vocab"
 assert_file_exists "migrate_dry_run_keeps_current_mode" "$MODECHECK_CFG/current-mode"
-modecheck_migrate="$(env "${modecheck_env[@]}" tmux-whisper migrate-modes)"
+modecheck_dry_skip="$(env "${modecheck_env[@]}" tmux-whisper migrate-modes --dry-run --skip email --skip nosuch)"
+assert_contains "migrate_skip_reports" "$modecheck_dry_skip" "Skipped modes/email/vocab: 1 rule(s) not merged (archived with modes/)"
+assert_contains "migrate_skip_unknown" "$modecheck_dry_skip" "No mode named nosuch to skip."
+modecheck_migrate="$(env "${modecheck_env[@]}" tmux-whisper migrate-modes --skip email)"
+assert_file_not_contains "migrate_skip_leaves_rule_out" "$MODECHECK_CFG/vocab" "Kind regards"
+assert_glob_exists "migrate_skip_still_archives" "$MODECHECK_CFG/modes-archive/*-modes-removed/modes/email/vocab"
 assert_contains "migrate_reports" "$modecheck_migrate" "Added 1 rule(s) from modes/code/vocab (0 already in vocab)"
 assert_file_contains "migrate_appends_rule" "$MODECHECK_CFG/vocab" "ghost tea::Ghostty"
 assert_file_contains "migrate_keeps_comment" "$MODECHECK_CFG/vocab" "# comment"
