@@ -5,7 +5,7 @@ Turn tmux-whisper into Lowkey: rename, make the app the main tool, sunset the CL
 
 ## Next
 - [ ] P0 · Name check: Lowkey vs other spellings or a longer store name (roadmap P0a) · added 2026-10-15
-- [ ] P0 · P0b tidy-up PRs left: LLM/trim/chunking (with budget, bench-matrix, replay), AppController split, docs around Lowkey · added 2026-10-15
+- [ ] P0 · P0b tidy-up PRs left: AppController split, docs around Lowkey · added 2026-10-15
 - [ ] P1 · Confirm new repo vs rename in place; join the Apple Developer Program before phase 2 · added 2026-10-15
 - [ ] P2 · Stats stage 3 ideas (not committed): weeks view, wpm trend, longest take, typing_wpm config, streak line, time of day, opt-in per-app · added 2026-10-16
 - [ ] P2 · Lowkey ideas parked from 3c, only with evidence: config file watcher, warm mic/pre-roll · added 2026-10-16

@@ -549,10 +549,6 @@ setup_case() {
   [[ -n "$socket_tag" ]] || socket_tag="dictatetest"
 
   printf '%s\n' "code" >"$CASE_DIR/config/current-mode"
-  : >"$CASE_DIR/config/modes/base/prompt"
-  : >"$CASE_DIR/config/modes/chat/prompt"
-  : >"$CASE_DIR/config/modes/code/prompt"
-  : >"$CASE_DIR/config/modes/long/prompt"
   printf '%s\n' "inline" >"$CASE_DIR/config/modes/base/flows"
   printf '%s\n' "Messages" >"$CASE_DIR/config/modes/chat/apps"
   printf '%s\n' "inline" >"$CASE_DIR/config/modes/chat/flows"
@@ -619,12 +615,7 @@ setup_case() {
   unset DICTATE_SWIFT_PARAKEET_TAIL_RESCUE
   unset DICTATE_SWIFT_PARAKEET_TAIL_RESCUE_MS
   unset DICTATE_SWIFT_PARAKEET_TAIL_RESCUE_MIN_MS
-  unset DICTATE_SWIFT_PARAKEET_CHUNKING
-  unset DICTATE_SWIFT_PARAKEET_CHUNK_THRESHOLD_MS
-  unset DICTATE_SWIFT_PARAKEET_CHUNK_MS
-  unset DICTATE_SWIFT_PARAKEET_CHUNK_OVERLAP_MS
 
-  unset CEREBRAS_API_KEY
   unset TMUX
   unset TMUX_PANE
 }
@@ -716,71 +707,6 @@ run_inline_swift_tail_rescue_round() {
   assert_file_contains "inline_swift_tail_rescue_log" "$inline_transcribe_log" "swift_parakeet_tail_rescue:"
 }
 
-run_inline_swift_chunked_round() {
-  setup_case "inline-swift-chunked"
-  export DICTATE_SWIFT_PARAKEET_CHUNKING=1
-  export DICTATE_TEST_FFPROBE_DURATION_MS=65000
-  export DICTATE_SWIFT_PARAKEET_CHUNK_THRESHOLD_MS=1000
-  export DICTATE_SWIFT_PARAKEET_CHUNK_MS=30000
-  export DICTATE_SWIFT_PARAKEET_CHUNK_OVERLAP_MS=2000
-  export DICTATE_TEST_SWIFT_TEXT_SEQUENCE="first chunk shared words|shared words final chunk|final chunk tail"
-
-  local text inline_transcribe_log
-  inline_transcribe_log="$CASE_DIR/tmp/whisper-dictate-inline.transcribe.log"
-  text="$(app_process_text 65000)"
-  assert_contains "inline_swift_chunked_merged" "$text" "first chunk shared words final chunk tail"
-  assert_file_contains "inline_swift_chunked_log" "$inline_transcribe_log" "swift_parakeet_chunked:"
-  assert_file_contains "inline_swift_chunked_chunk_log" "$inline_transcribe_log" "swift_parakeet_chunk: index=1"
-}
-
-run_inline_swift_chunking_default_off_round() {
-  setup_case "inline-swift-chunking-default-off"
-  export DICTATE_TEST_FFPROBE_DURATION_MS=65000
-  export DICTATE_SWIFT_PARAKEET_CHUNK_THRESHOLD_MS=1000
-  export DICTATE_TEST_SWIFT_TEXT="unchunked long default"
-
-  local text inline_transcribe_log
-  inline_transcribe_log="$CASE_DIR/tmp/whisper-dictate-inline.transcribe.log"
-  text="$(app_process_text 65000)"
-  assert_contains "inline_swift_chunking_default_off_transcript" "$text" "unchunked long default"
-  assert_file_not_contains "inline_swift_chunking_default_off_no_chunk_log" "$inline_transcribe_log" "swift_parakeet_chunked:"
-}
-
-run_inline_swift_chunked_tail_boundary_round() {
-  setup_case "inline-swift-chunked-tail-boundary"
-  export DICTATE_SWIFT_PARAKEET_CHUNKING=1
-  export DICTATE_TEST_FFPROBE_DURATION_MS=84521
-  export DICTATE_SWIFT_PARAKEET_CHUNK_THRESHOLD_MS=45000
-  export DICTATE_SWIFT_PARAKEET_CHUNK_MS=30000
-  export DICTATE_SWIFT_PARAKEET_CHUNK_OVERLAP_MS=2000
-  export DICTATE_TEST_SWIFT_REJECT_SUBSECOND=1
-  export DICTATE_TEST_SWIFT_TEXT_SEQUENCE="boundary first shared words|shared words middle bridge|middle bridge final"
-
-  local text inline_transcribe_log
-  inline_transcribe_log="$CASE_DIR/tmp/whisper-dictate-inline.transcribe.log"
-  text="$(app_process_text 84521)"
-  assert_contains "inline_swift_chunked_tail_boundary_merged" "$text" "boundary first shared words middle bridge final"
-  assert_file_contains "inline_swift_chunked_tail_boundary_log" "$inline_transcribe_log" "swift_parakeet_chunk: index=2"
-  assert_file_contains "inline_swift_chunked_tail_boundary_skip_log" "$inline_transcribe_log" "swift_parakeet_chunk_skip: index=3"
-  assert_file_not_contains "inline_swift_chunked_tail_boundary_no_fourth_transcribe" "$inline_transcribe_log" "swift_parakeet_chunk: index=3"
-  assert_file_not_contains "inline_swift_chunked_tail_boundary_no_daemon_error" "$inline_transcribe_log" "Invalid audio data provided"
-}
-
-run_status_postprocess_round() {
-  setup_case "status-postprocess"
-  export DICTATE_POSTPROCESS=1
-
-  local out
-  out="$("$DICTATE_BIN" status)"
-  assert_contains "status_summary_ready" "$out" "state: ready"
-  assert_contains "status_summary_backend_cold" "$out" "backend_readiness: cold"
-  assert_contains "status_post_inline_off" "$out" "postprocess.inline: OFF"
-  assert_contains "status_mode_prompt_inline_inactive" "$out" "mode_prompt.inline: inactive"
-  assert_contains "status_budget_profile_short" "$out" "budget_profile.short:"
-  assert_contains "status_budget_auto_threshold" "$out" "budget.auto_long_words_threshold:"
-  assert_contains "status_post_note" "$out" "postprocess.note: disabled at runtime (CEREBRAS_API_KEY missing)"
-}
-
 run_status_model_mode_round() {
   setup_case "status-model-mode"
 
@@ -788,7 +714,7 @@ run_status_model_mode_round() {
   out="$("$DICTATE_BIN" status)"
   assert_contains "status_backend_swift" "$out" "backend: swift_parakeet"
   assert_contains "status_mode_inline" "$out" "mode.inline: code (fixed)"
-  [[ "$out" != *"mode.tmux"* && "$out" != *"postprocess.tmux"* ]] || fail "status_no_tmux_lines"
+  [[ "$out" != *"mode.tmux"* && "$out" != *"postprocess"* ]] || fail "status_no_tmux_lines"
   pass "status_no_tmux_lines"
   assert_contains "status_model_swift_path" "$out" "swift_parakeet.model: $CASE_DIR/swift-model (v3)"
 }
@@ -933,16 +859,12 @@ run_transcribe_file_no_speech_round() {
 
 run_transcribe_file_long_round() {
   setup_transcribe_case "transcribe-long"
-  # Files rely on FluidAudio's own chunking; the quarantined bash chunker must
-  # not engage even when enabled for dictation.
-  export DICTATE_SWIFT_PARAKEET_CHUNKING=1
   export DICTATE_TEST_FFPROBE_DURATION_MS=1200000
   export DICTATE_TEST_SWIFT_TEXT_SEQUENCE="alpha beta gamma delta epsilon zeta|epsilon zeta eta theta"
   local out
   out="$("$DICTATE_BIN" transcribe "$CASE_DIR/memos/memo.m4a" -q)"
   assert_equals "transcribe_long_tail_rescue_merge" "$out" "alpha beta gamma delta epsilon zeta eta theta"
   assert_file_contains "transcribe_long_tail_rescue_logged" "$DICTATE_TRANSCRIBE_FILE_LOG" "swift_parakeet_tail_rescue: duration_ms=1200000"
-  assert_file_not_contains "transcribe_long_no_bash_chunker" "$DICTATE_TRANSCRIBE_FILE_LOG" "swift_parakeet_chunked"
   assert_path_absent "transcribe_long_dictation_log_untouched" "$DICTATE_TRANSCRIBE_LOG"
 }
 
@@ -1374,7 +1296,7 @@ assert c["inline"]["send_delay_ms"] == 0 and c["inline"]["activate_delay_ms"] ==
 cl = c["cleanup"]
 assert cl["config_dir"] and cl["vocab_clean"] == "1" and cl["british_spelling"] == "1", cl
 assert cl["code_paragraph_min_words"] == "70" and cl["long_paragraph_min_words"] == "55", cl
-assert cl["force_mode"] is None and cl["postprocess"] is False, cl
+assert cl["force_mode"] is None and "postprocess" not in cl, cl
 ' || fail "app_config_json_shape"
   pass "app_config_json_shape"
 
@@ -1707,7 +1629,7 @@ c = json.load(sys.stdin)
 t = c["transcription"]
 assert t["socket_path"].endswith(".sock") and t["model_path"], t
 assert t["tail_pad_ms"] == "500" and t["tail_rescue"] is True and t["language"] == "en", t
-assert t["chunking"] is False and t["silence_trim"] is False, t
+assert "chunking" not in t and "silence_trim" not in t, t
 assert t["processing_dir"].endswith("/processing"), t
 assert c["pipeline"] == {"supervise": True}, c["pipeline"]
 assert "capabilities" not in c, c
@@ -1932,10 +1854,6 @@ run_inline_keep_logs_archive_round
 run_inline_audio_retention_round
 run_inline_swift_round
 run_inline_swift_tail_rescue_round
-run_inline_swift_chunked_round
-run_inline_swift_chunking_default_off_round
-run_inline_swift_chunked_tail_boundary_round
-run_status_postprocess_round
 run_status_model_mode_round
 run_status_backend_round
 run_transcribe_file_raw_round

@@ -34,11 +34,7 @@ collect_set_env_overrides() {
   for var in "$@"; do
     val="${!var-}"
     [[ -n "$val" ]] || continue
-    if [[ "$var" == "CEREBRAS_API_KEY" ]]; then
-      printf '%s\t%s\n' "$var" "<set>"
-    else
-      printf '%s\t%s\n' "$var" "$val"
-    fi
+    printf '%s\t%s\n' "$var" "$val"
   done
 }
 
@@ -73,16 +69,14 @@ doctor_mode_seed_for_flow() {
 }
 
 doctor_mode_flow_fix_suggestion() {
-  local mode required_flow flow_spec
+  local mode
   mode="$(canonical_mode_name "${1:-}")"
-  required_flow="${2:-}"
-  [[ -n "$mode" && -n "$required_flow" ]] || return 1
-  flow_spec="$(mode_recommended_flow_spec "$mode" "$required_flow")"
-  printf "Enable %s flow for '%s': tmux-whisper mode flows %s %s\n" "$required_flow" "$mode" "$mode" "$flow_spec"
+  [[ -n "$mode" ]] || return 1
+  printf "Let Lowkey use '%s': tmux-whisper mode flows %s inline\n" "$mode" "$mode"
 }
 
 doctor_mode_inventory_tsv() {
-  local mode_name mode_label mode_dir prompt_path prompt_status
+  local mode_name mode_label
   local flows_file flows_summary flows_explicit invalid_entries
   local inline_enabled apps_file apps_count apps_ignored
   local sep=$'\x1f'
@@ -90,15 +84,6 @@ doctor_mode_inventory_tsv() {
   while IFS= read -r mode_name; do
     [[ -n "$mode_name" ]] || continue
     mode_label="$(mode_display_name "$mode_name")"
-    mode_dir="$(mode_dir_path "$mode_name")"
-    prompt_path="$mode_dir/prompt"
-    if [[ -s "$prompt_path" ]]; then
-      prompt_status="ok"
-    elif [[ -f "$prompt_path" ]]; then
-      prompt_status="empty"
-    else
-      prompt_status="missing"
-    fi
 
     flows_file="$(mode_flows_file_path "$mode_name")"
     flows_summary="$(mode_flow_summary "$mode_name")"
@@ -116,8 +101,8 @@ doctor_mode_inventory_tsv() {
       apps_ignored="1"
     fi
 
-    printf '%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n' \
-      "$mode_name" "$sep" "$mode_label" "$sep" "$prompt_status" "$sep" "$prompt_path" "$sep" \
+    printf '%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n' \
+      "$mode_name" "$sep" "$mode_label" "$sep" \
       "$flows_summary" "$sep" "$inline_enabled" "$sep" "$flows_file" "$sep" "$flows_explicit" "$sep" \
       "${invalid_entries:-}" "$sep" "$apps_file" "$sep" "$apps_count" "$sep" "$apps_ignored"
   done < <(list_modes "")
@@ -243,19 +228,12 @@ doctor_json() {
 
   while IFS= read -r mode_line; do
     [[ -n "$mode_line" ]] || continue
-    local inv_mode inv_label inv_prompt_status inv_prompt_path inv_flows_summary
+    local inv_mode inv_label inv_flows_summary
     local inv_inline_enabled inv_flows_path inv_flows_explicit inv_invalid_entries
     local inv_apps_path inv_apps_count inv_apps_ignored
-    IFS=$'\x1f' read -r inv_mode inv_label inv_prompt_status inv_prompt_path inv_flows_summary \
+    IFS=$'\x1f' read -r inv_mode inv_label inv_flows_summary \
       inv_inline_enabled inv_flows_path inv_flows_explicit inv_invalid_entries \
       inv_apps_path inv_apps_count inv_apps_ignored <<<"$mode_line"
-
-    case "$inv_prompt_status" in
-      empty|missing)
-        warnings=$((warnings + 1))
-        doctor_json_add_suggestion "Populate $inv_label prompt: tmux-whisper mode edit $inv_label"
-        ;;
-    esac
 
     if [[ -n "$inv_invalid_entries" ]]; then
       warnings=$((warnings + 1))
@@ -454,12 +432,10 @@ for line in s("JSON_MODE_INVENTORY").splitlines():
     if not line:
         continue
     cols = line.split("\x1f")
-    cols += [""] * (12 - len(cols))
+    cols += [""] * (10 - len(cols))
     (
         mode,
         label,
-        prompt_status,
-        prompt_path,
         flows_summary,
         inline_enabled,
         flows_path,
@@ -468,7 +444,7 @@ for line in s("JSON_MODE_INVENTORY").splitlines():
         apps_path,
         apps_count,
         apps_ignored,
-    ) = cols[:12]
+    ) = cols[:10]
     try:
         parsed_apps_count = int(apps_count)
     except Exception:
@@ -478,10 +454,6 @@ for line in s("JSON_MODE_INVENTORY").splitlines():
         {
             "mode": mode,
             "label": label,
-            "prompt": {
-                "status": prompt_status,
-                "path": prompt_path or None,
-            },
             "flows": {
                 "summary": flows_summary,
                 "path": flows_path or None,
@@ -778,20 +750,12 @@ doctor() {
 
   while IFS= read -r mode_line; do
     [[ -n "$mode_line" ]] || continue
-    local inv_mode inv_label inv_prompt_status inv_prompt_path inv_flows_summary
+    local inv_mode inv_label inv_flows_summary
     local inv_inline_enabled inv_flows_path inv_flows_explicit inv_invalid_entries
     local inv_apps_path inv_apps_count inv_apps_ignored inv_flow_origin inv_flow_note
-    IFS=$'\x1f' read -r inv_mode inv_label inv_prompt_status inv_prompt_path inv_flows_summary \
+    IFS=$'\x1f' read -r inv_mode inv_label inv_flows_summary \
       inv_inline_enabled inv_flows_path inv_flows_explicit inv_invalid_entries \
       inv_apps_path inv_apps_count inv_apps_ignored <<<"$mode_line"
-
-    echo "  - mode.$inv_mode.prompt: $inv_prompt_status"
-    case "$inv_prompt_status" in
-      empty|missing)
-        warnings=$((warnings + 1))
-        add_suggestion "Populate $inv_label prompt: tmux-whisper mode edit $inv_label"
-        ;;
-    esac
 
     if [[ "$inv_flows_explicit" == "1" ]]; then
       inv_flow_origin="explicit"
@@ -969,20 +933,6 @@ status() {
   swift_model_version="$(resolve_swift_parakeet_model_version "${swift_model_path:-}")"
   swift_socket_path="$(resolve_swift_parakeet_socket_path)"
 
-  local post_inline post_inline_requested
-  post_inline_requested="${DICTATE_POSTPROCESS:-${CFG_POSTPROCESS_ENABLED:-0}}"
-  if bool_is_on "$post_inline_requested"; then
-    post_inline_requested="1"
-  else
-    post_inline_requested="0"
-  fi
-  post_inline="$post_inline_requested"
-  local cerebras_key_set="0"
-  [[ -n "${CEREBRAS_API_KEY:-}" ]] && cerebras_key_set="1"
-  if [[ "$cerebras_key_set" != "1" ]]; then
-    post_inline="0"
-  fi
-
   local inline_autosend inline_process_sound inline_target inline_send_mode
   inline_autosend="${DICTATE_AUTOSEND:-${CFG_INLINE_AUTOSEND:-1}}"
   inline_process_sound="${DICTATE_INLINE_PROCESS_SOUND:-${CFG_INLINE_PROCESS_SOUND:-1}}"
@@ -991,10 +941,9 @@ status() {
   local keep_logs_val
   keep_logs_val="${DICTATE_KEEP_LOGS:-${CFG_DEBUG_KEEP_LOGS:-0}}"
 
-  local clean_enabled repeats_level silence_trim
+  local clean_enabled repeats_level
   clean_enabled="${DICTATE_CLEAN:-0}"
   repeats_level="${DICTATE_REPEATS_LEVEL:-${CFG_CLEAN_REPEATS_LEVEL:-1}}"
-  silence_trim="${DICTATE_SILENCE_TRIM:-${CFG_AUDIO_SILENCE_TRIM:-0}}"
   local vocab_clean
   vocab_clean="${DICTATE_VOCAB_CLEAN:-1}"
   if bool_is_on "$vocab_clean"; then
@@ -1002,45 +951,6 @@ status() {
   else
     vocab_clean="0"
   fi
-
-  local llm_model llm_max_tokens llm_chunk_words
-  llm_model="${DICTATE_LLM_MODEL:-${CFG_POSTPROCESS_LLM:-llama3.1-8b}}"
-  llm_max_tokens="${DICTATE_LLM_MAX_TOKENS:-${CFG_POSTPROCESS_MAX_TOKENS:-}}"
-  llm_chunk_words="${DICTATE_LLM_CHUNK_WORDS:-${CFG_POSTPROCESS_CHUNK_WORDS:-}}"
-
-  lookup_override() {
-    local list="${1:-}"
-    local key="${2:-}"
-    [[ -n "$list" && -n "$key" ]] || return 1
-    local IFS=';'
-    read -r -a pairs <<<"$list"
-    local pair
-    for pair in "${pairs[@]}"; do
-      [[ "$pair" == "$key="* ]] && { echo "${pair#*=}"; return 0; }
-    done
-    return 1
-  }
-
-  lookup_override_for_mode() {
-    local list="${1:-}"
-    local mode="${2:-}"
-    local key value
-    key="$(mode_override_key "$mode")"
-    value="$(lookup_override "$list" "$key" 2>/dev/null || true)"
-    [[ -n "$value" ]] && echo "$value"
-  }
-
-  local budget_short_llm budget_short_max budget_short_chunk
-  local budget_long_llm budget_long_max budget_long_chunk
-  budget_short_llm="$(lookup_override_for_mode "${CFG_POSTPROCESS_BUDGET_PROFILE_LLM_OVERRIDES:-}" "short" 2>/dev/null || true)"
-  budget_short_max="$(lookup_override_for_mode "${CFG_POSTPROCESS_BUDGET_PROFILE_MAX_TOKENS_OVERRIDES:-}" "short" 2>/dev/null || true)"
-  budget_short_chunk="$(lookup_override_for_mode "${CFG_POSTPROCESS_BUDGET_PROFILE_CHUNK_WORDS_OVERRIDES:-}" "short" 2>/dev/null || true)"
-  budget_long_llm="$(lookup_override_for_mode "${CFG_POSTPROCESS_BUDGET_PROFILE_LLM_OVERRIDES:-}" "long" 2>/dev/null || true)"
-  budget_long_max="$(lookup_override_for_mode "${CFG_POSTPROCESS_BUDGET_PROFILE_MAX_TOKENS_OVERRIDES:-}" "long" 2>/dev/null || true)"
-  budget_long_chunk="$(lookup_override_for_mode "${CFG_POSTPROCESS_BUDGET_PROFILE_CHUNK_WORDS_OVERRIDES:-}" "long" 2>/dev/null || true)"
-
-  local key_status="UNSET"
-  [[ -n "${CEREBRAS_API_KEY:-}" ]] && key_status="SET"
 
   local cfg_schema_status cfg_schema_version cfg_parse_error
   cfg_schema_status="$(config_schema_status)"
@@ -1125,26 +1035,18 @@ status() {
 
   local override_vars=(
     DICTATE_SWIFT_PARAKEET_MODEL_PATH DICTATE_SWIFT_PARAKEET_MODEL_VERSION DICTATE_SWIFT_PARAKEET_SOCKET_PATH
-    DICTATE_POSTPROCESS DICTATE_VOCAB_CLEAN
+    DICTATE_VOCAB_CLEAN
     DICTATE_AUTOSEND
     DICTATE_INLINE_PASTE_TARGET DICTATE_INLINE_SEND_MODE
     DICTATE_INLINE_ACTIVATE_DELAY_MS DICTATE_INLINE_SEND_DELAY_MS
-    DICTATE_CLEAN DICTATE_REPEATS_LEVEL DICTATE_SILENCE_TRIM
-    DICTATE_TRIM_WITH_POSTPROCESS DICTATE_REPEATS_WITH_POSTPROCESS
-    DICTATE_LLM_MODEL DICTATE_LLM_MAX_TOKENS DICTATE_LLM_CHUNK_WORDS DICTATE_BRITISH_SPELLING
+    DICTATE_CLEAN DICTATE_REPEATS_LEVEL DICTATE_BRITISH_SPELLING
     DICTATE_LANGUAGE
     DICTATE_KEEP_LOGS
-    CEREBRAS_API_KEY
   )
   local env_override_lines
   env_override_lines="$(collect_set_env_overrides "${override_vars[@]}")"
 
   if [[ "$output_format" == "json" ]]; then
-    local postprocess_note=""
-    if [[ "$cerebras_key_set" != "1" && "$post_inline_requested" == "1" ]]; then
-      postprocess_note="disabled at runtime (CEREBRAS_API_KEY missing)"
-    fi
-
     env \
       JSON_PROC_TOTAL="$proc_total" \
       JSON_PROC_LIVE="$proc_live" \
@@ -1166,26 +1068,10 @@ status() {
       JSON_SWIFT_MODEL_VERSION="$swift_model_version" \
       JSON_SWIFT_SOCKET_PATH="$swift_socket_path" \
       JSON_LANGUAGE="${DICTATE_LANGUAGE:-en}" \
-      JSON_POST_INLINE_REQUESTED="$post_inline_requested" \
-      JSON_POST_INLINE_EFFECTIVE="$post_inline" \
-      JSON_POSTPROCESS_NOTE="$postprocess_note" \
-      JSON_CEREBRAS_KEY_SET="$cerebras_key_set" \
-      JSON_LLM_MODEL="$llm_model" \
-      JSON_LLM_MAX_TOKENS="$llm_max_tokens" \
-      JSON_LLM_CHUNK_WORDS="$llm_chunk_words" \
-      JSON_BUDGET_THRESHOLD="${CFG_POSTPROCESS_BUDGET_LONG_WORDS_THRESHOLD:-120}" \
-      JSON_BUDGET_SHORT_LLM="${budget_short_llm:-${CFG_POSTPROCESS_LLM:-llama3.1-8b}}" \
-      JSON_BUDGET_SHORT_MAX="${budget_short_max:-${CFG_POSTPROCESS_MAX_TOKENS:-}}" \
-      JSON_BUDGET_SHORT_CHUNK="${budget_short_chunk:-${CFG_POSTPROCESS_CHUNK_WORDS:-}}" \
-      JSON_BUDGET_LONG_LLM="${budget_long_llm:-${CFG_POSTPROCESS_LLM:-llama3.1-8b}}" \
-      JSON_BUDGET_LONG_MAX="${budget_long_max:-${CFG_POSTPROCESS_MAX_TOKENS:-}}" \
-      JSON_BUDGET_LONG_CHUNK="${budget_long_chunk:-${CFG_POSTPROCESS_CHUNK_WORDS:-}}" \
       JSON_BRITISH_SPELLING="${DICTATE_BRITISH_SPELLING:-1}" \
       JSON_CLEAN_REGEX="$clean_enabled" \
       JSON_CLEAN_REPEATS_LEVEL="$repeats_level" \
-      JSON_CLEAN_VOCAB_ONLY="$vocab_clean" \
-      JSON_SILENCE_TRIM="$silence_trim" \
-      JSON_SILENCE_TRIM_MODE="${CFG_AUDIO_SILENCE_TRIM_MODE:-edges}" \
+      JSON_CLEAN_VOCAB="$vocab_clean" \
       JSON_INLINE_AUTOSEND="$inline_autosend" \
       JSON_INLINE_PROCESS_SOUND="$inline_process_sound" \
       JSON_INLINE_TARGET="$inline_target" \
@@ -1197,7 +1083,6 @@ status() {
       JSON_SOUND_PROCESS="${CFG_AUDIO_SOUNDS_PROCESS_ENABLED:-1}" \
       JSON_SOUND_ERROR="${CFG_AUDIO_SOUNDS_ERROR_ENABLED:-1}" \
       JSON_SOUND_CANCEL="${CFG_AUDIO_SOUNDS_CANCEL_ENABLED:-1}" \
-      JSON_KEY_STATUS="$key_status" \
       JSON_ENV_OVERRIDES="$env_override_lines" \
       JSON_MORE_DETAIL="$more_detail_lines" \
       python3 - <<'PYEOF'
@@ -1267,47 +1152,11 @@ data = {
             },
             "socket": s("JSON_SWIFT_SOCKET_PATH"),
         },
-        "postprocess": {
-            "inline": {
-                "requested": to_bool_flag("JSON_POST_INLINE_REQUESTED"),
-                "effective": to_bool_flag("JSON_POST_INLINE_EFFECTIVE"),
-            },
-            "mode_prompt": {
-                "inline": "active" if to_bool_flag("JSON_POST_INLINE_EFFECTIVE") else "inactive",
-            },
-            "cerebras_api_key_set": to_bool_flag("JSON_CEREBRAS_KEY_SET"),
-            "note": maybe("JSON_POSTPROCESS_NOTE"),
-        },
-        "llm": {
-            "model": s("JSON_LLM_MODEL"),
-            "max_tokens": to_int("JSON_LLM_MAX_TOKENS"),
-            "chunk_words": to_int("JSON_LLM_CHUNK_WORDS"),
-        },
-        "budget": {
-            "auto_long_words_threshold": to_int("JSON_BUDGET_THRESHOLD"),
-            "auto_numeric_sizing": "dynamic",
-            "profiles": {
-                "short": {
-                    "llm": maybe("JSON_BUDGET_SHORT_LLM"),
-                    "max_tokens": to_int("JSON_BUDGET_SHORT_MAX"),
-                    "chunk_words": to_int("JSON_BUDGET_SHORT_CHUNK"),
-                },
-                "long": {
-                    "llm": maybe("JSON_BUDGET_LONG_LLM"),
-                    "max_tokens": to_int("JSON_BUDGET_LONG_MAX"),
-                    "chunk_words": to_int("JSON_BUDGET_LONG_CHUNK"),
-                },
-            },
-        },
         "british_spelling": to_bool_flag("JSON_BRITISH_SPELLING"),
         "clean": {
             "regex": to_bool_flag("JSON_CLEAN_REGEX"),
             "repeats_level": to_int("JSON_CLEAN_REPEATS_LEVEL"),
-            "vocab_only_when_postprocess_off": to_bool_flag("JSON_CLEAN_VOCAB_ONLY"),
-        },
-        "silence_trim": {
-            "enabled": to_bool_flag("JSON_SILENCE_TRIM"),
-            "mode": s("JSON_SILENCE_TRIM_MODE"),
+            "vocab": to_bool_flag("JSON_CLEAN_VOCAB"),
         },
         "inline": {
             "autosend": to_bool_flag("JSON_INLINE_AUTOSEND"),
@@ -1324,7 +1173,6 @@ data = {
             "error": to_bool_flag("JSON_SOUND_ERROR"),
             "cancel": to_bool_flag("JSON_SOUND_CANCEL"),
         },
-        "cerebras_api_key": s("JSON_KEY_STATUS"),
     },
     "active_env_overrides": overrides,
     "more_detail": [line for line in s("JSON_MORE_DETAIL").splitlines() if line],
@@ -1369,34 +1217,16 @@ PYEOF
   echo "  swift_parakeet.model: ${swift_model_path:-<missing>} (${swift_model_version})"
   echo "  swift_parakeet.socket: $swift_socket_path"
   echo "  language: ${DICTATE_LANGUAGE:-en}"
-  echo "  postprocess.inline: $(onoff "$post_inline")"
-  if [[ "$post_inline" == "1" ]]; then
-    echo "  mode_prompt.inline: active"
-  else
-    echo "  mode_prompt.inline: inactive (postprocess not active)"
-  fi
-  if [[ "$cerebras_key_set" != "1" && "$post_inline_requested" == "1" ]]; then
-    echo "  postprocess.note: disabled at runtime (CEREBRAS_API_KEY missing)"
-  fi
-  echo "  llm: $llm_model"
-  [[ -n "$llm_max_tokens" ]] && echo "  llm.max_tokens: $llm_max_tokens"
-  [[ -n "$llm_chunk_words" ]] && echo "  llm.chunk_words: $llm_chunk_words"
-  echo "  budget.auto_long_words_threshold: ${CFG_POSTPROCESS_BUDGET_LONG_WORDS_THRESHOLD:-120}"
-  echo "  budget.auto_numeric_sizing: dynamic (max_tokens/chunk_words interpolate short->long by transcript words; clamp at threshold)"
-  echo "  budget_profile.short: llm=${budget_short_llm:-${CFG_POSTPROCESS_LLM:-llama3.1-8b}} max_tokens=${budget_short_max:-${CFG_POSTPROCESS_MAX_TOKENS:-<unset>}} chunk_words=${budget_short_chunk:-${CFG_POSTPROCESS_CHUNK_WORDS:-<unset>}}"
-  echo "  budget_profile.long: llm=${budget_long_llm:-${CFG_POSTPROCESS_LLM:-llama3.1-8b}} max_tokens=${budget_long_max:-${CFG_POSTPROCESS_MAX_TOKENS:-<unset>}} chunk_words=${budget_long_chunk:-${CFG_POSTPROCESS_CHUNK_WORDS:-<unset>}}"
   echo "  british_spelling: $(onoff "${DICTATE_BRITISH_SPELLING:-1}")"
   echo "  clean.regex: $(onoff "$clean_enabled")"
   echo "  clean.repeats_level: $repeats_level"
-  echo "  clean.vocab_only_when_postprocess_off: $(onoff "$vocab_clean")"
-  echo "  silence_trim: $(onoff "$silence_trim") (${CFG_AUDIO_SILENCE_TRIM_MODE:-edges})"
+  echo "  clean.vocab: $(onoff "$vocab_clean")"
   echo "  inline.autosend: $(onoff "$inline_autosend")"
   echo "  inline.process_sound: $(onoff "$inline_process_sound")"
   echo "  inline.target: $inline_target"
   echo "  inline.send_mode: $inline_send_mode"
   echo "  debug.keep_logs: $(onoff "$keep_logs_val")"
   echo "  sounds: master=$(onoff "${CFG_AUDIO_SOUNDS_ENABLED:-1}") start=$(onoff "${CFG_AUDIO_SOUNDS_START_ENABLED:-1}") stop=$(onoff "${CFG_AUDIO_SOUNDS_STOP_ENABLED:-1}") process=$(onoff "${CFG_AUDIO_SOUNDS_PROCESS_ENABLED:-1}") error=$(onoff "${CFG_AUDIO_SOUNDS_ERROR_ENABLED:-1}") cancel=$(onoff "${CFG_AUDIO_SOUNDS_CANCEL_ENABLED:-1}")"
-  echo "  cerebras_api_key: $key_status"
 
   echo ""
   echo "Active env overrides:"
@@ -1404,11 +1234,7 @@ PYEOF
   for var in "${override_vars[@]}"; do
     val="${!var-}"
     [[ -n "$val" ]] || continue
-    if [[ "$var" == "CEREBRAS_API_KEY" ]]; then
-      echo "  $var=<set>"
-    else
-      echo "  $var=$val"
-    fi
+    echo "  $var=$val"
     shown=$((shown + 1))
   done
   if [[ "$shown" -eq 0 ]]; then

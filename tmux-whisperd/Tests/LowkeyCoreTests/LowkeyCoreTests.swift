@@ -71,7 +71,7 @@ struct CLIModelTests {
     #expect(config.sounds["start"]?.path == "/s/start.wav")
     #expect(config.sounds["cancel"]?.enabled == false)
     #expect(config.inline.sendDelayMs == 35)
-    #expect(config.cleanup.configDir == "/c" && !config.cleanup.postprocess)
+    #expect(config.cleanup.configDir == "/c")
   }
 
   @Test func decodesProcessResult() throws {

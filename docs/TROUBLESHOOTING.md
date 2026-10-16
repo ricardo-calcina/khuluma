@@ -102,17 +102,7 @@ Invalid fixed mode fallback:
   - reset to auto-detect: `tmux-whisper mode auto`
   - create missing custom mode: `tmux-whisper mode create "<name>"`
 
-Missing prompt files:
-
-- Symptom: `mode.code.prompt: missing/empty` or `mode.long.prompt: missing/empty`
-- Fix:
-
-```bash
-tmux-whisper mode edit code
-tmux-whisper mode edit long
-```
-
-If both are missing after install drift, reinstall and seed missing defaults:
+If the core modes (`base`, `code`) are missing after install drift, reinstall to seed them:
 
 ```bash
 ./install.sh --force

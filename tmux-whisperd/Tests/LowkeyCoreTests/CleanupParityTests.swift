@@ -125,7 +125,6 @@ struct CleanupParityTests {
     try fm.createDirectory(at: scratch, withIntermediateDirectories: true)
     defer { try? fm.removeItem(at: scratch) }
     var failures = 0
-    var sawPostprocess = false
     var sawLocale = false
     for (index, item) in cases.enumerated() {
       let configDir = scratch.appendingPathComponent("\(index)").path
@@ -143,7 +142,7 @@ struct CleanupParityTests {
       let outcome = TextPipeline(settings: settings).process(transcript: item.input, app: item.app)
 
       if settings.requiresCLI {
-        if settings.postprocess { sawPostprocess = true } else { sawLocale = true }
+        sawLocale = true
         #expect(outcome == .needsCLI, "\(item.id): must fall back to the CLI")
         continue
       }
@@ -159,7 +158,6 @@ struct CleanupParityTests {
         Issue.record("\(item.id): bash status \(item.status) but Swift gave \(outcome)")
       }
     }
-    #expect(sawPostprocess, "the corpus should cover the LLM fallback")
     #expect(sawLocale, "the corpus should cover the non-C locale fallback")
     #expect(failures == 0, "\(failures) pipeline cases differ from bash")
   }
@@ -176,7 +174,7 @@ struct CleanupParityTests {
     let json = """
       {"config_dir": "/tmp/x", "clean": "1", "repeats_level": "2", "vocab_clean": "1",
        "british_spelling": "0", "code_paragraph_min_words": "70", "long_paragraph_min_words": "55",
-       "force_mode": null, "postprocess": false}
+       "force_mode": null}
       """
     let settings = try JSONDecoder().decode(CleanupSettings.self, from: Data(json.utf8))
     #expect(settings == CleanupSettings(

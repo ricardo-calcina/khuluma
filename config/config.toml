@@ -4,13 +4,6 @@
 [meta]
 config_version = 1
 
-[audio]
-silence_trim = false
-silence_trim_mode = "edges"
-silence_threshold_db = -60
-silence_min_ms = 250
-silence_keep_ms = 50
-
 [clean]
 repeats_level = 1
 
@@ -22,13 +15,6 @@ audio_retention_days = 2
 model_path = ""
 model_version = ""
 socket_path = "~/.config/dictate/.cache/tmux-whisperd.sock"
-
-[postprocess]
-enabled = false
-llm = "gpt-oss-120b"
-max_tokens = 3000
-chunk_words = 700
-budget_long_words_threshold = 120
 
 [inline]
 autosend = true
@@ -51,13 +37,3 @@ start = "~/.local/share/sounds/dictate/start.wav"
 start_enabled = true
 stop = "~/.local/share/sounds/dictate/stop.wav"
 stop_enabled = true
-
-[postprocess.budget_profiles.long]
-chunk_words = 1000
-llm = "gpt-oss-120b"
-max_tokens = 5200
-
-[postprocess.budget_profiles.short]
-chunk_words = 700
-llm = "gpt-oss-120b"
-max_tokens = 2000

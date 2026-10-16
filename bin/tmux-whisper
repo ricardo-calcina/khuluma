@@ -21,7 +21,7 @@ TMUX_WHISPER_CLI_VERSION="0.10.0-dev"
 # Lowkey refuses takes unless its own contract number (AppContract.version
 # in tmux-whisperd/Sources/LowkeyCore/CLIModels.swift) is the same: bump
 # both together whenever either side needs the other to change.
-TMUX_WHISPER_APP_CONTRACT=1
+TMUX_WHISPER_APP_CONTRACT=2
 
 usage() {
   cat <<'EOF'
@@ -56,12 +56,9 @@ DIAGNOSTICS:
   tmux-whisper keep-logs on|off   # persist log retention in config
   tmux-whisper bench [N|all] [--json] [--status STATUS] [--mode MODE] [--slow-total-ms N] # summarize recent stage timings
   tmux-whisper bench export [N|all] [--json] [filters] # export raw bench rows (default: 30 recent)
-  tmux-whisper bench-matrix [N] [phrase_file] # compare llm_model(post=on) x postprocess x vocab_clean on fixed phrases
   tmux-whisper changelog          # show recent Tmux Whisper changes
 
 TEXT CLEANUP:
-  tmux-whisper silence-trim       # show silence-trim status
-  tmux-whisper silence-trim on|off|toggle  # control ffmpeg silence trimming
   tmux-whisper repeats            # show repeat cleanup level
   tmux-whisper repeats 0|1|2      # set repeat cleanup level
 
@@ -74,24 +71,7 @@ SOUNDS:
   tmux-whisper sound process on|off # toggle process sound
   tmux-whisper sound error on|off # toggle error sound
 
-LLM POST-PROCESSING (Cerebras API):
-  tmux-whisper postprocess        # show current setting
-  tmux-whisper postprocess on     # enable LLM cleanup
-  tmux-whisper postprocess off    # disable LLM cleanup
-  tmux-whisper llm                # show current Cerebras LLM + list all
-  tmux-whisper llm fast           # llama3.1-8b (~2200 t/s)
-  tmux-whisper llm smart          # llama-3.3-70b (~2100 t/s)
-  tmux-whisper llm qwen           # qwen-3-32b (~2600 t/s)
-  tmux-whisper llm gpt            # gpt-oss-120b (~3000 t/s, default)
-  tmux-whisper llm <mode> <llm>   # per-mode override (e.g., "tmux-whisper llm code smart")
-  tmux-whisper budget             # show short/long budget profiles (effective)
-  tmux-whisper budget <profile>   # show one budget profile (short or long)
-  tmux-whisper budget <profile> llm fast|smart|qwen|gpt|<id>
-  tmux-whisper budget <profile> max_tokens <n>
-  tmux-whisper budget <profile> chunk_words <n>
-  tmux-whisper budget <profile> clear # remove budget-profile overrides
-
-MODES (context-aware prompts):
+MODES (per-app cleanup rules):
   tmux-whisper mode               # show current inline mode policy + list all
   tmux-whisper mode auto          # auto-detect inline mode from app (default)
   tmux-whisper mode code          # force code mode for inline cleanup
@@ -100,9 +80,8 @@ MODES (context-aware prompts):
   tmux-whisper mode chat          # chat mode (casual, minimal intervention)
   tmux-whisper mode apps          # list apps that trigger current mode
   tmux-whisper mode apps add X    # add app to current mode's trigger list
-  tmux-whisper mode flows [name] [inline|tmux|both] # show/set mode flow availability
+  tmux-whisper mode flows [name] [inline] # show/set whether Lowkey uses a mode
   tmux-whisper mode create <name> # create new custom mode
-  tmux-whisper mode edit [name]   # edit mode's prompt in $EDITOR
 
 VOCABULARY:
   tmux-whisper vocab              # show custom word corrections
@@ -127,11 +106,6 @@ DELIVERY (how Lowkey pastes and sends):
   tmux-whisper target origin      # paste to app from recording start (default; alias: restore)
   tmux-whisper target current     # paste to whatever app is frontmost now
 
-REPLAY (re-process text with different mode):
-  tmux-whisper replay             # re-process clipboard with current mode
-  tmux-whisper replay <mode>      # re-process clipboard with specified mode
-  tmux-whisper replay <mode> "X"  # re-process provided text with specified mode
-
 HISTORY (saved transcripts, auto-cleanup after 7 days):
   tmux-whisper history            # list recent dictations (last 20)
   tmux-whisper history list [N] [--json] # list recent dictations (default: 20)
@@ -142,44 +116,31 @@ HISTORY (saved transcripts, auto-cleanup after 7 days):
   tmux-whisper history sessions [N] [--json] # compact per-dictation session summaries
   tmux-whisper usage [--json] [--days N|all]  # durable, transcript-free usage summary (--days: per-day buckets)
   tmux-whisper last [--json]      # concise summary of the most recent dictation
-  tmux-whisper history reprocess N [mode]  # re-run LLM on raw transcript
   tmux-whisper history clear      # delete all history
 
 ENV OPTIONS:
-  DICTATE_CLEAN=1            # regex filler removal (fast, no LLM)
-  DICTATE_POSTPROCESS=1      # LLM cleanup via Cerebras (inline/global default)
-  DICTATE_VOCAB_CLEAN=1      # apply vocab-only corrections when postprocess is OFF
-  DICTATE_TRIM_WITH_POSTPROCESS=1 # keep silence-trim enabled even when postprocess is ON
-  DICTATE_REPEATS_WITH_POSTPROCESS=1 # keep repeat cleanup enabled even when postprocess is ON
+  DICTATE_CLEAN=1            # regex filler removal
+  DICTATE_VOCAB_CLEAN=1      # apply vocab corrections
   DICTATE_INLINE_PROCESS_SOUND=1 # processing sound override
   DICTATE_INLINE_PASTE_TARGET=origin|current # paste target override
   DICTATE_INLINE_ACTIVATE_DELAY_MS=90 # focus settle delay before paste (restore/origin only)
   DICTATE_INLINE_SEND_DELAY_MS=35 # delay between Cmd+V and the send key when autosend=on
   DICTATE_INLINE_SEND_MODE=enter|ctrl_j|cmd_enter # autosend key (default: enter)
-  DICTATE_LLM_MODEL=...      # override Cerebras model id (one-off)
-  DICTATE_LLM_MAX_TOKENS=3000 # cap postprocess output tokens
-  DICTATE_LLM_CHUNK_WORDS=700 # chunk long postprocess input
   DICTATE_BRITISH_SPELLING=1 # enforce UK spellings (default on; set 0 to disable)
   DICTATE_PARAGRAPH_MIN_WORDS=80 # auto split long short/long outputs into paragraphs
   DICTATE_TRANSCRIBE_TAIL_PAD_MS=500 # append a little silence before ASR to preserve final words
   DICTATE_SWIFT_PARAKEET_TAIL_RESCUE=0|1 # re-transcribe final seconds and merge when full-file ASR drops the tail
-  DICTATE_SWIFT_PARAKEET_CHUNKING=1 # opt into experimental long-audio chunked Swift transcription
   DICTATE_KEEP_LOGS=1        # keep /tmp logs even on success
   DICTATE_HISTORY_RETENTION_DAYS=7 # keep transcript JSON history for stats/search
   DICTATE_HISTORY_AUDIO_RETENTION_DAYS=2 # keep archived inline debug WAVs; metadata/logs remain
   DICTATE_HISTORY_TYPING_WPM=40 # assumed typing pace used by history and usage estimates
   DICTATE_BENCH_MAX_ROWS=800 # cap retained bench samples in history/bench.tsv
-  DICTATE_BENCH_MATRIX_MODE=code # force mode used by bench-matrix cleanup/postprocess
-  DICTATE_BENCH_MATRIX_MODELS=fast,smart,qwen,gpt # LLM list for postprocess-on matrix runs
-  DICTATE_BENCH_MATRIX_PROGRESS=1 # show per-combo progress lines (set 0 for summary-only output)
-  CEREBRAS_API_KEY=...       # required for postprocess
 
 CONFIG FILES (kept under ~/.config/dictate/ for now):
-  config.toml                # main settings (Parakeet backend, postprocess, autosend, Lowkey's hotkey)
+  config.toml                # main settings (Parakeet backend, autosend, Lowkey's hotkey)
   vocab                      # global corrections (one per line: wrong → right)
   current-mode               # mode selection (code/email/etc)
   modes/<mode>/apps          # apps that trigger this mode (one per line)
-  modes/<mode>/prompt        # mode-specific LLM prompt
   modes/<mode>/vocab         # mode-specific corrections
   history/                   # saved transcripts + stats metadata (JSON auto-cleaned after history.retention_days)
   history/inline-debug/      # keep_logs artifacts; WAVs auto-pruned after history.audio_retention_days
@@ -292,35 +253,27 @@ apply_vocab_corrections() {
 # Sets CLEANUP_TEXT rather than printing, so callers run the stages in their
 # own shell: a failing stage aborts under set -e with its own status, and
 # keeps going (as the code did before extraction) where errexit is off.
-# Usage: cleanup_raw_transcript <text> <do_postprocess:0|1>; txt="$CLEANUP_TEXT"
+# Usage: cleanup_raw_transcript <text>; txt="$CLEANUP_TEXT"
 cleanup_raw_transcript() {
   local txt="$1"
-  local do_postprocess="${2:-0}"
   txt="$(printf "%s" "$txt" | sanitize_transcript_artifacts)"
   if [[ "${DICTATE_CLEAN:-0}" == "1" ]]; then
-    local run_repeats="1"
-    if [[ "$do_postprocess" == "1" ]] && ! bool_is_on "${DICTATE_REPEATS_WITH_POSTPROCESS:-0}"; then
-      run_repeats="0"
-    fi
     txt="$(printf "%s" "$txt" | clean_fillers)"
-    if [[ "$run_repeats" == "1" ]]; then
-      local repeats_level="${DICTATE_REPEATS_LEVEL:-${CFG_CLEAN_REPEATS_LEVEL:-1}}"
-      if [[ "$repeats_level" != "0" ]]; then
-        txt="$(printf "%s" "$txt" | clean_repeats "$repeats_level")"
-      fi
+    local repeats_level="${DICTATE_REPEATS_LEVEL:-${CFG_CLEAN_REPEATS_LEVEL:-1}}"
+    if [[ "$repeats_level" != "0" ]]; then
+      txt="$(printf "%s" "$txt" | clean_repeats "$repeats_level")"
     fi
   fi
   CLEANUP_TEXT="$txt"
 }
 
-# Final deterministic pass: vocab corrections (only when no LLM ran), mode
-# paragraphs, British spelling. Sets CLEANUP_TEXT (see cleanup_raw_transcript).
-# Usage: finish_transcript_text <text> <mode> <postprocessed:0|1>; txt="$CLEANUP_TEXT"
+# Final deterministic pass: vocab corrections, mode paragraphs, British
+# spelling. Sets CLEANUP_TEXT (see cleanup_raw_transcript).
+# Usage: finish_transcript_text <text> <mode>; txt="$CLEANUP_TEXT"
 finish_transcript_text() {
   local txt="$1"
   local mode="$2"
-  local postprocessed="${3:-0}"
-  if [[ "$postprocessed" != "1" ]] && bool_is_on "${DICTATE_VOCAB_CLEAN:-1}"; then
+  if bool_is_on "${DICTATE_VOCAB_CLEAN:-1}"; then
     txt="$(printf "%s" "$txt" | apply_vocab_corrections "$mode")"
   fi
   txt="$(printf "%s" "$txt" | apply_mode_cleanup "$mode")"
@@ -500,10 +453,9 @@ archive_inline_debug_artifacts() {
   local record_ms="${5:-0}"
   local transcribe_ms="${6:-0}"
   local clean_ms="${7:-0}"
-  local postprocess_ms="${8:-0}"
-  local paste_ms="${9:-0}"
-  local total_ms="${10:-0}"
-  local take_id="${11:-}"
+  local paste_ms="${8:-0}"
+  local total_ms="${9:-0}"
+  local take_id="${10:-}"
 
   if [[ -n "$prefix" ]]; then
     local archive_wav_ms archive_wav_bytes
@@ -530,7 +482,6 @@ archive_inline_debug_artifacts() {
       printf 'retention_note=%q\n' "$INLINE_DEBUG_AUDIO_RETENTION_NOTE"
       printf 'transcribe_ms=%q\n' "$transcribe_ms"
       printf 'clean_ms=%q\n' "$clean_ms"
-      printf 'postprocess_ms=%q\n' "$postprocess_ms"
       printf 'paste_ms=%q\n' "$paste_ms"
       printf 'total_ms=%q\n' "$total_ms"
       printf 'archived_at=%q\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
@@ -645,24 +596,18 @@ preferred_table_order = [
   "history",
   "whisper",
   "swift_parakeet",
-  "postprocess",
-  "postprocess.budget_profiles.long",
-  "postprocess.budget_profiles.short",
   "inline",
   "debug",
 ]
 
 preferred_key_order = {
   "meta": ["config_version"],
-  "audio": ["silence_trim", "silence_trim_mode", "silence_threshold_db", "silence_min_ms", "silence_keep_ms"],
+  "audio": [],
   "audio.sounds": ["cancel", "cancel_enabled", "enabled", "error", "error_enabled", "process", "process_enabled", "start", "start_enabled", "stop", "stop_enabled"],
   "clean": ["repeats_level"],
   "history": ["retention_days", "audio_retention_days"],
   "whisper": ["models_dir", "backend", "model", "threads", "beam_size", "best_of", "vad", "vad_model", "vad_threshold", "vad_min_speech_ms", "vad_min_silence_ms", "vad_speech_pad_ms"],
   "swift_parakeet": ["model_path", "model_version", "socket_path"],
-  "postprocess": ["enabled", "llm", "max_tokens", "chunk_words", "budget_long_words_threshold"],
-  "postprocess.budget_profiles.long": ["chunk_words", "llm", "max_tokens"],
-  "postprocess.budget_profiles.short": ["chunk_words", "llm", "max_tokens"],
   "inline": ["autosend", "process_sound", "paste_target", "send_mode"],
   "debug": ["keep_logs"],
 }
@@ -824,8 +769,6 @@ rows = [
     ("parse_error", parse_error),
     ("swift_parakeet_model_path", get_effective("swift_parakeet.model_path")),
     ("swift_parakeet_socket_path", get_effective("swift_parakeet.socket_path")),
-    ("postprocess_enabled", get_effective("postprocess.enabled")),
-    ("postprocess_llm", get_effective("postprocess.llm")),
     ("history_retention_days", get_effective("history.retention_days")),
     ("history_audio_retention_days", get_effective("history.audio_retention_days")),
     ("inline_autosend", get_effective("inline.autosend")),
@@ -840,7 +783,7 @@ PYEOF
 
 config_show_text() {
   local rows_input path exists label status parse_error
-  local model_path socket_path postprocess_enabled postprocess_llm history_retention_days history_audio_retention_days inline_autosend inline_process_sound debug_keep_logs
+  local model_path socket_path history_retention_days history_audio_retention_days inline_autosend inline_process_sound debug_keep_logs
   rows_input="$(config_snapshot_rows)"
 
   while IFS=$'\t' read -r key value; do
@@ -852,8 +795,6 @@ config_show_text() {
       parse_error) parse_error="$value" ;;
       swift_parakeet_model_path) model_path="$value" ;;
       swift_parakeet_socket_path) socket_path="$value" ;;
-      postprocess_enabled) postprocess_enabled="$value" ;;
-      postprocess_llm) postprocess_llm="$value" ;;
       history_retention_days) history_retention_days="$value" ;;
       history_audio_retention_days) history_audio_retention_days="$value" ;;
       inline_autosend) inline_autosend="$value" ;;
@@ -886,8 +827,6 @@ config_show_text() {
   echo "Current values:"
   echo "  swift_parakeet.model_path: $(config_show_text_value "$model_path")"
   echo "  swift_parakeet.socket_path: $(config_show_text_value "$socket_path")"
-  echo "  postprocess.enabled: $(config_show_text_bool "$postprocess_enabled")"
-  echo "  postprocess.llm: $(config_show_text_value "$postprocess_llm")"
   echo "  history.retention_days: $(config_show_text_value "$history_retention_days")"
   echo "  history.audio_retention_days: $(config_show_text_value "$history_audio_retention_days")"
   echo "  inline.autosend: $(config_show_text_bool "$inline_autosend")"
@@ -939,10 +878,6 @@ print(json.dumps({
         "swift_parakeet": {
             "model_path": nullable("swift_parakeet_model_path"),
             "socket_path": nullable("swift_parakeet_socket_path"),
-        },
-        "postprocess": {
-            "enabled": bool_value("postprocess_enabled"),
-            "llm": nullable("postprocess_llm"),
         },
         "history": {
             "retention_days": int(rows["history_retention_days"]) if rows.get("history_retention_days", "") else None,
@@ -1211,24 +1146,18 @@ preferred_table_order = [
   "history",
   "whisper",
   "swift_parakeet",
-  "postprocess",
-  "postprocess.budget_profiles.long",
-  "postprocess.budget_profiles.short",
   "inline",
   "debug",
 ]
 
 preferred_key_order = {
   "meta": ["config_version"],
-  "audio": ["silence_trim", "silence_trim_mode", "silence_threshold_db", "silence_min_ms", "silence_keep_ms"],
+  "audio": [],
   "audio.sounds": ["cancel", "cancel_enabled", "enabled", "error", "error_enabled", "process", "process_enabled", "start", "start_enabled", "stop", "stop_enabled"],
   "clean": ["repeats_level"],
   "history": ["retention_days", "audio_retention_days"],
   "whisper": ["models_dir", "backend", "model", "threads", "beam_size", "best_of", "vad", "vad_model", "vad_threshold", "vad_min_speech_ms", "vad_min_silence_ms", "vad_speech_pad_ms"],
   "swift_parakeet": ["model_path", "model_version", "socket_path"],
-  "postprocess": ["enabled", "llm", "max_tokens", "chunk_words", "budget_long_words_threshold"],
-  "postprocess.budget_profiles.long": ["chunk_words", "llm", "max_tokens"],
-  "postprocess.budget_profiles.short": ["chunk_words", "llm", "max_tokens"],
   "inline": ["autosend", "process_sound", "paste_target", "send_mode"],
   "debug": ["keep_logs"],
 }
@@ -2568,127 +2497,6 @@ transcribe_swift_parakeet_tail_rescue_cli() {
   return "$rc"
 }
 
-transcribe_swift_parakeet_chunked_cli() {
-  local wav="$1"
-  local language="${2:-en}"
-  local flow="${3:-inline}"
-  local duration_ms threshold_ms chunk_ms overlap_ms step_ms min_segment_ms
-  duration_ms="$(audio_duration_ms "$wav" 2>/dev/null || true)"
-  threshold_ms="$(resolve_ms_setting "${DICTATE_SWIFT_PARAKEET_CHUNK_THRESHOLD_MS:-}" "45000")"
-  chunk_ms="$(resolve_ms_setting "${DICTATE_SWIFT_PARAKEET_CHUNK_MS:-}" "30000")"
-  overlap_ms="$(resolve_ms_setting "${DICTATE_SWIFT_PARAKEET_CHUNK_OVERLAP_MS:-}" "2000")"
-  min_segment_ms="$(resolve_ms_setting "${DICTATE_SWIFT_PARAKEET_MIN_CHUNK_MS:-}" "1000")"
-
-  if [[ ! "$duration_ms" =~ ^[0-9]+$ ]] || (( duration_ms <= threshold_ms )); then
-    transcribe_swift_parakeet_cli "$wav" "$language" "$flow"
-    return $?
-  fi
-
-  if (( chunk_ms < 5000 )); then
-    chunk_ms=5000
-  fi
-  if (( overlap_ms >= chunk_ms )); then
-    overlap_ms=$(( chunk_ms / 5 ))
-  fi
-  if (( min_segment_ms < 1 )); then
-    min_segment_ms=1000
-  fi
-  step_ms=$(( chunk_ms - overlap_ms ))
-  if (( step_ms <= 0 )); then
-    step_ms="$chunk_ms"
-  fi
-
-  command -v ffmpeg >/dev/null 2>&1 || {
-    transcribe_swift_parakeet_cli "$wav" "$language" "$flow"
-    return $?
-  }
-
-  local chunk_dir chunk_texts start_ms index segment_ms start_s segment_s chunk_wav chunk_text rc
-  chunk_dir="$(mktemp -d "${TMPDIR:-/tmp}/tmux-whisper-chunks.XXXXXX" 2>/dev/null || true)"
-  [[ -n "$chunk_dir" ]] || {
-    transcribe_swift_parakeet_cli "$wav" "$language" "$flow"
-    return $?
-  }
-  chunk_texts="$chunk_dir/chunks.txt"
-  : >"$chunk_texts"
-
-  if [[ -n "${TRANSCRIBE_LOG:-}" ]]; then
-    printf "[%s] swift_parakeet_chunked: duration_ms=%s threshold_ms=%s chunk_ms=%s overlap_ms=%s\n" \
-      "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$duration_ms" "$threshold_ms" "$chunk_ms" "$overlap_ms" \
-      >>"$TRANSCRIBE_LOG" 2>/dev/null || true
-  fi
-
-  start_ms=0
-  index=0
-  rc=0
-  while (( start_ms < duration_ms )); do
-    segment_ms="$chunk_ms"
-    if (( start_ms + segment_ms > duration_ms )); then
-      segment_ms=$(( duration_ms - start_ms ))
-    fi
-    (( segment_ms > 0 )) || break
-    if (( segment_ms < min_segment_ms )); then
-      if [[ -n "${TRANSCRIBE_LOG:-}" ]]; then
-        printf "[%s] swift_parakeet_chunk_skip: index=%s start_ms=%s duration_ms=%s reason=subsecond_tail\n" \
-          "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$index" "$start_ms" "$segment_ms" \
-          >>"$TRANSCRIBE_LOG" 2>/dev/null || true
-      fi
-      break
-    fi
-
-    start_s="$(awk -v ms="$start_ms" 'BEGIN { printf "%.3f", ms/1000 }')"
-    segment_s="$(awk -v ms="$segment_ms" 'BEGIN { printf "%.3f", ms/1000 }')"
-    chunk_wav="$chunk_dir/chunk-${index}.wav"
-
-    if ! ffmpeg -hide_banner -loglevel error -y \
-      -ss "$start_s" -t "$segment_s" -i "$wav" \
-      -ac 1 -ar 16000 -c:a pcm_s16le \
-      "$chunk_wav" >>"${TRANSCRIBE_LOG:-/dev/null}" 2>&1; then
-      rc=1
-      break
-    fi
-
-    if [[ -n "${TRANSCRIBE_LOG:-}" ]]; then
-      printf "[%s] swift_parakeet_chunk: index=%s start_ms=%s duration_ms=%s\n" \
-        "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$index" "$start_ms" "$segment_ms" \
-        >>"$TRANSCRIBE_LOG" 2>/dev/null || true
-    fi
-
-    if ! chunk_text="$(transcribe_swift_parakeet_cli "$chunk_wav" "$language" "$flow" 2>>"${TRANSCRIBE_LOG:-/dev/null}")"; then
-      rc=1
-      break
-    fi
-    chunk_text="${chunk_text//$'\n'/ }"
-    printf "%s\n" "$chunk_text" >>"$chunk_texts"
-
-    index=$(( index + 1 ))
-    start_ms=$(( start_ms + step_ms ))
-  done
-
-  if [[ "$rc" -ne 0 ]]; then
-    rm -rf "$chunk_dir" 2>/dev/null || true
-    return "$rc"
-  fi
-
-  merge_transcript_chunks "$chunk_texts"
-  rc=$?
-  rm -rf "$chunk_dir" 2>/dev/null || true
-  return "$rc"
-}
-
-transcribe_swift_parakeet_dispatch_cli() {
-  local wav="$1"
-  local language="${2:-en}"
-  local flow="${3:-inline}"
-
-  if bool_is_on "${DICTATE_SWIFT_PARAKEET_CHUNKING:-0}"; then
-    transcribe_swift_parakeet_chunked_cli "$wav" "$language" "$flow"
-    return $?
-  fi
-
-  transcribe_swift_parakeet_tail_rescue_cli "$wav" "$language" "$flow"
-}
-
 # Prints warmup --json's one line from WARMUP_JSON_* values.
 warmup_json_emit() {
   WJ_STATE="$1" WJ_REASON="${2:-}" WJ_MESSAGE="${3:-}" \
@@ -2885,76 +2693,17 @@ transcribe_audio() {
   local txt=""
   local transcribe_rc=0
 
-  maybe_trim_silence_inplace "$wav"
   maybe_pad_transcribe_tail_inplace "$wav"
   requested_backend="$(resolve_transcribe_backend)"
   DICTATE_LAST_BACKEND_ENGINE=""
   DICTATE_LAST_BACKEND_MODEL=""
   set +e
-  txt="$(transcribe_swift_parakeet_dispatch_cli "$wav" "$language" "$flow" 2>>"${TRANSCRIBE_LOG:-/dev/null}")"
+  txt="$(transcribe_swift_parakeet_tail_rescue_cli "$wav" "$language" "$flow" 2>>"${TRANSCRIBE_LOG:-/dev/null}")"
   transcribe_rc=$?
   set -e
   write_backend_runtime_cache "$requested_backend" "$requested_backend" "" "${DICTATE_LAST_BACKEND_ENGINE:-swift_parakeet}" "${DICTATE_LAST_BACKEND_MODEL:-}"
   [[ "$transcribe_rc" -eq 0 ]] || return "$transcribe_rc"
   printf "%s" "$txt"
-}
-
-maybe_trim_silence_inplace() {
-  local wav="${1:-}"
-  [[ -n "$wav" && -f "$wav" ]] || return 0
-
-  if bool_is_on "${DICTATE_RUNTIME_SKIP_SILENCE_TRIM:-0}"; then
-    return 0
-  fi
-
-  local enabled="${DICTATE_SILENCE_TRIM:-${CFG_AUDIO_SILENCE_TRIM:-0}}"
-  bool_is_on "$enabled" || return 0
-
-  command -v ffmpeg >/dev/null 2>&1 || return 0
-
-  local mode="${DICTATE_SILENCE_TRIM_MODE:-${CFG_AUDIO_SILENCE_TRIM_MODE:-edges}}"
-  local threshold_db="${DICTATE_SILENCE_THRESHOLD_DB:-${CFG_AUDIO_SILENCE_THRESHOLD_DB:--60}}"
-  local min_ms="${DICTATE_SILENCE_MIN_MS:-${CFG_AUDIO_SILENCE_MIN_MS:-250}}"
-  local keep_ms="${DICTATE_SILENCE_KEEP_MS:-${CFG_AUDIO_SILENCE_KEEP_MS:-50}}"
-
-  local min_s keep_s threshold_amp
-  min_s="$(awk "BEGIN { printf \"%.3f\", (${min_ms:-250})/1000 }")"
-  keep_s="$(awk "BEGIN { printf \"%.3f\", (${keep_ms:-50})/1000 }")"
-  threshold_amp="$(awk "BEGIN { printf \"%.6f\", 10^((${threshold_db:--60})/20) }")"
-
-  local stop_periods="1"
-  if [[ "$mode" == "all" ]]; then
-    # Experimental: attempt to remove interior silences too (may harm cadence/accuracy).
-    stop_periods="-1"
-  fi
-
-  local tmp="${wav}.trim.wav"
-  rm -f "$tmp" 2>/dev/null || true
-
-  if [[ -n "${TRANSCRIBE_LOG:-}" ]]; then
-    printf "[%s] silence_trim: mode=%s threshold_db=%s threshold_amp=%s min_ms=%s keep_ms=%s\n" \
-      "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$mode" "$threshold_db" "$threshold_amp" "$min_ms" "$keep_ms" \
-      >>"$TRANSCRIBE_LOG" 2>/dev/null || true
-  fi
-
-  set +e
-  ffmpeg -hide_banner -loglevel error -y \
-    -i "$wav" \
-    -af "silenceremove=start_periods=1:start_duration=${min_s}:start_threshold=${threshold_amp}:start_silence=${keep_s}:stop_periods=${stop_periods}:stop_duration=${min_s}:stop_threshold=${threshold_amp}:stop_silence=${keep_s}:detection=peak" \
-    -ac 1 -ar 16000 -c:a pcm_s16le \
-    "$tmp" >>"${TRANSCRIBE_LOG:-/dev/null}" 2>&1
-  local rc=$?
-  set -e
-
-  if [[ "$rc" -ne 0 || ! -s "$tmp" ]]; then
-    rm -f "$tmp" 2>/dev/null || true
-    return 0
-  fi
-
-  mv -f "$tmp" "$wav" 2>/dev/null || {
-    rm -f "$tmp" 2>/dev/null || true
-    return 0
-  }
 }
 
 maybe_pad_transcribe_tail_inplace() {
@@ -3013,14 +2762,8 @@ bench_field() {
   printf "%s" "${1:-}" | tr '\t\r\n' '   '
 }
 
-load_postprocess_obs_file() {
-  local obs_file="${1:-}"
-  [[ -n "$obs_file" && -f "$obs_file" ]] || return 0
-  # Generated by postprocess_llm with shell-escaped values.
-  # shellcheck disable=SC1090
-  source "$obs_file" 2>/dev/null || true
-}
-
+# The TSV keeps its 19 columns so older rows still parse; the postprocess
+# (5, 11) and CLI capture (15-17) arguments are always 0 now.
 append_bench_entry() {
   local flow="${1:-unknown}"
   local status="${2:-ok}"
@@ -3261,8 +3004,9 @@ if os.path.isfile(path):
             if len(parts) < 14:
                 continue
             ts, flow, status, model, mode, post, rawc, outc, rec, trn, cln, pps, pst, tot = parts[:14]
-            # Columns 15-17 held CLI capture timings (audio resolve, ffmpeg
-            # live check, target capture); they're 0 since Lowkey records.
+            # Columns 6 and 12 held the LLM post-processing flag and time,
+            # and 15-17 CLI capture timings (audio resolve, ffmpeg live check,
+            # target capture); new rows write 0 there.
             startup_total = parts[14] if len(parts) > 14 else "0"
             startup_source = parts[18] if len(parts) > 18 else ""
 
@@ -3280,13 +3024,11 @@ if os.path.isfile(path):
                     "status": status,
                     "model": model,
                     "mode": mode,
-                    "postprocess_enabled": post in {"1", "true", "on", "yes"},
                     "raw_chars": to_int(rawc),
                     "out_chars": to_int(outc),
                     "record_ms": to_int(rec),
                     "transcribe_ms": to_int(trn),
                     "clean_ms": to_int(cln),
-                    "postprocess_ms": to_int(pps),
                     "paste_ms": to_int(pst),
                     "total_ms": to_int(tot),
                     "startup_total_ms": to_int(startup_total),
@@ -3370,14 +3112,12 @@ if subcmd == "export":
         print(f"Status: {entry['status']}")
         print(f"Model: {entry['model']}")
         print(f"Mode: {entry['mode']}")
-        print(f"Postprocess: {'on' if entry['postprocess_enabled'] else 'off'}")
         print("")
         print("Metrics:")
         for key in (
             "record_ms",
             "transcribe_ms",
             "clean_ms",
-            "postprocess_ms",
             "paste_ms",
             "total_ms",
             "raw_chars",
@@ -3413,7 +3153,6 @@ payload = {
         "record_ms": metric_summary([r["record_ms"] for r in subset if r["record_ms"] > 0]),
         "transcribe_ms": metric_summary([r["transcribe_ms"] for r in subset if r["transcribe_ms"] >= 0]),
         "clean_ms": metric_summary([r["clean_ms"] for r in subset if r["clean_ms"] >= 0]),
-        "postprocess_ms": metric_summary([r["postprocess_ms"] for r in subset if r["postprocess_ms"] > 0]),
         "paste_ms": metric_summary([r["paste_ms"] for r in subset if r["paste_ms"] > 0]),
         "total_ms": metric_summary([r["total_ms"] for r in subset if r["total_ms"] > 0]),
     },
@@ -3461,7 +3200,6 @@ print("Stages:")
 print("  " + fmt_stage("record", [r["record_ms"] for r in subset if r["record_ms"] > 0]))
 print("  " + fmt_stage("transcribe", [r["transcribe_ms"] for r in subset if r["transcribe_ms"] >= 0]))
 print("  " + fmt_stage("clean", [r["clean_ms"] for r in subset if r["clean_ms"] >= 0]))
-print("  " + fmt_stage("postprocess", [r["postprocess_ms"] for r in subset if r["postprocess_ms"] > 0]))
 print("  " + fmt_stage("paste", [r["paste_ms"] for r in subset if r["paste_ms"] > 0]))
 print("  " + fmt_stage("total(stop->done)", [r["total_ms"] for r in subset if r["total_ms"] > 0]))
 
@@ -3477,13 +3215,13 @@ if latest is not None:
     print(
         "  "
         + f"{latest['timestamp']} flow={latest['flow']} status={latest['status']} "
-        + f"model={latest['model']} mode={latest['mode']} postprocess={'on' if latest['postprocess_enabled'] else 'off'}"
+        + f"model={latest['model']} mode={latest['mode']}"
     )
     print(
         (
             "  "
             + "record={record_ms}ms transcribe={transcribe_ms}ms clean={clean_ms}ms "
-            + "postprocess={postprocess_ms}ms paste={paste_ms}ms total={total_ms}ms "
+            + "paste={paste_ms}ms total={total_ms}ms "
             + "raw_chars={raw_chars} out_chars={out_chars}"
         ).format(**latest)
     )
@@ -3502,678 +3240,6 @@ print("  tmux-whisper status --preset compact")
 PYEOF
 }
 
-bench_matrix() {
-  local rounds_arg="${1:-}"
-  local phrase_arg="${2:-}"
-  local rounds="1"
-
-  if [[ -n "$rounds_arg" ]]; then
-    [[ "$rounds_arg" =~ ^[0-9]+$ ]] || die "usage: tmux-whisper bench-matrix [N] [phrase_file]"
-    (( rounds_arg > 0 )) || die "usage: tmux-whisper bench-matrix [N] [phrase_file]"
-    rounds="$rounds_arg"
-  fi
-
-  local mode="${DICTATE_BENCH_MATRIX_MODE:-code}"
-  mode="$(canonical_mode_name "$mode")"
-  if [[ ! -d "$DICTATE_CONFIG_DIR/modes/$(mode_to_dir_name "$mode")" ]]; then
-    mode="code"
-  fi
-
-  local phrase_src=""
-  local -a phrases=()
-  if [[ -n "$phrase_arg" ]]; then
-    phrase_src="$(expand_path "$phrase_arg")"
-    [[ -f "$phrase_src" ]] || die "phrase file not found: $phrase_src"
-    local line trimmed phrase_text
-    while IFS= read -r line || [[ -n "$line" ]]; do
-      trimmed="$(printf "%s" "$line" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
-      [[ -z "$trimmed" ]] && continue
-      [[ "$trimmed" == \#* ]] && continue
-      phrase_text="$trimmed"
-      if [[ "$trimmed" == *$'\t'* ]]; then
-        # Optional phrase-file format: label<TAB>phrase text
-        phrase_text="${trimmed#*$'\t'}"
-        phrase_text="$(printf "%s" "$phrase_text" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
-      fi
-      [[ -n "$phrase_text" ]] || continue
-      phrases+=("$phrase_text")
-    done <"$phrase_src"
-  else
-    phrase_src="<built-in>"
-    phrases=(
-      "health lag can you check the logs and send an update"
-      "my app is called dot dictation tool and codex should stay capitalized"
-      "colour behaviour and organise should stay in british spelling"
-      "please summarise this in two short paragraphs and keep it concise"
-      "i need a follow up pr for cleanup after this bench matrix run"
-      "open the lowkey menu and check the stats window"
-    )
-  fi
-
-  (( ${#phrases[@]} > 0 )) || die "no benchmark phrases found: $phrase_src"
-
-  local models_raw="${DICTATE_BENCH_MATRIX_MODELS:-fast,smart,qwen,gpt}"
-  models_raw="$(printf "%s" "$models_raw" | tr ',' ' ')"
-  local -a llm_models=()
-  local token resolved existing seen
-  for token in $models_raw; do
-    case "$token" in
-      fast|8b) resolved="llama3.1-8b" ;;
-      smart|70b) resolved="llama-3.3-70b" ;;
-      qwen|32b) resolved="qwen-3-32b" ;;
-      gpt|oss) resolved="gpt-oss-120b" ;;
-      *) resolved="$token" ;;
-    esac
-    [[ -n "$resolved" ]] || continue
-    seen="0"
-    if [[ "${#llm_models[@]}" -gt 0 ]]; then
-      for existing in "${llm_models[@]}"; do
-        if [[ "$existing" == "$resolved" ]]; then
-          seen="1"
-          break
-        fi
-      done
-    fi
-    [[ "$seen" == "1" ]] || llm_models+=("$resolved")
-  done
-  if [[ "${#llm_models[@]}" -eq 0 ]]; then
-    llm_models=("${CFG_POSTPROCESS_LLM:-gpt-oss-120b}")
-  fi
-
-  local postprocess_available="0"
-  [[ -n "${CEREBRAS_API_KEY:-}" ]] && postprocess_available="1"
-
-  local total_combos="2"
-  if [[ "$postprocess_available" == "1" ]]; then
-    total_combos=$((2 + ${#llm_models[@]} * 2))
-  fi
-
-  local results_file
-  results_file="$(mktemp "${TMPDIR:-/tmp}/dictate-bench-matrix.XXXXXX")" || die "failed to create bench-matrix temporary file"
-
-  local clean_enabled="${DICTATE_CLEAN:-0}"
-  local repeats_level="${DICTATE_REPEATS_LEVEL:-${CFG_CLEAN_REPEATS_LEVEL:-1}}"
-  local progress_enabled="${DICTATE_BENCH_MATRIX_PROGRESS:-1}"
-
-  local combo_idx=0
-  local post_flag vocab_flag iter model phrase txt
-  local model_label total_ms clean_ms post_ms vocab_ms
-  local budget_profile_obs budget_words_obs budget_max_tokens_obs budget_chunk_words_obs budget_chunk_count_obs
-  local stage_started_ms flow_started_ms run_repeats
-  local input_norm output_norm changed
-  local -a model_candidates=()
-
-  for post_flag in 0 1; do
-    if [[ "$post_flag" == "1" && "$postprocess_available" != "1" ]]; then
-      continue
-    fi
-
-    if [[ "$post_flag" == "1" ]]; then
-      model_candidates=("${llm_models[@]}")
-    else
-      model_candidates=("-")
-    fi
-
-    for vocab_flag in 0 1; do
-      for model in "${model_candidates[@]}"; do
-        combo_idx=$((combo_idx + 1))
-        if bool_is_on "$progress_enabled"; then
-          echo "bench-matrix: combo $combo_idx/$total_combos (model=$model post=$post_flag vocab=$vocab_flag)"
-        fi
-
-        for ((iter = 1; iter <= rounds; iter++)); do
-          for phrase in "${phrases[@]}"; do
-            flow_started_ms="$(now_ms)"
-            budget_profile_obs=""
-            budget_words_obs="0"
-            budget_max_tokens_obs="0"
-            budget_chunk_words_obs="0"
-            budget_chunk_count_obs="0"
-            stage_started_ms="$(now_ms)"
-            txt="$(printf "%s" "$phrase" | sanitize_transcript_artifacts)"
-            if [[ "$clean_enabled" == "1" ]]; then
-              run_repeats="1"
-              if [[ "$post_flag" == "1" ]] && ! bool_is_on "${DICTATE_REPEATS_WITH_POSTPROCESS:-0}"; then
-                run_repeats="0"
-              fi
-              txt="$(printf "%s" "$txt" | clean_fillers)"
-              if [[ "$run_repeats" == "1" && "$repeats_level" != "0" ]]; then
-                txt="$(printf "%s" "$txt" | clean_repeats "$repeats_level")"
-              fi
-            fi
-            clean_ms=$(( $(now_ms) - stage_started_ms ))
-
-            post_ms=0
-            if [[ "$post_flag" == "1" ]]; then
-              local bench_obs_file=""
-              stage_started_ms="$(now_ms)"
-              bench_obs_file="$(mktemp "${TMPDIR:-/tmp}/dictate-bench-obs.XXXXXX" 2>/dev/null || true)"
-              if [[ -n "$bench_obs_file" ]]; then
-                txt="$(DICTATE_FORCE_MODE="$mode" DICTATE_LLM_MODEL="$model" DICTATE_POSTPROCESS_OBS_FILE="$bench_obs_file" postprocess_llm "$txt" "")"
-                load_postprocess_obs_file "$bench_obs_file"
-                rm -f "$bench_obs_file" 2>/dev/null || true
-              else
-                txt="$(DICTATE_FORCE_MODE="$mode" DICTATE_LLM_MODEL="$model" postprocess_llm "$txt" "")"
-              fi
-              txt="$(printf "%s" "$txt" | auto_paragraphs "$mode")"
-              post_ms=$(( $(now_ms) - stage_started_ms ))
-              budget_profile_obs="${DICTATE_LAST_POSTPROCESS_BUDGET_PROFILE:-}"
-              budget_words_obs="${DICTATE_LAST_POSTPROCESS_BUDGET_WORD_COUNT:-0}"
-              budget_max_tokens_obs="${DICTATE_LAST_POSTPROCESS_BUDGET_MAX_TOKENS:-0}"
-              budget_chunk_words_obs="${DICTATE_LAST_POSTPROCESS_BUDGET_CHUNK_WORDS:-0}"
-              budget_chunk_count_obs="${DICTATE_LAST_POSTPROCESS_BUDGET_CHUNK_COUNT:-0}"
-            fi
-
-            vocab_ms=0
-            if [[ "$vocab_flag" == "1" ]]; then
-              stage_started_ms="$(now_ms)"
-              txt="$(printf "%s" "$txt" | apply_vocab_corrections "$mode")"
-              vocab_ms=$(( $(now_ms) - stage_started_ms ))
-            fi
-
-            txt="$(printf "%s" "$txt" | normalize_british_spelling)"
-            total_ms=$(( $(now_ms) - flow_started_ms ))
-
-            input_norm="$(printf "%s" "$phrase" | sed -E 's/[[:space:]]+/ /g; s/^ //; s/ $//')"
-            output_norm="$(printf "%s" "$txt" | sed -E 's/[[:space:]]+/ /g; s/^ //; s/ $//')"
-            changed="0"
-            [[ "$output_norm" != "$input_norm" ]] && changed="1"
-
-            model_label="$model"
-            [[ "$post_flag" == "0" ]] && model_label="-"
-            printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-              "$model_label" "$post_flag" "$vocab_flag" "$total_ms" "$clean_ms" "$post_ms" "$vocab_ms" "$changed" \
-              "$(bench_field "$budget_profile_obs")" "$(bench_field "$budget_words_obs")" "$(bench_field "$budget_max_tokens_obs")" "$(bench_field "$budget_chunk_words_obs")" "$(bench_field "$budget_chunk_count_obs")" >>"$results_file"
-          done
-        done
-      done
-    done
-  done
-
-  need python3
-  python3 - "$results_file" "$mode" "$phrase_src" "${#phrases[@]}" "$rounds" "$postprocess_available" <<'PYEOF'
-import collections, statistics, sys
-
-path = sys.argv[1]
-mode = sys.argv[2]
-phrase_src = sys.argv[3]
-phrase_count = int(sys.argv[4])
-rounds = int(sys.argv[5])
-post_available = sys.argv[6] == "1"
-
-rows = []
-with open(path, "r", encoding="utf-8", errors="replace") as fh:
-    for line in fh:
-        parts = line.rstrip("\n").split("\t")
-        if len(parts) < 8:
-            continue
-        model, post, vocab, total_ms, clean_ms, post_ms, vocab_ms, changed = parts[:8]
-        budget_profile = parts[8] if len(parts) > 8 else ""
-        budget_words = parts[9] if len(parts) > 9 else "0"
-        budget_max_tokens = parts[10] if len(parts) > 10 else "0"
-        budget_chunk_words = parts[11] if len(parts) > 11 else "0"
-        budget_chunk_count = parts[12] if len(parts) > 12 else "0"
-
-        def to_int(v):
-            try:
-                return int(v)
-            except Exception:
-                return 0
-
-        rows.append(
-            {
-                "model": model,
-                "post": post,
-                "vocab": vocab,
-                "total_ms": to_int(total_ms),
-                "clean_ms": to_int(clean_ms),
-                "post_ms": to_int(post_ms),
-                "vocab_ms": to_int(vocab_ms),
-                "changed": 1 if changed == "1" else 0,
-                "budget_profile": budget_profile or "",
-                "budget_words": to_int(budget_words),
-                "budget_max_tokens": to_int(budget_max_tokens),
-                "budget_chunk_words": to_int(budget_chunk_words),
-                "budget_chunk_count": to_int(budget_chunk_count),
-            }
-        )
-
-if not rows:
-    print("No bench-matrix samples produced.")
-    raise SystemExit(0)
-
-def percentile(values, pct):
-    if not values:
-        return 0
-    vals = sorted(values)
-    if len(vals) == 1:
-        return vals[0]
-    pos = (len(vals) - 1) * pct
-    lo = int(pos)
-    hi = min(lo + 1, len(vals) - 1)
-    frac = pos - lo
-    return int(round(vals[lo] * (1 - frac) + vals[hi] * frac))
-
-groups = collections.defaultdict(list)
-for row in rows:
-    groups[(row["model"], row["post"], row["vocab"])].append(row)
-
-def sort_key(item):
-    model, post, vocab = item[0]
-    post_val = 1 if post == "1" else 0
-    vocab_val = 1 if vocab == "1" else 0
-    model_val = model if model != "-" else ""
-    return (post_val, model_val, vocab_val)
-
-print("Tmux Whisper bench-matrix")
-print(f"Mode: {mode}")
-print(f"Phrases: {phrase_count} (source: {phrase_src})")
-print(f"Rounds: {rounds}")
-print(f"Samples: {len(rows)}")
-if not post_available:
-    print("Note: postprocess=on combos skipped (CEREBRAS_API_KEY not set).")
-print("")
-print("llm_model          postproc vocab n   changed(n) total(ms) med/p90/max  clean med  postproc med  vocab med")
-
-for (model, post, vocab), bucket in sorted(groups.items(), key=sort_key):
-    totals = [r["total_ms"] for r in bucket]
-    cleans = [r["clean_ms"] for r in bucket]
-    posts = [r["post_ms"] for r in bucket if r["post_ms"] > 0]
-    vocabs = [r["vocab_ms"] for r in bucket if r["vocab_ms"] > 0]
-    changed = sum(r["changed"] for r in bucket)
-    n = len(bucket)
-
-    model_label = "(n/a)" if model == "-" else model
-    post_label = "on" if post == "1" else "off"
-    vocab_label = "on" if vocab == "1" else "off"
-    total_cell = f"{int(statistics.median(totals))}/{percentile(totals, 0.90)}/{max(totals)}"
-    clean_med = int(statistics.median(cleans)) if cleans else 0
-    post_med = int(statistics.median(posts)) if posts else 0
-    vocab_med = int(statistics.median(vocabs)) if vocabs else 0
-    changed_cell = f"{changed}/{n}"
-
-    print(
-        f"{model_label:<18} {post_label:<8} {vocab_label:<5} {n:<3} {changed_cell:<8} "
-        f"{total_cell:<20} {clean_med:<9} {post_med:<12} {vocab_med:<9}"
-    )
-
-post_budget_rows = [r for r in rows if r["post"] == "1" and r.get("budget_profile")]
-if post_budget_rows:
-    print("")
-    print("Budget auto observability (postprocess rows)")
-    profile_counts = collections.Counter(r["budget_profile"] for r in post_budget_rows if r.get("budget_profile"))
-    if profile_counts:
-        print("  profile counts: " + ", ".join(f"{k}={v}" for k, v in sorted(profile_counts.items())))
-
-    def metric_line(name, key):
-        vals = [int(r.get(key, 0)) for r in post_budget_rows if int(r.get(key, 0)) > 0]
-        if not vals:
-            return f"  {name}: n=0"
-        return (
-            f"  {name}: n={len(vals)} "
-            f"median={int(statistics.median(vals))} "
-            f"p90={percentile(vals, 0.90)} max={max(vals)}"
-        )
-
-    print(metric_line("word_count", "budget_words"))
-    print(metric_line("max_tokens", "budget_max_tokens"))
-    print(metric_line("chunk_words", "budget_chunk_words"))
-    print(metric_line("chunk_count", "budget_chunk_count"))
-PYEOF
-
-  rm -f "$results_file" 2>/dev/null || true
-}
-
-# LLM post-processing via Cerebras API
-postprocess_llm() {
-  local input="$1"
-  local target_app="${2:-}"
-  local obs_file="${DICTATE_POSTPROCESS_OBS_FILE:-}"
-
-  if [[ -n "$obs_file" ]]; then
-    : >"$obs_file" 2>/dev/null || true
-  fi
-
-  # Per-run observability snapshot (consumed by save_history/history stats).
-  DICTATE_LAST_POSTPROCESS_BUDGET_OBS_ACTIVE="0"
-  DICTATE_LAST_POSTPROCESS_BUDGET_PROFILE=""
-  DICTATE_LAST_POSTPROCESS_BUDGET_THRESHOLD=""
-  DICTATE_LAST_POSTPROCESS_BUDGET_WORD_COUNT=""
-  DICTATE_LAST_POSTPROCESS_BUDGET_MAX_TOKENS=""
-  DICTATE_LAST_POSTPROCESS_BUDGET_CHUNK_WORDS=""
-  DICTATE_LAST_POSTPROCESS_BUDGET_CHUNK_COUNT=""
-  DICTATE_LAST_POSTPROCESS_BUDGET_LLM_MODEL=""
-  
-  if [[ -z "${CEREBRAS_API_KEY:-}" ]]; then
-    echo "$input"
-    return 0
-  fi
-
-  write_postprocess_obs_file() {
-    [[ -n "$obs_file" ]] || return 0
-    {
-      printf 'DICTATE_LAST_POSTPROCESS_BUDGET_OBS_ACTIVE=%q\n' "${DICTATE_LAST_POSTPROCESS_BUDGET_OBS_ACTIVE:-0}"
-      printf 'DICTATE_LAST_POSTPROCESS_BUDGET_PROFILE=%q\n' "${DICTATE_LAST_POSTPROCESS_BUDGET_PROFILE:-}"
-      printf 'DICTATE_LAST_POSTPROCESS_BUDGET_THRESHOLD=%q\n' "${DICTATE_LAST_POSTPROCESS_BUDGET_THRESHOLD:-}"
-      printf 'DICTATE_LAST_POSTPROCESS_BUDGET_WORD_COUNT=%q\n' "${DICTATE_LAST_POSTPROCESS_BUDGET_WORD_COUNT:-}"
-      printf 'DICTATE_LAST_POSTPROCESS_BUDGET_MAX_TOKENS=%q\n' "${DICTATE_LAST_POSTPROCESS_BUDGET_MAX_TOKENS:-}"
-      printf 'DICTATE_LAST_POSTPROCESS_BUDGET_CHUNK_WORDS=%q\n' "${DICTATE_LAST_POSTPROCESS_BUDGET_CHUNK_WORDS:-}"
-      printf 'DICTATE_LAST_POSTPROCESS_BUDGET_CHUNK_COUNT=%q\n' "${DICTATE_LAST_POSTPROCESS_BUDGET_CHUNK_COUNT:-}"
-      printf 'DICTATE_LAST_POSTPROCESS_BUDGET_LLM_MODEL=%q\n' "${DICTATE_LAST_POSTPROCESS_BUDGET_LLM_MODEL:-}"
-    } >"$obs_file" 2>/dev/null || true
-  }
-  
-  local current_mode
-  current_mode="$(get_current_mode "$target_app")"
-  local current_mode_key
-  current_mode_key="$(mode_override_key "$current_mode")"
-  local budget_profile_key
-  
-  lookup_override() {
-    local list="${1:-}"
-    local key="${2:-}"
-    [[ -n "$list" && -n "$key" ]] || return 1
-    local IFS=';'
-    read -r -a pairs <<<"$list"
-    local pair
-    for pair in "${pairs[@]}"; do
-      [[ "$pair" == "$key="* ]] && { echo "${pair#*=}"; return 0; }
-    done
-    return 1
-  }
-
-  lookup_override_for_mode() {
-    local list="${1:-}"
-    local key="${2:-}"
-    lookup_override "$list" "$key" 2>/dev/null || true
-  }
-
-  budget_word_count_for_input() {
-    local text="${1:-}"
-    local word_count
-    word_count="$(printf '%s' "$text" | wc -w | tr -d '[:space:]')"
-    [[ "$word_count" =~ ^[0-9]+$ ]] || word_count="0"
-    echo "$word_count"
-  }
-
-  budget_profile_for_input() {
-    local text="${1:-}"
-    local threshold="${DICTATE_LLM_BUDGET_LONG_WORDS_THRESHOLD:-${CFG_POSTPROCESS_BUDGET_LONG_WORDS_THRESHOLD:-120}}"
-    local word_count
-    [[ "$threshold" =~ ^[0-9]+$ ]] || threshold="120"
-    word_count="$(budget_word_count_for_input "$text")"
-    if [[ "$word_count" -ge "$threshold" ]]; then
-      echo "long"
-    else
-      echo "short"
-    fi
-  }
-
-  resolve_budget_override() {
-    local list="${1:-}"
-    local mode_key="${2:-}"
-    local budget_key="${3:-}"
-    local val=""
-    # Preserve custom mode-specific budget overrides if users define them.
-    if [[ -n "$mode_key" && "$mode_key" != "short" && "$mode_key" != "long" ]]; then
-      val="$(lookup_override_for_mode "$list" "$mode_key" 2>/dev/null || true)"
-      [[ -n "$val" ]] && { echo "$val"; return 0; }
-    fi
-    lookup_override_for_mode "$list" "$budget_key" 2>/dev/null || true
-  }
-
-  resolve_budget_numeric_auto() {
-    local list="${1:-}"
-    local mode_key="${2:-}"
-    local global_val="${3:-}"
-    local text="${4:-}"
-    local threshold="${DICTATE_LLM_BUDGET_LONG_WORDS_THRESHOLD:-${CFG_POSTPROCESS_BUDGET_LONG_WORDS_THRESHOLD:-120}}"
-    local mode_val short_val long_val fallback_key fallback_val
-    local word_count delta scaled min_val max_val
-
-    if [[ -n "$mode_key" && "$mode_key" != "short" && "$mode_key" != "long" ]]; then
-      mode_val="$(lookup_override_for_mode "$list" "$mode_key" 2>/dev/null || true)"
-      if [[ -n "$mode_val" ]]; then
-        echo "$mode_val"
-        return 0
-      fi
-    fi
-
-    short_val="$(lookup_override_for_mode "$list" "short" 2>/dev/null || true)"
-    long_val="$(lookup_override_for_mode "$list" "long" 2>/dev/null || true)"
-    [[ "$threshold" =~ ^[0-9]+$ ]] || threshold="120"
-    word_count="$(budget_word_count_for_input "$text")"
-
-    if [[ "$short_val" =~ ^[0-9]+$ && "$long_val" =~ ^[0-9]+$ && "$threshold" -gt 0 ]]; then
-      if [[ "$word_count" -ge "$threshold" ]]; then
-        echo "$long_val"
-        return 0
-      fi
-      if [[ "$word_count" -le 0 ]]; then
-        echo "$short_val"
-        return 0
-      fi
-      delta=$(( long_val - short_val ))
-      scaled=$(( short_val + (delta * word_count) / threshold ))
-      if [[ "$short_val" -le "$long_val" ]]; then
-        min_val="$short_val"; max_val="$long_val"
-      else
-        min_val="$long_val"; max_val="$short_val"
-      fi
-      [[ "$scaled" -lt "$min_val" ]] && scaled="$min_val"
-      [[ "$scaled" -gt "$max_val" ]] && scaled="$max_val"
-      echo "$scaled"
-      return 0
-    fi
-
-    if [[ "$word_count" -ge "$threshold" ]]; then
-      fallback_key="long"
-    else
-      fallback_key="short"
-    fi
-    fallback_val="$(lookup_override_for_mode "$list" "$fallback_key" 2>/dev/null || true)"
-    [[ -n "$fallback_val" ]] && echo "$fallback_val" || echo "$global_val"
-  }
-
-  local llm_model="llama3.1-8b"
-  [[ -n "${CFG_POSTPROCESS_LLM:-}" ]] && llm_model="$CFG_POSTPROCESS_LLM"
-  budget_profile_key="$(budget_profile_for_input "$input")"
-  local budget_word_count budget_threshold
-  budget_word_count="$(budget_word_count_for_input "$input")"
-  budget_threshold="${DICTATE_LLM_BUDGET_LONG_WORDS_THRESHOLD:-${CFG_POSTPROCESS_BUDGET_LONG_WORDS_THRESHOLD:-120}}"
-  [[ "$budget_threshold" =~ ^[0-9]+$ ]] || budget_threshold="120"
-  if [[ -n "${DICTATE_LLM_MODEL:-}" ]]; then
-    llm_model="$DICTATE_LLM_MODEL"
-  else
-    local llm_override=""
-    llm_override="$(lookup_override_for_mode "${CFG_POSTPROCESS_MODE_LLM_OVERRIDES:-}" "$current_mode_key" 2>/dev/null || true)"
-    if [[ -z "$llm_override" ]]; then
-      llm_override="$(lookup_override_for_mode "${CFG_POSTPROCESS_BUDGET_PROFILE_LLM_OVERRIDES:-}" "$budget_profile_key" 2>/dev/null || true)"
-    fi
-    [[ -n "$llm_override" ]] && llm_model="$llm_override"
-  fi
-
-  local system_prompt
-  system_prompt="$(build_mode_prompt "$current_mode")"
-
-  local max_tokens=""
-  local chunk_words=""
-  if [[ -n "${DICTATE_LLM_MAX_TOKENS:-}" ]]; then
-    max_tokens="$DICTATE_LLM_MAX_TOKENS"
-  else
-    max_tokens="$(resolve_budget_numeric_auto "${CFG_POSTPROCESS_BUDGET_PROFILE_MAX_TOKENS_OVERRIDES:-}" "$current_mode_key" "${CFG_POSTPROCESS_MAX_TOKENS:-}" "$input" 2>/dev/null || true)"
-    [[ -z "$max_tokens" ]] && max_tokens="${CFG_POSTPROCESS_MAX_TOKENS:-}"
-  fi
-
-  if [[ -n "${DICTATE_LLM_CHUNK_WORDS:-}" ]]; then
-    chunk_words="$DICTATE_LLM_CHUNK_WORDS"
-  else
-    chunk_words="$(resolve_budget_numeric_auto "${CFG_POSTPROCESS_BUDGET_PROFILE_CHUNK_WORDS_OVERRIDES:-}" "$current_mode_key" "${CFG_POSTPROCESS_CHUNK_WORDS:-}" "$input" 2>/dev/null || true)"
-    [[ -z "$chunk_words" ]] && chunk_words="${CFG_POSTPROCESS_CHUNK_WORDS:-}"
-  fi
-  [[ -z "$chunk_words" ]] && chunk_words="0"
-
-  DICTATE_LAST_POSTPROCESS_BUDGET_OBS_ACTIVE="1"
-  DICTATE_LAST_POSTPROCESS_BUDGET_PROFILE="$budget_profile_key"
-  DICTATE_LAST_POSTPROCESS_BUDGET_THRESHOLD="$budget_threshold"
-  DICTATE_LAST_POSTPROCESS_BUDGET_WORD_COUNT="$budget_word_count"
-  DICTATE_LAST_POSTPROCESS_BUDGET_MAX_TOKENS="${max_tokens:-}"
-  DICTATE_LAST_POSTPROCESS_BUDGET_CHUNK_WORDS="${chunk_words:-}"
-  DICTATE_LAST_POSTPROCESS_BUDGET_CHUNK_COUNT="1"
-  DICTATE_LAST_POSTPROCESS_BUDGET_LLM_MODEL="${llm_model:-}"
-
-  maybe_reject_llm_output() {
-    local input_chunk="$1"
-    local output_text="$2"
-    local mode="$3"
-
-    local in_trim out_trim
-    in_trim="$(printf '%s' "$input_chunk" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
-    out_trim="$(printf '%s' "$output_text" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
-
-    case "$(mode_override_key "$mode")" in
-      code)
-        # Guardrail: in code mode, we want cleaned instructions, not generated artefacts.
-        if [[ ! "$in_trim" =~ ^[\\{\\[] ]] && [[ "$out_trim" =~ ^[\\{\\[] ]]; then
-          if printf '%s' "$out_trim" | grep -Eq '"prompt"[[:space:]]*:'; then
-            echo "$input_chunk"
-            return 0
-          fi
-        fi
-        if [[ "$out_trim" == '```'* && "$in_trim" != '```'* ]]; then
-          echo "$input_chunk"
-          return 0
-        fi
-        ;;
-    esac
-
-    echo "$output_text"
-  }
-
-  request_llm() {
-    local chunk="$1"
-    local escaped_input escaped_prompt
-    escaped_input="$(printf '%s' "$chunk" | jq -Rs .)"
-    escaped_prompt="$(printf '%s' "$system_prompt" | jq -Rs .)"
-
-    local timeout="${DICTATE_LLM_TIMEOUT:-20}"
-    local response=""
-    local curl_rc=0
-    local max_tokens_json=""
-    if [[ -n "$max_tokens" ]]; then
-      max_tokens_json=", \"max_tokens\": ${max_tokens}"
-    fi
-    set +e
-    response="$(curl -sS --fail-with-body --connect-timeout 3 --max-time "$timeout" https://api.cerebras.ai/v1/chat/completions \
-      -H "Authorization: Bearer $CEREBRAS_API_KEY" \
-      -H "Content-Type: application/json" \
-      -d '{
-        "model": "'"$llm_model"'",
-        "messages": [
-          {"role": "system", "content": '"$escaped_prompt"'},
-          {"role": "user", "content": '"$escaped_input"'}
-        ],
-        "temperature": 0.0'"$max_tokens_json"'
-      }' 2>&1)"
-    curl_rc=$?
-    set -e
-    if [[ "$curl_rc" -ne 0 ]]; then
-      if keep_logs_enabled; then
-        printf "[%s] LLM request failed (curl=%s, timeout=%s, mode=%s, model=%s)\n%s\n\n" \
-          "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$curl_rc" "$timeout" "$current_mode" "$llm_model" "$response" \
-          >>"$TMPDIR/whisper-dictate.llm.log" 2>/dev/null || true
-      fi
-      echo "$chunk"
-      return 0
-    fi
-
-    local result
-    result="$(printf '%s' "$response" | jq -r '.choices[0].message.content // empty' 2>/dev/null)"
-
-    if [[ -n "$result" && "$result" != "null" ]]; then
-      result="$(maybe_reject_llm_output "$chunk" "$result" "$current_mode")"
-      echo "$result"
-      return 0
-    fi
-
-    local api_error=""
-    api_error="$(printf '%s' "$response" | jq -r '.error.message // .error // empty' 2>/dev/null)"
-    if [[ -n "$api_error" ]]; then
-      if keep_logs_enabled; then
-        printf "[%s] LLM api error (mode=%s, model=%s): %s\n\n" \
-          "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$current_mode" "$llm_model" "$api_error" \
-          >>"$TMPDIR/whisper-dictate.llm.log" 2>/dev/null || true
-      fi
-      echo "$chunk"
-      return 0
-    fi
-    if keep_logs_enabled; then
-      printf "[%s] LLM response parse/empty (mode=%s, model=%s)\n%s\n\n" \
-        "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$current_mode" "$llm_model" "$response" \
-        >>"$TMPDIR/whisper-dictate.llm.log" 2>/dev/null || true
-    fi
-    echo "$chunk"
-  }
-
-  if [[ "$chunk_words" =~ ^[0-9]+$ && "$chunk_words" -gt 0 ]]; then
-    local chunks
-    chunks="$(
-      python3 - "$chunk_words" <<'PYEOF'
-import re, sys
-max_words = int(sys.argv[1])
-text = sys.stdin.read()
-text = re.sub(r"\s+", " ", text).strip()
-if not text:
-    print("")
-    raise SystemExit(0)
-sentences = re.split(r'(?<=[.!?])\s+', text)
-chunks = []
-cur = []
-count = 0
-for s in sentences:
-    w = len(re.findall(r"\b\w+\b", s))
-    if count + w > max_words and cur:
-        chunks.append(" ".join(cur).strip())
-        cur = [s]
-        count = w
-    else:
-        cur.append(s)
-        count += w
-if cur:
-    chunks.append(" ".join(cur).strip())
-print("\n<<DICTATE_CHUNK>>\n".join(chunks))
-PYEOF
-    <<<"$input")"
-    if [[ -n "$chunks" ]]; then
-      IFS=$'\n' read -r -d '' -a chunk_list < <(printf '%s' "$chunks" | awk 'BEGIN{RS="<<DICTATE_CHUNK>>"; ORS="\0"} {print}')
-      local output="" first="1"
-      local chunk_count_used="0"
-      for c in "${chunk_list[@]}"; do
-        c="$(printf "%s" "$c" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
-        [[ -z "$c" ]] && continue
-        chunk_count_used=$((chunk_count_used + 1))
-        local part
-        part="$(request_llm "$c")"
-        if [[ "$first" == "1" ]]; then
-          output="$part"
-          first="0"
-        else
-          output="${output}"$'\n\n'"$part"
-        fi
-      done
-      if [[ "$chunk_count_used" =~ ^[0-9]+$ && "$chunk_count_used" -gt 0 ]]; then
-        DICTATE_LAST_POSTPROCESS_BUDGET_CHUNK_COUNT="$chunk_count_used"
-      fi
-      write_postprocess_obs_file
-      echo "$output"
-      return 0
-    fi
-  fi
-
-  write_postprocess_obs_file
-  request_llm "$input"
-}
-
 bool_is_on() {
   local raw="${1:-}"
   local v
@@ -4182,17 +3248,6 @@ bool_is_on() {
     1|true|yes|on) return 0 ;;
     *) return 1 ;;
   esac
-}
-
-# Inline LLM post-processing runs only when enabled and a key is present.
-resolve_inline_postprocess_effective() {
-  local do_postprocess="${DICTATE_POSTPROCESS:-}"
-  [[ -z "$do_postprocess" ]] && do_postprocess="${CFG_POSTPROCESS_ENABLED:-0}"
-  if bool_is_on "$do_postprocess" && [[ -n "${CEREBRAS_API_KEY:-}" ]]; then
-    echo "1"
-  else
-    echo "0"
-  fi
 }
 
 # The inline pipeline behind `inline process --json`: transcribe a WAV, clean
@@ -4214,11 +3269,9 @@ process_inline_recording() {
   inline_proc_file="$PROCESSING_MARKER_FILE"
   trap 'processing_marker_stop "$inline_proc_file"; trap - RETURN' RETURN
 
-  local do_postprocess
-  do_postprocess="$(resolve_inline_postprocess_effective)"
   local detected_mode="none"
   local flow_started_ms
-  local transcribe_ms=0 clean_ms=0 postprocess_ms=0 paste_ms=0 total_ms=0
+  local transcribe_ms=0 clean_ms=0 paste_ms=0 total_ms=0
   local stage_started_ms
   local transcribe_log
   transcribe_log="$TMPDIR/whisper-dictate-inline.transcribe.log"
@@ -4245,10 +3298,10 @@ process_inline_recording() {
   if [[ ! -s "$wav" ]]; then
     echo "No audio recorded"
     total_ms=$(( $(now_ms) - flow_started_ms ))
-    append_bench_entry "inline" "record_failed" "$model_id" "$detected_mode" "$do_postprocess" "0" "0" "$record_ms" "0" "0" "0" "0" "$total_ms" \
+    append_bench_entry "inline" "record_failed" "$model_id" "$detected_mode" "0" "0" "0" "$record_ms" "0" "0" "0" "0" "$total_ms" \
       "$startup_total_ms" "0" "0" "0" "$startup_audio_source"
     archive_inline_debug_artifacts "$archive_prefix" "$wav" "$transcribe_log" "record_failed" \
-      "$record_ms" "0" "0" "0" "0" "$total_ms"
+      "$record_ms" "0" "0" "0" "$total_ms"
     return 1
   fi
 
@@ -4259,13 +3312,9 @@ process_inline_recording() {
   echo "⏳ Transcribing..."
 
   local whisper_rc=0
-  local runtime_skip_silence_trim="0"
-  if [[ "$do_postprocess" == "1" ]] && ! bool_is_on "${DICTATE_TRIM_WITH_POSTPROCESS:-0}"; then
-    runtime_skip_silence_trim="1"
-  fi
   stage_started_ms="$(now_ms)"
   set +e
-  txt="$(DICTATE_RUNTIME_SKIP_SILENCE_TRIM="$runtime_skip_silence_trim" transcribe_audio "$wav" "$model_id" "${DICTATE_LANGUAGE:-en}" "" "inline")"
+  txt="$(transcribe_audio "$wav" "$model_id" "${DICTATE_LANGUAGE:-en}" "" "inline")"
   whisper_rc=$?
   set -e
   transcribe_ms=$(( $(now_ms) - stage_started_ms ))
@@ -4273,25 +3322,25 @@ process_inline_recording() {
     echo "Transcription failed (backend exit $whisper_rc)"
     echo "Log: $transcribe_log"
     total_ms=$(( $(now_ms) - flow_started_ms ))
-    append_bench_entry "inline" "transcribe_failed" "$model_id" "$detected_mode" "$do_postprocess" "0" "0" "$record_ms" "$transcribe_ms" "0" "0" "0" "$total_ms" \
+    append_bench_entry "inline" "transcribe_failed" "$model_id" "$detected_mode" "0" "0" "0" "$record_ms" "$transcribe_ms" "0" "0" "0" "$total_ms" \
       "$startup_total_ms" "0" "0" "0" "$startup_audio_source"
     archive_inline_debug_artifacts "$archive_prefix" "$wav" "$transcribe_log" "transcribe_failed" \
-      "$record_ms" "$transcribe_ms" "0" "0" "0" "$total_ms"
+      "$record_ms" "$transcribe_ms" "0" "0" "$total_ms"
     return 1
   fi
 
   stage_started_ms="$(now_ms)"
-  cleanup_raw_transcript "$txt" "$do_postprocess"
+  cleanup_raw_transcript "$txt"
   txt="$CLEANUP_TEXT"
   clean_ms=$(( $(now_ms) - stage_started_ms ))
 
   if [[ -z "${txt//[[:space:]]/}" ]]; then
     echo "No speech detected"
     total_ms=$(( $(now_ms) - flow_started_ms ))
-    append_bench_entry "inline" "no_speech" "$model_id" "$detected_mode" "$do_postprocess" "0" "0" "$record_ms" "$transcribe_ms" "$clean_ms" "0" "0" "$total_ms" \
+    append_bench_entry "inline" "no_speech" "$model_id" "$detected_mode" "0" "0" "0" "$record_ms" "$transcribe_ms" "$clean_ms" "0" "0" "$total_ms" \
       "$startup_total_ms" "0" "0" "0" "$startup_audio_source"
     archive_inline_debug_artifacts "$archive_prefix" "$wav" "$transcribe_log" "no_speech" \
-      "$record_ms" "$transcribe_ms" "$clean_ms" "0" "0" "$total_ms"
+      "$record_ms" "$transcribe_ms" "$clean_ms" "0" "$total_ms"
     return 1
   fi
 
@@ -4300,23 +3349,7 @@ process_inline_recording() {
   resolve_inline_mode "$target_app"
   detected_mode="$RESOLVED_MODE"
 
-  if [[ "$do_postprocess" == "1" ]]; then
-    stage_started_ms="$(now_ms)"
-    echo "🤖 Post-processing ($detected_mode mode)..."
-
-    local inline_postprocess_obs_file=""
-    inline_postprocess_obs_file="$(mktemp "${TMPDIR:-/tmp}/dictate-inline-postprocess-obs.XXXXXX" 2>/dev/null || true)"
-    if [[ -n "$inline_postprocess_obs_file" ]]; then
-      txt="$(DICTATE_FORCE_MODE="$detected_mode" DICTATE_POSTPROCESS_OBS_FILE="$inline_postprocess_obs_file" postprocess_llm "$txt" "$target_app")"
-      load_postprocess_obs_file "$inline_postprocess_obs_file"
-      rm -f "$inline_postprocess_obs_file" 2>/dev/null || true
-    else
-      txt="$(DICTATE_FORCE_MODE="$detected_mode" postprocess_llm "$txt" "$target_app")"
-    fi
-    postprocess_ms=$(( $(now_ms) - stage_started_ms ))
-  fi
-
-  finish_transcript_text "$txt" "$detected_mode" "$do_postprocess"
+  finish_transcript_text "$txt" "$detected_mode"
   txt="$CLEANUP_TEXT"
 
   # The caller pastes/sends and plays sounds itself; hand the final text
@@ -4343,48 +3376,20 @@ process_inline_recording() {
     usage_record_delivery "inline" "$txt" "$record_ms" "$usage_full_elapsed_ms" || \
       echo "[usage] unable to record delivered dictation summary" >&2
   fi
-  append_bench_entry "inline" "ok" "$model_id" "$detected_mode" "$do_postprocess" "${#raw_txt}" "${#txt}" "$record_ms" "$transcribe_ms" "$clean_ms" "$postprocess_ms" "$paste_ms" "$total_ms" \
+  append_bench_entry "inline" "ok" "$model_id" "$detected_mode" "0" "${#raw_txt}" "${#txt}" "$record_ms" "$transcribe_ms" "$clean_ms" "0" "$paste_ms" "$total_ms" \
     "$startup_total_ms" "0" "0" "0" "$startup_audio_source"
 
-  INLINE_EXTERNAL_TIMINGS="record_ms=$record_ms transcribe_ms=$transcribe_ms clean_ms=$clean_ms postprocess_ms=$postprocess_ms total_ms=$total_ms"
+  INLINE_EXTERNAL_TIMINGS="record_ms=$record_ms transcribe_ms=$transcribe_ms clean_ms=$clean_ms total_ms=$total_ms"
 
   archive_inline_debug_artifacts "$archive_prefix" "$wav" "$transcribe_log" "ok" \
-    "$record_ms" "$transcribe_ms" "$clean_ms" "$postprocess_ms" "$paste_ms" "$total_ms"
+    "$record_ms" "$transcribe_ms" "$clean_ms" "$paste_ms" "$total_ms"
 
   # Save history asynchronously so the caller gets its text without waiting
   # on JSON + file I/O.
   local history_app="${target_app:-current}"
   (
-    save_history "$raw_txt" "$txt" "$detected_mode" "${history_app:-unknown}" "$record_ms" "$transcribe_ms" "$clean_ms" "$postprocess_ms" "$paste_ms" "$total_ms"
+    save_history "$raw_txt" "$txt" "$detected_mode" "${history_app:-unknown}" "$record_ms" "$transcribe_ms" "$clean_ms" "$paste_ms" "$total_ms"
   ) >/dev/null 2>&1 &
-}
-
-set_postprocess() {
-  local val="${1:-}"
-  case "$val" in
-    on|1)
-      config_set "postprocess.enabled" "bool" "true"
-      config_load
-      echo "Post-processing: ON (Cerebras)"
-      echo "Mode prompt: active when postprocess runs"
-      ;;
-    off|0)
-      config_set "postprocess.enabled" "bool" "false"
-      config_load
-      echo "Post-processing: OFF"
-      echo "Mode prompt: inactive (postprocess OFF)"
-      ;;
-    "")
-      if [[ "${CFG_POSTPROCESS_ENABLED:-0}" == "1" ]]; then
-        echo "Post-processing: ON"
-        echo "Mode prompt: active when postprocess runs"
-      else
-        echo "Post-processing: OFF"
-        echo "Mode prompt: inactive (postprocess OFF)"
-      fi
-      ;;
-    *) die "unknown value: $val (use: on, off)" ;;
-  esac
 }
 
 set_keep_logs() {
@@ -4410,41 +3415,6 @@ set_keep_logs() {
       ;;
     *)
       die "usage: tmux-whisper keep-logs [on|off]"
-      ;;
-  esac
-}
-
-set_silence_trim() {
-  local val="${1:-show}"
-  case "$val" in
-    on|1|true)
-      config_set "audio.silence_trim" "bool" "true"
-      config_load
-      echo "silence_trim: ON"
-      ;;
-    off|0|false)
-      config_set "audio.silence_trim" "bool" "false"
-      config_load
-      echo "silence_trim: OFF"
-      ;;
-    toggle)
-      if [[ "${CFG_AUDIO_SILENCE_TRIM:-0}" == "1" ]]; then
-        config_set "audio.silence_trim" "bool" "false"
-      else
-        config_set "audio.silence_trim" "bool" "true"
-      fi
-      config_load
-      [[ "${CFG_AUDIO_SILENCE_TRIM:-0}" == "1" ]] && echo "silence_trim: ON" || echo "silence_trim: OFF"
-      ;;
-    show|"")
-      [[ "${CFG_AUDIO_SILENCE_TRIM:-0}" == "1" ]] && echo "silence_trim: ON" || echo "silence_trim: OFF"
-      echo "mode: ${CFG_AUDIO_SILENCE_TRIM_MODE:-edges}"
-      echo "threshold_db: ${CFG_AUDIO_SILENCE_THRESHOLD_DB:--60}"
-      echo "min_ms: ${CFG_AUDIO_SILENCE_MIN_MS:-250}"
-      echo "keep_ms: ${CFG_AUDIO_SILENCE_KEEP_MS:-50}"
-      ;;
-    *)
-      die "usage: tmux-whisper silence-trim [on|off|toggle|show]"
       ;;
   esac
 }
@@ -4609,239 +3579,6 @@ set_inline_send_mode() {
       ;;
     *)
       die "unknown value: $val (use: enter, ctrl_j, cmd_enter)"
-      ;;
-  esac
-}
-
-set_llm() {
-  local a1="${1:-}"
-  local a2="${2:-}"
-
-  lookup_override() {
-    local list="${1:-}"
-    local key="${2:-}"
-    [[ -n "$list" && -n "$key" ]] || return 1
-    local IFS=';'
-    read -r -a pairs <<<"$list"
-    local pair
-    for pair in "${pairs[@]}"; do
-      [[ "$pair" == "$key="* ]] && { echo "${pair#*=}"; return 0; }
-    done
-    return 1
-  }
-
-  lookup_override_for_mode() {
-    local list="${1:-}"
-    local key="${2:-}"
-    lookup_override "$list" "$key" 2>/dev/null || true
-  }
-
-  resolve_llm_alias() {
-    local name="${1:-}"
-    case "$name" in
-      fast|8b) echo "llama3.1-8b" ;;
-      smart|70b) echo "llama-3.3-70b" ;;
-      qwen|32b) echo "qwen-3-32b" ;;
-      gpt|oss) echo "gpt-oss-120b" ;;
-      *) echo "$name" ;;
-    esac
-  }
-
-  if [[ -n "$a1" && -z "$a2" && -d "$DICTATE_CONFIG_DIR/modes/$(mode_to_dir_name "$a1")" ]]; then
-    local mode
-    mode="$(canonical_mode_name "$a1")"
-    local mode_key
-    mode_key="$(mode_override_key "$mode")"
-    local override=""
-    override="$(lookup_override_for_mode "${CFG_POSTPROCESS_MODE_LLM_OVERRIDES:-}" "$mode_key" 2>/dev/null || true)"
-    if [[ -n "$override" ]]; then
-      echo "LLM override for mode '$mode': $override"
-    else
-      echo "LLM override for mode '$mode': (none; uses global ${CFG_POSTPROCESS_LLM:-llama3.1-8b})"
-    fi
-    echo ""
-    echo "Set with:"
-    echo "  tmux-whisper llm $mode fast|smart|qwen|gpt"
-    return 0
-  fi
-
-  if [[ -n "$a1" && -n "$a2" && -d "$DICTATE_CONFIG_DIR/modes/$(mode_to_dir_name "$a1")" ]]; then
-    local mode
-    mode="$(canonical_mode_name "$a1")"
-    local mode_key
-    mode_key="$(mode_override_key "$mode")"
-    local model_id
-    model_id="$(resolve_llm_alias "$a2")"
-    config_set "postprocess.mode_llm_overrides.${mode_key}" "string" "$model_id"
-    config_load
-    echo "LLM override set for mode '$mode': $model_id"
-    return 0
-  fi
-
-  local name="$a1"
-  case "$name" in
-    fast|8b)   config_set "postprocess.llm" "string" "llama3.1-8b";  config_load; echo "LLM set: llama3.1-8b (fast)" ;;
-    smart|70b) config_set "postprocess.llm" "string" "llama-3.3-70b"; config_load; echo "LLM set: llama-3.3-70b (smart)" ;;
-    qwen|32b)  config_set "postprocess.llm" "string" "qwen-3-32b";     config_load; echo "LLM set: qwen-3-32b (balanced)" ;;
-    gpt|oss)   config_set "postprocess.llm" "string" "gpt-oss-120b";   config_load; echo "LLM set: gpt-oss-120b (fastest+smart)" ;;
-    "")
-      local current="llama3.1-8b"
-      [[ -n "${CFG_POSTPROCESS_LLM:-}" ]] && current="$CFG_POSTPROCESS_LLM"
-      echo "Current LLM: $current"
-      echo ""
-      echo "Available:"
-      echo "  fast  (llama3.1-8b)   - ~2200 t/s, simple cleanup"
-      echo "  smart (llama-3.3-70b) - ~2100 t/s, better understanding"
-      echo "  qwen  (qwen-3-32b)    - ~2600 t/s, balanced"
-      echo "  gpt   (gpt-oss-120b)  - ~3000 t/s, fastest + 120B params"
-      echo ""
-      echo "Per-mode override:"
-      echo "  tmux-whisper llm <mode> <llm>   (e.g., tmux-whisper llm code smart)"
-      ;;
-    *) die "unknown LLM: $name (use: fast, smart, qwen, gpt, or: tmux-whisper llm <mode> <llm>)" ;;
-  esac
-}
-
-set_budget() {
-  local a1="${1:-}"
-  local a2="${2:-}"
-  local a3="${3:-}"
-
-  lookup_override() {
-    local list="${1:-}"
-    local key="${2:-}"
-    [[ -n "$list" && -n "$key" ]] || return 1
-    local IFS=';'
-    read -r -a pairs <<<"$list"
-    local pair
-    for pair in "${pairs[@]}"; do
-      [[ "$pair" == "$key="* ]] && { echo "${pair#*=}"; return 0; }
-    done
-    return 1
-  }
-
-  lookup_override_for_mode() {
-    local list="${1:-}"
-    local key="${2:-}"
-    lookup_override "$list" "$key" 2>/dev/null || true
-  }
-
-  resolve_llm_alias() {
-    local name="${1:-}"
-    case "$name" in
-      fast|8b) echo "llama3.1-8b" ;;
-      smart|70b) echo "llama-3.3-70b" ;;
-      qwen|32b) echo "qwen-3-32b" ;;
-      gpt|oss) echo "gpt-oss-120b" ;;
-      *) echo "$name" ;;
-    esac
-  }
-
-  show_one_budget_profile() {
-    local profile="${1:-short}"
-    local profile_key
-    profile_key="$(mode_override_key "$profile")"
-
-    local llm_override max_override chunk_override
-    llm_override="$(lookup_override_for_mode "${CFG_POSTPROCESS_BUDGET_PROFILE_LLM_OVERRIDES:-}" "$profile_key" 2>/dev/null || true)"
-    max_override="$(lookup_override_for_mode "${CFG_POSTPROCESS_BUDGET_PROFILE_MAX_TOKENS_OVERRIDES:-}" "$profile_key" 2>/dev/null || true)"
-    chunk_override="$(lookup_override_for_mode "${CFG_POSTPROCESS_BUDGET_PROFILE_CHUNK_WORDS_OVERRIDES:-}" "$profile_key" 2>/dev/null || true)"
-
-    local llm_effective max_effective chunk_effective
-    llm_effective="${llm_override:-${CFG_POSTPROCESS_LLM:-llama3.1-8b}}"
-    max_effective="${max_override:-${CFG_POSTPROCESS_MAX_TOKENS:-}}"
-    chunk_effective="${chunk_override:-${CFG_POSTPROCESS_CHUNK_WORDS:-}}"
-
-    echo "$profile budget profile:"
-    echo "  llm: ${llm_effective}${llm_override:+ (override)}"
-    [[ -n "$max_effective" ]] && echo "  max_tokens: ${max_effective}${max_override:+ (override)}" || echo "  max_tokens: <unset>"
-    [[ -n "$chunk_effective" ]] && echo "  chunk_words: ${chunk_effective}${chunk_override:+ (override)}" || echo "  chunk_words: <unset>"
-  }
-
-  if [[ -z "$a1" ]]; then
-    echo "Postprocess budget profiles"
-    echo ""
-    echo "Global defaults:"
-    echo "  llm: ${CFG_POSTPROCESS_LLM:-llama3.1-8b}"
-    [[ -n "${CFG_POSTPROCESS_MAX_TOKENS:-}" ]] && echo "  max_tokens: ${CFG_POSTPROCESS_MAX_TOKENS}" || echo "  max_tokens: <unset>"
-    [[ -n "${CFG_POSTPROCESS_CHUNK_WORDS:-}" ]] && echo "  chunk_words: ${CFG_POSTPROCESS_CHUNK_WORDS}" || echo "  chunk_words: <unset>"
-    echo "  auto_long_words_threshold: ${CFG_POSTPROCESS_BUDGET_LONG_WORDS_THRESHOLD:-120}"
-    echo "  auto_numeric_sizing: dynamic (max_tokens/chunk_words interpolate short->long by transcript words; clamp at threshold)"
-    echo ""
-    show_one_budget_profile "short"
-    echo ""
-    show_one_budget_profile "long"
-    echo ""
-    echo "Set overrides:"
-    echo "  tmux-whisper budget short llm gpt"
-    echo "  tmux-whisper budget short max_tokens 2000"
-    echo "  tmux-whisper budget long chunk_words 1000"
-    echo "  tmux-whisper budget threshold 120"
-    return 0
-  fi
-
-  if [[ "$a1" == "threshold" ]]; then
-    if [[ -z "$a2" ]]; then
-      echo "budget auto_long_words_threshold: ${CFG_POSTPROCESS_BUDGET_LONG_WORDS_THRESHOLD:-120}"
-      echo ""
-      echo "Set with:"
-      echo "  tmux-whisper budget threshold <words>"
-      return 0
-    fi
-    [[ "$a2" =~ ^[0-9]+$ ]] || die "usage: tmux-whisper budget threshold <words>"
-    [[ "$a2" -gt 0 ]] || die "threshold must be > 0"
-    config_set "postprocess.budget_long_words_threshold" "int" "$a2"
-    config_load
-    echo "budget auto_long_words_threshold: ${CFG_POSTPROCESS_BUDGET_LONG_WORDS_THRESHOLD:-$a2}"
-    return 0
-  fi
-
-  local profile
-  profile="$(canonical_mode_name "$a1")"
-  case "$profile" in
-    short|long) ;;
-    *) die "usage: tmux-whisper budget [short|long|threshold] [llm|max_tokens|chunk_words|clear|<words>] [value]" ;;
-  esac
-  local profile_key
-  profile_key="$(mode_override_key "$profile")"
-
-  if [[ -z "$a2" ]]; then
-    show_one_budget_profile "$profile"
-    echo ""
-    echo "Set overrides:"
-    echo "  tmux-whisper budget $profile llm gpt|smart|qwen|fast|<model>"
-    echo "  tmux-whisper budget $profile max_tokens <n>"
-    echo "  tmux-whisper budget $profile chunk_words <n>"
-    echo "  tmux-whisper budget $profile clear"
-    return 0
-  fi
-
-  case "$a2" in
-    llm)
-      [[ -n "$a3" ]] || die "usage: tmux-whisper budget $profile llm <model|fast|smart|qwen|gpt>"
-      local llm_id
-      llm_id="$(resolve_llm_alias "$a3")"
-      config_set "postprocess.budget_profiles.${profile_key}.llm" "string" "$llm_id"
-      config_load
-      echo "$profile budget profile llm: $llm_id"
-      ;;
-    max_tokens|chunk_words)
-      [[ -n "$a3" ]] || die "usage: tmux-whisper budget $profile $a2 <n>"
-      [[ "$a3" =~ ^[0-9]+$ ]] || die "$a2 must be a positive integer"
-      [[ "$a3" -gt 0 ]] || die "$a2 must be > 0"
-      config_set "postprocess.budget_profiles.${profile_key}.${a2}" "int" "$a3"
-      config_load
-      echo "$profile budget profile $a2: $a3"
-      ;;
-    clear|reset)
-      config_set "postprocess.budget_profiles.${profile_key}.llm" "string" ""
-      config_set "postprocess.budget_profiles.${profile_key}.max_tokens" "int" ""
-      config_set "postprocess.budget_profiles.${profile_key}.chunk_words" "int" ""
-      config_load
-      echo "$profile budget profile overrides cleared (now using global defaults)."
-      ;;
-    *)
-      die "usage: tmux-whisper budget [short|long|threshold] [llm|max_tokens|chunk_words|clear|<words>] [value]"
       ;;
   esac
 }
@@ -5301,11 +4038,8 @@ manage_mode() {
       mkdir -p "$new_dir"
       touch "$new_dir/apps"
       touch "$new_dir/vocab"
-      echo "Context: $new_mode mode." > "$new_dir/prompt"
       echo "Created mode: $new_mode"
       echo "  Edit apps: tmux-whisper mode apps add \"AppName\""
-      echo "  Edit prompt: \$EDITOR $new_dir/prompt"
-      echo "  Set flows: tmux-whisper mode flows $new_mode both"
       ;;
     flows)
       local flow_target="${1:-}"
@@ -5332,20 +4066,6 @@ manage_mode() {
         show_mode_flows "$target_mode"
       fi
       ;;
-    edit)
-      local mode_to_edit="${1:-}"
-      if [[ -z "$mode_to_edit" ]]; then
-        # Edit current mode
-        mode_to_edit="$(get_current_mode)"
-      fi
-      mode_to_edit="$(canonical_mode_name "$mode_to_edit")"
-      local prompt_file="$DICTATE_CONFIG_DIR/modes/$(mode_to_dir_name "$mode_to_edit")/prompt"
-      if [[ ! -f "$prompt_file" ]]; then
-        mkdir -p "$(dirname "$prompt_file")"
-        echo "Context: $mode_to_edit mode." > "$prompt_file"
-      fi
-      ${EDITOR:-nvim} "$prompt_file"
-      ;;
     "")
       # Show current mode and list all
       local current_raw current
@@ -5361,12 +4081,6 @@ manage_mode() {
         current="$(canonical_mode_name "$current_raw")"
         echo "Current mode: $(mode_display_name "$current") (fixed)"
       fi
-      if [[ "${CFG_POSTPROCESS_ENABLED:-0}" == "1" ]]; then
-        echo "Mode prompt (inline): active when postprocess runs"
-      else
-        echo "Mode prompt (inline): inactive (postprocess OFF)"
-      fi
-      
       echo ""
       echo "Available modes:"
       local mode_name mode_dir app_count flows_desc listed_any="0"
@@ -5376,16 +4090,12 @@ manage_mode() {
         mode_dir="$DICTATE_CONFIG_DIR/modes/$(mode_to_dir_name "$mode_name")"
         app_count=0
         [[ -f "$mode_dir/apps" ]] && app_count="$(wc -l < "$mode_dir/apps" | tr -d ' ')"
-        if mode_allows_flow "$mode_name" "tmux" && mode_allows_flow "$mode_name" "inline"; then
-          flows_desc="tmux+inline"
-        elif mode_allows_flow "$mode_name" "tmux"; then
-          flows_desc="tmux"
-        elif mode_allows_flow "$mode_name" "inline"; then
-          flows_desc="inline"
+        if mode_allows_flow "$mode_name" "inline"; then
+          flows_desc="used by Lowkey"
         else
-          flows_desc="hidden"
+          flows_desc="hidden (flows file excludes inline)"
         fi
-        echo "  $(mode_display_name "$mode_name") ($app_count apps, flows: $flows_desc)"
+        echo "  $(mode_display_name "$mode_name") ($app_count apps, $flows_desc)"
       done < <(list_modes "")
       [[ "$listed_any" == "1" ]] || echo "  (none)"
       echo ""
@@ -5394,9 +4104,8 @@ manage_mode() {
       echo "  tmux-whisper mode <name>     - set fixed mode (e.g. code)"
       echo "  tmux-whisper mode apps       - list apps for current mode"
       echo "  tmux-whisper mode apps add X - add app to current mode"
-      echo "  tmux-whisper mode flows X Y  - set flows for mode X to inline|tmux|both"
+      echo "  tmux-whisper mode flows X inline - let Lowkey use mode X"
       echo "  tmux-whisper mode create X   - create new mode"
-      echo "  tmux-whisper mode edit [X]   - edit mode prompt"
       echo "  tmux-whisper mode flows X    - show current flow config for mode X"
       ;;
     auto)
@@ -5416,66 +4125,6 @@ manage_mode() {
       fi
       ;;
   esac
-}
-
-# Replay: re-run LLM post-processing on clipboard or provided text with a mode
-# Usage: tmux-whisper replay [mode] [text]
-#   tmux-whisper replay long          # reprocess clipboard with long mode
-#   tmux-whisper replay long "text"   # reprocess provided text with long mode
-replay() {
-  local target_mode="${1:-}"
-  shift 2>/dev/null || true
-  local provided_text="$*"
-  
-  # Check for API key
-  if [[ -z "${CEREBRAS_API_KEY:-}" ]]; then
-    die "replay requires CEREBRAS_API_KEY for LLM post-processing"
-  fi
-  
-  # Get input: from argument or clipboard
-  local input
-  if [[ -n "$provided_text" ]]; then
-    input="$provided_text"
-    echo "📝 Using provided text..."
-  else
-    input="$(pbpaste)"
-    if [[ -z "$input" ]]; then
-      die "clipboard is empty (or provide text: tmux-whisper replay <mode> \"text\")"
-    fi
-  fi
-  
-  # Determine mode
-  local mode_to_use
-  if [[ -n "$target_mode" ]]; then
-    target_mode="$(canonical_mode_name "$target_mode")"
-    # Validate mode exists
-    if [[ ! -d "$DICTATE_CONFIG_DIR/modes/$(mode_to_dir_name "$target_mode")" ]]; then
-      die "unknown mode: $target_mode (available: $(ls -1 "$DICTATE_CONFIG_DIR/modes" 2>/dev/null | tr '\n' ' '))"
-    fi
-    mode_to_use="$target_mode"
-  else
-    mode_to_use="$(get_current_mode)"
-  fi
-  
-  echo "📋 Clipboard: ${input:0:50}..."
-  echo "🔄 Re-processing with $(mode_display_name "$mode_to_use") mode..."
-  
-  # Force the mode and run post-processing
-  local result
-  result="$(DICTATE_FORCE_MODE="$mode_to_use" postprocess_llm "$input" "")"
-  result="$(printf "%s" "$result" | auto_paragraphs "$mode_to_use" | normalize_british_spelling)"
-  
-  if [[ -z "$result" || "$result" == "$input" ]]; then
-    echo "⚠️ No changes (LLM returned same text or failed)"
-    return 0
-  fi
-  
-  # Copy result to clipboard
-  printf "%s" "$result" | pbcopy
-  
-  echo "✅ Done. Result copied to clipboard:"
-  echo ""
-  echo "$result"
 }
 
 manage_sounds() {
@@ -5542,7 +4191,6 @@ case "$cmd" in
   finder) manage_finder "${2:-}" ;;
   app-config) app_config_json "${@:2}" ;;
   bench) bench "${@:2}" ;;
-  bench-matrix|bench_matrix) bench_matrix "${2:-}" "${3:-}" ;;
   changelog) changelog ;;
   config) manage_config "${2:-}" "${@:3}" ;;
   status) status "${@:2}" ;;
@@ -5556,18 +4204,13 @@ case "$cmd" in
     esac
     ;;
   sound|sounds) manage_sounds "${2:-}" "${3:-}" ;;
-  postprocess) set_postprocess "${2:-}" ;;
   keep-logs|keep_logs|keeplogs) set_keep_logs "${2:-}" ;;
-  silence-trim|silence_trim) set_silence_trim "${2:-}" ;;
   repeats) set_repeats_level "${2:-}" ;;
   autosend) set_autosend "${2:-}" ;;
   send-mode|send_mode|sendmode) set_inline_send_mode "${2:-}" ;;
   target|paste_target) set_paste_target "${2:-}" ;;
-  llm) set_llm "${2:-}" "${3:-}" ;;
-  budget) set_budget "${2:-}" "${3:-}" "${4:-}" ;;
   vocab) manage_vocab "${2:-}" "${@:3}" ;;
   mode) manage_mode "${2:-}" "${@:3}" ;;
-  replay) replay "${2:-}" "${@:3}" ;;
   history) manage_history "${@:2}" ;;
   version|--version) show_version "${@:2}" ;;
   usage)
