@@ -104,6 +104,12 @@ for p in (modes_dir, mode_file):
     if os.path.islink(p):
         sys.exit(f"tmux-whisper: {p} is a symlink to {os.readlink(p)}; move it out of {config_dir} by hand (its vocab can go in with: tmux-whisper vocab import <file>)")
 
+# A vocab linked into modes/ would dangle once modes/ is archived.
+if os.path.islink(vocab_path) and os.path.isdir(modes_dir):
+    real_modes = os.path.realpath(modes_dir) + os.sep
+    if os.path.realpath(vocab_path).startswith(real_modes):
+        sys.exit(f"tmux-whisper: {vocab_path} links into {modes_dir}; replace the link with a copy of the file, then run: tmux-whisper migrate-modes")
+
 existing = {}
 vocab_text = ""
 if os.path.isfile(vocab_path):
@@ -133,10 +139,10 @@ for name in mode_names:
             if existing[k] == rule[1]:
                 duplicates += 1
             else:
-                conflicts.append(f"{line.strip()} (vocab keeps {rule[0]} -> {existing[k]})")
+                conflicts.append(f"{trim(line)} (vocab keeps {rule[0]} -> {existing[k]})")
             continue
         existing[k] = rule[1]
-        added.append(line.strip())
+        added.append(trim(line))
     if added:
         blocks.append((name, added))
     report.append((name, len(added), duplicates, conflicts))

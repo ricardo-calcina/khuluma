@@ -200,6 +200,16 @@ if [[ ! -L "$CFG/modes" || "$(cat "$CFG/vocab")" != "$vocab_before" || "$(find "
   exit 1
 fi
 rm "$CFG/modes"
+mkdir -p "$CFG/modes/base"
+printf '%s\n' 'foo::Bar' > "$CFG/modes/base/vocab"
+mv "$CFG/vocab" "$HOME/vocab.link-saved"
+ln -s "$CFG/modes/base/vocab" "$CFG/vocab"
+if migrate >/dev/null 2>&1 || [[ ! -d "$CFG/modes" ]]; then
+  echo "Expected migration to refuse a vocab linked into modes/" >&2
+  exit 1
+fi
+rm -rf "$CFG/vocab" "$CFG/modes"
+mv "$HOME/vocab.link-saved" "$CFG/vocab"
 
 # Force install should replace native sources cleanly so removed Swift files do not linger.
 mkdir -p "$HOME/.local/share/tmux-whisper/native/tmux-whisperd/Sources/tmux-whisperd"
