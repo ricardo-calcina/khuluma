@@ -57,32 +57,58 @@ modes_dir = os.path.join(config_dir, "modes")
 mode_file = os.path.join(config_dir, "current-mode")
 vocab_path = os.path.join(config_dir, "vocab")
 
-# The corrector's own parse (bin/dictate-lib.sh): "::" first, then -> or →.
+# The corrector's own parse (bin/dictate-lib.sh), with Perl's idea of a
+# line (split on LF only) and of whitespace (\s on decoded text), which are
+# narrower than Python's splitlines() and str.split().
+WS = "[\t\n\x0b\x0c\r \x85\xa0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]"
+TRIM = re.compile(f"^{WS}+|{WS}+$")
+DOUBLE_COLON = re.compile(f"^(.*?){WS}*::{WS}*(.*?)$")
+ARROW = re.compile(f"^(.*?){WS}*(?:\u2192|->){WS}*(.*?)$")
+
+def trim(text):
+    return TRIM.sub("", text)
+
 def parse(line):
-    line = line.strip()
+    line = trim(line)
     if not line or line.startswith("#"):
         return None
-    m = re.match(r"^(.*?)\s*::\s*(.*?)$", line) or re.match(r"^(.*?)\s*(?:→|->)\s*(.*?)$", line)
+    m = DOUBLE_COLON.match(line) or ARROW.match(line)
     if not m:
         return None
-    left, right = m.group(1).strip(), m.group(2).strip()
+    left, right = trim(m.group(1)), trim(m.group(2))
     if not left or not right:
         return None
     return left, right
 
+# The corrector matches the left side's words case-insensitively with any
+# whitespace between them.
 def key(left):
-    return " ".join(left.split()).lower()
+    return " ".join(w for w in re.split(f"{WS}+", left) if w).casefold()
+
+# Strict UTF-8: a file the corrector can't read cleanly is reported, and
+# nothing is changed, rather than rewritten with replacement characters.
+def read_text(path):
+    with open(path, "rb") as fh:
+        data = fh.read()
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        sys.exit(f"tmux-whisper: {path} is not valid UTF-8 (byte {exc.start}); fix it, then run: tmux-whisper migrate-modes")
 
 def read_lines(path):
-    with open(path, encoding="utf-8", errors="replace") as fh:
-        return fh.read().splitlines()
+    return read_text(path).split("\n")
+
+# A symlinked modes/ or current-mode would point somewhere else once moved
+# into the archive: leave those to the user.
+for p in (modes_dir, mode_file):
+    if os.path.islink(p):
+        sys.exit(f"tmux-whisper: {p} is a symlink to {os.readlink(p)}; move it out of {config_dir} by hand (its vocab can go in with: tmux-whisper vocab import <file>)")
 
 existing = {}
 vocab_text = ""
 if os.path.isfile(vocab_path):
-    with open(vocab_path, encoding="utf-8", errors="replace") as fh:
-        vocab_text = fh.read()
-    for line in vocab_text.splitlines():
+    vocab_text = read_text(vocab_path)
+    for line in vocab_text.split("\n"):
         rule = parse(line)
         if rule:
             existing.setdefault(key(rule[0]), rule[1])
@@ -148,12 +174,14 @@ if blocks:
     for name, added in blocks:
         out += f"\n# From modes/{name}/vocab (merged by tmux-whisper migrate-modes, {os.environ['MIGRATE_DATE']})\n"
         out += "\n".join(added) + "\n"
-    tmp = vocab_path + ".tmp." + str(os.getpid())
-    with open(tmp, "w", encoding="utf-8") as fh:
+    # Write through a symlinked vocab, so the link keeps working.
+    target = os.path.realpath(vocab_path)
+    tmp = target + ".tmp." + str(os.getpid())
+    with open(tmp, "w", encoding="utf-8", newline="") as fh:
         fh.write(out)
-    if os.path.isfile(vocab_path):
-        shutil.copymode(vocab_path, tmp)
-    os.replace(tmp, vocab_path)
+    if os.path.isfile(target):
+        shutil.copymode(target, tmp)
+    os.replace(tmp, target)
 for p in moves:
     shutil.move(p, os.path.join(archive, os.path.basename(p)))
     print(f"Moved {p} to {archive}/")

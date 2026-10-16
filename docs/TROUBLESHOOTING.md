@@ -143,6 +143,8 @@ tmux-whisper migrate-modes
 
 A rule whose wrong words are already in `vocab` with a different correction is skipped and listed; `vocab` keeps its own. Nothing is deleted: `modes/`, `current-mode` and a copy of the previous `vocab` go to `~/.config/dictate/modes-archive/<date>-modes-removed/`.
 
+If it stops with "not valid UTF-8" or "is a symlink", nothing was changed: fix that file (or move the linked `modes/` out of `~/.config/dictate` and import its vocab with `tmux-whisper vocab import <file>`), then run it again.
+
 ## 5) Vocabulary workflow issues
 
 Accepted correction formats:

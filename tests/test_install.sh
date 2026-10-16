@@ -149,6 +149,58 @@ if [[ "${#archives[@]}" -ne 1 || "$(cat "$CFG/vocab")" != "$vocab_before" ]]; th
   exit 1
 fi
 
+# With no vocab yet, the old mode rules win over the bundled defaults:
+# migration runs before the default vocab is seeded.
+mv "$CFG/vocab" "$HOME/vocab.saved"
+mkdir -p "$CFG/modes/code"
+printf '%s\n' 'at saw slash::@mine/' > "$CFG/modes/code/vocab"
+"$ROOT/install.sh" --force --with-sounds >/dev/null
+if ! rg -qxF 'at saw slash::@mine/' "$CFG/vocab" || rg -qF '@src/' "$CFG/vocab"; then
+  echo "Expected the mode rule, not the bundled default, in a vocab created by migration" >&2
+  exit 1
+fi
+
+migrate() {
+  DICTATE_CONFIG_DIR="$CFG" DICTATE_CONFIG_FILE="$CFG/config.toml" "$HOME/.local/bin/tmux-whisper" migrate-modes "$@"
+}
+
+# A symlinked vocab is written through, so the link keeps working; a rule is
+# split on LF only, as the corrector reads it (U+2028 stays inside the rule).
+mv "$HOME/vocab.saved" "$HOME/vocab.real"
+rm "$CFG/vocab"
+ln -s "$HOME/vocab.real" "$CFG/vocab"
+mkdir -p "$CFG/modes/code"
+printf 'hello\xe2\x80\xa8world::HelloWorld\n' > "$CFG/modes/code/vocab"
+migrate >/dev/null
+rule_2028="$(printf 'hello\xe2\x80\xa8world::HelloWorld')"
+if [[ ! -L "$CFG/vocab" || "$(rg -c 'HelloWorld' "$HOME/vocab.real")" != "1" ]] || ! rg -qxF "$rule_2028" "$HOME/vocab.real"; then
+  echo "Expected migration to write through the vocab symlink and keep the rule whole" >&2
+  exit 1
+fi
+
+# Invalid UTF-8 or a symlinked modes/ stops the migration before any change.
+mkdir -p "$CFG/modes/code"
+printf 'caf\xe9::Cafe\n' > "$CFG/modes/code/vocab"
+vocab_before="$(cat "$CFG/vocab")"
+archive_count="$(find "$CFG/modes-archive" -mindepth 1 -maxdepth 1 | wc -l)"
+if migrate >/dev/null 2>&1; then
+  echo "Expected migration to refuse a mode vocab that isn't UTF-8" >&2
+  exit 1
+fi
+rm -rf "$CFG/modes"
+mkdir -p "$HOME/profiles/code"
+printf '%s\n' 'foo::Bar' > "$HOME/profiles/code/vocab"
+ln -s "$HOME/profiles" "$CFG/modes"
+if migrate >/dev/null 2>&1; then
+  echo "Expected migration to refuse a symlinked modes/" >&2
+  exit 1
+fi
+if [[ ! -L "$CFG/modes" || "$(cat "$CFG/vocab")" != "$vocab_before" || "$(find "$CFG/modes-archive" -mindepth 1 -maxdepth 1 | wc -l)" != "$archive_count" ]]; then
+  echo "Expected a refused migration to change nothing" >&2
+  exit 1
+fi
+rm "$CFG/modes"
+
 # Force install should replace native sources cleanly so removed Swift files do not linger.
 mkdir -p "$HOME/.local/share/tmux-whisper/native/tmux-whisperd/Sources/tmux-whisperd"
 printf '%s\n' 'stale native file' > "$HOME/.local/share/tmux-whisper/native/tmux-whisperd/Sources/tmux-whisperd/main.swift"

@@ -116,7 +116,6 @@ install_default_config_files() {
     mkdir -p "$CONFIG_DIR"
     "$BIN_DIR/tmux-whisper" config defaults > "$CONFIG_DIR/config.toml"
   fi
-  copy_if_missing "$REPO_ROOT/config/vocab" "$CONFIG_DIR/vocab"
 }
 
 # Modes were removed in v0.11: fold an older install's modes/*/vocab into
@@ -149,7 +148,10 @@ cp -R "$REPO_ROOT/tmux-whisperd/Tests" "$NATIVE_DIR/tmux-whisperd/Tests"
 # Preserve user config and vocab edits on every install, including --force.
 # `--force` remains a convenience for reinstalling binaries/integrations.
 install_default_config_files
+# Migrate before seeding a missing vocab, so an old install's own mode
+# corrections win over the bundled defaults.
 migrate_legacy_modes
+copy_if_missing "$REPO_ROOT/config/vocab" "$CONFIG_DIR/vocab"
 
 # The Finder Quick Action handler lives beside the binary (mirrors Homebrew's
 # pkgshare), so it keeps working after bootstrap deletes its extracted tree.
