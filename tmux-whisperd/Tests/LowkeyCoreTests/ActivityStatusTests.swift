@@ -64,6 +64,17 @@ struct ActivityStatusTests {
     #expect(!clearedAgain)
   }
 
+  @Test func aFailedTakeShowsItsErrorWhileOthersContinue() {
+    var status = ActivityStatus()
+    status.processingStarted()
+    status.processingStarted()
+    status.recordingStarted()
+    status.processingFinished(error: "paste failed", recording: true)
+    #expect(status.phase == .error("paste failed") && status.processing == 1)
+    status.processingFinished(error: nil, recording: true)
+    #expect(status.phase == .recording && status.processing == 0)
+  }
+
   @Test func clearingAnErrorKeepsTakesInProgressVisible() {
     var status = ActivityStatus()
     status.processingStarted()
