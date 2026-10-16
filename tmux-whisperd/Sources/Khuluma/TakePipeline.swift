@@ -2,15 +2,6 @@ import AppKit
 import Foundation
 import KhulumaCore
 
-/// How a take ended, for the controller to show (sound, status line).
-enum TakeResult {
-  case delivered
-  case noSpeech
-  case failed(String)
-  /// Transcription timed out; the audio may be kept for Retry.
-  case timedOut(String)
-}
-
 /// Transcribes, cleans up, delivers and persists one take: natively (daemon
 /// socket + Swift cleanup) or through the CLI's `inline process`. Runs on
 /// the controller's work queue; every call is synchronous and touches no UI.
@@ -44,12 +35,12 @@ final class TakePipeline {
   }
 
   /// The native path: transcribe through the daemon socket, clean up in
-  /// Swift, deliver, then persist in the background. `takeId` is the one its
-  /// Quit copy would carry (see `InFlightTakes`).
-  func processNatively(samples: [Float], take: Take, takeId: String, recordMs: Int, appName: String?,
+  /// Swift, deliver, then persist in the background.
+  func processNatively(samples: [Float], take: Take, recordMs: Int, appName: String?,
                        config: AppConfig, stopAt: Double) -> NativeRoute {
     guard let native = config.native else { return .fallback("transcription settings missing") }
     let (transcription, cleanup, modelPath) = native
+    let takeId = UUID().uuidString.lowercased()
     let startedAt = monotonicMs()
 
     let client = DaemonClient(socketPath: transcription.socketPath)
@@ -130,7 +121,8 @@ final class TakePipeline {
           line.add("asr", ms: monotonicMs() - startedAt)
           line.add("kept", saved ? 1 : 0)
         }
-        return .handled(.timedOut("transcription timed out after \(Int(seconds))s" + (saved ? " (Retry in the menu)" : "")))
+        return .handled(.timedOut("transcription timed out after \(Int(seconds))s" + (saved ? " (Retry in the menu)" : ""),
+                                  kept: saved))
       }
       if case DaemonClient.ClientError.unreachable = failure.underlying { onUnreachable() }
       if let kept = failure.keptWAV { try? FileManager.default.removeItem(at: kept) }

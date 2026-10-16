@@ -465,6 +465,23 @@ struct InFlightTakesTests {
     takes.finish(slow) // finishing twice is harmless
   }
 
+  @Test func aTakeThatFailsDuringTheDrainLeavesItsCopyForTheNextLaunch() {
+    let store = makeStore()
+    defer { try? FileManager.default.removeItem(at: store.directory) }
+    let takes = InFlightTakes(store: store)
+    // E.g. delivery failed, or it timed out and Retry couldn't keep it.
+    let failed = takes.add(samples: [0.1], takeId: "failed")
+    takes.saveAll()
+    takes.release(failed)
+    #expect(takes.count == 0)
+    #expect(takes.savedFiles().isEmpty) // a leftover now, for the recovery pass
+    #expect(store.all().map(RecoveredTakes.takeId(of:)) == ["failed"])
+    // Released before Quit: nothing was saved, nothing is left.
+    takes.release(takes.add(samples: [0.2]))
+    #expect(takes.saveAll() == (saved: 0, failed: 0))
+    #expect(store.all().count == 1)
+  }
+
   @Test func aTakeFinishedBeforeQuitIsNeverSaved() {
     let store = makeStore()
     defer { try? FileManager.default.removeItem(at: store.directory) }
@@ -487,9 +504,9 @@ struct InFlightTakesTests {
     takes.saveAll()
     let lateCopy = try #require(takes.savedFiles().first)
     #expect(try takes.keep(late) == lateCopy)
-    // The take's own `finish` (it always runs) leaves kept audio alone.
+    // The take's own end (finish or release, it always runs) leaves kept audio alone.
     takes.finish(early)
-    takes.finish(late)
+    takes.release(late)
     #expect(store.all() == [earlyURL, lateCopy].sorted { $0.lastPathComponent < $1.lastPathComponent })
     #expect(takes.count == 0)
     #expect(throws: (any Error).self) { try takes.keep("unknown") }
@@ -522,6 +539,16 @@ struct InFlightTakesTests {
     }
     #expect(takes.count == 0)
     #expect(store.all().isEmpty)
+  }
+}
+
+struct TakeResultTests {
+  @Test func onlySettledTakesGiveUpTheirQuitCopy() {
+    #expect(TakeResult.delivered.settlesAudio)
+    #expect(TakeResult.noSpeech.settlesAudio)
+    #expect(TakeResult.timedOut("timed out", kept: true).settlesAudio) // Retry holds the audio
+    #expect(!TakeResult.timedOut("timed out", kept: false).settlesAudio)
+    #expect(!TakeResult.failed("paste failed").settlesAudio)
   }
 }
 

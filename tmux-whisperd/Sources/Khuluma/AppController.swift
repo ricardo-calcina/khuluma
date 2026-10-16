@@ -135,9 +135,10 @@ final class AppController: NSObject, NSApplicationDelegate {
   /// (never pasted or sent: the app in front at quit time, e.g. the terminal
   /// running a rebuild, is not where it was meant to go). Takes already
   /// stopped (queued or being transcribed) are saved to disk too, then
-  /// finish as usual; each one that does drops its saved copy. They and
+  /// finish as usual; each one that settles drops its saved copy. They and
   /// persistence get up to 30 s; whatever doesn't finish is recovered at the
-  /// next launch (saved audio, spooled records).
+  /// next launch (saved audio, spooled records). Before replying, every
+  /// take's audio is checked to be on disk (`finishQuitting`).
   func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
     guard !quitting else { return .terminateLater }
     if take != nil || !unsaved.isEmpty {
@@ -155,11 +156,11 @@ final class AppController: NSObject, NSApplicationDelegate {
 
   /// Writes the audio of takes still queued or being transcribed. One that
   /// can't be written isn't lost yet: it may still finish in the drain, and
-  /// the drain's timeout tries again before giving up.
+  /// `finishQuitting` tries again before replying.
   private func saveInFlightForQuit() {
     guard inFlight.count > 0 else { return }
     let (saved, failed) = inFlight.saveAll()
-    Log.write("quit: saved \(saved) take(s) still being transcribed to recovered/ (deleted as each finishes)"
+    Log.write("quit: saved \(saved) take(s) still being transcribed to recovered/ (each copy goes once its take settles)"
               + (failed > 0 ? "; \(failed) couldn't be written yet" : ""))
   }
 
@@ -173,32 +174,62 @@ final class AppController: NSObject, NSApplicationDelegate {
 
   private func terminateAfterDraining() -> NSApplication.TerminateReply {
     quitting = true
+    // Whichever comes first, the drain or the 30 s timeout, decides; the
+    // other finds the semaphore taken and does nothing.
     let replied = DispatchSemaphore(value: 1)
-    let reply = {
+    let decide = { [weak self] (drained: Bool) in
       guard replied.wait(timeout: .now()) == .success else { return }
-      DispatchQueue.main.async { NSApp.reply(toApplicationShouldTerminate: true) }
+      guard let self else { return NSApp.reply(toApplicationShouldTerminate: true) }
+      self.finishQuitting(drained: drained)
     }
     let persistQueue = pipeline?.persister.queue
     work.async {
-      guard let persistQueue else { return reply() }
-      persistQueue.async { reply() }
+      guard let persistQueue else { return DispatchQueue.main.async { decide(true) } }
+      persistQueue.async { DispatchQueue.main.async { decide(true) } }
     }
-    DispatchQueue.main.asyncAfter(deadline: .now() + 30) { [weak self, inFlight] in
-      guard replied.wait(timeout: .now()) == .success else { return }
-      // Last chance for takes whose audio couldn't be written at Quit.
-      let failed = inFlight.saveAll().failed
-      guard failed == 0 else {
-        // Stay open rather than lose them; they finish (or Quit saves them) later.
-        self?.quitting = false
-        NSApp.reply(toApplicationShouldTerminate: false)
-        self?.fail("couldn't save \(failed) recording\(failed == 1 ? "" : "s") still being transcribed; quit again once "
-                   + (failed == 1 ? "it finishes" : "they finish"))
-        return
-      }
-      Log.write("quit: pending work did not finish within 30s; quitting (saved audio and spooled takes are recovered at next launch)")
-      NSApp.reply(toApplicationShouldTerminate: true)
-    }
+    DispatchQueue.main.asyncAfter(deadline: .now() + 30) { decide(false) }
     return .terminateLater
+  }
+
+  /// The last check before quitting: every take's audio must be on disk.
+  /// Takes still in flight that Quit couldn't write are tried again, and so
+  /// are takes that landed in `unsaved` during the drain (a CLI mismatch
+  /// found while quitting, its audio not written). If any still can't be
+  /// written, Khuluma stays open rather than lose them.
+  private func finishQuitting(drained: Bool) {
+    let failed = inFlight.saveAll().failed + saveUnsavedForNextLaunch()
+    guard failed == 0 else {
+      quitting = false
+      NSApp.reply(toApplicationShouldTerminate: false)
+      if !unsaved.isEmpty {
+        menu.showDiscardUnsaved("Discard \(unsaved.count) unsaved recording\(unsaved.count == 1 ? "" : "s") and quit")
+      }
+      fail("couldn't save \(failed) recording\(failed == 1 ? "" : "s") for quitting; Quit retries")
+      return
+    }
+    if !drained {
+      Log.write("quit: pending work did not finish within 30s; quitting (saved audio and spooled takes are recovered at next launch)")
+    }
+    NSApp.reply(toApplicationShouldTerminate: true)
+  }
+
+  /// Writes takes left in `unsaved` for the next launch to transcribe (no
+  /// time to do it now). Returns how many couldn't be written.
+  private func saveUnsavedForNextLaunch() -> Int {
+    guard !unsaved.isEmpty else { return 0 }
+    unsaved = unsaved.filter { pendingTake in
+      do {
+        let url = try recovered.save(samples: pendingTake.samples, takeId: pendingTake.takeId)
+        Log.write("quit: saved a recording (\(pendingTake.samples.count / AudioPrep.sampleRate)s) to \(url.lastPathComponent) for the next launch")
+        pendingTake.marker?.remove()
+        return false
+      } catch {
+        Log.write("quit: could not save a recording: \(error.localizedDescription)")
+        return true
+      }
+    }
+    if unsaved.isEmpty { menu.showDiscardUnsaved(nil) }
+    return unsaved.count
   }
 
   /// Stops the take in progress for Quit and writes its audio (and any
@@ -471,10 +502,11 @@ final class AppController: NSObject, NSApplicationDelegate {
     let takeId = inFlight.add(samples: samples)
     work.async { [weak self, inFlight] in
       // Every path below is synchronous on this queue: the take is over when
-      // it returns (its record spooled, its audio kept elsewhere, or failed).
+      // it returns. A copy Quit saved is deleted only if the take settled.
+      var settled = false
       defer {
         take.marker?.remove()
-        inFlight.finish(takeId)
+        if settled { inFlight.finish(takeId) } else { inFlight.release(takeId) }
       }
       guard let self else { return }
       take.marker?.update(.processing)
@@ -512,9 +544,10 @@ final class AppController: NSObject, NSApplicationDelegate {
         if let blocker = fresh.nativePipelineBlocker {
           route = ("cli", blocker)
         } else {
-          switch pipeline.processNatively(samples: samples, take: take, takeId: takeId, recordMs: recordMs,
-                                          appName: appName, config: fresh, stopAt: stopAt) {
+          switch pipeline.processNatively(samples: samples, take: take, recordMs: recordMs, appName: appName,
+                                          config: fresh, stopAt: stopAt) {
           case .handled(let result):
+            settled = result.settlesAudio
             DispatchQueue.main.async { self.finish(result) }
             return
           case .fallback(let reason): route = ("fallback", reason)
@@ -527,6 +560,7 @@ final class AppController: NSObject, NSApplicationDelegate {
       take.marker?.update(.cli)
       let result = pipeline.processWithCLI(samples: samples, take: take, recordMs: recordMs, appName: appName,
                                            stopAt: stopAt, config: config, route: route)
+      settled = result.settlesAudio
       DispatchQueue.main.async { self.finish(result) }
     }
   }
@@ -542,7 +576,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     case .failed(let message):
       sounds.play(.error)
       finishProcessing(error: message)
-    case .timedOut(let message):
+    case .timedOut(let message, _):
       sounds.play(.error)
       refreshTimedOutItems()
       finishProcessing(error: message)

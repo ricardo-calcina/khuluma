@@ -4,9 +4,10 @@ import Foundation
 /// record reaches the pending spool (or another store takes the audio), they
 /// exist only in memory. At Quit, `saveAll` writes each one to
 /// `RecoveredTakes`, so a take Quit's drain can't finish is transcribed at
-/// the next launch. A take that does finish calls `finish`, which deletes
-/// that copy, so it is never transcribed twice. Thread-safe: takes finish on
-/// the work queue while Quit saves on main.
+/// the next launch. A take that settles during the drain calls `finish`,
+/// which deletes that copy, so it isn't transcribed twice; one that fails
+/// calls `release`, which leaves the copy to be recovered. Thread-safe:
+/// takes end on the work queue while Quit saves on main.
 public final class InFlightTakes: @unchecked Sendable {
   public let store: RecoveredTakes
   private let lock = NSLock()
@@ -22,9 +23,10 @@ public final class InFlightTakes: @unchecked Sendable {
     self.store = store
   }
 
-  /// Tracks a stopped take's audio and returns its take id: used for the
-  /// saved copy's name and the take's record, so a copy that outlives its
-  /// spooled record (a crash between the two) is recorded once.
+  /// Tracks a stopped take's audio and returns its id (its saved copy's
+  /// name). Not the take's record id: a copy recovered next to a record
+  /// (a crash between the two, or a take that failed) must not be dropped
+  /// as that record's duplicate, so the worst case is a second history entry.
   @discardableResult
   public func add(samples: [Float], takeId: String = UUID().uuidString.lowercased()) -> String {
     lock.withLock { takes[takeId] = Entry(samples: samples) }
@@ -62,11 +64,19 @@ public final class InFlightTakes: @unchecked Sendable {
     }
   }
 
-  /// The take ended (its record is spooled, another store holds its audio,
-  /// or it failed): stop tracking it and delete its copy, if one was saved.
+  /// The take is settled (its record is spooled, it had no speech, or
+  /// another store holds its audio): stop tracking it and delete its copy,
+  /// if one was saved.
   public func finish(_ takeId: String) {
     let saved = lock.withLock { takes.removeValue(forKey: takeId)?.saved }
     if let saved { store.remove(saved) }
+  }
+
+  /// The take ended without settling (it failed): stop tracking it, but
+  /// leave a copy saved at Quit for the next launch to recover. Without one,
+  /// the audio goes, as for any failed take.
+  public func release(_ takeId: String) {
+    lock.withLock { _ = takes.removeValue(forKey: takeId) }
   }
 
   /// Hands the take's audio to `RecoveredTakes` for good (to transcribe
