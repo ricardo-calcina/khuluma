@@ -175,7 +175,7 @@ Lowkey and Finder run the CLI with a minimal environment. Put custom `PATH` entr
   - `TmuxWhisperKit`: the engine, protocol and socket server;
   - `tmux-whisperd`: the daemon;
   - `KhulumaCore`: Lowkey's AppKit-free logic, with most of the tests;
-  - `Lowkey`: the app shell.
+  - `Khuluma`: the app shell (it still builds the `Lowkey` product).
 - The CLI builds the daemon on demand into `~/.local/share/tmux-whisper/native/` and rebuilds it when the sources change.
 - `config/` holds the defaults that `install.sh` seeds: config, modes and vocab.
 - `tools/` holds the Lowkey build and report scripts and the Homebrew formula updater.
