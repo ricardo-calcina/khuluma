@@ -3253,6 +3253,7 @@ bool_is_on() {
 # The inline pipeline behind `inline process --json`: transcribe a WAV, clean
 # it up, record bench, usage and history, and
 # hand the text back in INLINE_EXTERNAL_* for the caller (Khuluma) to deliver.
+# INLINE_HISTORY_SAVED is 1 once the take's history entry is written.
 process_inline_recording() {
   local wav="$1"
   local target_app="${2:-}"
@@ -3362,8 +3363,7 @@ process_inline_recording() {
   delivery_completed_ms="$(now_ms)"
   total_ms=$(( $(now_ms) - flow_started_ms ))
   # Persist the small, transcript-free ledger while this confirmed delivery is
-  # still in hand. Usage is persisted synchronously, while the larger
-  # transcript history write remains safely asynchronous below.
+  # still in hand.
   local usage_full_elapsed_ms="$total_ms"
   if [[ "$usage_started_ms" =~ ^[0-9]+$ ]]; then
     usage_full_elapsed_ms=$(( delivery_completed_ms - usage_started_ms ))
@@ -3384,12 +3384,14 @@ process_inline_recording() {
   archive_inline_debug_artifacts "$archive_prefix" "$wav" "$transcribe_log" "ok" \
     "$record_ms" "$transcribe_ms" "$clean_ms" "$paste_ms" "$total_ms"
 
-  # Save history asynchronously so the caller gets its text without waiting
-  # on JSON + file I/O.
+  # Save history before returning, so `inline process` can report whether it
+  # is on disk (`history_saved`): Khuluma deletes a take's Quit copy only then.
   local history_app="${target_app:-current}"
-  (
-    save_history "$raw_txt" "$txt" "$detected_mode" "${history_app:-unknown}" "$record_ms" "$transcribe_ms" "$clean_ms" "$paste_ms" "$total_ms"
-  ) >/dev/null 2>&1 &
+  if save_history "$raw_txt" "$txt" "$detected_mode" "${history_app:-unknown}" "$record_ms" "$transcribe_ms" "$clean_ms" "$paste_ms" "$total_ms" >/dev/null 2>&1; then
+    INLINE_HISTORY_SAVED="1"
+  else
+    echo "[history] unable to save the take to history" >&2
+  fi
 }
 
 set_keep_logs() {

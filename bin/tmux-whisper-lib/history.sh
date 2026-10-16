@@ -16,7 +16,7 @@ save_history() {
   local paste_ms="${8:-}"
   local total_ms="${9:-}"
 
-  mkdir -p "$HISTORY_DIR"
+  mkdir -p "$HISTORY_DIR" || return 1
 
   # Get retention days from config (default 7)
   local retention="${DICTATE_HISTORY_RETENTION_DAYS:-${CFG_HISTORY_RETENTION_DAYS:-7}}"
@@ -34,16 +34,28 @@ save_history() {
   local collision=1
   while ! ( set -C; : >"$filename" ) 2>/dev/null; do
     collision=$((collision + 1))
-    (( collision > 50 )) && break
+    # Nothing claimed (e.g. the folder isn't writable): report the failure.
+    (( collision > 50 )) && return 1
     filename="$HISTORY_DIR/${ts}_${collision}.json"
   done
 
-  # Escape for JSON
-  local raw_escaped processed_escaped mode_escaped app_escaped
-  raw_escaped="$(printf '%s' "$raw" | jq -Rs .)"
-  processed_escaped="$(printf '%s' "$processed" | jq -Rs .)"
-  mode_escaped="$(printf '%s' "$mode" | jq -Rs .)"
-  app_escaped="$(printf '%s' "$app" | jq -Rs .)"
+  # Escape for JSON in one jq call (`inline process` waits for this), one
+  # line per value: a JSON string never holds a raw newline.
+  local raw_escaped processed_escaped mode_escaped app_escaped prefix_escaped note_escaped escaped_all
+  if ! escaped_all="$(jq -nr --arg raw "$raw" --arg processed "$processed" --arg mode "$mode" --arg app "$app" \
+    --arg prefix "${INLINE_DEBUG_ARCHIVE_PREFIX:-}" --arg note "${INLINE_DEBUG_AUDIO_RETENTION_NOTE:-}" \
+    '$raw, $processed, $mode, $app, $prefix, $note | tojson')"; then
+    rm -f "$filename"
+    return 1
+  fi
+  {
+    IFS= read -r raw_escaped
+    IFS= read -r processed_escaped
+    IFS= read -r mode_escaped
+    IFS= read -r app_escaped
+    IFS= read -r prefix_escaped
+    IFS= read -r note_escaped
+  } <<<"$escaped_all"
 
   local metrics_lines=""
   append_metric_line() {
@@ -65,21 +77,16 @@ save_history() {
   append_audio_line() {
     local key="$1"
     local val="$2"
-    local kind="${3:-number}"
+    # A string value comes with its JSON form; without one it must be a number.
+    local escaped="${3:-}"
     [[ -n "$val" ]] || return 0
-    if [[ "$kind" == "number" ]]; then
+    if [[ -z "$escaped" ]]; then
       [[ "$val" =~ ^[0-9]+$ ]] || return 0
     fi
     if [[ -n "$audio_lines" ]]; then
       audio_lines="${audio_lines},"$'\n'
     fi
-    if [[ "$kind" == "string" ]]; then
-      local escaped
-      escaped="$(printf '%s' "$val" | jq -Rs .)"
-      audio_lines="${audio_lines}    \"${key}\": ${escaped}"
-    else
-      audio_lines="${audio_lines}    \"${key}\": ${val}"
-    fi
+    audio_lines="${audio_lines}    \"${key}\": ${escaped:-$val}"
   }
   append_audio_line "capture_wav_ms" "${INLINE_CAPTURE_WAV_MS:-}"
   append_audio_line "capture_wav_bytes" "${INLINE_CAPTURE_WAV_BYTES:-}"
@@ -87,8 +94,8 @@ save_history() {
   append_audio_line "archive_wav_ms" "${INLINE_ARCHIVE_WAV_MS:-}"
   append_audio_line "archive_wav_bytes" "${INLINE_ARCHIVE_WAV_BYTES:-}"
   append_audio_line "wav_retention_days" "${INLINE_DEBUG_WAV_RETENTION_DAYS:-}"
-  append_audio_line "debug_archive_prefix" "${INLINE_DEBUG_ARCHIVE_PREFIX:-}" "string"
-  append_audio_line "retention_note" "${INLINE_DEBUG_AUDIO_RETENTION_NOTE:-}" "string"
+  append_audio_line "debug_archive_prefix" "${INLINE_DEBUG_ARCHIVE_PREFIX:-}" "$prefix_escaped"
+  append_audio_line "retention_note" "${INLINE_DEBUG_AUDIO_RETENTION_NOTE:-}" "$note_escaped"
 
   local extra_fields=""
   if [[ -n "$metrics_lines" ]]; then
@@ -98,7 +105,7 @@ save_history() {
     extra_fields="${extra_fields},"$'\n'"  \"audio\": {"$'\n'"${audio_lines}"$'\n'"  }"
   fi
 
-  cat > "$filename" <<EOF
+  if ! cat > "$filename" <<EOF
 {
   "timestamp": "$(date -u '+%Y-%m-%dT%H:%M:%SZ')",
   "mode": $mode_escaped,
@@ -107,6 +114,10 @@ save_history() {
   "processed": $processed_escaped${extra_fields}
 }
 EOF
+  then
+    rm -f "$filename"
+    return 1
+  fi
 }
 
 # Remove history entries older than N days

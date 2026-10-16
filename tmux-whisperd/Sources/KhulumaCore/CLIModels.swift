@@ -178,11 +178,29 @@ public struct ProcessResult: Decodable, Equatable, Sendable {
   public let timings: [String: Int]
   /// `--defer-usage` was honoured: the caller records usage after delivery.
   public let usageDeferred: Bool
+  /// The take's history entry is on disk. Missing (a CLI from before the
+  /// field) counts as not saved, so a Quit copy of the take is kept.
+  public let historySaved: Bool
 
   enum CodingKeys: String, CodingKey {
     case ok, status, text, mode, message, delivery, timings
     case rawText = "raw_text"
     case usageDeferred = "usage_deferred"
+    case historySaved = "history_saved"
+  }
+
+  public init(from decoder: Decoder) throws {
+    let c = try decoder.container(keyedBy: CodingKeys.self)
+    ok = try c.decode(Bool.self, forKey: .ok)
+    status = try c.decode(String.self, forKey: .status)
+    text = try c.decode(String.self, forKey: .text)
+    rawText = try c.decode(String.self, forKey: .rawText)
+    mode = try c.decodeIfPresent(String.self, forKey: .mode)
+    message = try c.decodeIfPresent(String.self, forKey: .message)
+    delivery = try c.decode(Delivery.self, forKey: .delivery)
+    timings = try c.decode([String: Int].self, forKey: .timings)
+    usageDeferred = try c.decode(Bool.self, forKey: .usageDeferred)
+    historySaved = try c.decodeIfPresent(Bool.self, forKey: .historySaved) ?? false
   }
 }
 

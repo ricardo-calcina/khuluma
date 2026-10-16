@@ -239,8 +239,8 @@ final class TakePipeline {
       let delivering = monotonicMs()
       let target = try Deliverer.perform(steps, originalApp: take.originalApp)
       if result.usageDeferred {
-        // Count it now that the text is delivered (history and bench are
-        // already saved by `inline process`).
+        // Count it now that the text is delivered (`inline process` has
+        // saved bench and, per `historySaved`, history).
         let deliveredDate = Date()
         var usage = TakeRecord(takeId: UUID().uuidString.lowercased(), status: "ok", delivered: true)
         usage.usageOnly = true
@@ -263,9 +263,11 @@ final class TakePipeline {
         line.add("mode", result.mode)
         line.add("chars", result.text.count)
         line.add("target", target ?? "-")
+        if !result.historySaved { line.add("history", "unsaved") }
       }
-      // `inline process` saved history itself.
-      return .delivered(recorded: true)
+      // `inline process` saves history itself and says whether it did: if
+      // not, a Quit copy of the take stays for the next launch to recover.
+      return .delivered(recorded: result.historySaved)
     } catch {
       logTake("failed") { $0.add("error", Self.errorCategory(error)) }
       return .failed(error.localizedDescription)

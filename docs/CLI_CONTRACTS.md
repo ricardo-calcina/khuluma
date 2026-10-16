@@ -77,6 +77,10 @@ These commands are safe to build integrations on:
     usage ledger (`usage_deferred: true`); the caller records it after
     delivering with `inline record` and `usage_only: true`. Take ids are
     deduplicated in the ledger, so a replayed record never counts twice.
+  - `history_saved` (0.11+) is true only once the take's history entry is on
+    disk: the history write finishes before the JSON is printed. A take whose
+    history write failed still returns its text (`ok: true`). Khuluma treats a
+    missing field as false.
 - `tmux-whisper config --json`
 - `tmux-whisper config path --json`
 - `tmux-whisper config get <path> --json`
