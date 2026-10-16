@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# Amp orb setup: installs what ./tests/ci.sh needs on a fresh Debian 12 orb.
+# Idempotent; a warm orb only runs the command checks below.
+set -euo pipefail
+
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+step() { printf '\n==> %s\n' "$*"; }
+SECONDS=0
+
+# command -> Debian package. python3 must be >= 3.11 (tomllib); Debian 12 ships 3.11.
+declare -A packages=(
+  [rg]=ripgrep
+  [python3]=python3
+  [perl]=perl
+  [shasum]=perl
+  [tmux]=tmux
+  [ffmpeg]=ffmpeg
+  [ffprobe]=ffmpeg
+  [curl]=curl
+  [tar]=tar
+)
+
+step "Checking system packages"
+missing=()
+for cmd in "${!packages[@]}"; do
+  command -v "$cmd" >/dev/null 2>&1 || missing+=("${packages[$cmd]}")
+done
+if ((${#missing[@]})); then
+  mapfile -t missing < <(printf '%s\n' "${missing[@]}" | sort -u)
+  step "Installing: ${missing[*]}"
+  sudo apt-get update -qq
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends "${missing[@]}"
+else
+  echo "all present"
+fi
+
+python3 -c 'import tomllib' || { echo "python3 lacks tomllib (need >= 3.11)" >&2; exit 1; }
+
+step "Writing orb agent notes"
+mkdir -p "$HOME/.config/amp"
+cat >"$HOME/.config/amp/AGENTS.md" <<'NOTES'
+# Orb notes (tmux-whisper)
+
+- Linux orb: `./tests/ci.sh` is the validation that runs here (bash + python3 + rg).
+- The Swift package (`tmux-whisperd/`, Khuluma, TmuxWhisperKit) targets macOS 14 only
+  (AppKit, CoreML). `swift test` and `tools/build-khuluma-app.sh` cannot run in the orb;
+  rely on the `Swift` GitHub workflow (macos-latest) for those.
+- `tests/gen-cleanup-fixtures.sh --check` runs on macOS in CI; results on Linux can differ.
+- `./install.sh --force` installs into the orb's own ~/.local and ~/.config/dictate, which is
+  harmless here but is not a real-use check.
+NOTES
+
+step "Done in ${SECONDS}s"
