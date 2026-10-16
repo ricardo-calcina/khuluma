@@ -29,6 +29,7 @@
   - **Kept until Developer ID signing (phase 2):** the bundle id `com.ricardo-nth.lowkey`, the "Lowkey Local Code Signing" identity and the saved Stats settings, so permissions carry over. Start at Login needs turning on again, because the app has moved.
   - **Renamed:** take markers are `inline-khuluma-*` (`inline-lowkey-*` ones from older builds are still swept). The `take:` error codes `target_is_lowkey` and `lowkey_N` are now `target_is_self` and `app_N`. The variables `LOWKEY_CLI`, `LOWKEY_LOG` and `LOWKEY_LIVE_PARITY_DIR` are now `KHULUMA_*` (`LOWKEY_SIGNING_IDENTITY` and `LOWKEY_KEYCHAIN` still work). The dev launch flags are `-KhulumaStatsSnapshot`, `-KhulumaOpenStats` and `-KhulumaStatsAppearance`.
   - `docs/plans/LOWKEY_RENAME_ROADMAP.md` and `LOWKEY_NAME_CHECK.md` are now `KHULUMA_*.md`.
+- **Renaming to Khuluma, step 3: the plans.** The rename roadmap and the name check describe Khuluma as the app's name, with phase 0 kept as it was decided under the working name.
 
 - **The SwiftBar plugin is retired; Lowkey is the menu-bar app** (breaking for JSON readers of the plugin's state):
   - The plugin (`integrations/tmux-whisper-status.0.2s.sh`) is no longer shipped or installed, and `DICTATE_INSTALL_SWIFTBAR` is gone. `install.sh` doesn't delete an old copy: move `~/.config/swiftbar/plugins/tmux-whisper-status.0.2s.sh` to the Trash.
@@ -159,7 +160,7 @@ Entries before v0.7.0 are in [`CHANGELOG.archive.md`](CHANGELOG.archive.md).
 
 ### Next queue (core product)
 
-- [ ] Rename to Lowkey, make the app the main tool, sunset the CLI and archive this repo (App Store parked). Staged plan with exit criteria: `docs/plans/KHULUMA_RENAME_ROADMAP.md`. Phase 0: the tidy-up is done; the public name (Lowkey is a working name) is still to be chosen.
+- [ ] Rename to Khuluma, make the app the main tool, sunset the CLI and archive this repo (App Store parked). Staged plan with exit criteria: `docs/plans/KHULUMA_RENAME_ROADMAP.md`. Phase 0: the name is Khuluma and the tidy-up is done; the app carries the name from v0.11, the bundle id from phase 2.
 
 ### Future labs (deferred, separate projects)
 
