@@ -1,12 +1,12 @@
 # Contributing
 
-Thanks for contributing to Tmux Whisper, which is becoming Lowkey ([`ROADMAP.md`](ROADMAP.md)).
+Thanks for contributing to Tmux Whisper, which is becoming Khuluma ([`ROADMAP.md`](ROADMAP.md)).
 
 ## Scope and Direction
 
-- Lowkey, the menu-bar app, is the product. The CLI is its back end and is being retired step by step, so new user-facing features belong in Lowkey.
-- CLI changes should serve Lowkey, file transcription, or the phase 1 ports (`docs/plans/LOWKEY_RENAME_ROADMAP.md`). Changes to the JSON contracts in `docs/CLI_CONTRACTS.md` are additive only, unless Lowkey changes with them and the app contract number goes up on both sides.
-- Keep changes minimal and production-oriented. Pure logic goes in `LowkeyCore` (no AppKit) with tests; the `Lowkey` target stays a thin shell.
+- Khuluma, the menu-bar app, is the product. The CLI is its back end and is being retired step by step, so new user-facing features belong in Khuluma.
+- CLI changes should serve Khuluma, file transcription, or the phase 1 ports (`docs/plans/KHULUMA_RENAME_ROADMAP.md`). Changes to the JSON contracts in `docs/CLI_CONTRACTS.md` are additive only, unless Khuluma changes with them and the app contract number goes up on both sides.
+- Keep changes minimal and production-oriented. Pure logic goes in `KhulumaCore` (no AppKit) with tests; the `Khuluma` target stays a thin shell.
 
 ## Development Setup
 
@@ -16,7 +16,7 @@ cd tmux-whisper
 ./tests/ci.sh
 ./install.sh --force
 tools/make-signing-identity.sh   # once
-tools/build-lowkey-app.sh
+tools/build-khuluma-app.sh
 ```
 
 ## Branching and PRs
@@ -24,7 +24,7 @@ tools/build-lowkey-app.sh
 - Create feature branches from `main`.
 - Keep one coherent task per branch.
 - Include rationale and risk in the PR description.
-- Name the affected areas: `lowkey`, `cli`, `daemon`, `transcribe`.
+- Name the affected areas: `khuluma`, `cli`, `daemon`, `transcribe`.
 - Note removals and contract changes in `CHANGELOG.md`.
 
 ## Validation Requirements
@@ -44,9 +44,9 @@ If `swift test` reports "TestingMacros not found", run `swift build --build-test
 
 ```bash
 ./install.sh --force
-tools/build-lowkey-app.sh      # waits for a take in progress, then relaunches Lowkey
+tools/build-khuluma-app.sh      # waits for a take in progress, then relaunches Khuluma
 tmux-whisper doctor
-tools/lowkey-report.sh         # after a few real takes
+tools/khuluma-report.sh         # after a few real takes
 ```
 
 ## Release Policy
@@ -60,4 +60,4 @@ tools/lowkey-report.sh         # after a few real takes
 - Never commit API keys, tokens, or private credentials.
 - Keep defaults portable (`config/config.toml`, `config/vocab`).
 - Do not hardcode user-specific paths or local secrets.
-- Logs, usage and stats never record dictated text. Transcripts live in history, and briefly in Lowkey's pending spool until history has them.
+- Logs, usage and stats never record dictated text. Transcripts live in history, and briefly in Khuluma's pending spool until history has them.

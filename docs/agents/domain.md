@@ -12,16 +12,16 @@ If these files do not exist, proceed silently. Do not flag their absence or sugg
 
 ## Layout
 
-This is a single-context repo. Tmux Whisper is a macOS dictation project being renamed after its app (`docs/plans/LOWKEY_RENAME_ROADMAP.md`). Lowkey is the app's working name; the public name is still to be chosen. Lowkey, the native menu-bar app in `tmux-whisperd/`, is the only way to dictate. The `tmux-whisper` CLI is its back end (config, modes, vocab, history, usage, the daemon lifecycle) and transcribes audio files. The tmux flow, CLI recording, LLM post-processing, Raycast and SwiftBar were removed in v0.11.
+This is a single-context repo. Tmux Whisper is a macOS dictation project being renamed after its app (`docs/plans/KHULUMA_RENAME_ROADMAP.md`). The app was called Lowkey until v0.11. Khuluma, the native menu-bar app in `tmux-whisperd/`, is the only way to dictate. The `tmux-whisper` CLI is its back end (config, modes, vocab, history, usage, the daemon lifecycle) and transcribes audio files. The tmux flow, CLI recording, LLM post-processing, Raycast and SwiftBar were removed in v0.11.
 
 Use the repo's established terms:
 
 - `tmux-whisper` for the public command.
 - `dictate` only for legacy config, temp and user-local runtime paths that intentionally still use that name (`~/.config/dictate`, `DICTATE_*`).
-- `Lowkey` for the app; `tmux-whisperd` for the Parakeet daemon; `TmuxWhisperKit`, `LowkeyCore` and `Lowkey` for the Swift modules.
+- `Khuluma` for the app; `tmux-whisperd` for the Parakeet daemon; `TmuxWhisperKit`, `KhulumaCore` and `Khuluma` for the Swift modules.
 - `take` for one recording through delivery. A take goes the `native` path (daemon socket and Swift cleanup) or `falls back` to the CLI's `inline process`.
-- `inline` for the CLI's pipeline that Lowkey uses (`inline process`, `inline record`, `inline cleanup`), and for the frontmost-app delivery settings (`[inline]`). `tmux` survives only as a value in old history, usage and mode `flows` files.
-- `app contract` for the integer Lowkey and the CLI must agree on.
+- `inline` for the CLI's pipeline that Khuluma uses (`inline process`, `inline record`, `inline cleanup`), and for the frontmost-app delivery settings (`[inline]`). `tmux` survives only as a value in old history, usage and mode `flows` files.
+- `app contract` for the integer Khuluma and the CLI must agree on.
 - `take markers` (processing markers) for the files that show a take is in progress; `install receipt` for install provenance.
 - `Finder Quick Action` and the agent skill for the `transcribe` adapters.
 

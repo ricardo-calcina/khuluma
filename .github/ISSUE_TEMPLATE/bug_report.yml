@@ -16,7 +16,7 @@ body:
     attributes:
       label: Affected flow
       options:
-        - lowkey
+        - khuluma
         - transcribe
         - cli
         - daemon
@@ -51,4 +51,4 @@ body:
         macOS:
         install channel (brew/bootstrap/local):
         Parakeet model:
-        Lowkey line from app.log (`settings: ... cli X (contract N)`):
+        Khuluma line from app.log (`settings: ... cli X (contract N)`):

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Generate Lowkey's TextPipeline parity fixtures from the CLI's bash cleanup,
+# Generate Khuluma's TextPipeline parity fixtures from the CLI's bash cleanup,
 # or verify they are current (--check). See tests/gen_cleanup_fixtures.py.
 set -euo pipefail
 

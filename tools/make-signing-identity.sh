@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # One-time: create a self-signed code-signing identity in the login keychain
-# for building Lowkey.app locally. A stable signature keeps macOS privacy
+# for building Khuluma.app locally. A stable signature keeps macOS privacy
 # grants (Microphone, Accessibility) across rebuilds; ad-hoc signatures change
 # with every build, which resets them.
 #
@@ -8,8 +8,10 @@
 # changes the signature, so macOS will ask for permissions again.
 set -euo pipefail
 
-IDENTITY="${LOWKEY_SIGNING_IDENTITY:-Lowkey Local Code Signing}"
-KEYCHAIN="${LOWKEY_KEYCHAIN:-$HOME/Library/Keychains/login.keychain-db}"
+# The identity keeps its Lowkey-era name: macOS ties the Microphone and
+# Accessibility grants to it, so renaming it would ask for them again.
+IDENTITY="${KHULUMA_SIGNING_IDENTITY:-${LOWKEY_SIGNING_IDENTITY:-Lowkey Local Code Signing}}"
+KEYCHAIN="${KHULUMA_KEYCHAIN:-${LOWKEY_KEYCHAIN:-$HOME/Library/Keychains/login.keychain-db}}"
 
 if security find-certificate -c "$IDENTITY" "$KEYCHAIN" >/dev/null 2>&1; then
   echo "Signing identity already present: $IDENTITY"
@@ -18,7 +20,7 @@ fi
 
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
-pass="lowkey-$RANDOM$RANDOM"
+pass="khuluma-$RANDOM$RANDOM"
 
 cat >"$work/cert.cnf" <<CNF
 [req]

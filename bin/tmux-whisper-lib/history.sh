@@ -26,7 +26,7 @@ save_history() {
   cleanup_history "$retention"
 
   # Generate timestamp filename. Claim it with noclobber so two takes saved
-  # in the same second (Lowkey's background recorder plus a CLI flow) never
+  # in the same second (Khuluma's background recorder plus a CLI flow) never
   # overwrite each other; later ones get _2, _3, ... which sort after it.
   local ts
   ts="$(date '+%Y-%m-%dT%H-%M-%S')"

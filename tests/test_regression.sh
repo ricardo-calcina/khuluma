@@ -457,7 +457,7 @@ assert_contains "doctor_flow_disabled_inline" "$modedoctor_out" "mode.current: c
 assert_contains "doctor_flow_count_inline" "$modedoctor_out" "modes.inline-capable: 1"
 assert_contains "doctor_flow_apps_ignored" "$modedoctor_out" "mode.chat.apps: 1 mapping(s) ignored (inline flow disabled)"
 assert_contains "doctor_flow_invalid_entries" "$modedoctor_out" "mode.email.flows: hidden (explicit; invalid=voice)"
-assert_contains "doctor_flow_fix_inline" "$modedoctor_out" "Let Lowkey use 'chat': tmux-whisper mode flows chat inline"
+assert_contains "doctor_flow_fix_inline" "$modedoctor_out" "Let Khuluma use 'chat': tmux-whisper mode flows chat inline"
 assert_contains "doctor_flow_fix_invalid" "$modedoctor_out" "Review flow filter for 'email': tmux-whisper mode flows email"
 
 modedoctor_json="$(HOME="$MODEDOCTOR_HOME" PATH="$MODEDOCTOR_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$MODEDOCTOR_CFG" DICTATE_CONFIG_FILE="$MODEDOCTOR_CFG/config.toml" tmux-whisper doctor --json)"
@@ -912,9 +912,9 @@ assert_json_equals "bench_export_json_second_timestamp" "$bench_export_json" "1.
 assert_json_equals "bench_export_json_third_timestamp" "$bench_export_json" "2.timestamp" "2026-04-22T09:00:00Z"
 assert_json_equals "bench_export_json_third_audio_source" "$bench_export_json" "2.startup_audio_source" "detect:source(external)"
 
-# tools/lowkey-report.sh: app.log summary (transcript-free). The done(native)
+# tools/khuluma-report.sh: app.log summary (transcript-free). The done(native)
 # and verify: lines are from retired builds and must be ignored.
-REPORT_LOG="$TMP_ROOT/lowkey-app.log"
+REPORT_LOG="$TMP_ROOT/khuluma-app.log"
 cat >"$REPORT_LOG" <<'EOF'
 [2026-10-10T09:00:00.000Z] done(native): stop→delivered 700ms: queue 2, asr 520, clean 5.0, deliver 170; mode=base, chars=10, target=Claude
 [2026-10-10T09:00:01.000Z] verify: take aaa transcript mismatch native="x" cli="y" transcript="SECRET dictated words"
@@ -935,29 +935,29 @@ cat >"$REPORT_LOG" <<'EOF'
 [2026-10-12T09:00:02.000Z] verify: take eee matches the CLI
 [2026-10-13T09:00:02.000Z] verify: take fff matches the CLI
 EOF
-report_text="$(TZ=UTC "$ROOT/tools/lowkey-report.sh" --log "$REPORT_LOG")"
-assert_contains "lowkey_report_take_counts" "$report_text" "Takes: 7 (native 5, fallback 2)"
-assert_contains "lowkey_report_fallback_rate" "$report_text" "fallback rate: 28.6% (2 of 7 tried natively); daemon unreachable x2"
-assert_contains "lowkey_report_failure_rate" "$report_text" "failure rate: 28.6% (2 of 7)"
-assert_contains "lowkey_report_failure_kinds" "$report_text" "    timed_out x1"
-assert_contains "lowkey_report_error_codes_only" "$report_text" "    failed: other x1"
-assert_contains "lowkey_report_incomplete_tail" "$report_text" "1 without daemon timings for every pass"
-assert_contains "lowkey_report_overhead" "$report_text" "minus Parakeet and delivery waits): median 55ms, p90 60ms (n=2)"
-assert_contains "lowkey_report_overhead_bucket" "$report_text" "5-15s: median 60ms, p90 60ms (n=1)"
-assert_contains "lowkey_report_overhead_cold" "$report_text" "overhead, not warm (cold): median 150ms"
-assert_contains "lowkey_report_transport" "$report_text" "request minus model time (warm): median 8ms"
-assert_contains "lowkey_report_start_failures" "$report_text" "recordings that failed to start: 1"
-assert_contains "lowkey_report_warmups" "$report_text" "model warmups started by Lowkey (daemon model warmup time): median 1800ms"
-assert_not_contains "lowkey_report_ignores_verify" "$report_text" "Verify"
-assert_not_contains "lowkey_report_ignores_legacy" "$report_text" "before instrumentation"
-assert_not_contains "lowkey_report_transcript_free" "$report_text" "SECRET"
-report_since="$(TZ=UTC "$ROOT/tools/lowkey-report.sh" --log "$REPORT_LOG" --since 2026-10-12)"
-assert_contains "lowkey_report_since_window" "$report_since" "Window: 2026-10-12 to 2026-10-13 (since 2026-10-12)"
-assert_contains "lowkey_report_since_drops_takes" "$report_since" "Takes: 0"
-if "$ROOT/tools/lowkey-report.sh" --log "$REPORT_LOG" --days x >/dev/null 2>&1; then
-  echo "FAIL: lowkey_report_rejects_bad_days" >&2
+report_text="$(TZ=UTC "$ROOT/tools/khuluma-report.sh" --log "$REPORT_LOG")"
+assert_contains "khuluma_report_take_counts" "$report_text" "Takes: 7 (native 5, fallback 2)"
+assert_contains "khuluma_report_fallback_rate" "$report_text" "fallback rate: 28.6% (2 of 7 tried natively); daemon unreachable x2"
+assert_contains "khuluma_report_failure_rate" "$report_text" "failure rate: 28.6% (2 of 7)"
+assert_contains "khuluma_report_failure_kinds" "$report_text" "    timed_out x1"
+assert_contains "khuluma_report_error_codes_only" "$report_text" "    failed: other x1"
+assert_contains "khuluma_report_incomplete_tail" "$report_text" "1 without daemon timings for every pass"
+assert_contains "khuluma_report_overhead" "$report_text" "minus Parakeet and delivery waits): median 55ms, p90 60ms (n=2)"
+assert_contains "khuluma_report_overhead_bucket" "$report_text" "5-15s: median 60ms, p90 60ms (n=1)"
+assert_contains "khuluma_report_overhead_cold" "$report_text" "overhead, not warm (cold): median 150ms"
+assert_contains "khuluma_report_transport" "$report_text" "request minus model time (warm): median 8ms"
+assert_contains "khuluma_report_start_failures" "$report_text" "recordings that failed to start: 1"
+assert_contains "khuluma_report_warmups" "$report_text" "model warmups started by Khuluma (daemon model warmup time): median 1800ms"
+assert_not_contains "khuluma_report_ignores_verify" "$report_text" "Verify"
+assert_not_contains "khuluma_report_ignores_legacy" "$report_text" "before instrumentation"
+assert_not_contains "khuluma_report_transcript_free" "$report_text" "SECRET"
+report_since="$(TZ=UTC "$ROOT/tools/khuluma-report.sh" --log "$REPORT_LOG" --since 2026-10-12)"
+assert_contains "khuluma_report_since_window" "$report_since" "Window: 2026-10-12 to 2026-10-13 (since 2026-10-12)"
+assert_contains "khuluma_report_since_drops_takes" "$report_since" "Takes: 0"
+if "$ROOT/tools/khuluma-report.sh" --log "$REPORT_LOG" --days x >/dev/null 2>&1; then
+  echo "FAIL: khuluma_report_rejects_bad_days" >&2
   exit 1
 fi
-echo "PASS: lowkey_report_rejects_bad_days"
+echo "PASS: khuluma_report_rejects_bad_days"
 
 echo "Regression tests passed."

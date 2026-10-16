@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Mode policy owns mode naming, flow eligibility and app detection. Callers
-# (and Lowkey's ModeResolver, which mirrors it) should consume these rules
+# (and Khuluma's ModeResolver, which mirrors it) should consume these rules
 # instead of reimplementing them.
 
 canonical_mode_name() {

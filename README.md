@@ -2,11 +2,11 @@
 
 Local dictation for macOS. Press a key, speak, and the text is pasted into the app in front of you, transcribed on your Mac by a warm Parakeet model (Swift/CoreML). Nothing leaves the machine.
 
-The project is being renamed after its menu-bar app, **Lowkey** ([`docs/plans/LOWKEY_RENAME_ROADMAP.md`](docs/plans/LOWKEY_RENAME_ROADMAP.md)). Lowkey is a working name: the public name is still to be chosen. Until the rename, the project has three parts:
+The project is being renamed after its menu-bar app, **Khuluma** (isiNdebele and isiZulu for "speak"; it was called Lowkey until v0.11). The plan is [`docs/plans/KHULUMA_RENAME_ROADMAP.md`](docs/plans/KHULUMA_RENAME_ROADMAP.md). Until the rename is done, the project has three parts:
 
-- **Lowkey** (`tmux-whisperd/Sources/Lowkey`): the menu-bar app you dictate with. It owns the hotkey, the microphone, the sounds, delivery (paste, optionally send) and the Stats window. It transcribes over the daemon's socket and cleans the text up in Swift.
+- **Khuluma** (`tmux-whisperd/Sources/Khuluma`): the menu-bar app you dictate with. It owns the hotkey, the microphone, the sounds, delivery (paste, optionally send) and the Stats window. It transcribes over the daemon's socket and cleans the text up in Swift.
 - **`tmux-whisperd`**: the local Parakeet daemon that keeps the model loaded.
-- **The `tmux-whisper` CLI** (`bin/`): Lowkey's back end for now. It holds config, modes, vocab, history and usage, starts and warms the daemon, and transcribes audio files. Lowkey calls it through a small set of JSON commands ([`docs/CLI_CONTRACTS.md`](docs/CLI_CONTRACTS.md)).
+- **The `tmux-whisper` CLI** (`bin/`): Khuluma's back end for now. It holds config, modes, vocab, history and usage, starts and warms the daemon, and transcribes audio files. Khuluma calls it through a small set of JSON commands ([`docs/CLI_CONTRACTS.md`](docs/CLI_CONTRACTS.md)).
 
 The tmux pane flow, CLI recording, LLM post-processing, the Raycast scripts and the SwiftBar plugin were removed in v0.11 (see `CHANGELOG.md`).
 
@@ -14,20 +14,20 @@ The tmux pane flow, CLI recording, LLM post-processing, the Raycast scripts and 
 
 - macOS 14 or later
 - `python3` 3.11+ (for `tomllib`) and `ffmpeg`
-- Xcode or the Command Line Tools (`swift`), to build the daemon and Lowkey
+- Xcode or the Command Line Tools (`swift`), to build the daemon and Khuluma
 - A Parakeet CoreML model on disk, at `~/.local/share/tmux-whisper/models/parakeet-tdt-0.6b-v3-coreml` (or `-v2-coreml`), or anywhere `swift_parakeet.model_path` in the config points. Install doesn't download it; FluidInference publishes these CoreML conversions on Hugging Face.
 
 ## Install
 
-Lowkey is built from a clone, and it needs the CLI from the same checkout: the two share an app contract number, and Lowkey refuses takes from a CLI with a different one.
+Khuluma is built from a clone, and it needs the CLI from the same checkout: the two share an app contract number, and Khuluma refuses takes from a CLI with a different one.
 
 ```bash
 git clone https://github.com/ricardo-nth/tmux-whisper.git
 cd tmux-whisper
 ./install.sh                     # the CLI, default config, modes, vocab and sounds
 tools/make-signing-identity.sh   # once: a local code-signing identity, so permissions survive rebuilds
-tools/build-lowkey-app.sh        # build, sign and install ~/Applications/Lowkey.app
-open ~/Applications/Lowkey.app
+tools/build-khuluma-app.sh        # build, sign and install ~/Applications/Khuluma.app
+open ~/Applications/Khuluma.app
 ```
 
 On first launch, allow Microphone and Accessibility (for pasting) in System Settings → Privacy & Security.
@@ -37,14 +37,16 @@ After pulling changes, refresh both:
 ```bash
 git pull
 ./install.sh --force
-tools/build-lowkey-app.sh
+tools/build-khuluma-app.sh
 ```
 
-`build-lowkey-app.sh` quits and relaunches Lowkey. It waits (up to 5 minutes) for a take in progress to finish first.
+`build-khuluma-app.sh` quits and relaunches Khuluma. It waits (up to 5 minutes) for a take in progress to finish first.
+
+**Upgrading from Lowkey.app:** the first `build-khuluma-app.sh` quits `~/Applications/Lowkey.app`, moves it to the Trash and installs `Khuluma.app`. Microphone and Accessibility carry over: the bundle id (`com.ricardo-nth.lowkey`) and the signing identity keep their old names until Developer ID signing. On its first launch Khuluma moves the log and any saved takes to `~/Library/Logs/Khuluma` and `~/Library/Application Support/Khuluma`. If you used Start at Login, turn it on again in the menu.
 
 `install.sh` keeps your config, modes, vocab and sounds, including with `--force`, which only refreshes the scripts and adds missing defaults. Other flags: `--no-sounds`, `--with-sounds`, `--replace-sounds` (overwrite your sound files with the bundled ones). It ends with a daemon warm-up, and writes an install receipt to `~/.config/dictate/install-receipt.env`.
 
-**CLI only:** Homebrew (`brew install ricardo-nth/tap/tmux-whisper`, at v0.9.0) and `bootstrap.sh` install the CLI without Lowkey. They are for file transcription, or a pinned CLI on another machine:
+**CLI only:** Homebrew (`brew install ricardo-nth/tap/tmux-whisper`, at v0.9.0) and `bootstrap.sh` install the CLI without Khuluma. They are for file transcription, or a pinned CLI on another machine:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ricardo-nth/tmux-whisper/main/bootstrap.sh | bash -s -- --ref v0.9.0 --force
@@ -52,7 +54,7 @@ curl -fsSL https://raw.githubusercontent.com/ricardo-nth/tmux-whisper/main/boots
 
 Config and sounds still live under the old name: `~/.config/dictate` and `~/.local/share/sounds/dictate`.
 
-## Using Lowkey
+## Using Khuluma
 
 Press the hotkey to start, speak after the chime, press it again to stop. Ctrl+Esc cancels a recording. The default hotkey is `ctrl+option+space`; change it in `~/.config/dictate/config.toml`, then choose **Reload Settings** in the menu:
 
@@ -63,7 +65,7 @@ supervise_daemon = true        # keep the Parakeet daemon warm (launch, wake, re
 ```
 
 The menu shows:
-- whether Lowkey is ready, recording or processing;
+- whether Khuluma is ready, recording or processing;
 - the hotkey;
 - whether the Parakeet daemon is ready;
 - a warning if `config.toml` doesn't parse.
@@ -71,7 +73,7 @@ The menu shows:
 It also offers **Stats…**, **Open Log** and **Start at Login**.
 
 - **Timed-out takes:** when the daemon times out on a take, its audio is kept privately for an hour. **Retry** transcribes it again, and **Paste retried dictation** pastes it wherever you are, without sending. A take that times out on the CLI fallback isn't kept.
-- **Quitting:** a take still recording is saved to disk first, then transcribed into history and copied to the clipboard (never pasted). Takes already stopped and waiting for or in transcription are saved to disk too, and finish as usual. Quit waits up to 30 seconds for all of them. Saved audio and records that haven't reached history by then are finished at the next launch, into history without touching the clipboard. If a take's audio can't be written to disk, Lowkey stays open instead of losing it.
+- **Quitting:** a take still recording is saved to disk first, then transcribed into history and copied to the clipboard (never pasted). Takes already stopped and waiting for or in transcription are saved to disk too, and finish as usual. Quit waits up to 30 seconds for all of them. Saved audio and records that haven't reached history by then are finished at the next launch, into history without touching the clipboard. If a take's audio can't be written to disk, Khuluma stays open instead of losing it.
 - **Fallback:** if the daemon can't be reached, the take goes through `tmux-whisper inline process` instead. The same happens when the CLI runs in a non-C locale.
 
 **Delivery settings** live in the CLI:
@@ -85,7 +87,7 @@ tmux-whisper sound start|stop|process|error on|off
 
 **Stats…** shows lifetime words, words per minute, the estimated time saved against typing (always labelled as an estimate, at 40 wpm by default), a 30/60/90-day activity heatmap, your streak and your bests. It reads `tmux-whisper usage --json --days all`, which holds counts and durations only, never what you said.
 
-**Logs:** `~/Library/Logs/Lowkey/app.log` has one `take:` line per take (path, outcome, timings; no text). `tools/lowkey-report.sh` summarises it: outcomes, fallback and failure rates, and where the time goes.
+**Logs:** `~/Library/Logs/Khuluma/app.log` has one `take:` line per take (path, outcome, timings; no text). `tools/khuluma-report.sh` summarises it: outcomes, fallback and failure rates, and where the time goes.
 
 ## Modes and vocab
 
@@ -96,11 +98,11 @@ tmux-whisper mode                  # the current policy and all modes
 tmux-whisper mode auto             # pick the mode from the frontmost app (default)
 tmux-whisper mode code             # or force one: code, long, email, chat, base
 tmux-whisper mode apps add Ghostty # the current mode's trigger apps
-tmux-whisper mode flows code inline # let Lowkey use a mode that was tmux-only
+tmux-whisper mode flows code inline # let Khuluma use a mode that was tmux-only
 tmux-whisper mode create notes
 ```
 
-Each mode is a folder under `~/.config/dictate/modes/<name>/` with an `apps` list, a `flows` file and optional `vocab`. A mode whose `flows` file says only `tmux` is hidden from Lowkey; `tmux-whisper doctor` flags this.
+Each mode is a folder under `~/.config/dictate/modes/<name>/` with an `apps` list, a `flows` file and optional `vocab`. A mode whose `flows` file says only `tmux` is hidden from Khuluma; `tmux-whisper doctor` flags this.
 
 ```bash
 tmux-whisper vocab add "clawed::Claude"     # also "wrong -> right"
@@ -164,9 +166,9 @@ tmux-whisper config repair --dry-run
 tmux-whisper config repair      # backs up first
 ```
 
-`tmux-whisper config`, `config get <key>` and `config defaults` show the config without changing it. More fixes, including Lowkey's own messages, are in [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md).
+`tmux-whisper config`, `config get <key>` and `config defaults` show the config without changing it. More fixes, including Khuluma's own messages, are in [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md).
 
-Lowkey and Finder run the CLI with a minimal environment. Put custom `PATH` entries and `DICTATE_*` overrides in `~/.zshenv` so they apply there too. More in [`docs/INTEGRATIONS.md`](docs/INTEGRATIONS.md).
+Khuluma and Finder run the CLI with a minimal environment. Put custom `PATH` entries and `DICTATE_*` overrides in `~/.zshenv` so they apply there too. More in [`docs/INTEGRATIONS.md`](docs/INTEGRATIONS.md).
 
 ## Development
 
@@ -174,28 +176,28 @@ Lowkey and Finder run the CLI with a minimal environment. Put custom `PATH` entr
 - `tmux-whisperd/` is the Swift package, with four targets:
   - `TmuxWhisperKit`: the engine, protocol and socket server;
   - `tmux-whisperd`: the daemon;
-  - `LowkeyCore`: Lowkey's AppKit-free logic, with most of the tests;
-  - `Lowkey`: the app shell.
+  - `KhulumaCore`: Khuluma's AppKit-free logic, with most of the tests;
+  - `Khuluma`: the app shell.
 - The CLI builds the daemon on demand into `~/.local/share/tmux-whisper/native/` and rebuilds it when the sources change.
 - `config/` holds the defaults that `install.sh` seeds: config, modes and vocab.
-- `tools/` holds the Lowkey build and report scripts and the Homebrew formula updater.
+- `tools/` holds the Khuluma build and report scripts and the Homebrew formula updater.
 - `docs/plans/` holds the active plan. Finished plans move to `docs/plans/archive/`.
 
 Run the checks before a PR:
 
 ```bash
 ./tests/ci.sh                          # shell syntax, CLI, regression, flow parity, install and bootstrap tests
-cd tmux-whisperd && swift test         # Swift tests (LowkeyCore, TmuxWhisperKit)
+cd tmux-whisperd && swift test         # Swift tests (KhulumaCore, TmuxWhisperKit)
 ```
 
-`tests/fixtures/cleanup/` keeps Lowkey's Swift cleanup in step with the CLI's. Regenerate it with `tests/gen-cleanup-fixtures.sh` after changing cleanup. GitHub Actions runs `ci.sh` on every push and pull request.
+`tests/fixtures/cleanup/` keeps Khuluma's Swift cleanup in step with the CLI's. Regenerate it with `tests/gen-cleanup-fixtures.sh` after changing cleanup. GitHub Actions runs `ci.sh` on every push and pull request.
 
 [`CONTRIBUTING.md`](CONTRIBUTING.md) covers the workflow. [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md) covers releases. [`CHANGELOG.md`](CHANGELOG.md) holds the release notes, with older entries in [`CHANGELOG.archive.md`](CHANGELOG.archive.md). [`ROADMAP.md`](ROADMAP.md) gives the direction.
 
 ## Privacy
 
 - **Audio and text** stay on your Mac.
-- **What's saved:** history keeps transcripts for the retention period. Before a take reaches history, Lowkey spools its record (text included) to `~/Library/Application Support/Lowkey/pending/`, and removes it once history has it. Saved audio waits in `recovered/` beside it. The usage tally and `app.log` hold counts and timings, never text.
+- **What's saved:** history keeps transcripts for the retention period. Before a take reaches history, Khuluma spools its record (text included) to `~/Library/Application Support/Khuluma/pending/`, and removes it once history has it. Saved audio waits in `recovered/` beside it. The usage tally and `app.log` hold counts and timings, never text.
 - **The repository** holds no keys or personal settings. Your config is never overwritten by an install.
 
 ## License

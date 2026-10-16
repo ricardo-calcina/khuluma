@@ -1013,7 +1013,7 @@ run_daemon_lifecycle_round() {
   # Slow starts make the launchers overlap.
   export DICTATE_TEST_STUB_START_DELAY=0.5
 
-  # Lowkey-style warmups, a CLI transcription and a background warmup all
+  # Khuluma-style warmups, a CLI transcription and a background warmup all
   # find no daemon at once: exactly one starts, and meta names it.
   "$DICTATE_BIN" warmup --json >"$CASE_DIR/w1.json" &
   a=$!
@@ -1191,43 +1191,43 @@ EOF
   "$DICTATE_BIN" warmup --restart-stale >/dev/null
   assert_equals "daemon_no_rebuild_when_current" "$(grep -c . "$build_log")" "1"
 
-  # Lowkey app sources share the package but are not part of the daemon.
-  mkdir -p "$src/Sources/Lowkey"
-  printf '%s\n' '// app-only change' >"$src/Sources/Lowkey/AppController.swift"
+  # Khuluma app sources share the package but are not part of the daemon.
+  mkdir -p "$src/Sources/Khuluma"
+  printf '%s\n' '// app-only change' >"$src/Sources/Khuluma/AppController.swift"
   "$DICTATE_BIN" warmup --restart-stale >/dev/null
   assert_equals "daemon_ignores_app_sources" "$(grep -c . "$build_log")" "1"
 
   # A busy pipeline blocks the swap even though a new build exists.
   printf '%s\n' 'print("v2")' >"$src/Sources/tmux-whisperd/main.swift"
   mkdir -p "$DICTATE_PROCESSING_DIR"
-  printf 'pid=%s\nkind=inline\nphase=processing\n' "$$" >"$DICTATE_PROCESSING_DIR/inline-lowkey-busy"
+  printf 'pid=%s\nkind=inline\nphase=processing\n' "$$" >"$DICTATE_PROCESSING_DIR/inline-khuluma-busy"
   "$DICTATE_BIN" warmup --restart-stale >/dev/null
   assert_equals "daemon_rebuilt_on_source_change" "$(grep -c . "$build_log")" "2"
   assert_equals "daemon_not_restarted_while_busy" "$(awk -F= '$1 == "pid" { print $2 }' "$meta")" "$pid1"
   assert_file_contains "daemon_busy_logged" "$DICTATE_TRANSCRIBE_LOG" "daemon still busy"
-  rm -f "$DICTATE_PROCESSING_DIR/inline-lowkey-busy"
+  rm -f "$DICTATE_PROCESSING_DIR/inline-khuluma-busy"
 
-  # A Lowkey take in any phase (recording included) keeps the old daemon.
+  # A Khuluma take in any phase (recording included) keeps the old daemon.
   local take_owner
   sleep 60 &
   take_owner=$!
   mkdir -p "$DICTATE_PROCESSING_DIR"
-  printf 'pid=%s\nkind=inline\nsession_id=t1\nphase=recording\n' "$take_owner" >"$DICTATE_PROCESSING_DIR/inline-lowkey-t1"
+  printf 'pid=%s\nkind=inline\nsession_id=t1\nphase=recording\n' "$take_owner" >"$DICTATE_PROCESSING_DIR/inline-khuluma-t1"
   "$DICTATE_BIN" warmup --restart-stale >/dev/null
   assert_equals "daemon_not_restarted_mid_recording" "$(awk -F= '$1 == "pid" { print $2 }' "$meta")" "$pid1"
-  # A marker whose owner died (Lowkey crashed) is pruned rather than
+  # A marker whose owner died (Khuluma crashed) is pruned rather than
   # blocking upgrades forever; so is one abandoned before its pid was written.
   kill "$take_owner" 2>/dev/null; wait "$take_owner" 2>/dev/null || true
-  : >"$DICTATE_PROCESSING_DIR/inline-lowkey-t2"
-  touch -t 202001010000 "$DICTATE_PROCESSING_DIR/inline-lowkey-t2"
+  : >"$DICTATE_PROCESSING_DIR/inline-khuluma-t2"
+  touch -t 202001010000 "$DICTATE_PROCESSING_DIR/inline-khuluma-t2"
 
   # Idle: the out-of-date daemon is replaced by one started from the new build.
   "$DICTATE_BIN" warmup --restart-stale >/dev/null
   pid2="$(awk -F= '$1 == "pid" { print $2 }' "$meta")"
   [[ -n "$pid2" && "$pid2" != "$pid1" ]] || fail "daemon_restarted_when_idle"
   pass "daemon_restarted_when_idle"
-  assert_path_absent "daemon_dead_take_marker_pruned" "$DICTATE_PROCESSING_DIR/inline-lowkey-t1"
-  assert_path_absent "daemon_abandoned_marker_pruned" "$DICTATE_PROCESSING_DIR/inline-lowkey-t2"
+  assert_path_absent "daemon_dead_take_marker_pruned" "$DICTATE_PROCESSING_DIR/inline-khuluma-t1"
+  assert_path_absent "daemon_abandoned_marker_pruned" "$DICTATE_PROCESSING_DIR/inline-khuluma-t2"
   assert_equals "daemon_meta_names_new_daemon" "$(json_field "$("$DICTATE_BIN" warmup --json)" pid)" "$pid2"
   kill -0 "$pid1" 2>/dev/null && fail "daemon_old_process_stopped"
   pass "daemon_old_process_stopped"
@@ -1442,7 +1442,7 @@ run_inline_record_usage_retry_round() {
   printf '%s' '{"status":"ok","delivered":true,"text":"no id"}' | "$DICTATE_BIN" inline record --json >"$CASE_DIR/no-id.json"
   assert_file_contains "inline_record_without_take_id" "$CASE_DIR/no-id.json" '"usage_recorded": true'
 
-  # The delivery date Lowkey sends wins over the date the record is written.
+  # The delivery date Khuluma sends wins over the date the record is written.
   printf '%s' '{"take_id":"t-late","status":"ok","delivered":true,"text":"late","record_ms":500,"delivered_local_date":"2026-01-02"}' \
     | "$DICTATE_BIN" inline record --json >/dev/null
   assert_file_contains "inline_record_delivery_date_bucket" "$ledger" '"2026-01-02"'
@@ -1615,7 +1615,7 @@ assert r["raw_text"] == "stage failure transcript", r
   pass "cleanup_stage_failure_inline_process_continues"
 }
 
-# Lowkey's native path persists each take with `inline record` after
+# Khuluma's native path persists each take with `inline record` after
 # delivery: the same bench/usage/history writers as `inline process`, usage
 # only for delivered takes, and the [debug] keep_logs archive.
 run_inline_record_round() {
@@ -1636,12 +1636,12 @@ assert "capabilities" not in c, c
 ' || { echo "$out" >&2; fail "app_config_transcription_section"; }
   pass "app_config_transcription_section"
   assert_equals "app_config_supervise_default" "$(json_field "$out" pipeline.supervise)" "True"
-  # Lowkey refuses takes unless the CLI speaks its contract: the two numbers
+  # Khuluma refuses takes unless the CLI speaks its contract: the two numbers
   # must move together.
   local swift_contract
-  swift_contract="$(sed -nE 's/^ *public static let version = ([0-9]+).*/\1/p' "$ROOT/tmux-whisperd/Sources/LowkeyCore/CLIModels.swift")"
+  swift_contract="$(sed -nE 's/^ *public static let version = ([0-9]+).*/\1/p' "$ROOT/tmux-whisperd/Sources/KhulumaCore/CLIModels.swift")"
   [[ -n "$swift_contract" ]] || fail "app_contract_swift_constant_found"
-  assert_equals "app_config_contract_matches_lowkey" "$(json_field "$out" app_contract)" "$swift_contract"
+  assert_equals "app_config_contract_matches_khuluma" "$(json_field "$out" app_contract)" "$swift_contract"
   assert_equals "app_config_usage_path" "$(json_field "$out" usage.summary_path)" "$DICTATE_CONFIG_DIR/usage.json"
   printf '[app]\nsupervise_daemon = false\n' >"$DICTATE_CONFIG_FILE"
   out="$("$DICTATE_BIN" app-config --json)"
@@ -1673,7 +1673,7 @@ assert h["metrics"]["total_ms"] == 3500 and h["audio"]["capture_gap_to_record_ms
 PYEOF
   pass "inline_record_history"
 
-  # A replayed take (Lowkey's spool after a quit timeout or crash) is
+  # A replayed take (Khuluma's spool after a quit timeout or crash) is
   # recorded once.
   printf '%s' '{"take_id":"t-ok","status":"ok","delivered":true,"raw_text":"open ai","text":"OpenAI","mode":"code"}' \
     | "$DICTATE_BIN" inline record --json >"$CASE_DIR/record-dup.json"
