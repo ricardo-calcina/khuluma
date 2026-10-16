@@ -44,12 +44,12 @@ final class TakePipeline {
   }
 
   /// The native path: transcribe through the daemon socket, clean up in
-  /// Swift, deliver, then persist in the background.
-  func processNatively(samples: [Float], take: Take, recordMs: Int, appName: String?,
+  /// Swift, deliver, then persist in the background. `takeId` is the one its
+  /// Quit copy would carry (see `InFlightTakes`).
+  func processNatively(samples: [Float], take: Take, takeId: String, recordMs: Int, appName: String?,
                        config: AppConfig, stopAt: Double) -> NativeRoute {
     guard let native = config.native else { return .fallback("transcription settings missing") }
     let (transcription, cleanup, modelPath) = native
-    let takeId = UUID().uuidString.lowercased()
     let startedAt = monotonicMs()
 
     let client = DaemonClient(socketPath: transcription.socketPath)

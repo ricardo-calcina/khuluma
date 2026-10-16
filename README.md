@@ -71,7 +71,7 @@ The menu shows:
 It also offers **Stats…**, **Open Log** and **Start at Login**.
 
 - **Timed-out takes:** when the daemon times out on a take, its audio is kept privately for an hour. **Retry** transcribes it again, and **Paste retried dictation** pastes it wherever you are, without sending. A take that times out on the CLI fallback isn't kept.
-- **Quitting:** a take still recording is saved to disk first, then transcribed into history and copied to the clipboard (never pasted). Quit waits up to 30 seconds for that and for takes already being transcribed. Saved audio and records that haven't reached history by then are finished at the next launch, without touching the clipboard; a take still in memory past the 30 seconds is lost.
+- **Quitting:** a take still recording is saved to disk first, then transcribed into history and copied to the clipboard (never pasted). Takes already stopped and waiting for or in transcription are saved to disk too, and finish as usual. Quit waits up to 30 seconds for all of them. Saved audio and records that haven't reached history by then are finished at the next launch, into history without touching the clipboard. If a take's audio can't be written to disk, Lowkey stays open instead of losing it.
 - **Fallback:** if the daemon can't be reached, the take goes through `tmux-whisper inline process` instead. The same happens when the CLI runs in a non-C locale.
 
 **Delivery settings** live in the CLI:

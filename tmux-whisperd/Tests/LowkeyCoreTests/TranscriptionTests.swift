@@ -423,6 +423,108 @@ struct RecoveredTakesTests {
   }
 }
 
+struct InFlightTakesTests {
+  private func makeStore() -> RecoveredTakes {
+    RecoveredTakes(directory: URL(fileURLWithPath: NSTemporaryDirectory() + "lk-inflight-\(UUID().uuidString)"))
+  }
+
+  @Test func quitSavesEveryTakeOnceAndLeavesItForTheNextLaunch() throws {
+    let store = makeStore()
+    defer { try? FileManager.default.removeItem(at: store.directory) }
+    let takes = InFlightTakes(store: store)
+    let samples: [Float] = [0, 0.5, -0.5]
+    let queued = takes.add(samples: samples, takeId: "queued-1")
+    takes.add(samples: [0.25], takeId: "transcribing-2")
+    #expect(store.all().isEmpty) // nothing is written before Quit
+
+    #expect(takes.saveAll() == (saved: 2, failed: 0))
+    #expect(takes.saveAll() == (saved: 0, failed: 0)) // a second Quit writes nothing new
+    let files = store.all()
+    #expect(files.count == 2)
+    #expect(Set(files.map(RecoveredTakes.takeId(of:))) == ["queued-1", "transcribing-2"])
+    #expect(takes.savedFiles() == Set(files))
+    // The drain ran out: the copies are what the next launch transcribes.
+    let copy = try #require(files.first { RecoveredTakes.takeId(of: $0) == queued })
+    #expect(WAVEncoder.pcm16(try RecoveredTakes.samples(at: copy)) == WAVEncoder.pcm16(samples))
+  }
+
+  @Test func aTakeThatFinishesDuringTheDrainDropsItsCopy() {
+    let store = makeStore()
+    defer { try? FileManager.default.removeItem(at: store.directory) }
+    let takes = InFlightTakes(store: store)
+    let done = takes.add(samples: [0.1])
+    let slow = takes.add(samples: [0.2])
+    takes.saveAll()
+    takes.finish(done)
+    // Only the take still transcribing is left to recover.
+    #expect(store.all().map(RecoveredTakes.takeId(of:)) == [slow])
+    #expect(takes.count == 1)
+    takes.finish(slow)
+    #expect(store.all().isEmpty)
+    #expect(takes.savedFiles().isEmpty)
+    takes.finish(slow) // finishing twice is harmless
+  }
+
+  @Test func aTakeFinishedBeforeQuitIsNeverSaved() {
+    let store = makeStore()
+    defer { try? FileManager.default.removeItem(at: store.directory) }
+    let takes = InFlightTakes(store: store)
+    takes.finish(takes.add(samples: [0.1]))
+    #expect(takes.saveAll() == (saved: 0, failed: 0))
+    #expect(store.all().isEmpty)
+  }
+
+  @Test func keepHandsTheAudioOverWithoutASecondCopy() throws {
+    let store = makeStore()
+    defer { try? FileManager.default.removeItem(at: store.directory) }
+    let takes = InFlightTakes(store: store)
+    // Kept before Quit: written now.
+    let early = takes.add(samples: [0.1], takeId: "early")
+    let earlyURL = try takes.keep(early)
+    // Saved at Quit, then kept (a CLI mismatch found during the drain): the
+    // Quit copy is reused.
+    let late = takes.add(samples: [0.2], takeId: "late")
+    takes.saveAll()
+    let lateCopy = try #require(takes.savedFiles().first)
+    #expect(try takes.keep(late) == lateCopy)
+    // The take's own `finish` (it always runs) leaves kept audio alone.
+    takes.finish(early)
+    takes.finish(late)
+    #expect(store.all() == [earlyURL, lateCopy].sorted { $0.lastPathComponent < $1.lastPathComponent })
+    #expect(takes.count == 0)
+    #expect(throws: (any Error).self) { try takes.keep("unknown") }
+  }
+
+  @Test func aTakeThatCannotBeWrittenStaysForTheNextTry() throws {
+    let parent = URL(fileURLWithPath: NSTemporaryDirectory() + "lk-inflight-\(UUID().uuidString)")
+    defer { try? FileManager.default.removeItem(at: parent) }
+    try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
+    // A file where the store's directory should be: every write fails.
+    let blocked = parent.appendingPathComponent("recovered")
+    try Data().write(to: blocked)
+    let takes = InFlightTakes(store: RecoveredTakes(directory: blocked))
+    let take = takes.add(samples: [0.1])
+    #expect(takes.saveAll() == (saved: 0, failed: 1))
+    #expect(throws: (any Error).self) { try takes.keep(take) }
+    #expect(takes.count == 1)
+    try FileManager.default.removeItem(at: blocked)
+    #expect(takes.saveAll() == (saved: 1, failed: 0))
+  }
+
+  @Test func takesFinishingWhileQuitSavesLeaveNothingBehind() async {
+    let store = makeStore()
+    defer { try? FileManager.default.removeItem(at: store.directory) }
+    let takes = InFlightTakes(store: store)
+    let ids = (0..<40).map { takes.add(samples: [Float($0) / 40], takeId: "take-\($0)") }
+    await withTaskGroup(of: Void.self) { group in
+      group.addTask { takes.saveAll() }
+      for id in ids { group.addTask { takes.finish(id) } }
+    }
+    #expect(takes.count == 0)
+    #expect(store.all().isEmpty)
+  }
+}
+
 struct TakeRecordTests {
   @Test func encodesTheInlineRecordPayload() throws {
     var record = TakeRecord(takeId: "t1", status: "ok", delivered: true)

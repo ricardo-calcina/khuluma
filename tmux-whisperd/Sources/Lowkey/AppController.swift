@@ -56,6 +56,9 @@ final class AppController: NSObject, NSApplicationDelegate {
   private var lastExternalApp: NSRunningApplication?
   /// Every take stopped for Quit whose audio couldn't be written yet.
   private var unsaved: [UnsavedTake] = []
+  /// Stopped takes until they end (queued or being transcribed): Quit saves
+  /// their audio, in case the drain runs out before they finish.
+  private let inFlight = InFlightTakes(store: .standard)
   /// Made on first open, then reused.
   private var statsWindow: StatsWindowController?
 
@@ -130,7 +133,9 @@ final class AppController: NSObject, NSApplicationDelegate {
   /// Quit never discards a dictation. A take still recording is saved to
   /// disk at once, then transcribed into history and onto the clipboard
   /// (never pasted or sent: the app in front at quit time, e.g. the terminal
-  /// running a rebuild, is not where it was meant to go). Queued takes and
+  /// running a rebuild, is not where it was meant to go). Takes already
+  /// stopped (queued or being transcribed) are saved to disk too, then
+  /// finish as usual; each one that does drops its saved copy. They and
   /// persistence get up to 30 s; whatever doesn't finish is recovered at the
   /// next launch (saved audio, spooled records).
   func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
@@ -144,7 +149,18 @@ final class AppController: NSObject, NSApplicationDelegate {
         return .terminateCancel
       }
     }
+    saveInFlightForQuit()
     return terminateAfterDraining()
+  }
+
+  /// Writes the audio of takes still queued or being transcribed. One that
+  /// can't be written isn't lost yet: it may still finish in the drain, and
+  /// the drain's timeout tries again before giving up.
+  private func saveInFlightForQuit() {
+    guard inFlight.count > 0 else { return }
+    let (saved, failed) = inFlight.saveAll()
+    Log.write("quit: saved \(saved) take(s) still being transcribed to recovered/ (deleted as each finishes)"
+              + (failed > 0 ? "; \(failed) couldn't be written yet" : ""))
   }
 
   private func discardUnsavedAndQuit() {
@@ -167,9 +183,20 @@ final class AppController: NSObject, NSApplicationDelegate {
       guard let persistQueue else { return reply() }
       persistQueue.async { reply() }
     }
-    DispatchQueue.main.asyncAfter(deadline: .now() + 30) {
+    DispatchQueue.main.asyncAfter(deadline: .now() + 30) { [weak self, inFlight] in
+      guard replied.wait(timeout: .now()) == .success else { return }
+      // Last chance for takes whose audio couldn't be written at Quit.
+      let failed = inFlight.saveAll().failed
+      guard failed == 0 else {
+        // Stay open rather than lose them; they finish (or Quit saves them) later.
+        self?.quitting = false
+        NSApp.reply(toApplicationShouldTerminate: false)
+        self?.fail("couldn't save \(failed) recording\(failed == 1 ? "" : "s") still being transcribed; quit again once "
+                   + (failed == 1 ? "it finishes" : "they finish"))
+        return
+      }
       Log.write("quit: pending work did not finish within 30s; quitting (saved audio and spooled takes are recovered at next launch)")
-      reply()
+      NSApp.reply(toApplicationShouldTerminate: true)
     }
     return .terminateLater
   }
@@ -232,7 +259,9 @@ final class AppController: NSObject, NSApplicationDelegate {
   /// Takes saved at a previous quit that didn't finish: transcribe them into
   /// history (no clipboard: it may hold something newer) and say so.
   private func recoverLeftoverTakes(config: AppConfig) {
-    let leftovers = recovered.all()
+    // While quitting, saved takes are already queued or still in flight.
+    guard !quitting else { return }
+    let leftovers = leftoverTakes()
     guard !leftovers.isEmpty, !recoveryRunning else { return }
     guard config.nativePipelineBlocker == nil else {
       // Can't transcribe natively with these settings: say so, and retry
@@ -251,7 +280,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         self.recover(url: url, samples: samples, takeId: RecoveredTakes.takeId(of: url), startedEpochMs: nil,
                      startupMs: 0, app: nil, config: config, copy: false)
       }
-      let remaining = self.recovered.all().count
+      let remaining = self.leftoverTakes().count
       let done = leftovers.count - remaining
       DispatchQueue.main.async {
         self.recoveryRunning = false
@@ -263,6 +292,13 @@ final class AppController: NSObject, NSApplicationDelegate {
         }
       }
     }
+  }
+
+  /// Saved takes waiting for transcription: not the copies of takes still
+  /// in flight (after a Quit that couldn't finish), which finish on their own.
+  private func leftoverTakes() -> [URL] {
+    let inFlightCopies = inFlight.savedFiles()
+    return recovered.all().filter { !inFlightCopies.contains($0) }
   }
 
   // MARK: - Recording
@@ -431,9 +467,15 @@ final class AppController: NSObject, NSApplicationDelegate {
     }
     let frontmostAtStop = NSWorkspace.shared.frontmostApplication?.localizedName
     let cachedConfig = self.config
-    work.async { [weak self] in
-      // Every path below is synchronous on this queue: the take is over when it returns.
-      defer { take.marker?.remove() }
+    // In memory only until the take ends: Quit saves it from here.
+    let takeId = inFlight.add(samples: samples)
+    work.async { [weak self, inFlight] in
+      // Every path below is synchronous on this queue: the take is over when
+      // it returns (its record spooled, its audio kept elsewhere, or failed).
+      defer {
+        take.marker?.remove()
+        inFlight.finish(takeId)
+      }
       guard let self else { return }
       take.marker?.update(.processing)
       // Settings fetched during the recording; usually ready long before
@@ -446,13 +488,13 @@ final class AppController: NSObject, NSApplicationDelegate {
       case .config(let config): fresh = config
       case .unavailable(let reason): problem = reason
       case .mismatch(let mismatch):
-        self.keepForMatchingCLI(samples: samples, take: take, recordMs: recordMs, mismatch: mismatch)
+        self.keepForMatchingCLI(samples: samples, take: take, takeId: takeId, recordMs: recordMs, mismatch: mismatch)
         return
       }
       // A mismatch found since this take's fetch (a reload, while recording
       // or queued) is newer than its settings: read it now, on main.
       if let mismatch = DispatchQueue.main.sync(execute: { self.contractMismatch }) {
-        self.keepForMatchingCLI(samples: samples, take: take, recordMs: recordMs, mismatch: mismatch)
+        self.keepForMatchingCLI(samples: samples, take: take, takeId: takeId, recordMs: recordMs, mismatch: mismatch)
         return
       }
       if let fresh, fresh != cachedConfig {
@@ -470,8 +512,8 @@ final class AppController: NSObject, NSApplicationDelegate {
         if let blocker = fresh.nativePipelineBlocker {
           route = ("cli", blocker)
         } else {
-          switch pipeline.processNatively(samples: samples, take: take, recordMs: recordMs, appName: appName,
-                                          config: fresh, stopAt: stopAt) {
+          switch pipeline.processNatively(samples: samples, take: take, takeId: takeId, recordMs: recordMs,
+                                          appName: appName, config: fresh, stopAt: stopAt) {
           case .handled(let result):
             DispatchQueue.main.async { self.finish(result) }
             return
@@ -511,11 +553,13 @@ final class AppController: NSObject, NSApplicationDelegate {
   /// transcribed with it. The audio is saved like a quit's, and transcribed
   /// into history once a matching CLI's settings arrive. If it can't be
   /// written it stays in memory, and Quit retries like any unsaved take.
-  private func keepForMatchingCLI(samples: [Float], take: Take, recordMs: Int, mismatch: AppContract.Mismatch) {
-    let takeId = UUID().uuidString.lowercased()
+  /// Runs on `work`.
+  private func keepForMatchingCLI(samples: [Float], take: Take, takeId: String, recordMs: Int,
+                                  mismatch: AppContract.Mismatch) {
     let kept: Bool
     do {
-      let url = try recovered.save(samples: samples, takeId: takeId)
+      // Reuses the copy Quit saved, if it got there first.
+      let url = try inFlight.keep(takeId)
       Log.write("pipeline: CLI contract mismatch; saved the recording to \(url.lastPathComponent)")
       kept = true
     } catch {
@@ -532,7 +576,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     DispatchQueue.main.async {
       self.refuseTakes(mismatch)
       if kept {
-        self.menu.showRecovered("Saved dictations waiting (\(self.recovered.all().count)): Show in Finder", action: true)
+        self.menu.showRecovered("Saved dictations waiting (\(self.leftoverTakes().count)): Show in Finder", action: true)
       } else {
         self.unsaved.append(UnsavedTake(samples: samples, takeId: takeId, startedEpochMs: take.startedEpochMs,
                                         startupMs: take.startupMs, app: take.originalApp?.localizedName, marker: nil))
