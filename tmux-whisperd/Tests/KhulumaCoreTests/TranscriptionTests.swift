@@ -476,10 +476,13 @@ struct InFlightTakesTests {
     #expect(takes.count == 0)
     #expect(takes.savedFiles().isEmpty) // a leftover now, for the recovery pass
     #expect(store.all().map(RecoveredTakes.takeId(of:)) == ["failed"])
-    // Released before Quit: nothing was saved, nothing is left.
+    // Once Quit has begun, a take that fails before its copy exists is held,
+    // and Quit's last check writes it.
     takes.release(takes.add(samples: [0.2]))
-    #expect(takes.saveAll() == (saved: 0, failed: 0))
-    #expect(store.all().count == 1)
+    #expect(takes.held == 1)
+    #expect(takes.saveAll() == (saved: 1, failed: 0))
+    #expect(takes.count == 0)
+    #expect(store.all().count == 2)
   }
 
   @Test func aTakeFinishedBeforeQuitIsNeverSaved() {
@@ -520,12 +523,40 @@ struct InFlightTakesTests {
     let blocked = parent.appendingPathComponent("recovered")
     try Data().write(to: blocked)
     let takes = InFlightTakes(store: RecoveredTakes(directory: blocked))
-    let take = takes.add(samples: [0.1])
-    #expect(takes.saveAll() == (saved: 0, failed: 1))
-    #expect(throws: (any Error).self) { try takes.keep(take) }
-    #expect(takes.count == 1)
+    let running = takes.add(samples: [0.1])
+    let mismatched = takes.add(samples: [0.2])
+    #expect(takes.saveAll() == (saved: 0, failed: 2))
+    // A CLI mismatch found during the drain: still can't write it, so it's held.
+    #expect(throws: (any Error).self) { try takes.keep(mismatched) }
+    takes.release(mismatched) // the take's own end leaves it held
+    // The other fails during the drain: no copy, so it's held too.
+    takes.release(running)
+    #expect(takes.held == 2)
     try FileManager.default.removeItem(at: blocked)
-    #expect(takes.saveAll() == (saved: 1, failed: 0))
+    // Quit's last check writes both; they now belong to the store.
+    #expect(takes.saveAll() == (saved: 2, failed: 0))
+    #expect(takes.count == 0)
+    #expect(takes.held == 0)
+    #expect(RecoveredTakes(directory: blocked).all().count == 2)
+  }
+
+  @Test func heldAudioGoesOnlyWhenDiscarded() throws {
+    let parent = URL(fileURLWithPath: NSTemporaryDirectory() + "lk-inflight-\(UUID().uuidString)")
+    defer { try? FileManager.default.removeItem(at: parent) }
+    try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
+    let blocked = parent.appendingPathComponent("recovered")
+    try Data().write(to: blocked)
+    let takes = InFlightTakes(store: RecoveredTakes(directory: blocked))
+    // Before Quit, a failed take's audio goes, as it always has.
+    takes.release(takes.add(samples: [0.1]))
+    #expect(takes.count == 0)
+    // A mismatch that can't write is held even before Quit.
+    let mismatched = takes.add(samples: [0.2])
+    #expect(throws: (any Error).self) { try takes.keep(mismatched) }
+    #expect(takes.held == 1)
+    #expect(takes.saveAll().failed == 1)
+    #expect(takes.discardHeld() == 1)
+    #expect(takes.count == 0)
   }
 
   @Test func takesFinishingWhileQuitSavesLeaveNothingBehind() async {
@@ -544,7 +575,8 @@ struct InFlightTakesTests {
 
 struct TakeResultTests {
   @Test func onlySettledTakesGiveUpTheirQuitCopy() {
-    #expect(TakeResult.delivered.settlesAudio)
+    #expect(TakeResult.delivered(recorded: true).settlesAudio)
+    #expect(!TakeResult.delivered(recorded: false).settlesAudio) // not spooled: history would miss it
     #expect(TakeResult.noSpeech.settlesAudio)
     #expect(TakeResult.timedOut("timed out", kept: true).settlesAudio) // Retry holds the audio
     #expect(!TakeResult.timedOut("timed out", kept: false).settlesAudio)

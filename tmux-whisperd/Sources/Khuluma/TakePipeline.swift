@@ -193,8 +193,7 @@ final class TakePipeline {
         line.add("chars", text.count)
         line.add("target", target ?? "-")
       }
-      persister.persist(record)
-      return .handled(.delivered)
+      return .handled(.delivered(recorded: persister.persist(record)))
     }
   }
 
@@ -265,7 +264,8 @@ final class TakePipeline {
         line.add("chars", result.text.count)
         line.add("target", target ?? "-")
       }
-      return .delivered
+      // `inline process` saved history itself.
+      return .delivered(recorded: true)
     } catch {
       logTake("failed") { $0.add("error", Self.errorCategory(error)) }
       return .failed(error.localizedDescription)

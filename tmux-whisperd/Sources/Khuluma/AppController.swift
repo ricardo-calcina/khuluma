@@ -145,13 +145,25 @@ final class AppController: NSObject, NSApplicationDelegate {
       guard saveRecordingForQuit() else {
         // Couldn't write the audio: stay open rather than lose a take. Only
         // the explicit "Discard … and quit" menu item gives it up.
-        menu.showDiscardUnsaved("Discard \(unsaved.count) unsaved recording\(unsaved.count == 1 ? "" : "s") and quit")
+        showDiscardUnsaved()
         fail("couldn't save \(unsaved.count) recording\(unsaved.count == 1 ? "" : "s") for quitting; Quit retries")
         return .terminateCancel
       }
     }
     saveInFlightForQuit()
+    guard inFlight.held == 0 else {
+      // Takes already over whose audio still can't be written: as above.
+      showDiscardUnsaved()
+      fail("couldn't save \(inFlight.held) recording\(inFlight.held == 1 ? "" : "s") for quitting; Quit retries")
+      return .terminateCancel
+    }
     return terminateAfterDraining()
+  }
+
+  /// Offers "Discard … and quit" for every take whose audio is only in memory.
+  private func showDiscardUnsaved() {
+    let count = unsaved.count + inFlight.held
+    menu.showDiscardUnsaved(count == 0 ? nil : "Discard \(count) unsaved recording\(count == 1 ? "" : "s") and quit")
   }
 
   /// Writes the audio of takes still queued or being transcribed. One that
@@ -165,9 +177,10 @@ final class AppController: NSObject, NSApplicationDelegate {
   }
 
   private func discardUnsavedAndQuit() {
-    Log.write("quit: discarding \(unsaved.count) unsaved recording(s) at the user's request")
+    Log.write("quit: discarding \(unsaved.count + inFlight.held) unsaved recording(s) at the user's request")
     unsaved.forEach { $0.marker?.remove() }
     unsaved.removeAll()
+    inFlight.discardHeld()
     menu.showDiscardUnsaved(nil)
     NSApp.terminate(nil)
   }
@@ -192,18 +205,15 @@ final class AppController: NSObject, NSApplicationDelegate {
   }
 
   /// The last check before quitting: every take's audio must be on disk.
-  /// Takes still in flight that Quit couldn't write are tried again, and so
-  /// are takes that landed in `unsaved` during the drain (a CLI mismatch
-  /// found while quitting, its audio not written). If any still can't be
-  /// written, Khuluma stays open rather than lose them.
+  /// Takes Quit couldn't write are tried again: those still running, and
+  /// those that ended meanwhile (`inFlight` holds their audio). If any still
+  /// can't be written, Khuluma stays open rather than lose them.
   private func finishQuitting(drained: Bool) {
-    let failed = inFlight.saveAll().failed + saveUnsavedForNextLaunch()
+    let failed = inFlight.saveAll().failed
     guard failed == 0 else {
       quitting = false
       NSApp.reply(toApplicationShouldTerminate: false)
-      if !unsaved.isEmpty {
-        menu.showDiscardUnsaved("Discard \(unsaved.count) unsaved recording\(unsaved.count == 1 ? "" : "s") and quit")
-      }
+      showDiscardUnsaved()
       fail("couldn't save \(failed) recording\(failed == 1 ? "" : "s") for quitting; Quit retries")
       return
     }
@@ -211,25 +221,6 @@ final class AppController: NSObject, NSApplicationDelegate {
       Log.write("quit: pending work did not finish within 30s; quitting (saved audio and spooled takes are recovered at next launch)")
     }
     NSApp.reply(toApplicationShouldTerminate: true)
-  }
-
-  /// Writes takes left in `unsaved` for the next launch to transcribe (no
-  /// time to do it now). Returns how many couldn't be written.
-  private func saveUnsavedForNextLaunch() -> Int {
-    guard !unsaved.isEmpty else { return 0 }
-    unsaved = unsaved.filter { pendingTake in
-      do {
-        let url = try recovered.save(samples: pendingTake.samples, takeId: pendingTake.takeId)
-        Log.write("quit: saved a recording (\(pendingTake.samples.count / AudioPrep.sampleRate)s) to \(url.lastPathComponent) for the next launch")
-        pendingTake.marker?.remove()
-        return false
-      } catch {
-        Log.write("quit: could not save a recording: \(error.localizedDescription)")
-        return true
-      }
-    }
-    if unsaved.isEmpty { menu.showDiscardUnsaved(nil) }
-    return unsaved.count
   }
 
   /// Stops the take in progress for Quit and writes its audio (and any
@@ -270,7 +261,7 @@ final class AppController: NSObject, NSApplicationDelegate {
       }
     }
     unsaved = stillUnsaved
-    if unsaved.isEmpty { menu.showDiscardUnsaved(nil) }
+    showDiscardUnsaved()
     return unsaved.isEmpty
   }
 
@@ -520,13 +511,13 @@ final class AppController: NSObject, NSApplicationDelegate {
       case .config(let config): fresh = config
       case .unavailable(let reason): problem = reason
       case .mismatch(let mismatch):
-        self.keepForMatchingCLI(samples: samples, take: take, takeId: takeId, recordMs: recordMs, mismatch: mismatch)
+        self.keepForMatchingCLI(takeId: takeId, recordMs: recordMs, mismatch: mismatch)
         return
       }
       // A mismatch found since this take's fetch (a reload, while recording
       // or queued) is newer than its settings: read it now, on main.
       if let mismatch = DispatchQueue.main.sync(execute: { self.contractMismatch }) {
-        self.keepForMatchingCLI(samples: samples, take: take, takeId: takeId, recordMs: recordMs, mismatch: mismatch)
+        self.keepForMatchingCLI(takeId: takeId, recordMs: recordMs, mismatch: mismatch)
         return
       }
       if let fresh, fresh != cachedConfig {
@@ -586,10 +577,9 @@ final class AppController: NSObject, NSApplicationDelegate {
   /// The CLI changed under a take to one Khuluma can't use: nothing is
   /// transcribed with it. The audio is saved like a quit's, and transcribed
   /// into history once a matching CLI's settings arrive. If it can't be
-  /// written it stays in memory, and Quit retries like any unsaved take.
+  /// written it stays in memory (held by `inFlight`), and Quit writes it.
   /// Runs on `work`.
-  private func keepForMatchingCLI(samples: [Float], take: Take, takeId: String, recordMs: Int,
-                                  mismatch: AppContract.Mismatch) {
+  private func keepForMatchingCLI(takeId: String, recordMs: Int, mismatch: AppContract.Mismatch) {
     let kept: Bool
     do {
       // Reuses the copy Quit saved, if it got there first.
@@ -611,9 +601,6 @@ final class AppController: NSObject, NSApplicationDelegate {
       self.refuseTakes(mismatch)
       if kept {
         self.menu.showRecovered("Saved dictations waiting (\(self.leftoverTakes().count)): Show in Finder", action: true)
-      } else {
-        self.unsaved.append(UnsavedTake(samples: samples, takeId: takeId, startedEpochMs: take.startedEpochMs,
-                                        startupMs: take.startupMs, app: take.originalApp?.localizedName, marker: nil))
       }
       self.sounds.play(.error)
       self.finishProcessing(error: mismatch.localizedDescription + (kept ? " (recording saved)" : " (recording kept until Quit)"))
