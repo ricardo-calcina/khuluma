@@ -13,7 +13,7 @@ Turn tmux-whisper into Khuluma (the app carries the name from v0.11): rename, ma
 - [ ] P2 · Lowkey ideas parked from 3c, only with evidence: config file watcher, warm mic/pre-roll · added 2026-10-16
 
 ## Done
-- 2026-10-17 · Modes removed: one global vocab (base and code rules folded into the default), `migrate-modes` archives old modes, auto-paragraphs gone; app contract 3 · #PR
+- 2026-10-17 · Modes removed: one global vocab (base and code rules folded into the default), `migrate-modes` archives old modes, auto-paragraphs gone; app contract 3 · #78
 - 2026-10-17 · Khuluma rename step 3: roadmap, name check and CHANGELOG TODO describe Khuluma; phase 0 kept as decided · #76
 - 2026-10-17 · Khuluma rename step 2: the app is Khuluma.app; scripts build-khuluma-app.sh and khuluma-report.sh; Lowkey folders migrate at launch; bundle id and signing identity kept · #75
 - 2026-10-17 · Khuluma rename step 1: Swift targets Khuluma, KhulumaCore, KhulumaObjC, KhulumaCoreTests (app still Lowkey.app) · #74
