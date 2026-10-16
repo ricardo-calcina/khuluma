@@ -4,17 +4,16 @@
 # adding more weight to the main runtime/dispatch file.
 
 # Save a dictation to history
-# Usage: save_history "raw_transcript" "processed_text" "mode" "app" [record_ms] [transcribe_ms] [clean_ms] [paste_ms] [total_ms]
+# Usage: save_history "raw_transcript" "processed_text" "app" [record_ms] [transcribe_ms] [clean_ms] [paste_ms] [total_ms]
 save_history() {
   local raw="$1"
   local processed="$2"
-  local mode="${3:-unknown}"
-  local app="${4:-unknown}"
-  local record_ms="${5:-}"
-  local transcribe_ms="${6:-}"
-  local clean_ms="${7:-}"
-  local paste_ms="${8:-}"
-  local total_ms="${9:-}"
+  local app="${3:-unknown}"
+  local record_ms="${4:-}"
+  local transcribe_ms="${5:-}"
+  local clean_ms="${6:-}"
+  local paste_ms="${7:-}"
+  local total_ms="${8:-}"
 
   mkdir -p "$HISTORY_DIR" || return 1
 
@@ -41,17 +40,16 @@ save_history() {
 
   # Escape for JSON in one jq call (`inline process` waits for this), one
   # line per value: a JSON string never holds a raw newline.
-  local raw_escaped processed_escaped mode_escaped app_escaped prefix_escaped note_escaped escaped_all
-  if ! escaped_all="$(jq -nr --arg raw "$raw" --arg processed "$processed" --arg mode "$mode" --arg app "$app" \
+  local raw_escaped processed_escaped app_escaped prefix_escaped note_escaped escaped_all
+  if ! escaped_all="$(jq -nr --arg raw "$raw" --arg processed "$processed" --arg app "$app" \
     --arg prefix "${INLINE_DEBUG_ARCHIVE_PREFIX:-}" --arg note "${INLINE_DEBUG_AUDIO_RETENTION_NOTE:-}" \
-    '$raw, $processed, $mode, $app, $prefix, $note | tojson')"; then
+    '$raw, $processed, $app, $prefix, $note | tojson')"; then
     rm -f "$filename"
     return 1
   fi
   {
     IFS= read -r raw_escaped
     IFS= read -r processed_escaped
-    IFS= read -r mode_escaped
     IFS= read -r app_escaped
     IFS= read -r prefix_escaped
     IFS= read -r note_escaped
@@ -108,7 +106,6 @@ save_history() {
   if ! cat > "$filename" <<EOF
 {
   "timestamp": "$(date -u '+%Y-%m-%dT%H:%M:%SZ')",
-  "mode": $mode_escaped,
   "app": $app_escaped,
   "raw": $raw_escaped,
   "processed": $processed_escaped${extra_fields}
@@ -164,13 +161,13 @@ history_entry_json() {
     die "history entry $n not found"
   fi
 
-  # Entries from before v0.11 may carry the retired LLM fields: leave them on
-  # disk, out of the output.
+  # Entries from before v0.11 may carry the retired LLM fields and cleanup
+  # mode: leave them on disk, out of the output.
   jq --argjson index "$n" --arg file "$file" '
     {
       index: $index,
       file: $file,
-      entry: (del(.postprocess_budget)
+      entry: (del(.postprocess_budget, .mode)
         | if (.metrics | type) == "object" then .metrics |= del(.postprocess_ms) else . end)
     }
   ' "$file"
@@ -658,15 +655,15 @@ list_history() {
 
   local i=1
   while IFS= read -r f; do
-    local basename ts mode preview
+    local basename ts app preview
     basename="$(basename "$f" .json)"
     ts="${basename/T/ }"
     ts="${ts//-/:}"
     # Fix: first 2 colons in date should be dashes
     ts="$(echo "$ts" | sed -E 's/:/-/; s/:/-/')"
-    mode="$(jq -r '.mode // "?"' "$f" 2>/dev/null)"
+    app="$(jq -r '.app // "?"' "$f" 2>/dev/null)"
     preview="$(jq -r '.processed // .raw' "$f" 2>/dev/null | head -c 60 | tr '\n' ' ')"
-    printf "%2d. [%s] (%s) %s...\n" "$i" "$ts" "$mode" "$preview"
+    printf "%2d. [%s] (%s) %s...\n" "$i" "$ts" "$app" "$preview"
     ((i++))
   done <<< "$files"
 }
@@ -715,7 +712,6 @@ for path in files:
             "file": path,
             "filename": os.path.basename(path),
             "timestamp": str(data.get("timestamp", "") or ""),
-            "mode": str(data.get("mode", "?") or "?"),
             "app": str(data.get("app", "?") or "?"),
             "preview": preview,
             "raw_words": word_count(raw),
@@ -771,7 +767,6 @@ for overall_index, path in enumerate(files, start=1):
         continue
 
     fields = {
-        "mode": str(data.get("mode", "") or ""),
         "app": str(data.get("app", "") or ""),
         "raw": str(data.get("raw", "") or ""),
         "processed": str(data.get("processed", "") or ""),
@@ -787,7 +782,6 @@ for overall_index, path in enumerate(files, start=1):
             "file": path,
             "filename": os.path.basename(path),
             "display_timestamp": display_timestamp(path),
-            "mode": fields["mode"] or "?",
             "app": fields["app"] or "?",
             "preview": preview,
             "match_fields": match_fields,
@@ -806,7 +800,7 @@ for entry in matches:
     fields_summary = ",".join(entry["match_fields"])
     print(
         f'{entry["index"]:2d}. [{entry["display_timestamp"]}] '
-        f'({entry["mode"]} @ {entry["app"]}) [{fields_summary}] {entry["preview"]}...'
+        f'({entry["app"]}) [{fields_summary}] {entry["preview"]}...'
     )
 PYEOF
 }
@@ -850,9 +844,8 @@ for overall_index, path in enumerate(files, start=1):
 
     raw = str(data.get("raw", "") or "")
     processed = str(data.get("processed", "") or "")
-    mode = str(data.get("mode", "?") or "?")
     app = str(data.get("app", "?") or "?")
-    field_values = {"mode": mode, "app": app, "raw": raw, "processed": processed}
+    field_values = {"app": app, "raw": raw, "processed": processed}
     match_fields = [name for name, value in field_values.items() if query_lower in value.lower()]
     if not match_fields:
         continue
@@ -872,7 +865,6 @@ for overall_index, path in enumerate(files, start=1):
             "file": path,
             "filename": os.path.basename(path),
             "timestamp": str(data.get("timestamp", "") or ""),
-            "mode": mode,
             "app": app,
             "preview": make_preview(processed or raw),
             "raw_words": word_count(raw),
@@ -894,10 +886,9 @@ history_render_entry_text() {
   local file="${2:-}"
   [[ -n "$file" && -f "$file" ]] || die "history entry $n not found"
 
-  local timestamp mode app raw processed
+  local timestamp app raw processed
   local metrics_lines audio_lines
   timestamp="$(jq -r '.timestamp // ""' "$file" 2>/dev/null)"
-  mode="$(jq -r '.mode // "?"' "$file")"
   app="$(jq -r '.app // "?"' "$file")"
   raw="$(jq -r '.raw // ""' "$file")"
   processed="$(jq -r '.processed // ""' "$file")"
@@ -916,7 +907,6 @@ history_render_entry_text() {
   echo "=== Entry $n ==="
   echo "File: $(basename "$file")"
   [[ -n "$timestamp" ]] && echo "Timestamp: $timestamp"
-  echo "Mode: $mode"
   echo "App: $app"
   if [[ -n "${metrics_lines//[[:space:]]/}" ]]; then
     echo ""
@@ -1008,7 +998,6 @@ for path in files:
             "file": path,
             "filename": os.path.basename(path),
             "timestamp": str(data.get("timestamp", "") or ""),
-            "mode": str(data.get("mode", "?") or "?"),
             "app": str(data.get("app", "?") or "?"),
             "raw": raw,
             "processed": processed,
@@ -1107,7 +1096,6 @@ for path in files:
             "file": path,
             "filename": os.path.basename(path),
             "timestamp": str(data.get("timestamp", "") or ""),
-            "mode": str(data.get("mode", "?") or "?"),
             "app": str(data.get("app", "?") or "?"),
             "raw_words": word_count(raw),
             "processed_words": word_count(processed),
@@ -1156,7 +1144,7 @@ for session in sessions:
     timing_text = " ".join(timing_bits) if timing_bits else "timing=unavailable"
     print(
         f"{session['index']:2d}. {session['timestamp'] or session['filename']} "
-        f"mode={session['mode']} app={session['app']} words={words} {timing_text}"
+        f"app={session['app']} words={words} {timing_text}"
     )
     audio_bits = []
     if "capture_wav_ms" in audio:
@@ -1208,11 +1196,10 @@ show_last_history() {
     return 0
   fi
 
-  local timestamp mode app raw processed
+  local timestamp app raw processed
   local raw_words processed_words metrics_compact preview
   local record_ms total_ms dictation_wpm typing_wpm typing_equivalent_ms typing_delta_ms
   timestamp="$(jq -r '.timestamp // ""' "$file" 2>/dev/null)"
-  mode="$(jq -r '.mode // "?"' "$file" 2>/dev/null)"
   app="$(jq -r '.app // "?"' "$file" 2>/dev/null)"
   raw="$(jq -r '.raw // ""' "$file" 2>/dev/null)"
   processed="$(jq -r '.processed // ""' "$file" 2>/dev/null)"
@@ -1245,7 +1232,6 @@ show_last_history() {
 
   echo "Latest dictation"
   echo "  timestamp: ${timestamp:-unknown}"
-  echo "  mode: ${mode:-?}"
   echo "  app: ${app:-?}"
   echo "  raw_words: ${raw_words:-0}"
   echo "  processed_words: ${processed_words:-0}"
@@ -1465,7 +1451,6 @@ for path in files:
         {
             "timestamp": str(data.get("timestamp", "") or ""),
             "timestamp_dt": parse_timestamp(data.get("timestamp", "")),
-            "mode": str(data.get("mode", "") or "?"),
             "app": str(data.get("app", "") or "?"),
             "raw": raw,
             "processed": processed,
@@ -1491,7 +1476,7 @@ if not rows:
         "processed_words": empty_metric,
         "approx_max_tokens_raw": 0,
         "recent": {"last_24h": summarize_rows([]), "last_7d": summarize_rows([])},
-        "breakdowns": {"modes": {}, "apps": {}},
+        "breakdowns": {"apps": {}},
         "metrics": {name: empty_metric for name in METRIC_NAMES},
         "estimates": {
             "typing_wpm_assumed": typing_wpm,
@@ -1544,7 +1529,6 @@ payload = {
         "last_7d": summarize_rows(recent_7d_rows),
     },
     "breakdowns": {
-        "modes": ordered_breakdown(rows, "mode"),
         "apps": ordered_breakdown(rows, "app"),
     },
     "metrics": metrics_payload,
@@ -1605,15 +1589,6 @@ if dictation_wpm_metric["n"] > 0:
         f"dictation_wpm: n={dictation_wpm_metric['n']} median={dictation_wpm_metric['median']} "
         f"p95={dictation_wpm_metric['p95']} max={dictation_wpm_metric['max']}"
     )
-
-if payload["breakdowns"]["modes"]:
-    print("")
-    print("Mode breakdown:")
-    for mode, stats in payload["breakdowns"]["modes"].items():
-        print(
-            f"{mode}: entries={stats['entries']} "
-            f"processed_words={stats['processed_words']} raw_words={stats['raw_words']}"
-        )
 
 if payload["breakdowns"]["apps"]:
     print("")

@@ -30,7 +30,7 @@ struct LocalDateTests {
 
 struct DeferredUsageTests {
   @Test func processResultSaysWhetherUsageWasDeferred() throws {
-    let json = #"{"ok":true,"status":"ok","text":"hi","raw_text":"hi","mode":"base","message":null,"#
+    let json = #"{"ok":true,"status":"ok","text":"hi","raw_text":"hi","message":null,"#
       + #""delivery":{"autosend":true,"send_mode":"enter","paste_target":"current","activate_delay_ms":0,"send_delay_ms":35},"#
       + #""timings":{},"usage_deferred":true}"#
     #expect(try JSONDecoder().decode(ProcessResult.self, from: Data(json.utf8)).usageDeferred == true)
@@ -39,7 +39,7 @@ struct DeferredUsageTests {
 
 struct HistorySavedTests {
   private func json(_ tail: String) -> Data {
-    Data((#"{"ok":true,"status":"ok","text":"hi","raw_text":"hi","mode":"base","message":null,"#
+    Data((#"{"ok":true,"status":"ok","text":"hi","raw_text":"hi","message":null,"#
       + #""delivery":{"autosend":true,"send_mode":"enter","paste_target":"current","activate_delay_ms":0,"send_delay_ms":35},"#
       + #""timings":{},"usage_deferred":true"# + tail + "}").utf8)
   }
@@ -54,7 +54,7 @@ struct HistorySavedTests {
   @Test func aMissingFieldMeansNotSaved() throws {
     let result = try JSONDecoder().decode(ProcessResult.self, from: json(""))
     #expect(!result.historySaved)
-    #expect(result.ok && result.text == "hi" && result.mode == "base" && result.message == nil)
+    #expect(result.ok && result.text == "hi" && result.message == nil)
     #expect(!TakeResult.delivered(recorded: result.historySaved).settlesAudio)
   }
 
@@ -74,16 +74,16 @@ struct RetargetedDeliveryTests {
   }
 }
 
-struct ModeAppTests {
-  @Test func modeComesFromTheAppTheTextIsDeliveredTo() {
-    #expect(DeliveryTarget.modeApp(pasteTarget: "current", retargeted: false, original: "Ghostty",
-                                   frontmostAtStop: "Safari") == "Safari")
-    #expect(DeliveryTarget.modeApp(pasteTarget: "restore", retargeted: false, original: "Ghostty",
-                                   frontmostAtStop: "Safari") == "Ghostty")
-    // Started with Khuluma in front: delivered to Ghostty, so Ghostty's mode.
-    #expect(DeliveryTarget.modeApp(pasteTarget: "current", retargeted: true, original: "Ghostty",
-                                   frontmostAtStop: "Khuluma") == "Ghostty")
-    #expect(DeliveryTarget.modeApp(pasteTarget: nil, retargeted: false, original: "Ghostty",
-                                   frontmostAtStop: "Safari") == "Safari")
+struct DeliveryAppTests {
+  @Test func historyRecordsTheAppTheTextIsDeliveredTo() {
+    #expect(DeliveryTarget.deliveryApp(pasteTarget: "current", retargeted: false, original: "Ghostty",
+                                       frontmostAtStop: "Safari") == "Safari")
+    #expect(DeliveryTarget.deliveryApp(pasteTarget: "restore", retargeted: false, original: "Ghostty",
+                                       frontmostAtStop: "Safari") == "Ghostty")
+    // Started with Khuluma in front: delivered to Ghostty, so Ghostty.
+    #expect(DeliveryTarget.deliveryApp(pasteTarget: "current", retargeted: true, original: "Ghostty",
+                                       frontmostAtStop: "Khuluma") == "Ghostty")
+    #expect(DeliveryTarget.deliveryApp(pasteTarget: nil, retargeted: false, original: "Ghostty",
+                                       frontmostAtStop: "Safari") == "Safari")
   }
 }

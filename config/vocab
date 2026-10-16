@@ -10,3 +10,11 @@ qwen -> Qwen
 parakeet -> Parakeet
 cerebras -> Cerebras
 open ai -> OpenAI
+
+# Paths (from the old base mode)
+source slash::src/
+source forward slash::src/
+at source slash::@src/
+at source forward slash::@src/
+at saw slash::@src/
+atsaw slash::@src/

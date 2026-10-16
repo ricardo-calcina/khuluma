@@ -18,3 +18,6 @@ tmux-whisperd/.build/
 # tmux-whisper keeps a last valid config copy beside config.toml
 .config.toml.last-good
 .config.toml.last-good.lock
+
+# Amp orb portals
+.amp/portals/*

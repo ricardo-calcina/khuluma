@@ -62,7 +62,7 @@ extension TakePipeline {
     record.captureWavMs = AudioPrep.ffprobeDurationMs(sampleCount: samples.count)
     record.captureWavBytes = 44 + 2 * samples.count
     record.transcribeMs = Int(monotonicMs() - startedAt)
-    switch TextPipeline(settings: cleanup).process(transcript: transcript, app: info.app) {
+    switch TextPipeline(settings: cleanup).process(transcript: transcript) {
     case .needsCLI:
       return retranscribeWithCLI(entry)
     case .noSpeech:
@@ -70,10 +70,9 @@ extension TakePipeline {
       persister.persist(record)
       timedOut.remove(entry)
       return .noSpeech
-    case .text(let raw, let text, let mode):
+    case .text(let raw, let text):
       record.rawText = raw
       record.text = text
-      record.mode = mode
       return .ready(RetriedText(entry: entry, text: text, record: record))
     }
   }
@@ -97,7 +96,6 @@ extension TakePipeline {
         var record = TakeRecord(takeId: UUID().uuidString.lowercased(), status: "ok", delivered: false)
         record.usageOnly = true
         record.text = result.text
-        record.mode = result.mode
         record.app = info.app
         record.recordMs = info.recordMs
         record.startupMs = info.startupMs

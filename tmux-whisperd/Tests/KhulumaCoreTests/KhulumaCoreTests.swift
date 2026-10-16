@@ -76,7 +76,7 @@ struct CLIModelTests {
 
   @Test func decodesProcessResult() throws {
     let json = #"""
-    {"ok":true,"status":"ok","text":"Hello there.","raw_text":"hello there","mode":"base","message":null,
+    {"ok":true,"status":"ok","text":"Hello there.","raw_text":"hello there","message":null,
      "delivery":{"autosend":false,"send_mode":"cmd_enter","paste_target":"restore","activate_delay_ms":90,"send_delay_ms":35},
      "timings":{"transcribe_ms":638,"total_ms":6382},"usage_deferred":true}
     """#

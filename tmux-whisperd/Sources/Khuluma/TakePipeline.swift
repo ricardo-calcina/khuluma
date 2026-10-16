@@ -139,7 +139,7 @@ final class TakePipeline {
       Log.write("pipeline: tail rescue pass failed; kept the full transcript (as the CLI does)")
     }
 
-    let outcome = TextPipeline(settings: cleanup).process(transcript: transcribed.transcript, app: appName)
+    let outcome = TextPipeline(settings: cleanup).process(transcript: transcribed.transcript)
     let cleanedAt = monotonicMs()
     record.cleanMs = Int(cleanedAt - transcribedAt)
 
@@ -156,10 +156,9 @@ final class TakePipeline {
       }
       persister.persist(record)
       return .handled(.noSpeech)
-    case .text(let raw, let text, let mode):
+    case .text(let raw, let text):
       record.rawText = raw
       record.text = text
-      record.mode = mode
       let steps = DeliveryPlan.steps(text: text, delivery: take.delivery(config.delivery),
                                      hasOriginalApp: take.originalApp != nil)
       let target: String?
@@ -189,7 +188,6 @@ final class TakePipeline {
         line.add("clean", ms: cleanedAt - transcribedAt)
         line.add("deliver", ms: deliveredAt - cleanedAt)
         line.add("waits", DeliveryPlan.waitMs(steps))
-        line.add("mode", mode)
         line.add("chars", text.count)
         line.add("target", target ?? "-")
       }
@@ -245,7 +243,6 @@ final class TakePipeline {
         var usage = TakeRecord(takeId: UUID().uuidString.lowercased(), status: "ok", delivered: true)
         usage.usageOnly = true
         usage.text = result.text
-        usage.mode = result.mode
         usage.app = appName
         usage.recordMs = recordMs
         usage.totalMs = recordMs + Int(monotonicMs() - stopAt)
@@ -260,7 +257,6 @@ final class TakePipeline {
         line.add("transcribe", result.timings["transcribe_ms"])
         line.add("deliver", ms: monotonicMs() - delivering)
         line.add("waits", DeliveryPlan.waitMs(steps))
-        line.add("mode", result.mode)
         line.add("chars", result.text.count)
         line.add("target", target ?? "-")
         if !result.historySaved { line.add("history", "unsaved") }

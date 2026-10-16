@@ -101,18 +101,6 @@ enum PerlText {
     return String(view)
   }
 
-  /// `sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//'` in the C locale.
-  static func asciiTrimmed(_ text: String) -> String {
-    let scalars = Array(text.unicodeScalars)
-    var lower = 0
-    var upper = scalars.count
-    while lower < upper && asciiSpaces.contains(scalars[lower]) { lower += 1 }
-    while upper > lower && asciiSpaces.contains(scalars[upper - 1]) { upper -= 1 }
-    var view = String.UnicodeScalarView()
-    view.append(contentsOf: scalars[lower..<upper])
-    return String(view)
-  }
-
   /// bash `[[ -z "${text//[[:space:]]/}" ]]` in the C locale.
   static func isBlank(_ text: String) -> Bool {
     text.unicodeScalars.allSatisfy { asciiSpaces.contains($0) }
@@ -191,9 +179,4 @@ enum PerlText {
     return FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory) && !isDirectory.boolValue
   }
 
-  /// `[[ -d path ]]`: a directory, following symlinks.
-  static func isDirectory(_ path: String) -> Bool {
-    var isDirectory: ObjCBool = false
-    return FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory) && isDirectory.boolValue
-  }
 }

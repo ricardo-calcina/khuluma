@@ -6,7 +6,7 @@ import Testing
 /// (DaemonClient + NativeTranscriber + TextPipeline) must produce the same
 /// bytes as `tmux-whisper inline process` on the same WAVs.
 ///
-/// KHULUMA_LIVE_PARITY_DIR must contain wav/<n>.wav and wav/<n>.app, and for
+/// KHULUMA_LIVE_PARITY_DIR must contain wav/<n>.wav, and for
 /// each variant out/<variant>/app-config.json plus out/<variant>/<n>.json
 /// (the `inline process --json` result). Skipped when unset (CI).
 struct LiveParityTests {
@@ -35,8 +35,6 @@ struct LiveParityTests {
       let client = DaemonClient(socketPath: transcription.socketPath)
       for name in wavs {
         let stem = String(name.dropLast(4))
-        let app = try String(contentsOf: root.appendingPathComponent("wav/\(stem).app"), encoding: .utf8)
-          .trimmingCharacters(in: .newlines)
         let expected = try JSONDecoder().decode(
           ProcessResult.self, from: Data(contentsOf: out.appendingPathComponent("\(stem).json")))
         let started = Date()
@@ -47,7 +45,7 @@ struct LiveParityTests {
                                 modelPath: transcription.modelPath ?? "", modelVersion: transcription.modelVersion,
                                 timeout: 120)
         }
-        let outcome = TextPipeline(settings: cleanup).process(transcript: transcribed.transcript, app: app)
+        let outcome = TextPipeline(settings: cleanup).process(transcript: transcribed.transcript)
         let elapsed = Int(Date().timeIntervalSince(started) * 1000)
         print("live \(variant)/\(stem): native \(elapsed)ms vs CLI transcribe \(expected.timings["transcribe_ms"] ?? -1)ms"
               + (transcribed.tailRescueMs != nil ? " (tail rescue)" : ""))
