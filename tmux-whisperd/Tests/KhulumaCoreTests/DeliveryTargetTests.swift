@@ -37,6 +37,34 @@ struct DeferredUsageTests {
   }
 }
 
+struct HistorySavedTests {
+  private func json(_ tail: String) -> Data {
+    Data((#"{"ok":true,"status":"ok","text":"hi","raw_text":"hi","message":null,"#
+      + #""delivery":{"autosend":true,"send_mode":"enter","paste_target":"current","activate_delay_ms":0,"send_delay_ms":35},"#
+      + #""timings":{},"usage_deferred":true"# + tail + "}").utf8)
+  }
+
+  @Test func processResultSaysWhetherHistoryWasSaved() throws {
+    #expect(try JSONDecoder().decode(ProcessResult.self, from: json(#","history_saved":true"#)).historySaved)
+    #expect(try !JSONDecoder().decode(ProcessResult.self, from: json(#","history_saved":false"#)).historySaved)
+  }
+
+  /// A CLI that doesn't report it: the take counts as not recorded, so its
+  /// Quit copy is kept.
+  @Test func aMissingFieldMeansNotSaved() throws {
+    let result = try JSONDecoder().decode(ProcessResult.self, from: json(""))
+    #expect(!result.historySaved)
+    #expect(result.ok && result.text == "hi" && result.message == nil)
+    #expect(!TakeResult.delivered(recorded: result.historySaved).settlesAudio)
+  }
+
+  @Test func aNonBooleanFieldIsADecodeError() {
+    #expect(throws: DecodingError.self) {
+      try JSONDecoder().decode(ProcessResult.self, from: json(#","history_saved":"yes""#))
+    }
+  }
+}
+
 struct RetargetedDeliveryTests {
   @Test func aRetargetedTakeReactivatesItsAppWhateverThePasteTarget() {
     let current = Delivery(autosend: true, sendMode: "enter", pasteTarget: "current", activateDelayMs: 90, sendDelayMs: 35)

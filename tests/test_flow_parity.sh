@@ -1338,8 +1338,12 @@ assert r["text"] == "Codex app transcript", r["text"]
 assert r["raw_text"] == "codex app transcript", r["raw_text"]
 assert r["delivery"]["autosend"] is True and r["delivery"]["paste_target"] == "current", r["delivery"]
 assert r["timings"]["record_ms"] == 3000, r["timings"]
+assert r["history_saved"] is True, r
 ' || { echo "$out" >&2; fail "app_process_json_ok"; }
   pass "app_process_json_ok"
+  # history_saved is reported once the entry is on disk, not in the background.
+  assert_equals "app_process_history_on_disk" "$(ls "$DICTATE_CONFIG_DIR/history"/*.json | wc -l | tr -d ' ')" "1"
+  assert_file_contains "app_process_history_text" "$(ls "$DICTATE_CONFIG_DIR/history"/*.json)" '"processed": "Codex app transcript"'
   assert_path_absent "app_process_no_clipboard" "$DICTATE_TEST_PBCOPY_OUT"
   assert_path_absent "app_process_no_osascript" "$DICTATE_TEST_OSASCRIPT_LOG"
   assert_path_absent "app_process_no_sounds" "$DICTATE_TEST_SOUND_LOG"
@@ -1369,6 +1373,21 @@ assert r["timings"]["record_ms"] == 3000, r["timings"]
   printf '%s' '{"take_id":"deferred-1","status":"ok","delivered":true,"usage_only":true,"text":"Codex app transcript"}' \
     | "$DICTATE_BIN" inline record --json >/dev/null
   assert_equals "app_usage_only_replay_once" "$(json_field "$("$DICTATE_BIN" usage --json)" delivered_dictations.count)" "2"
+
+  # A history write that fails still hands the text back, but says so:
+  # Khuluma then keeps the take's Quit copy instead of settling it.
+  history_files="$(ls "$DICTATE_CONFIG_DIR/history"/*.json | wc -l | tr -d ' ')"
+  chmod 500 "$DICTATE_CONFIG_DIR/history"
+  out="$("$DICTATE_BIN" inline process "$CASE_DIR/take.wav" --app Safari --record-ms 3000 --defer-usage --json)"
+  chmod 700 "$DICTATE_CONFIG_DIR/history"
+  printf '%s' "$out" | python3 -c '
+import json, sys
+r = json.load(sys.stdin)
+assert r["ok"] and r["status"] == "ok" and r["text"] == "Codex app transcript", r
+assert r["history_saved"] is False, r
+' || { echo "$out" >&2; fail "app_process_history_failed"; }
+  pass "app_process_history_failed"
+  assert_equals "app_process_history_failed_no_entry" "$(ls "$DICTATE_CONFIG_DIR/history"/*.json | wc -l | tr -d ' ')" "$history_files"
 }
 
 # `inline record` dedups history/bench and usage separately: a replay after
@@ -1838,6 +1857,7 @@ import json, sys
 r = json.load(sys.stdin)
 assert r["ok"] is False and r["status"] == "failed", r
 assert r["text"] == "" and r["message"], r
+assert r["history_saved"] is False, r
 ' || { echo "$out" >&2; fail "app_process_failure_json"; }
   pass "app_process_failure_json"
   assert_path_absent "app_process_failure_no_usage" "$DICTATE_CONFIG_DIR/usage.json"

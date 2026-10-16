@@ -185,8 +185,9 @@ PYEOF
 # usage ledger; the caller records it with `inline record` (usage_only) once
 # it has actually delivered the text.
 # Prints one JSON object: {ok, status, text, raw_text, message,
-# delivery: {...}, timings: {...}}. Human progress goes to the log, never
-# stdout. The caller owns the WAV file.
+# delivery: {...}, timings: {...}, usage_deferred, history_saved}. Human
+# progress goes to the log, never stdout. The caller owns the WAV file.
+# history_saved is true only when the take's history entry is on disk.
 inline_process_json() {
   local wav="" app="" record_ms="0" startup_ms="0" started_at_ms="" defer_usage="0"
   while [[ $# -gt 0 ]]; do
@@ -222,6 +223,7 @@ inline_process_json() {
   INLINE_EXTERNAL_TEXT=""
   INLINE_EXTERNAL_RAW_TEXT=""
   INLINE_EXTERNAL_TIMINGS=""
+  INLINE_HISTORY_SAVED="0"
   process_inline_recording "$work_wav" "$app" "$(current_transcribe_model_label)" "$record_ms" \
     "$startup_ms" "app:avaudioengine" "$started_at_ms" >"$log" 2>&1 || rc=$?
 
@@ -237,6 +239,7 @@ inline_process_json() {
   APPPROC_ACTIVATE_DELAY_MS="$APP_ACTIVATE_DELAY_MS" \
   APPPROC_SEND_DELAY_MS="$APP_SEND_DELAY_MS" \
   APPPROC_DEFER_USAGE="$defer_usage" \
+  APPPROC_HISTORY_SAVED="$INLINE_HISTORY_SAVED" \
   python3 - <<'PYEOF'
 import json, os
 e = os.environ
@@ -270,6 +273,7 @@ print(json.dumps({
     },
     "timings": timings,
     "usage_deferred": e.get("APPPROC_DEFER_USAGE") == "1",
+    "history_saved": ok and e.get("APPPROC_HISTORY_SAVED") == "1",
 }, ensure_ascii=False))
 PYEOF
   rm -f "$log" "$work_wav" 2>/dev/null || true
