@@ -2,15 +2,6 @@ import AppKit
 import Foundation
 import KhulumaCore
 
-/// How a take ended, for the controller to show (sound, status line).
-enum TakeResult {
-  case delivered
-  case noSpeech
-  case failed(String)
-  /// Transcription timed out; the audio may be kept for Retry.
-  case timedOut(String)
-}
-
 /// Transcribes, cleans up, delivers and persists one take: natively (daemon
 /// socket + Swift cleanup) or through the CLI's `inline process`. Runs on
 /// the controller's work queue; every call is synchronous and touches no UI.
@@ -130,7 +121,8 @@ final class TakePipeline {
           line.add("asr", ms: monotonicMs() - startedAt)
           line.add("kept", saved ? 1 : 0)
         }
-        return .handled(.timedOut("transcription timed out after \(Int(seconds))s" + (saved ? " (Retry in the menu)" : "")))
+        return .handled(.timedOut("transcription timed out after \(Int(seconds))s" + (saved ? " (Retry in the menu)" : ""),
+                                  kept: saved))
       }
       if case DaemonClient.ClientError.unreachable = failure.underlying { onUnreachable() }
       if let kept = failure.keptWAV { try? FileManager.default.removeItem(at: kept) }
@@ -201,8 +193,7 @@ final class TakePipeline {
         line.add("chars", text.count)
         line.add("target", target ?? "-")
       }
-      persister.persist(record)
-      return .handled(.delivered)
+      return .handled(.delivered(recorded: persister.persist(record)))
     }
   }
 
@@ -273,7 +264,8 @@ final class TakePipeline {
         line.add("chars", result.text.count)
         line.add("target", target ?? "-")
       }
-      return .delivered
+      // `inline process` saved history itself.
+      return .delivered(recorded: true)
     } catch {
       logTake("failed") { $0.add("error", Self.errorCategory(error)) }
       return .failed(error.localizedDescription)
