@@ -5,21 +5,22 @@ Lowkey, the menu-bar app, is the product. The bash CLI that started the project 
 ## Principles
 
 - **Dictation stays local and fast.** Every change is measured against the take log (`tools/lowkey-report.sh`): warm overhead, fallback rate, failure rate.
-- **Never lose a take.** Quit, crashes, timeouts and CLI mismatches keep the audio or the record until it's safely handled.
+- **Never lose a take.** Quit, daemon timeouts and CLI mismatches keep the audio or the record until it's safely handled. Closing the remaining gaps (a crash mid-take, a timeout on the CLI fallback) is part of phase 1.
 - **Counts, not text.** Usage, stats and logs hold numbers and durations only.
 - **One way to do each thing.** When Lowkey takes over a job, the CLI's version goes (as the tmux flow, CLI recording, Raycast and SwiftBar already have).
 
 ## Where things stand
 
-Shipped, oldest first:
-- **v0.7–v0.9:** the CLI's operator commands (`doctor`, `status`, history, bench, usage) and their JSON contracts.
+Released (tagged, and on Homebrew up to v0.9.0):
+- **v0.7:** the CLI's operator commands (`doctor`, `status`, history, bench, usage) and their JSON contracts.
 - **v0.8:** audio-file transcription with the Finder Quick Action.
 - **v0.9:** `TmuxWhisperKit` extracted from the daemon.
-- **v0.10:** Lowkey's native pipeline. Daemon socket, Swift cleanup proven against the CLI with shared fixtures, daemon supervision, Retry for timed-out takes, the honest start chime, Start at Login, and the Stats window.
-- **v0.11 (unreleased):** phase 0's tidy-up.
-  - Lowkey requires the CLI it was built with (the app contract).
-  - The tmux flow, CLI recording, LLM post-processing, silence trim, chunking, Raycast and SwiftBar are gone.
-  - Lowkey's controller is split by responsibility.
+
+On `main`, not yet tagged:
+- **v0.10:** Lowkey and its native pipeline: the daemon socket, Swift cleanup proven against the CLI with shared fixtures, Quit recovery, and a warning for a broken `config.toml`.
+- **v0.11:**
+  - Lowkey's daily-use features: daemon supervision, Retry for timed-out takes, the honest start chime, Ctrl+Esc, Start at Login, the Stats window and per-day usage.
+  - Phase 0's tidy-up: Lowkey requires the CLI it was built with (the app contract); the tmux flow, CLI recording, LLM post-processing, silence trim, chunking, Raycast and SwiftBar are gone; Lowkey's controller is split by responsibility.
 
 ## Phases
 

@@ -60,4 +60,4 @@ tools/lowkey-report.sh         # after a few real takes
 - Never commit API keys, tokens, or private credentials.
 - Keep defaults portable (`config/config.toml`, `config/vocab`).
 - Do not hardcode user-specific paths or local secrets.
-- Logs, usage and stats never record dictated text; history is the only place transcripts are kept.
+- Logs, usage and stats never record dictated text. Transcripts live in history, and briefly in Lowkey's pending spool until history has them.

@@ -17,7 +17,8 @@ tmux-whisper status
 Lowkey shows errors on its menu's first line, and logs each one in `~/Library/Logs/Lowkey/app.log` (**Open Log** in the menu). `tools/lowkey-report.sh` summarises recent takes without printing any text.
 
 **"tmux-whisper … is older than this Lowkey: run ./install.sh --force"**, or **"this Lowkey … is older than tmux-whisper …: rebuild it with tools/build-lowkey-app.sh"**
-- The CLI and the app come from different checkouts, so their app contracts differ. Until they match, the hotkey plays the error sound and shows this message instead of recording. A take that was already recording is saved, and recovered at a later launch with a matching CLI.
+- The CLI and the app come from different checkouts, so their app contracts differ, and Lowkey takes no dictation until they match. If the mismatch is found at launch, the hotkey isn't registered at all; if it's found later (a reinstall while Lowkey runs), the hotkey plays the error sound and shows this message. A take that was already recording is saved, and recovered at a later launch with a matching CLI.
+- After fixing it, choose **Reload Settings** or relaunch Lowkey.
 - Fix: from the same checkout, run `./install.sh --force` and `tools/build-lowkey-app.sh`.
 
 **"tmux-whisper CLI not found"**
@@ -37,7 +38,8 @@ Lowkey shows errors on its menu's first line, and logs each one in `~/Library/Lo
 - Supervision (`[app] supervise_daemon = true`, the default) keeps the model warm at launch, on wake and when a recording starts.
 
 **"transcription timed out … (Retry in the menu)"**
-- The audio is kept for an hour. **Retry** transcribes it again; then **Paste retried dictation** pastes it where you are, without sending.
+- The daemon didn't answer in time. The audio is kept for an hour. **Retry** transcribes it again; then **Paste retried dictation** pastes it where you are, without sending.
+- A timeout on the CLI fallback ("tmux-whisper did not answer within Ns") keeps no audio, so there's nothing to retry.
 
 **"Lowkey was in front: text is on the clipboard"**
 - Lowkey never pastes into its own windows (e.g. Stats). Paste the text by hand.

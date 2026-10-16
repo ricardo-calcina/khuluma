@@ -15,7 +15,7 @@ The tmux pane flow, CLI recording, LLM post-processing, the Raycast scripts and 
 - macOS 14 or later
 - `python3` 3.11+ (for `tomllib`) and `ffmpeg`
 - Xcode or the Command Line Tools (`swift`), to build the daemon and Lowkey
-- A Parakeet CoreML model on disk, at `~/.local/share/tmux-whisper/models/parakeet-tdt-0.6b-v3-coreml` (or `-v2-coreml`), or anywhere `swift_parakeet.model_path` in the config points. Install doesn't download it.
+- A Parakeet CoreML model on disk, at `~/.local/share/tmux-whisper/models/parakeet-tdt-0.6b-v3-coreml` (or `-v2-coreml`), or anywhere `swift_parakeet.model_path` in the config points. Install doesn't download it; FluidInference publishes these CoreML conversions on Hugging Face.
 
 ## Install
 
@@ -70,8 +70,8 @@ The menu shows:
 
 It also offers **Stats…**, **Open Log** and **Start at Login**.
 
-- **Timed-out takes:** a take whose transcription times out is kept privately for an hour. **Retry** transcribes it again, and **Paste retried dictation** pastes it wherever you are, without sending.
-- **Quitting:** Quit never loses a recording. A take still in progress is saved, transcribed into history and copied to the clipboard.
+- **Timed-out takes:** when the daemon times out on a take, its audio is kept privately for an hour. **Retry** transcribes it again, and **Paste retried dictation** pastes it wherever you are, without sending. A take that times out on the CLI fallback isn't kept.
+- **Quitting:** a take still recording, or waiting to be transcribed, is saved to disk first, then transcribed into history and copied to the clipboard (never pasted). Quit waits up to 30 seconds for that; whatever is left is transcribed into history at the next launch, without touching the clipboard.
 - **Fallback:** if the daemon can't be reached, the take goes through `tmux-whisper inline process` instead. The same happens when the CLI runs in a non-C locale.
 
 **Delivery settings** live in the CLI:
@@ -195,7 +195,7 @@ cd tmux-whisperd && swift test         # Swift tests (LowkeyCore, TmuxWhisperKit
 ## Privacy
 
 - **Audio and text** stay on your Mac.
-- **What's saved:** history keeps transcripts for the retention period. The usage tally and `app.log` hold counts and timings, never text.
+- **What's saved:** history keeps transcripts for the retention period. Before a take reaches history, Lowkey spools its record (text included) to `~/Library/Application Support/Lowkey/pending/`, and removes it once history has it. Saved audio waits in `recovered/` beside it. The usage tally and `app.log` hold counts and timings, never text.
 - **The repository** holds no keys or personal settings. Your config is never overwritten by an install.
 
 ## License
