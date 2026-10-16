@@ -70,7 +70,7 @@ print(json.dumps({
 PYEOF
 }
 
-# Transcription settings for Lowkey's native path, resolved as the CLI's
+# Transcription settings for Khuluma's native path, resolved as the CLI's
 # inline transcription would use them. Numeric env overrides stay raw strings
 # so the app can apply the CLI's exact parsing (and fall back when unsure).
 app_transcription_settings_json() {
@@ -177,7 +177,7 @@ print(json.dumps({
     # ("last_good") or, if there is none, the defaults.
     "config": {"error": e["APPCFG_CONFIG_ERROR"] or None, "source": e["APPCFG_CONFIG_SOURCE"]},
     "pipeline": {
-        # Lowkey keeps the daemon warm (it still never launches one itself).
+        # Khuluma keeps the daemon warm (it still never launches one itself).
         "supervise": e["APPCFG_SUPERVISE_DAEMON"].lower() in ("1", "true", "yes", "on"),
     },
     "usage": {"summary_path": e["APPCFG_USAGE_PATH"]},
@@ -187,7 +187,7 @@ PYEOF
 
 # tmux-whisper inline process <wav> [--app NAME] [--record-ms N]
 #   [--startup-ms N] [--started-at-ms EPOCH_MS] [--defer-usage] --json
-# --defer-usage (what Lowkey always passes): don't count the take in the
+# --defer-usage (what Khuluma always passes): don't count the take in the
 # usage ledger; the caller records it with `inline record` (usage_only) once
 # it has actually delivered the text.
 # Prints one JSON object: {ok, status, text, raw_text, mode, message,
@@ -288,7 +288,7 @@ PYEOF
 # tmux-whisper inline cleanup [--app NAME] --json   (transcript on stdin)
 # Runs only the deterministic text cleanup of an inline take (artefacts,
 # fillers/repeats, mode, vocab, paragraphs, British spelling), never the LLM.
-# Used to generate Lowkey's TextPipeline parity fixtures
+# Used to generate Khuluma's TextPipeline parity fixtures
 # (tests/gen-cleanup-fixtures.sh). Prints {ok, status, raw_text, text, mode, cleanup}.
 inline_cleanup_json() {
   local app=""
@@ -336,7 +336,7 @@ PYEOF
 }
 
 # tmux-whisper inline record --json   (one take as JSON on stdin)
-# Persistence for Lowkey's native path, run after delivery: the same bench
+# Persistence for Khuluma's native path, run after delivery: the same bench
 # row, usage ledger entry and history file `inline process` writes, from the
 # CLI's own writers so formats and locking stay single-sourced. Usage is only
 # counted for a delivered take; status "recovered" (a take saved at quit and
@@ -399,7 +399,7 @@ PYEOF
 )" || die "inline record: invalid payload"
   eval "$shell_vars"
 
-  # Lowkey spools each take and replays leftovers at launch (after a quit
+  # Khuluma spools each take and replays leftovers at launch (after a quit
   # timeout or crash), so the same take can arrive twice: record it once.
   # `recorded-takes` lists takes fully handled (its meaning before usage was
   # deduplicated in the ledger, so older entries stay final);
@@ -485,7 +485,7 @@ print(json.dumps({"ok": True, "take_id": os.environ["APPREC_TAKE_ID"], "duplicat
     fi
     if [[ -n "$REC_WAV_PATH" ]]; then
       local archive_prefix=""
-      archive_prefix="$(inline_archive_prefix "${REC_TAKE_ID:-lowkey}" 2>/dev/null || true)"
+      archive_prefix="$(inline_archive_prefix "${REC_TAKE_ID:-khuluma}" 2>/dev/null || true)"
       archive_inline_debug_artifacts "$archive_prefix" "$REC_WAV_PATH" "" "$REC_STATUS" \
         "$record_ms" "$transcribe_ms" "$clean_ms" "$paste_ms" "$total_ms" "$REC_TAKE_ID"
     fi

@@ -2,7 +2,7 @@
 
 ## v0.11.0 — Unreleased
 
-- **Removed before the Lowkey rename** (phase 0 of `docs/plans/LOWKEY_RENAME_ROADMAP.md`; Lowkey owns the dictation key and the menu-bar item):
+- **Removed before the Lowkey rename** (phase 0 of `docs/plans/KHULUMA_RENAME_ROADMAP.md`; Lowkey owns the dictation key and the menu-bar item):
   - **The Raycast scripts** (`integrations/raycast/tmux-whisper-{inline,toggle,cancel}.sh`) are no longer shipped or installed. `install.sh` doesn't delete old copies in `~/.config/dictate/integrations/raycast`; move them to the Trash.
   - **`tmux-whisper integrations` (status, `--json`, `doctor`, `repair`)** is gone with them: it only existed to check and refresh the Raycast scripts. The Finder Quick Action handler is still installed beside the binary.
   - **`tmux-whisper swiftbar`**, the notice left when the plugin was retired, is gone; the command is now unknown. `install.sh` no longer looks for a leftover plugin.
@@ -23,6 +23,12 @@
 - **Lowkey's app shell is split by responsibility** (no change to takes, delivery or the log). `AppController.swift` went from 1,575 lines to about 890: the take's transcription, delivery and CLI fallback are in `TakePipeline` (with Retry and Quit recovery beside it), `inline record` persistence in `TakePersister`, the menu in `StatusMenu`, Start at Login in `LoginItem`. The menu-bar status is a tested `LowkeyCore` type, `ActivityStatus`. One visible fix came out of it: settings that clear an error (Reload Settings) now show "Processing…" if a take is still processing, not "Ready".
 - **The docs describe Lowkey first.** README, ROADMAP, CONTRIBUTING, TROUBLESHOOTING (now with a section on Lowkey's menu messages), INTEGRATIONS, the release checklist, the issue templates and the domain glossary are rewritten for the app as the way to dictate and the CLI as its back end. Entries before v0.7.0 and the finished TODO items move to `CHANGELOG.archive.md`. `tools/pad-sfx.sh`, a one-off sound-padding helper nothing called, is removed.
 - **Renaming to Khuluma, step 1: the Swift code.** The targets are now `Khuluma` (the app shell, in `Sources/Khuluma`), `KhulumaCore`, `KhulumaObjC` and `KhulumaCoreTests`, and the Objective-C shim is `KHObjC`. The app itself is unchanged: still `Lowkey.app`, built by `tools/build-lowkey-app.sh` from the `Lowkey` product, with the same bundle id, paths and settings.
+- **Renaming to Khuluma, step 2: the app is Khuluma.** It installs as `~/Applications/Khuluma.app`. The menu, the Stats window, the messages and the Accessibility hint say Khuluma, and so do the CLI's help and `doctor` hints.
+  - **Scripts:** `tools/build-lowkey-app.sh` is now `tools/build-khuluma-app.sh`, and `tools/lowkey-report.sh` is `tools/khuluma-report.sh`. The first build quits `Lowkey.app` (after a take in progress) and moves it to the Trash.
+  - **Folders:** at its first launch the app moves `~/Library/Logs/Lowkey`, `~/Library/Application Support/Lowkey` (pending records, recovered audio) and the timed-out takes to their Khuluma names, merging file by file and never overwriting. The report reads the old log until then.
+  - **Kept until Developer ID signing (phase 2):** the bundle id `com.ricardo-nth.lowkey`, the "Lowkey Local Code Signing" identity and the saved Stats settings, so permissions carry over. Start at Login needs turning on again, because the app has moved.
+  - **Renamed:** take markers are `inline-khuluma-*` (`inline-lowkey-*` ones from older builds are still swept). The `take:` error codes `target_is_lowkey` and `lowkey_N` are now `target_is_self` and `app_N`. The variables `LOWKEY_CLI`, `LOWKEY_LOG` and `LOWKEY_LIVE_PARITY_DIR` are now `KHULUMA_*` (`LOWKEY_SIGNING_IDENTITY` and `LOWKEY_KEYCHAIN` still work). The dev launch flags are `-KhulumaStatsSnapshot`, `-KhulumaOpenStats` and `-KhulumaStatsAppearance`.
+  - `docs/plans/LOWKEY_RENAME_ROADMAP.md` and `LOWKEY_NAME_CHECK.md` are now `KHULUMA_*.md`.
 
 - **The SwiftBar plugin is retired; Lowkey is the menu-bar app** (breaking for JSON readers of the plugin's state):
   - The plugin (`integrations/tmux-whisper-status.0.2s.sh`) is no longer shipped or installed, and `DICTATE_INSTALL_SWIFTBAR` is gone. `install.sh` doesn't delete an old copy: move `~/.config/swiftbar/plugins/tmux-whisper-status.0.2s.sh` to the Trash.
@@ -153,7 +159,7 @@ Entries before v0.7.0 are in [`CHANGELOG.archive.md`](CHANGELOG.archive.md).
 
 ### Next queue (core product)
 
-- [ ] Rename to Lowkey, make the app the main tool, sunset the CLI and archive this repo (App Store parked). Staged plan with exit criteria: `docs/plans/LOWKEY_RENAME_ROADMAP.md`. Phase 0: the tidy-up is done; the public name (Lowkey is a working name) is still to be chosen.
+- [ ] Rename to Lowkey, make the app the main tool, sunset the CLI and archive this repo (App Store parked). Staged plan with exit criteria: `docs/plans/KHULUMA_RENAME_ROADMAP.md`. Phase 0: the tidy-up is done; the public name (Lowkey is a working name) is still to be chosen.
 
 ### Future labs (deferred, separate projects)
 

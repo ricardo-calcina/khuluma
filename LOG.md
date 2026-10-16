@@ -1,7 +1,7 @@
 # Log
 
 ## Now
-Turn tmux-whisper into Khuluma (working name Lowkey): rename, make the app the main tool, sunset the CLI. Plan: `docs/plans/LOWKEY_RENAME_ROADMAP.md`. Phase 0: P0b tidy-up done (PRs #66–#72), pending a week of daily use with `tools/lowkey-report.sh` gates still met. Public name chosen: Khuluma (P0a). Renaming the app to Khuluma now in three PRs (code, app, docs); the bundle id, signing identity and CLI names wait for phase 2.
+Turn tmux-whisper into Khuluma (working name Lowkey): rename, make the app the main tool, sunset the CLI. Plan: `docs/plans/KHULUMA_RENAME_ROADMAP.md`. Phase 0: P0b tidy-up done (PRs #66–#72), pending a week of daily use with `tools/lowkey-report.sh` gates still met. Public name chosen: Khuluma (P0a). Renaming the app to Khuluma now in three PRs (code, app, docs); the bundle id, signing identity and CLI names wait for phase 2.
 
 ## Next
 - [x] P0 · Name check: Lowkey vs other spellings or a longer store name (roadmap P0a) · added 2026-10-15
@@ -12,8 +12,8 @@ Turn tmux-whisper into Khuluma (working name Lowkey): rename, make the app the m
 
 ## Done
 - 2026-10-17 · Khuluma rename step 1: Swift targets Khuluma, KhulumaCore, KhulumaObjC, KhulumaCoreTests (app still Lowkey.app) · #74
-- 2026-10-17 · Public name chosen: Khuluma (isiNdebele "speak"); Thumela runner-up · docs/plans/LOWKEY_NAME_CHECK.md, #67
-- 2026-10-16 · Name check (P0a): Lowkey ruled out by live LOWKEY software marks in UK/US/EU · docs/plans/LOWKEY_NAME_CHECK.md
+- 2026-10-17 · Public name chosen: Khuluma (isiNdebele "speak"); Thumela runner-up · docs/plans/KHULUMA_NAME_CHECK.md, #67
+- 2026-10-16 · Name check (P0a): Lowkey ruled out by live LOWKEY software marks in UK/US/EU · docs/plans/KHULUMA_NAME_CHECK.md
 - 2026-10-16 · P0b docs: README, ROADMAP, CONTRIBUTING, TROUBLESHOOTING (Lowkey section), domain and templates rewritten around Lowkey; pre-v0.7 changelog archived; pad-sfx.sh removed · #72
 - 2026-10-16 · Lowkey's AppController split into TakePipeline, TakePersister, StatusMenu, LoginItem; menu status is a tested LowkeyCore type · #71
 - 2026-10-16 · LLM post-processing, silence trim and bash chunking removed (with budget, replay, bench-matrix, mode prompts); app contract 2 · #70
@@ -22,4 +22,4 @@ Turn tmux-whisper into Khuluma (working name Lowkey): rename, make the app the m
 - 2026-10-16 · Raycast scripts, `integrations` doctor/repair and the `swiftbar` stub removed · #66
 - 2026-10-16 · Finished plans moved to docs/plans/archive/ · #65
 - 2026-10-16 · P0b review done; dropping tmux flow, CLI capture, LLM post-processing, silence trim, chunking; Lowkey to require its matching CLI · roadmap P0b
-- 2026-10-15 · Lowkey rename roadmap approved: phases 0–5, App Store parked · docs/plans/LOWKEY_RENAME_ROADMAP.md
+- 2026-10-15 · Lowkey rename roadmap approved: phases 0–5, App Store parked · docs/plans/KHULUMA_RENAME_ROADMAP.md

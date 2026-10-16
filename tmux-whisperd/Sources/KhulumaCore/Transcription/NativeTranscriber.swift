@@ -101,7 +101,7 @@ public struct NativeTranscriber: Sendable {
 
     let pcm = WAVEncoder.pcm16(samples)
     let padded = AudioPrep.padded(pcm, tailPadMs: settings.tailPad ?? 0)
-    let stem = "lowkey-\(UUID().uuidString)"
+    let stem = "khuluma-\(UUID().uuidString)"
     let fullURL = directory.appendingPathComponent("\(stem).wav")
     try writeWAV(padded, to: fullURL)
     timings.prepMs += lap()

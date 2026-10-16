@@ -104,7 +104,7 @@ final class StatsModel: ObservableObject {
     }
     let cached = source.config
     queue.async { [weak self] in
-      // Settings may not have loaded yet (Lowkey just launched).
+      // Settings may not have loaded yet (Khuluma just launched).
       let config = cached ?? (try? cli.appConfig())
       // The ledger as it was before the read: a write after this point is
       // seen as a change once the watcher is up.

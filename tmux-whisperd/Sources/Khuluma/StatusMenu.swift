@@ -66,7 +66,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     loginItem.target = self
     menu.addItem(loginItem)
     menu.addItem(.separator())
-    menu.addItem(NSMenuItem(title: "Quit Lowkey", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+    menu.addItem(NSMenuItem(title: "Quit Khuluma", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
     menu.delegate = self
     statusItem.menu = menu
     show(ActivityStatus(), recording: false)
@@ -82,7 +82,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
   func show(_ status: ActivityStatus, recording: Bool) {
     statusLine.title = status.title
     cancelItem.isHidden = !recording
-    let image = NSImage(systemSymbolName: status.symbol, accessibilityDescription: "Lowkey")
+    let image = NSImage(systemSymbolName: status.symbol, accessibilityDescription: "Khuluma")
     image?.isTemplate = true
     statusItem?.button?.image = image
   }

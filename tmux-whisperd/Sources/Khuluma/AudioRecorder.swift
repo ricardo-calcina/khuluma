@@ -122,7 +122,7 @@ final class AudioRecorder {
     let engine = self.engine
     let inputFormat = try ObjCException.catching { engine.inputNode.outputFormat(forBus: 0) }
     guard inputFormat.sampleRate > 0, inputFormat.channelCount > 0 else {
-      throw NSError(domain: "Lowkey", code: 1, userInfo: [NSLocalizedDescriptionKey: "no input device available"])
+      throw NSError(domain: "Khuluma", code: 1, userInfo: [NSLocalizedDescriptionKey: "no input device available"])
     }
     converter = AVAudioConverter(from: inputFormat, to: targetFormat)
     lock.withLock {

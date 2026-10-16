@@ -1,13 +1,13 @@
 import Foundation
 
-/// The contract between Lowkey and the CLI it was built with. App and CLI
-/// ship from one tree, so instead of feature checks Lowkey requires the CLI
+/// The contract between Khuluma and the CLI it was built with. App and CLI
+/// ship from one tree, so instead of feature checks Khuluma requires the CLI
 /// to speak exactly this version (`app_contract` in `app-config --json`,
 /// `TMUX_WHISPER_APP_CONTRACT` in `bin/tmux-whisper`; CI keeps them equal).
 public enum AppContract {
   public static let version = 2
 
-  /// The installed CLI speaks a different contract: Lowkey takes no
+  /// The installed CLI speaks a different contract: Khuluma takes no
   /// dictations until the two match.
   public struct Mismatch: Error, LocalizedError, Equatable, Sendable {
     public let cliVersion: String
@@ -17,12 +17,12 @@ public enum AppContract {
     public var errorDescription: String? {
       let cli = "tmux-whisper \(cliVersion)"
       guard let cliContract else {
-        return "\(cli) is older than this Lowkey: run ./install.sh --force"
+        return "\(cli) is older than this Khuluma: run ./install.sh --force"
       }
       if cliContract < AppContract.version {
-        return "\(cli) (contract \(cliContract)) is older than this Lowkey (contract \(AppContract.version)): run ./install.sh --force"
+        return "\(cli) (contract \(cliContract)) is older than this Khuluma (contract \(AppContract.version)): run ./install.sh --force"
       }
-      return "this Lowkey (contract \(AppContract.version)) is older than \(cli) (contract \(cliContract)): rebuild it with tools/build-lowkey-app.sh"
+      return "this Khuluma (contract \(AppContract.version)) is older than \(cli) (contract \(cliContract)): rebuild it with tools/build-khuluma-app.sh"
     }
   }
 
@@ -137,7 +137,7 @@ public struct AppConfig: Decodable, Equatable, Sendable {
     case usage
   }
 
-  /// Why Lowkey must not keep the daemon warm, or nil if it may.
+  /// Why Khuluma must not keep the daemon warm, or nil if it may.
   public var supervisionBlocker: String? {
     guard pipeline.supervise else { return "[app] supervise_daemon = false" }
     guard transcription.modelPath?.isEmpty == false else { return "no Parakeet model path" }
@@ -210,7 +210,7 @@ public struct Delivery: Decodable, Equatable, Sendable {
   }
 
   /// The same delivery, re-activating the take's original app first (e.g.
-  /// a take started with Lowkey itself in front, whatever `paste_target` is).
+  /// a take started with Khuluma itself in front, whatever `paste_target` is).
   public func restoringOriginalApp() -> Delivery {
     Delivery(autosend: autosend, sendMode: sendMode, pasteTarget: "restore",
              activateDelayMs: activateDelayMs, sendDelayMs: sendDelayMs)

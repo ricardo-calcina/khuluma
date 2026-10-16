@@ -12,7 +12,7 @@ public struct PendingRecords: Sendable {
 
   public static var standard: PendingRecords {
     PendingRecords(directory: FileManager.default.homeDirectoryForCurrentUser
-      .appendingPathComponent("Library/Application Support/Lowkey/pending", isDirectory: true))
+      .appendingPathComponent("Library/Application Support/Khuluma/pending", isDirectory: true))
   }
 
   public init(directory: URL) {

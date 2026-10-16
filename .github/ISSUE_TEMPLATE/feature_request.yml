@@ -15,7 +15,7 @@ body:
     id: proposal
     attributes:
       label: Proposed change
-      description: Describe behavior, where it lives (Lowkey or the CLI), and tradeoffs.
+      description: Describe behavior, where it lives (Khuluma or the CLI), and tradeoffs.
     validations:
       required: true
 
@@ -24,7 +24,7 @@ body:
     attributes:
       label: Roadmap area
       options:
-        - lowkey
+        - khuluma
         - cli (back end, file transcription)
         - daemon
         - rename roadmap phase

@@ -6,11 +6,11 @@ import Testing
 /// (DaemonClient + NativeTranscriber + TextPipeline) must produce the same
 /// bytes as `tmux-whisper inline process` on the same WAVs.
 ///
-/// LOWKEY_LIVE_PARITY_DIR must contain wav/<n>.wav and wav/<n>.app, and for
+/// KHULUMA_LIVE_PARITY_DIR must contain wav/<n>.wav and wav/<n>.app, and for
 /// each variant out/<variant>/app-config.json plus out/<variant>/<n>.json
 /// (the `inline process --json` result). Skipped when unset (CI).
 struct LiveParityTests {
-  static let directory = ProcessInfo.processInfo.environment["LOWKEY_LIVE_PARITY_DIR"]
+  static let directory = ProcessInfo.processInfo.environment["KHULUMA_LIVE_PARITY_DIR"]
 
   static func samples(_ url: URL) throws -> [Float] {
     let data = try Data(contentsOf: url)

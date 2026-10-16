@@ -1,14 +1,19 @@
 #!/usr/bin/env bash
-# Summarise Lowkey's app.log: take outcomes, where the time goes, daemon
+# Summarise Khuluma's app.log: take outcomes, where the time goes, daemon
 # warmups and timed-out retries. Transcript-free:
 # it prints counts and timings only, never dictated text.
 #
-#   tools/lowkey-report.sh                  # the whole log
-#   tools/lowkey-report.sh --days 2         # today and yesterday
-#   tools/lowkey-report.sh --since 2026-10-12 --system
+#   tools/khuluma-report.sh                  # the whole log
+#   tools/khuluma-report.sh --days 2         # today and yesterday
+#   tools/khuluma-report.sh --since 2026-10-12 --system
 set -euo pipefail
 
-LOG="${LOWKEY_LOG:-$HOME/Library/Logs/Lowkey/app.log}"
+LOG="${KHULUMA_LOG:-$HOME/Library/Logs/Khuluma/app.log}"
+# Before the rename the app logged under Lowkey; its first launch as Khuluma
+# moves the log, so the old path only matters until then.
+if [[ -z "${KHULUMA_LOG:-}" && ! -e "$LOG" && -e "$HOME/Library/Logs/Lowkey/app.log" ]]; then
+  LOG="$HOME/Library/Logs/Lowkey/app.log"
+fi
 SINCE=""
 DAYS=""
 SYSTEM=0
@@ -160,7 +165,7 @@ def pct(part, whole):
 window = f"{first_day} to {last_day}" if first_day else "no entries"
 if since:
     window += f" (since {since})"
-print(f"Lowkey report: {log_path}")
+print(f"Khuluma report: {log_path}")
 print(f"Window: {window}, local time")
 
 # --- Takes ------------------------------------------------------------------
@@ -200,7 +205,7 @@ BUCKETS = [("under 5s", 0, 5_000), ("5-15s", 5_000, 15_000), ("15-60s", 15_000, 
 
 def overhead(take):
     """Stop to delivered, minus the model's own time and the deliberate
-    delivery waits: what Lowkey, the socket and the OS add."""
+    delivery waits: what Khuluma, the socket and the OS add."""
     total, waits = num(take, "total"), num(take, "waits")
     if total is None or waits is None:
         return None
@@ -285,10 +290,10 @@ print()
 print("Daemon")
 if warmups:
     triggers = Counter(trigger for _, trigger in warmups)
-    print(f"  model warmups started by Lowkey (daemon model warmup time): {spread([w for w, _ in warmups])}, max {ms(max(w for w, _ in warmups))}"
+    print(f"  model warmups started by Khuluma (daemon model warmup time): {spread([w for w, _ in warmups])}, max {ms(max(w for w, _ in warmups))}"
           + "; " + ", ".join(f"{k} {v}" for k, v in triggers.most_common()))
 else:
-    print("  model warmups started by Lowkey: none")
+    print("  model warmups started by Khuluma: none")
 if unavailable:
     print("  unavailable: " + ", ".join(f"{k} x{v}" for k, v in unavailable.most_common(5)))
 PY
@@ -307,7 +312,7 @@ if [[ "$SYSTEM" == "1" ]]; then
     gsub(/[ .]/, "", $2); printf "  %s: %s\n", $1, $2
   }'
   ps -axo rss=,comm= 2>/dev/null | awk '
-    $2 ~ /tmux-whisperd$/ || $2 ~ /Lowkey$/ {
+    $2 ~ /tmux-whisperd$/ || $2 ~ /Khuluma$/ || $2 ~ /Lowkey$/ {
       n = split($2, part, "/"); printf "  %s RSS: %.0f MB\n", part[n], $1 / 1024
     }'
 fi

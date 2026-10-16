@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# GUI launchers (Lowkey, the Finder Quick Action) often run with a minimal PATH.
+# GUI launchers (Khuluma, the Finder Quick Action) often run with a minimal PATH.
 # Prefer Homebrew for python3 (tomllib) and ffmpeg.
 export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:${PATH:-/usr/bin:/bin}"
 
 if [[ -f "$HOME/.zshenv" ]]; then
-  # Load XDG vars + SOUNDS_DIR for non-interactive invocations (Lowkey, Finder, etc.)
+  # Load XDG vars + SOUNDS_DIR for non-interactive invocations (Khuluma, Finder, etc.)
   source "$HOME/.zshenv"
 fi
 
@@ -17,15 +17,15 @@ XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
 DEFAULT_SWIFT_PARAKEET_MODELS_DIR="$XDG_DATA_HOME/tmux-whisper/models"
 DICTATE_CONFIG_SCHEMA_VERSION=1
 TMUX_WHISPER_CLI_VERSION="0.10.0-dev"
-# What `app-config --json` and the commands Lowkey runs promise the app.
-# Lowkey refuses takes unless its own contract number (AppContract.version
+# What `app-config --json` and the commands Khuluma runs promise the app.
+# Khuluma refuses takes unless its own contract number (AppContract.version
 # in tmux-whisperd/Sources/KhulumaCore/CLIModels.swift) is the same: bump
 # both together whenever either side needs the other to change.
 TMUX_WHISPER_APP_CONTRACT=2
 
 usage() {
   cat <<'EOF'
-tmux-whisper: the back end for Lowkey (the menu-bar dictation app) and file transcription, with a warm Swift/CoreML Parakeet backend and mode-aware cleanup.
+tmux-whisper: the back end for Khuluma (the menu-bar dictation app) and file transcription, with a warm Swift/CoreML Parakeet backend and mode-aware cleanup.
 
 STATUS:
   tmux-whisper status [--json] [--preset compact]    # show runtime + effective settings snapshot
@@ -80,7 +80,7 @@ MODES (per-app cleanup rules):
   tmux-whisper mode chat          # chat mode (casual, minimal intervention)
   tmux-whisper mode apps          # list apps that trigger current mode
   tmux-whisper mode apps add X    # add app to current mode's trigger list
-  tmux-whisper mode flows [name] [inline] # show/set whether Lowkey uses a mode
+  tmux-whisper mode flows [name] [inline] # show/set whether Khuluma uses a mode
   tmux-whisper mode create <name> # create new custom mode
 
 VOCABULARY:
@@ -93,7 +93,7 @@ VOCABULARY:
   tmux-whisper vocab edit         # open global vocab file in $EDITOR
   tmux-whisper vocab rm [--dry-run] [--regex] "pattern" # remove entries by literal match (regex opt-in)
 
-DELIVERY (how Lowkey pastes and sends):
+DELIVERY (how Khuluma pastes and sends):
   tmux-whisper autosend           # show auto-send setting
   tmux-whisper autosend on        # paste + Enter (default)
   tmux-whisper autosend off       # paste only, no Enter
@@ -137,7 +137,7 @@ ENV OPTIONS:
   DICTATE_BENCH_MAX_ROWS=800 # cap retained bench samples in history/bench.tsv
 
 CONFIG FILES (kept under ~/.config/dictate/ for now):
-  config.toml                # main settings (Parakeet backend, autosend, Lowkey's hotkey)
+  config.toml                # main settings (Parakeet backend, autosend, Khuluma's hotkey)
   vocab                      # global corrections (one per line: wrong → right)
   current-mode               # mode selection (code/email/etc)
   modes/<mode>/apps          # apps that trigger this mode (one per line)
@@ -249,7 +249,7 @@ apply_vocab_corrections() {
 
 # First cleanup pass on a fresh transcript: artefacts, then fillers/repeats
 # when DICTATE_CLEAN=1. Each stage goes through $(...), so trailing newlines
-# are dropped between stages; Lowkey's TextPipeline mirrors this exactly.
+# are dropped between stages; Khuluma's TextPipeline mirrors this exactly.
 # Sets CLEANUP_TEXT rather than printing, so callers run the stages in their
 # own shell: a failing stage aborts under set -e with its own status, and
 # keeps going (as the code did before extraction) where errexit is off.
@@ -1516,7 +1516,7 @@ tmux_whisperd_built_stamp() {
 }
 
 # Content hash of the files that determine the daemon binary. Only the
-# daemon's own targets count: the package also holds the Lowkey app, whose
+# daemon's own targets count: the package also holds the Khuluma app, whose
 # changes must not trigger a daemon rebuild.
 tmux_whisperd_source_hash() {
   local dir="${1:-}" target
@@ -1588,7 +1588,7 @@ tmux_whisperd_binary_state() {
 # the lock, even a background subshell that outlives the main script.
 TMUX_WHISPERD_LOCK_OWNER=""
 
-# Writes this (sub)shell's PID to a file. bash 3.2 (/bin/bash, which Lowkey
+# Writes this (sub)shell's PID to a file. bash 3.2 (/bin/bash, which Khuluma
 # runs the CLI with) has no BASHPID, and $$ names the main script; a command
 # run without $(...) is a direct child of this shell, so its PPID is ours.
 write_own_shell_pid() {
@@ -1801,8 +1801,8 @@ tmux_whisperd_running_pid() {
 }
 
 # Idle when nothing records or processes: no marker in the processing dir
-# with a live owner. Markers cover `inline process` runs and Lowkey takes
-# from recording start to delivery (Lowkey's carry a phase= line). Markers
+# with a live owner. Markers cover `inline process` runs and Khuluma takes
+# from recording start to delivery (Khuluma's carry a phase= line). Markers
 # whose owner has died are removed here.
 dictation_pipeline_idle() {
   local f line pid busy=0
@@ -2031,7 +2031,7 @@ swift_parakeet_ping() {
   [[ "${RESP_OK:-0}" == "1" ]]
 }
 
-# One lock per socket around every daemon launch and restart (Lowkey's
+# One lock per socket around every daemon launch and restart (Khuluma's
 # warmups, CLI fallbacks and installer refreshes all start daemons), so two
 # callers never both launch one or swap one out from under the other.
 tmux_whisperd_lifecycle_lock() {
@@ -2785,7 +2785,7 @@ append_bench_entry() {
   local startup_audio_source="${18:-}"
 
   mkdir -p "$HISTORY_DIR" 2>/dev/null || return 0
-  # Appends and trims share one lock: Lowkey's background `inline record` and
+  # Appends and trims share one lock: Khuluma's background `inline record` and
   # CLI flows can write at once, and a row appended while another writer
   # trims would be lost when the trimmed copy replaces the file. Wait briefly;
   # without the lock, still append (best effort) but leave trimming to others.
@@ -3252,7 +3252,7 @@ bool_is_on() {
 
 # The inline pipeline behind `inline process --json`: transcribe a WAV, clean
 # it up, record bench, usage and history, and
-# hand the text back in INLINE_EXTERNAL_* for the caller (Lowkey) to deliver.
+# hand the text back in INLINE_EXTERNAL_* for the caller (Khuluma) to deliver.
 process_inline_recording() {
   local wav="$1"
   local target_app="${2:-}"
@@ -4091,7 +4091,7 @@ manage_mode() {
         app_count=0
         [[ -f "$mode_dir/apps" ]] && app_count="$(wc -l < "$mode_dir/apps" | tr -d ' ')"
         if mode_allows_flow "$mode_name" "inline"; then
-          flows_desc="used by Lowkey"
+          flows_desc="used by Khuluma"
         else
           flows_desc="hidden (flows file excludes inline)"
         fi
@@ -4104,7 +4104,7 @@ manage_mode() {
       echo "  tmux-whisper mode <name>     - set fixed mode (e.g. code)"
       echo "  tmux-whisper mode apps       - list apps for current mode"
       echo "  tmux-whisper mode apps add X - add app to current mode"
-      echo "  tmux-whisper mode flows X inline - let Lowkey use mode X"
+      echo "  tmux-whisper mode flows X inline - let Khuluma use mode X"
       echo "  tmux-whisper mode create X   - create new mode"
       echo "  tmux-whisper mode flows X    - show current flow config for mode X"
       ;;

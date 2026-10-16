@@ -1,6 +1,6 @@
 import Foundation
 
-/// Keeps the Parakeet daemon warm for Lowkey without owning it: probes the
+/// Keeps the Parakeet daemon warm for Khuluma without owning it: probes the
 /// socket, and when the daemon isn't ready asks the CLI (`warmup --json`,
 /// which starts it under the CLI's lifecycle lock and loads the model).
 ///

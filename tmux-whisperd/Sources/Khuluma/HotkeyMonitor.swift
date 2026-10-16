@@ -37,7 +37,7 @@ final class HotkeyMonitor {
     let status = RegisterEventHotKey(spec.keyCode, spec.carbonModifiers, hotKeyID, GetApplicationEventTarget(), 0, &newRef)
     guard status == noErr, let newRef else {
       if hotKeyRef == nil { unregister() }
-      throw NSError(domain: "Lowkey", code: Int(status), userInfo: [
+      throw NSError(domain: "Khuluma", code: Int(status), userInfo: [
         NSLocalizedDescriptionKey: "hotkey \(spec.display) is unavailable (already used by another app?) [\(status)]",
       ])
     }
@@ -69,7 +69,7 @@ final class HotkeyMonitor {
       return noErr
     }, 1, &eventType, userData, &handlerRef)
     guard installStatus == noErr else {
-      throw NSError(domain: "Lowkey", code: Int(installStatus), userInfo: [NSLocalizedDescriptionKey: "cannot install hotkey handler (\(installStatus))"])
+      throw NSError(domain: "Khuluma", code: Int(installStatus), userInfo: [NSLocalizedDescriptionKey: "cannot install hotkey handler (\(installStatus))"])
     }
   }
 

@@ -17,11 +17,10 @@ let package = Package(
       name: "TmuxWhisperKit",
       targets: ["TmuxWhisperKit"]
     ),
-    // Khuluma (working name Lowkey): the native menu-bar dictation app,
-    // assembled into Lowkey.app by tools/build-lowkey-app.sh. The product
-    // keeps the old name until the app itself is renamed.
+    // Khuluma: the native menu-bar dictation app (assembled into
+    // Khuluma.app by tools/build-khuluma-app.sh).
     .executable(
-      name: "Lowkey",
+      name: "Khuluma",
       targets: ["Khuluma"]
     ),
   ],

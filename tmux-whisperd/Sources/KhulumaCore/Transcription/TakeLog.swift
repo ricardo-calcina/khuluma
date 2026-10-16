@@ -1,7 +1,7 @@
 import Foundation
 
 /// The one transcript-free `take:` line each take writes to app.log, read by
-/// tools/lowkey-report.sh: space-separated `key=value` pairs. A value with a
+/// tools/khuluma-report.sh: space-separated `key=value` pairs. A value with a
 /// space, quote, backslash or `=` is double-quoted, with `\"` and `\\`
 /// escapes. Nil values are left out.
 public struct TakeLog: Sendable {

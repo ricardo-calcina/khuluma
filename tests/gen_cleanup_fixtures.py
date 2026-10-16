@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Generate (or check) Lowkey's TextPipeline parity fixtures.
+"""Generate (or check) Khuluma's TextPipeline parity fixtures.
 
 Expected outputs come from running the CLI's real bash/Perl cleanup:
 - stage cases call one bin/dictate-lib.sh function on the raw input;
 - pipeline cases run `bin/tmux-whisper inline cleanup --json` against a
   scratch copy of a fixture config dir, with a scratch HOME and LC_ALL=C
-  (the environment Lowkey gives the CLI).
+  (the environment Khuluma gives the CLI).
 
 Inputs are the hand-written cases in tests/fixtures/cleanup/cases.json plus
 seeded random "token soup" cases. The result, tests/fixtures/cleanup/

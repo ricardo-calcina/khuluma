@@ -51,7 +51,7 @@ final class AppController: NSObject, NSApplicationDelegate {
   private var pendingHotkey: HotkeySpec?
   /// Takes whose transcription timed out, for Retry/Discard.
   private let timedOut = TimedOutTakes.standard
-  /// The last active app other than Lowkey: a take started with Lowkey in
+  /// The last active app other than Khuluma: a take started with Khuluma in
   /// front is meant for it.
   private var lastExternalApp: NSRunningApplication?
   /// Every take stopped for Quit whose audio couldn't be written yet.
@@ -63,7 +63,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     connectMenu()
     menu.install()
     sweepStaleMarkers()
-    Log.write("launch: Lowkey \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev")"
+    Log.write("launch: Khuluma \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev")"
               + ", start at login \(LoginItem.text(LoginItem.status))")
 
     recorder.prepare()
@@ -100,8 +100,8 @@ final class AppController: NSObject, NSApplicationDelegate {
     reloadSettings()
     pipeline.persister.replayLeftovers()
     refreshTimedOutItems()
-    // `-LowkeyOpenStats YES`: open Stats at launch (for checking the window).
-    if UserDefaults.standard.bool(forKey: "LowkeyOpenStats") {
+    // `-KhulumaOpenStats YES`: open Stats at launch (for checking the window).
+    if UserDefaults.standard.bool(forKey: "KhulumaOpenStats") {
       showStats()
     }
   }
@@ -507,7 +507,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     }
   }
 
-  /// The CLI changed under a take to one Lowkey can't use: nothing is
+  /// The CLI changed under a take to one Khuluma can't use: nothing is
   /// transcribed with it. The audio is saved like a quit's, and transcribed
   /// into history once a matching CLI's settings arrive. If it can't be
   /// written it stays in memory, and Quit retries like any unsaved take.
@@ -803,7 +803,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     guard let pending = retried, let pipeline, !pastingRetry else { return }
     pastingRetry = true
     refreshTimedOutItems()
-    // Lowkey never takes focus, so this is the app the user chose Paste in.
+    // Khuluma never takes focus, so this is the app the user chose Paste in.
     let chosen = NSWorkspace.shared.frontmostApplication
     let delivery = Delivery(autosend: false, sendMode: "enter", pasteTarget: "current", activateDelayMs: 0, sendDelayMs: 0)
     pasteQueue.async { [weak self] in
@@ -860,7 +860,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     menu.showLogin(LoginItem.status)
   }
 
-  /// Remembers the last active app other than Lowkey (see `startRecording`).
+  /// Remembers the last active app other than Khuluma (see `startRecording`).
   private func trackExternalApps() {
     if let front = NSWorkspace.shared.frontmostApplication, front.processIdentifier != getpid() {
       lastExternalApp = front

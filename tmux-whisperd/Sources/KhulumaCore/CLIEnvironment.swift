@@ -1,8 +1,8 @@
 import Foundation
 
-/// The environment Lowkey gives the `tmux-whisper` CLI.
+/// The environment Khuluma gives the `tmux-whisper` CLI.
 public enum CLIEnvironment {
-  /// Lowkey's own environment depends on how it was launched: from Finder,
+  /// Khuluma's own environment depends on how it was launched: from Finder,
   /// Spotlight or at login it has no locale, but `open` from a terminal can
   /// pass the shell's (e.g. LANG=C.UTF-8). The CLI's mode detection (grep -i,
   /// sed, glob order) behaves differently per locale and the native pipeline

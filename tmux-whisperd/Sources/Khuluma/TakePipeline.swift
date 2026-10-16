@@ -56,7 +56,7 @@ final class TakePipeline {
     let modelVersion = transcription.modelVersion ?? "v3"
     let probe = TakeProbe { client.status(timeout: DaemonSupervisor.probeTimeout) }
     let probeState = { probe.state(waiting: Self.probeWait, modelPath: modelPath, modelVersion: modelVersion) }
-    // The take's one log line: transcript-free, for tools/lowkey-report.sh.
+    // The take's one log line: transcript-free, for tools/khuluma-report.sh.
     func logTake(_ outcome: String, endedAt: Double, transcribed: NativeTranscriber.Result? = nil,
                  _ extra: (inout TakeLog) -> Void = { _ in }) {
       var line = TakeLog()
@@ -210,7 +210,7 @@ final class TakePipeline {
   /// saves history; the app delivers, then records usage.
   func processWithCLI(samples: [Float], take: Take, recordMs: Int, appName: String?,
                       stopAt: Double, config: AppConfig?, route: (path: String, reason: String)) -> TakeResult {
-    let wav = FileManager.default.temporaryDirectory.appendingPathComponent("lowkey-\(UUID().uuidString).wav")
+    let wav = FileManager.default.temporaryDirectory.appendingPathComponent("khuluma-\(UUID().uuidString).wav")
     defer { try? FileManager.default.removeItem(at: wav) }
     let startedAt = monotonicMs()
     var processedAt: Double?
@@ -305,12 +305,12 @@ final class TakePipeline {
       }
     }
     let error = error as NSError
-    if error.domain == "Lowkey" {
+    if error.domain == "Khuluma" {
       switch error.code {
       case 2: return "accessibility_missing"
       case 3: return "no_paste_key"
-      case 4: return "target_is_lowkey"
-      default: return "lowkey_\(error.code)"
+      case 4: return "target_is_self"
+      default: return "app_\(error.code)"
       }
     }
     return "other"

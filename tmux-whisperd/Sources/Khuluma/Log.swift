@@ -1,9 +1,9 @@
 import Foundation
 
-/// Append-only log at ~/Library/Logs/Lowkey/app.log (timings, errors).
+/// Append-only log at ~/Library/Logs/Khuluma/app.log (timings, errors).
 enum Log {
   static let directory = FileManager.default.homeDirectoryForCurrentUser
-    .appendingPathComponent("Library/Logs/Lowkey", isDirectory: true)
+    .appendingPathComponent("Library/Logs/Khuluma", isDirectory: true)
   static let fileURL = directory.appendingPathComponent("app.log")
   private static let queue = DispatchQueue(label: "khuluma.log")
   private static let formatter: ISO8601DateFormatter = {

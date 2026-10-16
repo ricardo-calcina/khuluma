@@ -90,7 +90,7 @@ public struct UsageReport: Decodable, Equatable, Sendable {
   public let typingWPM: Int
   /// typing-equivalent minus record start → delivered (an estimate).
   public let estimatedTimeDifferenceMs: Int
-  /// Present when asked with `--days` (Lowkey always asks for `all`).
+  /// Present when asked with `--days` (Khuluma always asks for `all`).
   public let daily: Daily?
 
   public init(trackingStartedAt: Date?, dictations: Int, words: Int, recordingMs: Int, fullElapsedMs: Int,

@@ -121,7 +121,7 @@ struct CleanupParityTests {
     let cases = try Self.loadExpected().pipeline
     #expect(cases.count > 100)
     let fm = FileManager.default
-    let scratch = fm.temporaryDirectory.appendingPathComponent("lowkey-cleanup-parity-\(UUID().uuidString)")
+    let scratch = fm.temporaryDirectory.appendingPathComponent("khuluma-cleanup-parity-\(UUID().uuidString)")
     try fm.createDirectory(at: scratch, withIntermediateDirectories: true)
     defer { try? fm.removeItem(at: scratch) }
     var failures = 0
