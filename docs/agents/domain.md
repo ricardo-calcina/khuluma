@@ -18,7 +18,7 @@ Use the repo's established terms:
 
 - `tmux-whisper` for the public command.
 - `dictate` only for legacy config, temp and user-local runtime paths that intentionally still use that name (`~/.config/dictate`, `DICTATE_*`).
-- `Lowkey` for the app; `tmux-whisperd` for the Parakeet daemon; `TmuxWhisperKit`, `LowkeyCore` and `Lowkey` for the Swift modules.
+- `Lowkey` for the app; `tmux-whisperd` for the Parakeet daemon; `TmuxWhisperKit`, `KhulumaCore` and `Lowkey` for the Swift modules.
 - `take` for one recording through delivery. A take goes the `native` path (daemon socket and Swift cleanup) or `falls back` to the CLI's `inline process`.
 - `inline` for the CLI's pipeline that Lowkey uses (`inline process`, `inline record`, `inline cleanup`), and for the frontmost-app delivery settings (`[inline]`). `tmux` survives only as a value in old history, usage and mode `flows` files.
 - `app contract` for the integer Lowkey and the CLI must agree on.

@@ -53,7 +53,7 @@ jobs:
         # committed tests/fixtures/cleanup/expected.json is stale.
         run: ../tests/gen-cleanup-fixtures.sh --check
 
-      - name: Test TmuxWhisperKit and LowkeyCore
+      - name: Test TmuxWhisperKit and KhulumaCore
         run: swift test
 
       - name: Build release daemon

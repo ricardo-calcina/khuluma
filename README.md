@@ -4,7 +4,7 @@ Local dictation for macOS. Press a key, speak, and the text is pasted into the a
 
 The project is being renamed after its menu-bar app, **Lowkey** ([`docs/plans/LOWKEY_RENAME_ROADMAP.md`](docs/plans/LOWKEY_RENAME_ROADMAP.md)). Lowkey is a working name: the public name is still to be chosen. Until the rename, the project has three parts:
 
-- **Lowkey** (`tmux-whisperd/Sources/Lowkey`): the menu-bar app you dictate with. It owns the hotkey, the microphone, the sounds, delivery (paste, optionally send) and the Stats window. It transcribes over the daemon's socket and cleans the text up in Swift.
+- **Lowkey** (`tmux-whisperd/Sources/Khuluma`): the menu-bar app you dictate with. It owns the hotkey, the microphone, the sounds, delivery (paste, optionally send) and the Stats window. It transcribes over the daemon's socket and cleans the text up in Swift.
 - **`tmux-whisperd`**: the local Parakeet daemon that keeps the model loaded.
 - **The `tmux-whisper` CLI** (`bin/`): Lowkey's back end for now. It holds config, modes, vocab, history and usage, starts and warms the daemon, and transcribes audio files. Lowkey calls it through a small set of JSON commands ([`docs/CLI_CONTRACTS.md`](docs/CLI_CONTRACTS.md)).
 
@@ -174,7 +174,7 @@ Lowkey and Finder run the CLI with a minimal environment. Put custom `PATH` entr
 - `tmux-whisperd/` is the Swift package, with four targets:
   - `TmuxWhisperKit`: the engine, protocol and socket server;
   - `tmux-whisperd`: the daemon;
-  - `LowkeyCore`: Lowkey's AppKit-free logic, with most of the tests;
+  - `KhulumaCore`: Lowkey's AppKit-free logic, with most of the tests;
   - `Lowkey`: the app shell.
 - The CLI builds the daemon on demand into `~/.local/share/tmux-whisper/native/` and rebuilds it when the sources change.
 - `config/` holds the defaults that `install.sh` seeds: config, modes and vocab.
@@ -185,7 +185,7 @@ Run the checks before a PR:
 
 ```bash
 ./tests/ci.sh                          # shell syntax, CLI, regression, flow parity, install and bootstrap tests
-cd tmux-whisperd && swift test         # Swift tests (LowkeyCore, TmuxWhisperKit)
+cd tmux-whisperd && swift test         # Swift tests (KhulumaCore, TmuxWhisperKit)
 ```
 
 `tests/fixtures/cleanup/` keeps Lowkey's Swift cleanup in step with the CLI's. Regenerate it with `tests/gen-cleanup-fixtures.sh` after changing cleanup. GitHub Actions runs `ci.sh` on every push and pull request.
