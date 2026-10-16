@@ -1,15 +1,15 @@
 # Log
 
 ## Now
-Turn tmux-whisper into Khuluma (the app carries the name from v0.11): rename, make the app the main tool, sunset the CLI. Plan: `docs/plans/KHULUMA_RENAME_ROADMAP.md`. Phase 0: P0b tidy-up done (PRs #66–#72), pending a week of daily use with `tools/khuluma-report.sh` gates still met. Public name chosen: Khuluma (P0a). The app is renamed (#74–#76); the bundle id, signing identity and CLI names wait for phase 2.
+Turn tmux-whisper into Khuluma: rename, make the app the main tool, sunset the CLI. Plan: `docs/plans/KHULUMA_RENAME_ROADMAP.md`. Phase 0 is done (name chosen: Khuluma; tidy-up #65–#72, #78; app renamed #74–#76) apart from a week of daily use with the `tools/khuluma-report.sh` gates still met. Next: phase 1, Khuluma stops needing the CLI (native usage and history writers first). Bundle id, signing identity and CLI names change in phase 2.
 
 ## Next
-- [x] P0 · Name check: Lowkey vs other spellings or a longer store name (roadmap P0a) · added 2026-10-15
 - [ ] P1 · Before phase 2: search UKIPO and EUIPO by hand for KHULUMA; register khuluma.app · added 2026-10-17
 - [ ] P1 · Khuluma app icon: the bundle has none yet (Dock, Finder, Login Items, System Settings show a blank icon); a menu-bar glyph to match · added 2026-10-17
-- [x] P1 · Drop modes, keep one vocab: modes now only pick a vocab list (the prompts died with post-processing, and the email/code profiles aren't needed with today's models). Fold the base and code vocab into the main list for filler words and brand spellings; remove `current-mode`, `modes/`, the `mode` commands and ModeResolver. Today `code` allows only the tmux flow, so code apps fall back to base and miss its vocab · added 2026-10-17
-- [ ] P2 · Skip auto-send for one take: hold a key (Shift or similar, to decide) so the take pastes without pressing Enter; auto-send stays the default · added 2026-10-17
 - [ ] P1 · Confirm new repo vs rename in place; join the Apple Developer Program before phase 2 · added 2026-10-15
+- [ ] P1 · Phase 0 gate: a week of daily use, then `tools/khuluma-report.sh` gates still met · added 2026-10-17
+- [ ] P1 · Phase 1 step 1: native usage ledger and history writer, proven against the CLI with shared fixtures (removes `inline record`) · added 2026-10-17
+- [ ] P2 · Skip auto-send for one take: hold a key (Shift or similar, to decide) so the take pastes without pressing Enter; auto-send stays the default · added 2026-10-17
 - [ ] P2 · Stats stage 3 ideas (not committed): weeks view, wpm trend, longest take, typing_wpm config, streak line, time of day, opt-in per-app · added 2026-10-16
 - [ ] P2 · Lowkey ideas parked from 3c, only with evidence: config file watcher, warm mic/pre-roll · added 2026-10-16
 
