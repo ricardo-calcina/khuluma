@@ -5,7 +5,7 @@ import Foundation
 /// to speak exactly this version (`app_contract` in `app-config --json`,
 /// `TMUX_WHISPER_APP_CONTRACT` in `bin/tmux-whisper`; CI keeps them equal).
 public enum AppContract {
-  public static let version = 1
+  public static let version = 2
 
   /// The installed CLI speaks a different contract: Lowkey takes no
   /// dictations until the two match.
@@ -154,7 +154,6 @@ public struct AppConfig: Decodable, Equatable, Sendable {
   /// Why a take must go through `inline process` instead of the native
   /// pipeline, or nil if the native path reproduces the CLI.
   public var nativePipelineBlocker: String? {
-    if cleanup.postprocess { return "LLM post-processing is on" }
     if cleanup.requiresCLI { return "CLI locale is not C (\(cleanup.localeCtype ?? "")/\(cleanup.localeCollate ?? ""))" }
     return transcription.cliReason
   }

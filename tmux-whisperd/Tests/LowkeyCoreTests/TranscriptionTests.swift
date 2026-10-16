@@ -60,9 +60,6 @@ struct TranscriptionSettingsTests {
     let base = TranscriptionSettings(socketPath: "/s", modelPath: "/m")
     #expect(base.cliReason == nil)
     #expect(TranscriptionSettings(socketPath: "/s", modelPath: nil).cliReason != nil)
-    var trimmed = base
-    trimmed.silenceTrim = true
-    #expect(trimmed.cliReason != nil)
     var octal = base
     octal.tailPadMs = "0500"
     #expect(octal.cliReason != nil)
@@ -85,11 +82,6 @@ struct TranscriptionSettingsTests {
     #expect(config.delivery.sendDelayMs == 35)
     #expect(config.usage.summaryPath == "/c/usage.json")
     #expect(config.appContract == AppContract.version)
-
-    config = try AppConfigFixture.decode(AppConfigFixture.json.replacingOccurrences(
-      of: #""postprocess":false"#, with: #""postprocess":true"#))
-    #expect(config.nativePipelineBlocker == "LLM post-processing is on")
-    #expect(config.native == nil)
   }
 
   @Test func invalidConfigNeverSendsWithFallbackDefaults() throws {
@@ -127,10 +119,10 @@ struct TranscriptionSettingsTests {
     #expect(tooOld.localizedDescription.contains("./install.sh --force"))
 
     let older = try #require(mismatch(AppConfigFixture.json.replacingOccurrences(
-      of: #""app_contract":1"#, with: #""app_contract":0"#)))
-    #expect(older.localizedDescription == "tmux-whisper 0.10.0-dev (contract 0) is older than this Lowkey (contract 1): run ./install.sh --force")
+      of: #""app_contract":2"#, with: #""app_contract":1"#)))
+    #expect(older.localizedDescription == "tmux-whisper 0.10.0-dev (contract 1) is older than this Lowkey (contract 2): run ./install.sh --force")
     let newer = try #require(mismatch(AppConfigFixture.json.replacingOccurrences(
-      of: #""app_contract":1"#, with: #""app_contract":2"#)))
+      of: #""app_contract":2"#, with: #""app_contract":3"#)))
     #expect(newer.localizedDescription.contains("rebuild it with tools/build-lowkey-app.sh"))
     #expect(mismatch(AppConfigFixture.json) == nil)
   }

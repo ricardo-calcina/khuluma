@@ -117,8 +117,8 @@ dictate_lib_normalize_british_spelling() {
   '
 }
 
-# Insert a single paragraph break for long code/long mode outputs when the LLM
-# returns one dense block. This only adds structure; it does not rewrite wording.
+# Insert a single paragraph break for long code/long mode outputs that come
+# back as one dense block. This only adds structure; it does not rewrite wording.
 # Usage: printf "%s" "$text" | dictate_lib_auto_paragraphs <mode> [min_words]
 dictate_lib_auto_paragraphs() {
   local mode="${1:-}"

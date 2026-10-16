@@ -11,13 +11,6 @@ default_config_toml() {
 [meta]
 config_version = 1
 
-[audio]
-silence_trim = false
-silence_trim_mode = "edges"
-silence_threshold_db = -60
-silence_min_ms = 250
-silence_keep_ms = 50
-
 [clean]
 repeats_level = 1
 
@@ -29,13 +22,6 @@ audio_retention_days = 2
 model_path = ""
 model_version = ""
 socket_path = "~/.config/dictate/.cache/tmux-whisperd.sock"
-
-[postprocess]
-enabled = false
-llm = "gpt-oss-120b"
-max_tokens = 3000
-chunk_words = 700
-budget_long_words_threshold = 120
 
 [inline]
 autosend = true
@@ -58,16 +44,6 @@ start = "~/.local/share/sounds/dictate/start.wav"
 start_enabled = true
 stop = "~/.local/share/sounds/dictate/stop.wav"
 stop_enabled = true
-
-[postprocess.budget_profiles.long]
-chunk_words = 1000
-llm = "gpt-oss-120b"
-max_tokens = 5200
-
-[postprocess.budget_profiles.short]
-chunk_words = 700
-llm = "gpt-oss-120b"
-max_tokens = 2000
 EOF
 }
 
@@ -93,9 +69,9 @@ path = os.path.expanduser(sys.argv[1])
 # (which would, for example, turn autosend back on mid-edit).
 last_good = os.path.join(os.path.dirname(path), "." + os.path.basename(path) + ".last-good")
 BOOL_KEYS = (
-  "audio.silence_trim", "audio.sounds.enabled", "audio.sounds.start_enabled", "audio.sounds.stop_enabled",
+  "audio.sounds.enabled", "audio.sounds.start_enabled", "audio.sounds.stop_enabled",
   "audio.sounds.process_enabled", "audio.sounds.error_enabled", "audio.sounds.cancel_enabled",
-  "postprocess.enabled", "inline.autosend", "inline.process_sound", "debug.keep_logs", "app.supervise_daemon",
+  "inline.autosend", "inline.process_sound", "debug.keep_logs", "app.supervise_daemon",
 )
 
 class InvalidConfig(ValueError):
@@ -197,11 +173,6 @@ out = {
   "CFG_CONFIG_PARSE_ERROR": parse_error,
   "CFG_CONFIG_SOURCE": config_source,
   "CFG_META_CONFIG_VERSION": str(get("meta.config_version", "")) if isinstance(get("meta.config_version", ""), int) else "",
-  "CFG_AUDIO_SILENCE_TRIM": "1" if b(get("audio.silence_trim", False), False) else "0",
-  "CFG_AUDIO_SILENCE_TRIM_MODE": str(get("audio.silence_trim_mode", "edges")),
-  "CFG_AUDIO_SILENCE_THRESHOLD_DB": str(get("audio.silence_threshold_db", "-60")),
-  "CFG_AUDIO_SILENCE_MIN_MS": str(get("audio.silence_min_ms", "250")),
-  "CFG_AUDIO_SILENCE_KEEP_MS": str(get("audio.silence_keep_ms", "50")),
   "CFG_AUDIO_SOUNDS_START": str(get("audio.sounds.start", "")),
   "CFG_AUDIO_SOUNDS_STOP": str(get("audio.sounds.stop", "")),
   "CFG_AUDIO_SOUNDS_PROCESS": str(get("audio.sounds.process", "")),
@@ -218,15 +189,6 @@ out = {
   "CFG_SWIFT_PARAKEET_MODEL_PATH": str(get("swift_parakeet.model_path", "")),
   "CFG_SWIFT_PARAKEET_MODEL_VERSION": str(get("swift_parakeet.model_version", "")),
   "CFG_SWIFT_PARAKEET_SOCKET_PATH": str(get("swift_parakeet.socket_path", "~/.config/dictate/.cache/tmux-whisperd.sock")),
-  "CFG_POSTPROCESS_ENABLED": "1" if b(get("postprocess.enabled", False), False) else "0",
-  "CFG_POSTPROCESS_LLM": str(get("postprocess.llm", "gpt-oss-120b")),
-  "CFG_POSTPROCESS_MAX_TOKENS": str(get("postprocess.max_tokens", "")),
-  "CFG_POSTPROCESS_CHUNK_WORDS": str(get("postprocess.chunk_words", "")),
-  "CFG_POSTPROCESS_BUDGET_LONG_WORDS_THRESHOLD": str(get("postprocess.budget_long_words_threshold", "120")),
-  "CFG_POSTPROCESS_MODE_LLM_OVERRIDES": "",
-  "CFG_POSTPROCESS_BUDGET_PROFILE_LLM_OVERRIDES": "",
-  "CFG_POSTPROCESS_BUDGET_PROFILE_MAX_TOKENS_OVERRIDES": "",
-  "CFG_POSTPROCESS_BUDGET_PROFILE_CHUNK_WORDS_OVERRIDES": "",
   "CFG_INLINE_AUTOSEND": "1" if b(get("inline.autosend", True), True) else "0",
   "CFG_INLINE_PROCESS_SOUND": "1" if b(get("inline.process_sound", True), True) else "0",
   "CFG_INLINE_PASTE_TARGET": str(get("inline.paste_target", "current")),
@@ -236,35 +198,6 @@ out = {
   "CFG_APP_SUPERVISE_DAEMON": "1" if b(get("app.supervise_daemon", True), True) else "0",
   "CFG_CLEAN_REPEATS_LEVEL": str(get("clean.repeats_level", "1")),
 }
-
-mode_llm_overrides = get("postprocess.mode_llm_overrides", {}) or {}
-if isinstance(mode_llm_overrides, dict):
-  mode_llm_parts = []
-  for mode, llm in mode_llm_overrides.items():
-    if isinstance(llm, str) and llm.strip():
-      mode_llm_parts.append(f"{mode}={llm.strip()}")
-  out["CFG_POSTPROCESS_MODE_LLM_OVERRIDES"] = ";".join(sorted(mode_llm_parts))
-
-budget_profiles = get("postprocess.budget_profiles", {}) or {}
-if isinstance(budget_profiles, dict):
-  budget_llm_parts = []
-  budget_max_parts = []
-  budget_chunk_parts = []
-  for profile, d in budget_profiles.items():
-    if not isinstance(d, dict):
-      continue
-    llm = d.get("llm")
-    if isinstance(llm, str) and llm.strip():
-      budget_llm_parts.append(f"{profile}={llm.strip()}")
-    mt = d.get("max_tokens")
-    if isinstance(mt, int):
-      budget_max_parts.append(f"{profile}={mt}")
-    cw = d.get("chunk_words")
-    if isinstance(cw, int):
-      budget_chunk_parts.append(f"{profile}={cw}")
-  out["CFG_POSTPROCESS_BUDGET_PROFILE_LLM_OVERRIDES"] = ";".join(sorted(budget_llm_parts))
-  out["CFG_POSTPROCESS_BUDGET_PROFILE_MAX_TOKENS_OVERRIDES"] = ";".join(sorted(budget_max_parts))
-  out["CFG_POSTPROCESS_BUDGET_PROFILE_CHUNK_WORDS_OVERRIDES"] = ";".join(sorted(budget_chunk_parts))
 
 # No trustworthy settings (invalid file and no valid copy): never send.
 if parse_error and config_source == "defaults":

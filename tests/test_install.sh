@@ -55,8 +55,8 @@ if ! rg -q '^\[swift_parakeet\]$' "$HOME/.config/dictate/config.toml"; then
   echo "Expected fresh install config to include swift_parakeet settings" >&2
   exit 1
 fi
-if ! rg -q '^[[:space:]]*budget_long_words_threshold = 120$' "$HOME/.config/dictate/config.toml"; then
-  echo "Expected fresh install config to include budget_long_words_threshold" >&2
+if ! rg -q '^[[:space:]]*paste_target = "current"$' "$HOME/.config/dictate/config.toml"; then
+  echo "Expected fresh install config to include inline.paste_target" >&2
   exit 1
 fi
 if [[ "$(tr -d '[:space:]' < "$HOME/.config/dictate/current-mode")" != "auto" ]]; then
@@ -97,15 +97,15 @@ if ! rg -q '# user-edit' "$HOME/.config/dictate/config.toml"; then
 fi
 
 # Force install should preserve user-edited config and local mode customizations.
-printf '%s\n' "my custom code prompt" > "$HOME/.config/dictate/modes/code/prompt"
+printf '%s\n' "MyCustomEditor" > "$HOME/.config/dictate/modes/code/apps"
 rm -rf "$HOME/.config/dictate/modes/email"
 "$ROOT/install.sh" --force --with-sounds
 if ! rg -q '# user-edit' "$HOME/.config/dictate/config.toml"; then
   echo "Expected --force to preserve config.toml" >&2
   exit 1
 fi
-if ! rg -q 'my custom code prompt' "$HOME/.config/dictate/modes/code/prompt"; then
-  echo "Expected --force to preserve local mode prompt" >&2
+if ! rg -q 'MyCustomEditor' "$HOME/.config/dictate/modes/code/apps"; then
+  echo "Expected --force to preserve local mode apps" >&2
   exit 1
 fi
 if [[ -e "$HOME/.config/dictate/modes/email" ]]; then

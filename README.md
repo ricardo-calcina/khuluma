@@ -1,6 +1,6 @@
 # Tmux Whisper
 
-Local-first dictation for macOS using a warm Swift/CoreML Parakeet backend by default, with optional LLM cleanup and tmux/desktop integrations.
+Local-first dictation for macOS using a warm Swift/CoreML Parakeet backend.
 
 ## Core USP
 
@@ -26,7 +26,6 @@ Lowkey, the menu-bar app, records and delivers dictation into the frontmost app.
 - `swift` + Xcode toolchain (for building the local `tmux-whisperd` backend)
 - a local Parakeet model directory, either at `~/.local/share/tmux-whisper/models/...` or via `swift_parakeet.model_path`
 - Optional: `tmux`, Lowkey (the native menu-bar app in `tmux-whisperd/`)
-- Optional for LLM postprocess: `CEREBRAS_API_KEY`
 
 ## Install Channels
 
@@ -133,7 +132,6 @@ Use `tmux-whisper doctor` if you are ever unsure which binary/channel you are ru
 ```bash
 tmux-whisper doctor
 tmux-whisper mode auto
-tmux-whisper postprocess on
 ```
 
 ### Transcribe audio files
@@ -150,7 +148,7 @@ tmux-whisper transcribe - < memo.m4a           # read from stdin
 ```
 
 - Anything ffmpeg can decode works (m4a, mp3, wav, aac, flac, ogg/opus, video audio tracks). The original file is never modified; it is decoded into a private 16 kHz copy.
-- Output is the **raw** transcript: dictation cleanup (vocab, British spelling, filler/repeat removal, modes, LLM post-processing) is not applied, and file transcripts are not counted in `usage` or written to history.
+- Output is the **raw** transcript: dictation cleanup (vocab, British spelling, filler/repeat removal, modes) is not applied, and file transcripts are not counted in `usage` or written to history.
 - Long recordings are chunked by the Parakeet runtime itself; a 10-minute memo took about 15 seconds end to end on an M1 Air with the model warm. Dictation waits while a long file is transcribing.
 - Existing output files are never overwritten without `--force`; failures exit non-zero and leave no partial output.
 
@@ -213,14 +211,10 @@ tmux-whisper config repair --dry-run
 tmux-whisper config repair
 ```
 
-### Bench matrix
-
-`tmux-whisper bench-matrix [N] [phrase_file]` runs the cleanup/postprocess pipeline across the in-repo phrase list (or a small file you supply) with the requested number of rounds. Each line in `phrase_file` is trimmed and blank/commented lines (those beginning with `#`) are ignored, so you can customize the set while keeping the defaults for quick comparison. Set `DICTATE_BENCH_MATRIX_MODE` to force which fixed mode (typically `code`) drives the cleanup, postprocess, and vocab helpers. The output table is sorted by postprocess, model, and vocab settings to keep diffs stable, and you still see the warning `postprocess=on combos skipped` if `CEREBRAS_API_KEY` is unset.
-
 ## UX Helpers
 
 - `tmux-whisper doctor` now includes a **Suggested fixes** block with copy/paste commands when it finds dependency, install, config, or stale-state issues.
-- `tmux-whisper doctor` now validates fixed/tmux mode values and core mode prompt files (`code`/`long`) and reports explicit fallback behavior when invalid.
+- `tmux-whisper doctor` now validates the fixed mode value and reports explicit fallback behavior when it is invalid.
 - `tmux-whisper config defaults` now prints the canonical default config template, and `tmux-whisper config repair [--dry-run]` can safely fill missing defaults, refresh schema version in place, or reset malformed TOML with a backup.
 - `tmux-whisper vocab import <file>` now shows line-numbered previews for invalid entries (first 5).
 - `tmux-whisper vocab import --dry-run <file>` lets you preview additions before mutating your live vocab.
@@ -234,9 +228,6 @@ tmux-whisper config repair
 - `tmux-whisper config [--json]`, `config path [--json]`, and `config get <path> [--json]` now give config inspection a real read-only operator surface instead of only repair-oriented guidance.
 - `tmux-whisper bench [N] --json` now exposes timing summaries as structured data, and `tmux-whisper bench export [N|all] [--json]` exports the raw recent rows behind those summaries.
 - `tmux-whisper status --preset compact` now provides a narrower operator snapshot for tighter terminals, quick checks, and future shell/plugin surfaces.
-- `tmux-whisper bench-matrix [N] [phrase_file]` runs a quick matrix over postprocess/vocab toggles (and LLM models when API key is set) on fixed phrases.
-  - Phrase file format: one phrase per line (blank lines and `#` comments ignored). Optional `label<TAB>phrase` is supported.
-  - Set `DICTATE_BENCH_MATRIX_PROGRESS=0` for summary-only output (no per-combo progress lines).
 - Stable CLI JSON surfaces are tracked in [`docs/CLI_CONTRACTS.md`](docs/CLI_CONTRACTS.md); prefer those contracts for scripts, agents, Lowkey, and future UI layers.
 
 ## Troubleshooting
@@ -287,12 +278,11 @@ Then test your local command:
 tmux-whisper doctor
 tmux-whisper bench 10
 tmux-whisper bench --json
-tmux-whisper bench-matrix 1
 ```
 
 ## Lowkey (experimental native app)
 
-Lowkey is the native macOS menu-bar front-end for inline dictation. It handles the hotkey, microphone, sounds and paste natively. It sends each take straight to the Parakeet daemon (`tmux-whisperd`) and cleans the text up in Swift with the same rules as the CLI (vocab, modes, British spelling, tail rescue), so the text matches inline dictation exactly without starting the CLI. History, bench and usage are still written by the installed `tmux-whisper` (`inline record`), in the background after the text is pasted. Takes fall back to `tmux-whisper inline process` when LLM post-processing or silence trim is on, the CLI runs in a non-C locale, or the daemon can't be reached.
+Lowkey is the native macOS menu-bar front-end for inline dictation. It handles the hotkey, microphone, sounds and paste natively. It sends each take straight to the Parakeet daemon (`tmux-whisperd`) and cleans the text up in Swift with the same rules as the CLI (vocab, modes, British spelling, tail rescue), so the text matches inline dictation exactly without starting the CLI. History, bench and usage are still written by the installed `tmux-whisper` (`inline record`), in the background after the text is pasted. Takes fall back to `tmux-whisper inline process` when the CLI runs in a non-C locale or the daemon can't be reached.
 
 ```bash
 tools/make-signing-identity.sh   # once: local code-signing identity (keeps permissions across rebuilds)

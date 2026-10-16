@@ -5,15 +5,15 @@ import Foundation
 /// parts of it with `replacingOccurrences`.
 enum AppConfigFixture {
   static let json = #"""
-  {"schema_version":1,"app_contract":1,"cli_version":"0.10.0-dev","hotkey":"ctrl+option+space",
+  {"schema_version":1,"app_contract":2,"cli_version":"0.10.0-dev","hotkey":"ctrl+option+space",
    "sounds":{"start":{"enabled":true,"path":"/s/start.wav"},"cancel":{"enabled":false,"path":null}},
    "inline":{"autosend":true,"send_mode":"enter","paste_target":"current","process_sound":true,"activate_delay_ms":90,"send_delay_ms":35},
    "cleanup":{"config_dir":"/c","clean":"0","repeats_level":"1","vocab_clean":"1","british_spelling":"1",
-     "code_paragraph_min_words":"70","long_paragraph_min_words":"55","force_mode":null,"postprocess":false,
+     "code_paragraph_min_words":"70","long_paragraph_min_words":"55","force_mode":null,
      "locale_ctype":"","locale_collate":""},
    "transcription":{"socket_path":"/s.sock","model_path":"/m","model_version":"v3","model_label":"m","language":"en",
-     "tail_pad_ms":"500","tail_rescue":true,"tail_rescue_ms":"","tail_rescue_min_ms":"","chunking":false,
-     "silence_trim":false,"keep_logs":false,"ffmpeg":true,"timeout_seconds":"600","processing_dir":"/p"},
+     "tail_pad_ms":"500","tail_rescue":true,"tail_rescue_ms":"","tail_rescue_min_ms":"",
+     "keep_logs":false,"ffmpeg":true,"timeout_seconds":"600","processing_dir":"/p"},
    "config":{"error":null,"source":"file"},
    "pipeline":{"supervise":true},
    "usage":{"summary_path":"/c/usage.json"}}

@@ -296,7 +296,7 @@ assert_contains "doctor_schema_suggested_repair" "$mismatch_doctor" "Repair conf
 mismatch_repair_dry_run="$(HOME="$MISMATCH_HOME" PATH="$MISMATCH_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$MISMATCH_CFG" DICTATE_CONFIG_FILE="$MISMATCH_CFG/config.toml" tmux-whisper config repair --dry-run)"
 assert_contains "config_repair_dry_run_summary" "$mismatch_repair_dry_run" "Config repair dry-run: v0/mismatch -> v1"
 assert_contains "config_repair_dry_run_action" "$mismatch_repair_dry_run" "Action: merge missing defaults and normalize schema version"
-if rg -q 'budget_long_words_threshold' "$MISMATCH_CFG/config.toml"; then
+if rg -q 'paste_target' "$MISMATCH_CFG/config.toml"; then
   echo "FAIL: config_repair_dry_run_no_mutation" >&2
   exit 1
 fi
@@ -308,7 +308,7 @@ assert_contains "config_repair_backup_line" "$mismatch_repair_out" "Backup: "
 mismatch_repair_backup="$(printf "%s\n" "$mismatch_repair_out" | sed -n 's/^Backup: //p' | head -n 1)"
 assert_file_exists "config_repair_backup_exists" "$mismatch_repair_backup"
 assert_file_contains "config_repair_updated_version" "$MISMATCH_CFG/config.toml" "config_version = 1"
-assert_file_contains "config_repair_added_threshold" "$MISMATCH_CFG/config.toml" "budget_long_words_threshold = 120"
+assert_file_contains "config_repair_added_default" "$MISMATCH_CFG/config.toml" "paste_target = \"current\""
 assert_file_contains "config_repair_preserved_inline_autosend" "$MISMATCH_CFG/config.toml" "autosend = false"
 
 INVALIDCFG_HOME="$TMP_ROOT/home-invalid-config"
@@ -379,8 +379,6 @@ config_version = 1
 source = "auto"
 EOF
 printf '%s\n' "ghost" >"$MODECHECK_CFG/current-mode"
-printf '%s\n' "Context: code mode." >"$MODECHECK_CFG/modes/code/prompt"
-printf '%s\n' "Context: long mode." >"$MODECHECK_CFG/modes/long/prompt"
 modecheck_doctor="$(HOME="$MODECHECK_HOME" PATH="$MODECHECK_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$MODECHECK_CFG" DICTATE_CONFIG_FILE="$MODECHECK_CFG/config.toml" tmux-whisper doctor)"
 assert_contains "doctor_modecheck_section" "$modecheck_doctor" "Mode/config:"
 assert_contains "doctor_modecheck_fixed_invalid" "$modecheck_doctor" "mode.current: ghost (invalid, fallback=auto)"
@@ -400,12 +398,9 @@ config_version = 1
 source = "auto"
 EOF
 printf '%s\n' "auto" >"$MODEAUTO_CFG/current-mode"
-printf '%s\n' "Context: base mode." >"$MODEAUTO_CFG/modes/base/prompt"
 printf '%s\n' "inline" >"$MODEAUTO_CFG/modes/base/flows"
-printf '%s\n' "Context: chat mode." >"$MODEAUTO_CFG/modes/chat/prompt"
 printf '%s\n' "Messages" >"$MODEAUTO_CFG/modes/chat/apps"
 printf '%s\n' "inline" >"$MODEAUTO_CFG/modes/chat/flows"
-printf '%s\n' "Context: code mode." >"$MODEAUTO_CFG/modes/code/prompt"
 printf '%s\n' "tmux" "inline" >"$MODEAUTO_CFG/modes/code/flows"
 modeauto_status_messages="$(HOME="$MODEAUTO_HOME" PATH="$MODEAUTO_BIN:$STUB_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$MODEAUTO_CFG" DICTATE_CONFIG_FILE="$MODEAUTO_CFG/config.toml" DICTATE_TEST_FRONT_APP=Messages tmux-whisper status)"
 assert_contains "status_modeauto_chat" "$modeauto_status_messages" "mode.inline: chat (auto)"
@@ -426,7 +421,6 @@ config_version = 1
 source = "auto"
 EOF
 printf '%s\n' "code" >"$MODEFLOWS_CFG/current-mode"
-printf '%s\n' "Context: code mode." >"$MODEFLOWS_CFG/modes/code/prompt"
 modeflows_tmux="$(HOME="$MODEFLOWS_HOME" PATH="$MODEFLOWS_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$MODEFLOWS_CFG" DICTATE_CONFIG_FILE="$MODEFLOWS_CFG/config.toml" tmux-whisper mode flows code tmux)"
 assert_contains "mode_flows_tmux_summary" "$modeflows_tmux" "Mode flows for code: tmux"
 assert_file_contains "mode_flows_tmux_file" "$MODEFLOWS_CFG/modes/code/flows" "tmux"
@@ -453,21 +447,17 @@ config_version = 1
 source = "auto"
 EOF
 printf '%s\n' "chat" >"$MODEDOCTOR_CFG/current-mode"
-printf '%s\n' "Context: base mode." >"$MODEDOCTOR_CFG/modes/base/prompt"
 printf '%s\n' "inline" >"$MODEDOCTOR_CFG/modes/base/flows"
-printf '%s\n' "Context: chat mode." >"$MODEDOCTOR_CFG/modes/chat/prompt"
 printf '%s\n' "tmux" >"$MODEDOCTOR_CFG/modes/chat/flows"
 printf '%s\n' "Messages" >"$MODEDOCTOR_CFG/modes/chat/apps"
-printf '%s\n' "Context: code mode." >"$MODEDOCTOR_CFG/modes/code/prompt"
 printf '%s\n' "tmux" >"$MODEDOCTOR_CFG/modes/code/flows"
-printf '%s\n' "Context: email mode." >"$MODEDOCTOR_CFG/modes/email/prompt"
 printf '%s\n' "voice" >"$MODEDOCTOR_CFG/modes/email/flows"
 modedoctor_out="$(HOME="$MODEDOCTOR_HOME" PATH="$MODEDOCTOR_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$MODEDOCTOR_CFG" DICTATE_CONFIG_FILE="$MODEDOCTOR_CFG/config.toml" tmux-whisper doctor)"
 assert_contains "doctor_flow_disabled_inline" "$modedoctor_out" "mode.current: chat (fixed, inline disabled, fallback=base)"
 assert_contains "doctor_flow_count_inline" "$modedoctor_out" "modes.inline-capable: 1"
 assert_contains "doctor_flow_apps_ignored" "$modedoctor_out" "mode.chat.apps: 1 mapping(s) ignored (inline flow disabled)"
 assert_contains "doctor_flow_invalid_entries" "$modedoctor_out" "mode.email.flows: hidden (explicit; invalid=voice)"
-assert_contains "doctor_flow_fix_inline" "$modedoctor_out" "Enable inline flow for 'chat': tmux-whisper mode flows chat both"
+assert_contains "doctor_flow_fix_inline" "$modedoctor_out" "Let Lowkey use 'chat': tmux-whisper mode flows chat inline"
 assert_contains "doctor_flow_fix_invalid" "$modedoctor_out" "Review flow filter for 'email': tmux-whisper mode flows email"
 
 modedoctor_json="$(HOME="$MODEDOCTOR_HOME" PATH="$MODEDOCTOR_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$MODEDOCTOR_CFG" DICTATE_CONFIG_FILE="$MODEDOCTOR_CFG/config.toml" tmux-whisper doctor --json)"
@@ -478,19 +468,6 @@ assert_json_equals "doctor_flow_json_chat_mode" "$modedoctor_json" "mode_config.
 assert_json_equals "doctor_flow_json_chat_apps_ignored" "$modedoctor_json" "mode_config.modes.1.apps.ignored" "true"
 assert_json_equals "doctor_flow_json_email_mode" "$modedoctor_json" "mode_config.modes.3.mode" "email"
 assert_json_equals "doctor_flow_json_email_invalid_entry" "$modedoctor_json" "mode_config.modes.3.flows.invalid_entries.0" "voice"
-
-# --- Regression 6: postprocess commands clarify mode prompt inactivity when OFF. ---
-modecheck_postprocess_off="$(HOME="$MODECHECK_HOME" PATH="$MODECHECK_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$MODECHECK_CFG" DICTATE_CONFIG_FILE="$MODECHECK_CFG/config.toml" tmux-whisper postprocess off)"
-assert_contains "postprocess_off_prompt_note" "$modecheck_postprocess_off" "Mode prompt: inactive (postprocess OFF)"
-
-# --- Regression 7: budget command UX uses budget profile naming. ---
-modecheck_budget_show="$(HOME="$MODECHECK_HOME" PATH="$MODECHECK_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$MODECHECK_CFG" DICTATE_CONFIG_FILE="$MODECHECK_CFG/config.toml" tmux-whisper budget)"
-assert_contains "budget_show_header" "$modecheck_budget_show" "Postprocess budget profiles"
-assert_contains "budget_show_threshold" "$modecheck_budget_show" "auto_long_words_threshold:"
-assert_contains "budget_show_dynamic_note" "$modecheck_budget_show" "auto_numeric_sizing: dynamic"
-
-modecheck_budget_threshold="$(HOME="$MODECHECK_HOME" PATH="$MODECHECK_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$MODECHECK_CFG" DICTATE_CONFIG_FILE="$MODECHECK_CFG/config.toml" tmux-whisper budget threshold 42)"
-assert_contains "budget_threshold_set" "$modecheck_budget_threshold" "budget auto_long_words_threshold: 42"
 
 # --- Regression 8: a Homebrew install finds the Finder Quick Action handler in
 # its pkgshare and ignores a stale local-install receipt. ---
@@ -516,126 +493,8 @@ brew_finder_out="$(HOME="$BREW_FINDER_HOME" PATH="$BREW_FINDER_BIN:/usr/bin:/bin
 assert_contains "finder_brew_handler_from_pkgshare" "$brew_finder_out" "handler: $brew_finder_share/integrations/finder/tmux-whisper-transcribe.sh"
 assert_not_contains "finder_brew_ignores_stale_receipt_root" "$brew_finder_out" "handler: $ROOT/"
 
-# --- Regression 13: budget profile auto-selection is based on transcript length, not mode name. ---
-BUDGET_HOME="$TMP_ROOT/home-budget"
-BUDGET_BIN="$BUDGET_HOME/.local/bin"
-BUDGET_CFG="$BUDGET_HOME/.config/dictate"
-BUDGET_STUBS="$TMP_ROOT/budget-stubs"
-mkdir -p "$BUDGET_BIN" "$BUDGET_CFG/modes/code" "$BUDGET_CFG/modes/long" "$BUDGET_STUBS"
-install_test_runtime "$BUDGET_BIN"
-cat >"$BUDGET_CFG/config.toml" <<'EOF'
-[meta]
-config_version = 1
-
-[audio]
-source = "auto"
-
-[postprocess]
-llm = "gpt-oss-120b"
-max_tokens = 1111
-chunk_words = 0
-
-[postprocess.budget_profiles.short]
-max_tokens = 2222
-chunk_words = 0
-
-[postprocess.budget_profiles.long]
-max_tokens = 5555
-chunk_words = 0
-EOF
-printf '%s\n' "Context: code mode." >"$BUDGET_CFG/modes/code/prompt"
-printf '%s\n' "Context: long mode." >"$BUDGET_CFG/modes/long/prompt"
-
-cat >"$BUDGET_STUBS/curl" <<'EOF'
-#!/usr/bin/env bash
-set -euo pipefail
-payload=""
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    -d)
-      payload="${2:-}"
-      shift 2
-      ;;
-    *)
-      shift
-      ;;
-  esac
-done
-if [[ -n "${DICTATE_TEST_CURL_DUMP:-}" ]]; then
-  printf '%s' "$payload" >"$DICTATE_TEST_CURL_DUMP"
-fi
-printf '%s\n' '{"choices":[{"message":{"content":"processed"}}]}'
-EOF
-chmod +x "$BUDGET_STUBS/curl"
-
-cat >"$BUDGET_STUBS/jq" <<'EOF'
-#!/usr/bin/env bash
-set -euo pipefail
-if [[ "${1:-}" == "-Rs" && "${2:-}" == "." ]]; then
-  python3 - <<'PY'
-import json, sys
-print(json.dumps(sys.stdin.read()))
-PY
-  exit 0
-fi
-if [[ "${1:-}" == "-r" ]]; then
-  filter="${2:-}"
-  python3 - "$filter" <<'PY'
-import json, sys
-flt = sys.argv[1]
-raw = sys.stdin.read().strip()
-if not raw:
-    print("")
-    raise SystemExit(0)
-try:
-    data = json.loads(raw)
-except Exception:
-    print("")
-    raise SystemExit(0)
-if flt == '.choices[0].message.content // empty':
-    out = ""
-    try:
-        out = data["choices"][0]["message"]["content"] or ""
-    except Exception:
-        out = ""
-    print(out)
-    raise SystemExit(0)
-if flt == '.error.message // .error // empty':
-    err = data.get("error", "")
-    if isinstance(err, dict):
-        print(err.get("message", "") or "")
-    elif isinstance(err, str):
-        print(err)
-    else:
-        print("")
-    raise SystemExit(0)
-print("")
-PY
-  exit 0
-fi
-exit 1
-EOF
-chmod +x "$BUDGET_STUBS/jq"
-
-cat >"$BUDGET_STUBS/pbcopy" <<'EOF'
-#!/usr/bin/env bash
-set -euo pipefail
-cat >/dev/null
-EOF
-chmod +x "$BUDGET_STUBS/pbcopy"
-
-BUDGET_CURL_DUMP="$TMP_ROOT/budget-curl.json"
-BUDGET_CURL_DUMP_SHORT="$TMP_ROOT/budget-curl-short.json"
-long_text="one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twentyone twentytwo twentythree twentyfour twentyfive twentysix twentyseven twentyeight twentynine thirty"
-short_text="one two three four five six seven eight nine ten"
-budget_replay_out="$(HOME="$BUDGET_HOME" PATH="$BUDGET_STUBS:$BUDGET_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$BUDGET_CFG" DICTATE_CONFIG_FILE="$BUDGET_CFG/config.toml" CEREBRAS_API_KEY=test-key DICTATE_LLM_BUDGET_LONG_WORDS_THRESHOLD=20 DICTATE_TEST_CURL_DUMP="$BUDGET_CURL_DUMP" tmux-whisper replay code "$long_text")"
-assert_contains "budget_replay_runs" "$budget_replay_out" "Re-processing with code mode"
-assert_file_contains "budget_profile_auto_long_max_tokens" "$BUDGET_CURL_DUMP" '"max_tokens": 5555'
-budget_replay_short_out="$(HOME="$BUDGET_HOME" PATH="$BUDGET_STUBS:$BUDGET_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$BUDGET_CFG" DICTATE_CONFIG_FILE="$BUDGET_CFG/config.toml" CEREBRAS_API_KEY=test-key DICTATE_LLM_BUDGET_LONG_WORDS_THRESHOLD=20 DICTATE_TEST_CURL_DUMP="$BUDGET_CURL_DUMP_SHORT" tmux-whisper replay code "$short_text")"
-assert_contains "budget_replay_short_runs" "$budget_replay_short_out" "Re-processing with code mode"
-assert_file_contains "budget_profile_auto_short_scaled_max_tokens" "$BUDGET_CURL_DUMP_SHORT" '"max_tokens": 3888'
-
-# --- Regression 12: history stats summarizes postprocess budget observability metadata. ---
+# --- Regression 12: history readers summarize entries and ignore the retired
+# postprocess fields (the older fixture keeps them, as old history files do). ---
 HISTOBS_HOME="$TMP_ROOT/home-histobs"
 HISTOBS_BIN="$HISTOBS_HOME/.local/bin"
 HISTOBS_CFG="$HISTOBS_HOME/.config/dictate"
@@ -676,17 +535,7 @@ cat >"$HISTOBS_HISTORY/2026-02-22T17-05-00.json" <<'EOF'
   "app": "Ghostty",
   "raw": "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty one two three four five six seven eight nine ten",
   "processed": "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty one two three four five six seven eight nine ten",
-  "metrics": {"record_ms": 18000, "transcribe_ms": 220, "clean_ms": 18, "postprocess_ms": 620, "paste_ms": 45, "total_ms": 18940},
-  "postprocess_budget": {
-    "numeric_sizing": "auto_dynamic",
-    "profile": "long",
-    "threshold_words": 20,
-    "word_count": 30,
-    "max_tokens": 5555,
-    "chunk_words": 1000,
-    "chunk_count": 2,
-    "llm": "gpt-oss-120b"
-  },
+  "metrics": {"record_ms": 18000, "transcribe_ms": 220, "clean_ms": 18, "paste_ms": 45, "total_ms": 18940},
   "audio": {
     "capture_wav_ms": 18120,
     "capture_wav_bytes": 580000,
@@ -701,13 +550,8 @@ cat >"$HISTOBS_HISTORY/2026-02-22T17-05-00.json" <<'EOF'
 }
 EOF
 histobs_stats="$(HOME="$HISTOBS_HOME" PATH="$HISTOBS_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$HISTOBS_CFG" DICTATE_CONFIG_FILE="$HISTOBS_CFG/config.toml" DICTATE_HISTORY_STATS_NOW=2026-02-22T18:00:00Z tmux-whisper history stats)"
-assert_contains "history_stats_budget_obs_count" "$histobs_stats" "Postprocess budget observability entries: 2"
-assert_contains "history_stats_budget_profiles" "$histobs_stats" "budget_profile_counts: long=1, short=1"
-assert_contains "history_stats_budget_numeric_mode" "$histobs_stats" "budget_numeric_sizing: auto_dynamic"
-assert_contains "history_stats_budget_threshold" "$histobs_stats" "budget_threshold_words: 20"
-assert_contains "history_stats_budget_max_tokens_line" "$histobs_stats" "budget.max_tokens: n=2"
-assert_contains "history_stats_budget_chunk_count_line" "$histobs_stats" "budget.chunk_count: n=2"
-assert_contains "history_stats_budget_postprocess_ms_line" "$histobs_stats" "metrics.postprocess_ms: n=2"
+assert_not_contains "history_stats_no_postprocess" "$histobs_stats" "postprocess"
+assert_not_contains "history_stats_no_budget" "$histobs_stats" "budget"
 assert_contains "history_stats_recent_24h" "$histobs_stats" "last_24h: entries=2 raw_words=40 processed_words=40"
 assert_contains "history_stats_recent_7d" "$histobs_stats" "last_7d: entries=2 raw_words=40 processed_words=40"
 assert_contains "history_stats_typing_equivalent" "$histobs_stats" "typing_equivalent.total: 1m 00s @ 40 wpm"
@@ -722,6 +566,7 @@ assert_contains "history_sessions_audio" "$histobs_sessions" "audio: capture_wav
 assert_contains "history_sessions_debug" "$histobs_sessions" "debug: debug_archive_prefix=2026-02-22T17-05-00-inline; retention_note=debug wav retained"
 assert_contains "history_sessions_next" "$histobs_sessions" "  tmux-whisper bench 10"
 histobs_sessions_json="$(HOME="$HISTOBS_HOME" PATH="$HISTOBS_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$HISTOBS_CFG" DICTATE_CONFIG_FILE="$HISTOBS_CFG/config.toml" tmux-whisper history sessions 2 --json)"
+assert_not_contains "history_sessions_json_no_postprocess" "$histobs_sessions_json" "postprocess"
 assert_json_equals "history_sessions_json_command" "$histobs_sessions_json" "command" "history"
 assert_json_equals "history_sessions_json_subcommand" "$histobs_sessions_json" "subcommand" "sessions"
 assert_json_equals "history_sessions_json_first_app" "$histobs_sessions_json" "sessions.0.app" "Ghostty"
@@ -730,29 +575,28 @@ assert_json_equals "history_sessions_json_first_note" "$histobs_sessions_json" "
 assert_json_equals "history_sessions_json_next" "$histobs_sessions_json" "next_commands.1" "tmux-whisper bench 10"
 histobs_show_latest="$(HOME="$HISTOBS_HOME" PATH="$HISTOBS_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$HISTOBS_CFG" DICTATE_CONFIG_FILE="$HISTOBS_CFG/config.toml" tmux-whisper history 1)"
 assert_contains "history_show_metrics_section" "$histobs_show_latest" "--- Metrics ---"
-assert_contains "history_show_metrics_postprocess_ms" "$histobs_show_latest" "postprocess_ms : 620"
-assert_contains "history_show_budget_section" "$histobs_show_latest" "--- Postprocess Budget ---"
-assert_contains "history_show_budget_profile" "$histobs_show_latest" "profile : long"
-assert_contains "history_show_budget_max_tokens" "$histobs_show_latest" "max_tokens : 5555"
-assert_contains "history_show_budget_chunk_count" "$histobs_show_latest" "chunk_count : 2"
 histobs_show_latest_json="$(HOME="$HISTOBS_HOME" PATH="$HISTOBS_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$HISTOBS_CFG" DICTATE_CONFIG_FILE="$HISTOBS_CFG/config.toml" tmux-whisper history --json 1)"
+assert_not_contains "history_show_no_metrics_postprocess" "$histobs_show_latest" "postprocess"
 assert_json_equals "history_show_json_index" "$histobs_show_latest_json" "index" "1"
 assert_json_equals "history_show_json_mode" "$histobs_show_latest_json" "entry.mode" "code"
-assert_json_equals "history_show_json_budget_profile" "$histobs_show_latest_json" "entry.postprocess_budget.profile" "long"
 histobs_list_json="$(HOME="$HISTOBS_HOME" PATH="$HISTOBS_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$HISTOBS_CFG" DICTATE_CONFIG_FILE="$HISTOBS_CFG/config.toml" tmux-whisper history list 2 --json)"
 assert_json_equals "history_list_json_first_index" "$histobs_list_json" "0.index" "1"
 assert_json_equals "history_list_json_first_filename" "$histobs_list_json" "0.filename" "2026-02-22T17-05-00.json"
 assert_json_equals "history_list_json_first_mode" "$histobs_list_json" "0.mode" "code"
 assert_json_equals "history_list_json_first_app" "$histobs_list_json" "0.app" "Ghostty"
 assert_json_equals "history_list_json_first_processed_words" "$histobs_list_json" "0.processed_words" "30"
-assert_json_equals "history_list_json_first_budget_profile" "$histobs_list_json" "0.postprocess_budget.profile" "long"
 assert_json_equals "history_list_json_second_filename" "$histobs_list_json" "1.filename" "2026-02-22T17-00-00.json"
-assert_json_equals "history_list_json_second_budget_profile" "$histobs_list_json" "1.postprocess_budget.profile" "short"
 assert_contains "history_list_json_preview" "$histobs_list_json" "\"preview\": \"one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen"
+# The older fixture still has the retired fields on disk; no reader shows them.
+histobs_show_legacy_json="$(HOME="$HISTOBS_HOME" PATH="$HISTOBS_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$HISTOBS_CFG" DICTATE_CONFIG_FILE="$HISTOBS_CFG/config.toml" tmux-whisper history --json 2)"
+assert_json_equals "history_show_legacy_json_mode" "$histobs_show_legacy_json" "entry.app" "tmux"
+assert_not_contains "history_show_legacy_json_no_postprocess" "$histobs_show_legacy_json" "postprocess"
+assert_not_contains "history_list_json_no_postprocess" "$histobs_list_json" "postprocess"
 histobs_search_app="$(HOME="$HISTOBS_HOME" PATH="$HISTOBS_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$HISTOBS_CFG" DICTATE_CONFIG_FILE="$HISTOBS_CFG/config.toml" tmux-whisper history search Ghostty)"
 assert_contains "history_search_header" "$histobs_search_app" "History search: \"Ghostty\""
 assert_contains "history_search_app_match" "$histobs_search_app" "(code @ Ghostty) [app]"
 histobs_search_json="$(HOME="$HISTOBS_HOME" PATH="$HISTOBS_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$HISTOBS_CFG" DICTATE_CONFIG_FILE="$HISTOBS_CFG/config.toml" tmux-whisper history search tmux 5 --json)"
+assert_not_contains "history_search_json_no_postprocess" "$histobs_search_json" "postprocess"
 assert_json_equals "history_search_json_index" "$histobs_search_json" "0.index" "2"
 assert_json_equals "history_search_json_filename" "$histobs_search_json" "0.filename" "2026-02-22T17-00-00.json"
 assert_json_equals "history_search_json_app" "$histobs_search_json" "0.app" "tmux"
@@ -766,6 +610,7 @@ assert_contains "history_export_entry_two" "$histobs_export" "=== Entry 2 ==="
 assert_contains "history_export_entry_two_file" "$histobs_export" "File: 2026-02-22T17-00-00.json"
 assert_contains "history_export_processed_block" "$histobs_export" "--- Processed ---"
 histobs_export_json="$(HOME="$HISTOBS_HOME" PATH="$HISTOBS_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$HISTOBS_CFG" DICTATE_CONFIG_FILE="$HISTOBS_CFG/config.toml" tmux-whisper history export all --json)"
+assert_not_contains "history_export_json_no_postprocess" "$histobs_export_json" "postprocess"
 assert_json_equals "history_export_json_first_index" "$histobs_export_json" "0.index" "1"
 assert_json_equals "history_export_json_first_filename" "$histobs_export_json" "0.filename" "2026-02-22T17-05-00.json"
 assert_json_equals "history_export_json_first_app" "$histobs_export_json" "0.app" "Ghostty"
@@ -774,8 +619,7 @@ assert_json_equals "history_export_json_second_filename" "$histobs_export_json" 
 assert_json_equals "history_export_json_second_mode" "$histobs_export_json" "1.mode" "code"
 histobs_stats_json="$(HOME="$HISTOBS_HOME" PATH="$HISTOBS_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$HISTOBS_CFG" DICTATE_CONFIG_FILE="$HISTOBS_CFG/config.toml" DICTATE_HISTORY_STATS_NOW=2026-02-22T18:00:00Z tmux-whisper history stats --json)"
 assert_json_equals "history_stats_json_entries" "$histobs_stats_json" "entries" "2"
-assert_json_equals "history_stats_json_budget_entries" "$histobs_stats_json" "postprocess_budget.entries" "2"
-assert_json_equals "history_stats_json_budget_long_count" "$histobs_stats_json" "postprocess_budget.profile_counts.long" "1"
+assert_not_contains "history_stats_json_no_budget" "$histobs_stats_json" "postprocess_budget"
 assert_json_equals "history_stats_json_recent_24h" "$histobs_stats_json" "recent.last_24h.entries" "2"
 assert_json_equals "history_stats_json_mode_processed_words" "$histobs_stats_json" "breakdowns.modes.code.processed_words" "40"
 assert_json_equals "history_stats_json_app_processed_words" "$histobs_stats_json" "breakdowns.apps.Ghostty.processed_words" "30"
@@ -783,7 +627,6 @@ assert_json_equals "history_stats_json_typing_wpm_assumed" "$histobs_stats_json"
 assert_json_equals "history_stats_json_typing_delta" "$histobs_stats_json" "estimates.delta_vs_end_to_end_ms" "32650"
 histobs_last="$(HOME="$HISTOBS_HOME" PATH="$HISTOBS_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$HISTOBS_CFG" DICTATE_CONFIG_FILE="$HISTOBS_CFG/config.toml" tmux-whisper last)"
 assert_contains "history_last_header" "$histobs_last" "Latest dictation"
-assert_contains "history_last_budget" "$histobs_last" "budget: profile=long"
 assert_contains "history_last_capture_time" "$histobs_last" "capture_time: 18.0s"
 assert_contains "history_last_end_to_end" "$histobs_last" "end_to_end: 18.9s"
 assert_contains "history_last_pace" "$histobs_last" "dictation_pace: 100 wpm (raw)"
@@ -791,7 +634,7 @@ assert_contains "history_last_typing_equivalent" "$histobs_last" "typing_equival
 assert_contains "history_last_typing_delta" "$histobs_last" "typing_delta: +26.1s vs end-to-end"
 histobs_last_json="$(HOME="$HISTOBS_HOME" PATH="$HISTOBS_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$HISTOBS_CFG" DICTATE_CONFIG_FILE="$HISTOBS_CFG/config.toml" tmux-whisper last --json)"
 assert_json_equals "history_last_json_app" "$histobs_last_json" "entry.app" "Ghostty"
-assert_json_equals "history_last_json_budget_profile" "$histobs_last_json" "entry.postprocess_budget.profile" "long"
+assert_not_contains "history_last_json_no_budget" "$histobs_last_json" "postprocess_budget"
 
 # --- Regression 12a: durable usage only records delivered inline/tmux summaries. ---
 USAGE_HOME="$TMP_ROOT/home-usage"
@@ -821,7 +664,7 @@ usage_record() {
 }
 
 # These direct helper calls model the two production call sites after delivery;
-# cancelled, failed, no-speech, superseded, and replay paths do not call it.
+# cancelled, failed and no-speech paths do not call it.
 usage_record inline "private inline words" 2000 5000
 usage_record tmux "private tmux words" 3000 4000
 usage_record inline "extra private" 1000 7000
@@ -904,7 +747,7 @@ keep_logs = true
 EOF
 configobs_show="$(HOME="$CONFIGOBS_HOME" PATH="$CONFIGOBS_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$CONFIGOBS_CFG" DICTATE_CONFIG_FILE="$CONFIGOBS_CFG/config.toml" tmux-whisper config)"
 assert_contains "config_show_path" "$configobs_show" "Config path: $CONFIGOBS_CFG/config.toml (present)"
-assert_contains "config_show_postprocess" "$configobs_show" "postprocess.enabled: on"
+assert_not_contains "config_show_ignores_postprocess" "$configobs_show" "postprocess"
 configobs_show_json="$(HOME="$CONFIGOBS_HOME" PATH="$CONFIGOBS_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$CONFIGOBS_CFG" DICTATE_CONFIG_FILE="$CONFIGOBS_CFG/config.toml" tmux-whisper config --json)"
 assert_json_equals "config_show_json_command" "$configobs_show_json" "command" "config"
 assert_json_equals "config_show_json_subcommand" "$configobs_show_json" "subcommand" "show"
@@ -912,7 +755,7 @@ assert_json_equals "config_show_json_exists" "$configobs_show_json" "config_exis
 assert_json_equals "config_show_json_schema_status" "$configobs_show_json" "schema.status" "ok"
 assert_json_equals "config_show_json_history_retention" "$configobs_show_json" "effective.history.retention_days" "9"
 assert_json_equals "config_show_json_inline_autosend" "$configobs_show_json" "effective.inline.autosend" "false"
-assert_json_equals "config_show_json_postprocess_llm" "$configobs_show_json" "effective.postprocess.llm" "qwen-3-32b"
+assert_not_contains "config_show_json_ignores_postprocess" "$configobs_show_json" "postprocess"
 assert_json_equals "config_show_json_keep_logs" "$configobs_show_json" "effective.debug.keep_logs" "true"
 configobs_path_json="$(HOME="$CONFIGOBS_HOME" PATH="$CONFIGOBS_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$CONFIGOBS_CFG" DICTATE_CONFIG_FILE="$CONFIGOBS_CFG/config.toml" tmux-whisper config path --json)"
 assert_json_equals "config_path_json_subcommand" "$configobs_path_json" "subcommand" "path"
@@ -1034,7 +877,7 @@ assert_json_equals "bench_json_status_ok" "$bench_summary_json" "counts.statuses
 assert_json_equals "bench_json_total_stage_n" "$bench_summary_json" "stages.total_ms.n" "2"
 assert_json_equals "bench_json_latest_timestamp" "$bench_summary_json" "latest.timestamp" "2026-04-22T09:02:00Z"
 assert_json_equals "bench_json_latest_mode" "$bench_summary_json" "latest.mode" "email"
-assert_json_equals "bench_json_latest_postprocess" "$bench_summary_json" "latest.postprocess_enabled" "true"
+assert_not_contains "bench_json_no_postprocess" "$bench_summary_json" "postprocess"
 assert_json_equals "bench_json_next" "$bench_summary_json" "next_commands.0" "tmux-whisper history sessions 5"
 
 bench_filtered_out="$(HOME="$BENCH_HOME" PATH="$BENCH_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$BENCH_CFG" DICTATE_CONFIG_FILE="$BENCH_CFG/config.toml" tmux-whisper bench all --flow inline)"
@@ -1068,36 +911,6 @@ assert_json_equals "bench_export_json_first_flow" "$bench_export_json" "0.flow" 
 assert_json_equals "bench_export_json_second_timestamp" "$bench_export_json" "1.timestamp" "2026-04-22T09:01:00Z"
 assert_json_equals "bench_export_json_third_timestamp" "$bench_export_json" "2.timestamp" "2026-04-22T09:00:00Z"
 assert_json_equals "bench_export_json_third_audio_source" "$bench_export_json" "2.startup_audio_source" "detect:source(external)"
-
-# --- Regression 15: bench-matrix UX checks are stable. ---
-
-bench_bad_n_out="$(HOME="$BENCH_HOME" PATH="$BENCH_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$BENCH_CFG" DICTATE_CONFIG_FILE="$BENCH_CFG/config.toml" CEREBRAS_API_KEY= tmux-whisper bench-matrix nope 2>&1 || true)"
-assert_contains "bench_matrix_invalid_n_usage" "$bench_bad_n_out" "usage: tmux-whisper bench-matrix [N] [phrase_file]"
-
-bench_missing_phrase_out="$(HOME="$BENCH_HOME" PATH="$BENCH_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$BENCH_CFG" DICTATE_CONFIG_FILE="$BENCH_CFG/config.toml" CEREBRAS_API_KEY= tmux-whisper bench-matrix 1 "$TMP_ROOT/no-such-phrases.txt" 2>&1 || true)"
-assert_contains "bench_matrix_missing_phrase_file" "$bench_missing_phrase_out" "phrase file not found:"
-
-bench_matrix_out="$(HOME="$BENCH_HOME" PATH="$BENCH_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$BENCH_CFG" DICTATE_CONFIG_FILE="$BENCH_CFG/config.toml" CEREBRAS_API_KEY= tmux-whisper bench-matrix 1)"
-assert_contains "bench_matrix_smoke_header" "$bench_matrix_out" "Tmux Whisper bench-matrix"
-assert_contains "bench_matrix_smoke_skip_note" "$bench_matrix_out" "postprocess=on combos skipped"
-
-BENCH_PHRASES_FILE="$TMP_ROOT/bench-phrases.txt"
-cat >"$BENCH_PHRASES_FILE" <<'EOF'
-# label<TAB>phrase format is supported
-ops-check	please check the current install status
-just a plain phrase line
-EOF
-
-bench_matrix_file_out="$(HOME="$BENCH_HOME" PATH="$BENCH_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$BENCH_CFG" DICTATE_CONFIG_FILE="$BENCH_CFG/config.toml" CEREBRAS_API_KEY= DICTATE_BENCH_MATRIX_PROGRESS=0 tmux-whisper bench-matrix 1 "$BENCH_PHRASES_FILE")"
-assert_contains "bench_matrix_phrase_file_count" "$bench_matrix_file_out" "Phrases: 2"
-assert_contains "bench_matrix_header_llm_model" "$bench_matrix_file_out" "llm_model"
-assert_not_contains "bench_matrix_progress_suppressed" "$bench_matrix_file_out" "bench-matrix: combo"
-
-bench_matrix_obs_out="$(HOME="$BENCH_HOME" PATH="$BUDGET_STUBS:$BENCH_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$BENCH_CFG" DICTATE_CONFIG_FILE="$BENCH_CFG/config.toml" CEREBRAS_API_KEY=test-key DICTATE_BENCH_MATRIX_MODELS=gpt DICTATE_BENCH_MATRIX_PROGRESS=0 DICTATE_LLM_BUDGET_LONG_WORDS_THRESHOLD=20 tmux-whisper bench-matrix 1 "$BENCH_PHRASES_FILE")"
-assert_contains "bench_matrix_budget_obs_section" "$bench_matrix_obs_out" "Budget auto observability (postprocess rows)"
-assert_contains "bench_matrix_budget_obs_profiles" "$bench_matrix_obs_out" "profile counts:"
-assert_contains "bench_matrix_budget_obs_max_tokens" "$bench_matrix_obs_out" "max_tokens: n="
-assert_contains "bench_matrix_budget_obs_chunk_count" "$bench_matrix_obs_out" "chunk_count: n="
 
 # tools/lowkey-report.sh: app.log summary (transcript-free). The done(native)
 # and verify: lines are from retired builds and must be ignored.

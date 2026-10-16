@@ -30,7 +30,6 @@ app_cleanup_settings_json() {
   APPCLEAN_CODE_PARAGRAPH_MIN_WORDS="${DICTATE_CODE_PARAGRAPH_MIN_WORDS:-70}" \
   APPCLEAN_LONG_PARAGRAPH_MIN_WORDS="${DICTATE_LONG_PARAGRAPH_MIN_WORDS:-55}" \
   APPCLEAN_FORCE_MODE="${DICTATE_FORCE_MODE:-}" \
-  APPCLEAN_POSTPROCESS="$(resolve_inline_postprocess_effective)" \
   APPCLEAN_LOCALE_CTYPE="${LC_ALL:-${LC_CTYPE:-${LANG:-}}}" \
   APPCLEAN_LOCALE_COLLATE="${LC_ALL:-${LC_COLLATE:-${LANG:-}}}" \
   APPCLEAN_CHILD_LC_ALL="$(printenv LC_ALL || true)" \
@@ -63,7 +62,6 @@ print(json.dumps({
     "code_paragraph_min_words": e["APPCLEAN_CODE_PARAGRAPH_MIN_WORDS"],
     "long_paragraph_min_words": e["APPCLEAN_LONG_PARAGRAPH_MIN_WORDS"],
     "force_mode": e["APPCLEAN_FORCE_MODE"] or None,
-    "postprocess": e["APPCLEAN_POSTPROCESS"] == "1",
     # Mode detection (grep -i, sed, glob order) and the blank check depend on
     # these; the native pipeline only reproduces the C locale.
     "locale_ctype": effective_locale("CTYPE"),
@@ -76,14 +74,12 @@ PYEOF
 # inline transcription would use them. Numeric env overrides stay raw strings
 # so the app can apply the CLI's exact parsing (and fall back when unsure).
 app_transcription_settings_json() {
-  local model_path model_version="" ffmpeg_ok="0" silence_trim="0" keep_logs="0" tail_rescue="0" chunking="0"
+  local model_path model_version="" ffmpeg_ok="0" keep_logs="0" tail_rescue="0"
   model_path="$(resolve_swift_parakeet_model_path 2>/dev/null || true)"
   [[ -n "$model_path" ]] && model_version="$(resolve_swift_parakeet_model_version "$model_path")"
   command -v ffmpeg >/dev/null 2>&1 && command -v ffprobe >/dev/null 2>&1 && ffmpeg_ok="1"
-  bool_is_on "${DICTATE_SILENCE_TRIM:-${CFG_AUDIO_SILENCE_TRIM:-0}}" && silence_trim="1"
   keep_logs_enabled && keep_logs="1"
   bool_is_on "${DICTATE_SWIFT_PARAKEET_TAIL_RESCUE:-1}" && tail_rescue="1"
-  bool_is_on "${DICTATE_SWIFT_PARAKEET_CHUNKING:-0}" && chunking="1"
 
   APPTR_SOCKET="$(resolve_swift_parakeet_socket_path)" \
   APPTR_MODEL_PATH="$model_path" \
@@ -94,8 +90,6 @@ app_transcription_settings_json() {
   APPTR_TAIL_RESCUE="$tail_rescue" \
   APPTR_TAIL_RESCUE_MS="${DICTATE_SWIFT_PARAKEET_TAIL_RESCUE_MS:-}" \
   APPTR_TAIL_RESCUE_MIN_MS="${DICTATE_SWIFT_PARAKEET_TAIL_RESCUE_MIN_MS:-}" \
-  APPTR_CHUNKING="$chunking" \
-  APPTR_SILENCE_TRIM="$silence_trim" \
   APPTR_KEEP_LOGS="$keep_logs" \
   APPTR_FFMPEG="$ffmpeg_ok" \
   APPTR_TIMEOUT="${DICTATE_SWIFT_PARAKEET_TIMEOUT_SECONDS:-600}" \
@@ -114,8 +108,6 @@ print(json.dumps({
     "tail_rescue": flag("APPTR_TAIL_RESCUE"),
     "tail_rescue_ms": e["APPTR_TAIL_RESCUE_MS"],
     "tail_rescue_min_ms": e["APPTR_TAIL_RESCUE_MIN_MS"],
-    "chunking": flag("APPTR_CHUNKING"),
-    "silence_trim": flag("APPTR_SILENCE_TRIM"),
     "keep_logs": flag("APPTR_KEEP_LOGS"),
     "ffmpeg": flag("APPTR_FFMPEG"),
     "timeout_seconds": e["APPTR_TIMEOUT"],
@@ -313,13 +305,13 @@ inline_cleanup_json() {
   local raw txt="" final="" mode="" status="no_speech"
   # $(...) drops trailing newlines, like the transcription capture does.
   raw="$(cat)"
-  cleanup_raw_transcript "$raw" "0"
+  cleanup_raw_transcript "$raw"
   txt="$CLEANUP_TEXT"
   if [[ -n "${txt//[[:space:]]/}" ]]; then
     status="ok"
     resolve_inline_mode "$app"
     mode="$RESOLVED_MODE"
-    finish_transcript_text "$txt" "$mode" "0"
+    finish_transcript_text "$txt" "$mode"
     final="$CLEANUP_TEXT"
   fi
 
@@ -495,7 +487,7 @@ print(json.dumps({"ok": True, "take_id": os.environ["APPREC_TAKE_ID"], "duplicat
       local archive_prefix=""
       archive_prefix="$(inline_archive_prefix "${REC_TAKE_ID:-lowkey}" 2>/dev/null || true)"
       archive_inline_debug_artifacts "$archive_prefix" "$REC_WAV_PATH" "" "$REC_STATUS" \
-        "$record_ms" "$transcribe_ms" "$clean_ms" "0" "$paste_ms" "$total_ms" "$REC_TAKE_ID"
+        "$record_ms" "$transcribe_ms" "$clean_ms" "$paste_ms" "$total_ms" "$REC_TAKE_ID"
     fi
     inline_record_mark "$bench_ledger"
   fi
@@ -504,7 +496,7 @@ print(json.dumps({"ok": True, "take_id": os.environ["APPREC_TAKE_ID"], "duplicat
     [[ "$needs_history" == "1" ]] && history_saved="1"
   else
     local history_app="${REC_APP:-current}"
-    if save_history "$REC_RAW" "$REC_TEXT" "$mode" "$history_app" "$record_ms" "$transcribe_ms" "$clean_ms" "0" "$paste_ms" "$total_ms"; then
+    if save_history "$REC_RAW" "$REC_TEXT" "$mode" "$history_app" "$record_ms" "$transcribe_ms" "$clean_ms" "$paste_ms" "$total_ms"; then
       history_saved="1"
       history_done="1"
       inline_record_mark "$history_ledger"

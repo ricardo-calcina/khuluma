@@ -17,8 +17,6 @@ public struct TranscriptionSettings: Codable, Equatable, Sendable {
   public var tailRescueMs: String
   /// `DICTATE_SWIFT_PARAKEET_TAIL_RESCUE_MIN_MS` ("" = 12000).
   public var tailRescueMinMs: String
-  public var chunking: Bool
-  public var silenceTrim: Bool
   public var keepLogs: Bool
   /// ffmpeg and ffprobe exist (the CLI skips padding and rescue otherwise).
   public var ffmpeg: Bool
@@ -28,7 +26,7 @@ public struct TranscriptionSettings: Codable, Equatable, Sendable {
   public init(
     socketPath: String, modelPath: String?, modelVersion: String? = "v3", modelLabel: String = "parakeet",
     language: String = "en", tailPadMs: String = "500", tailRescue: Bool = true, tailRescueMs: String = "",
-    tailRescueMinMs: String = "", chunking: Bool = false, silenceTrim: Bool = false, keepLogs: Bool = false,
+    tailRescueMinMs: String = "", keepLogs: Bool = false,
     ffmpeg: Bool = true, timeoutSeconds: String = "600", processingDir: String = "/tmp/dictate-processing"
   ) {
     self.socketPath = socketPath
@@ -40,8 +38,6 @@ public struct TranscriptionSettings: Codable, Equatable, Sendable {
     self.tailRescue = tailRescue
     self.tailRescueMs = tailRescueMs
     self.tailRescueMinMs = tailRescueMinMs
-    self.chunking = chunking
-    self.silenceTrim = silenceTrim
     self.keepLogs = keepLogs
     self.ffmpeg = ffmpeg
     self.timeoutSeconds = timeoutSeconds
@@ -58,8 +54,6 @@ public struct TranscriptionSettings: Codable, Equatable, Sendable {
     case tailRescue = "tail_rescue"
     case tailRescueMs = "tail_rescue_ms"
     case tailRescueMinMs = "tail_rescue_min_ms"
-    case chunking
-    case silenceTrim = "silence_trim"
     case keepLogs = "keep_logs"
     case ffmpeg
     case timeoutSeconds = "timeout_seconds"
@@ -70,8 +64,6 @@ public struct TranscriptionSettings: Codable, Equatable, Sendable {
   /// reproduces it.
   public var cliReason: String? {
     if modelPath?.isEmpty ?? true { return "no Parakeet model path" }
-    if silenceTrim { return "silence trim is on" }
-    if chunking { return "chunked transcription is on" }
     if !ffmpeg { return "ffmpeg/ffprobe missing (the CLI skips padding)" }
     if tailPad == nil || rescueMs == nil || rescueMinMs == nil { return "a numeric override bash would read as octal" }
     return nil
