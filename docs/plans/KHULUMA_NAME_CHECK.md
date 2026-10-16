@@ -1,6 +1,6 @@
 # Name check (roadmap P0a)
 
-Status: **chosen: Khuluma** (2026-10-17). "Lowkey" is ruled out as the public name (2026-10-16) and stays the working name in code and docs until the phase 2 rename. Nothing has been renamed yet.
+Status: **chosen: Khuluma** (2026-10-17). "Lowkey" is ruled out as the public name (2026-10-16). The app was renamed to Khuluma in v0.11 (#74, #75); the bundle id and signing identity follow at the phase 2 move to Developer ID. The rest of this page is the check as it was done.
 
 ## Khuluma
 *Khuluma* is isiNdebele (Zimbabwe) and isiZulu for "speak, talk", pronounced koo-LOO-mah (aspirated k). Meaning confirmed in *Lessons in Ndebele* (1987) and Zulu dictionaries; no unwanted meanings found in Ndebele, Zulu, Xhosa or Shona. Watch for the typo *khumula*, Zulu for "undress".
