@@ -13,7 +13,7 @@ This roadmap reflects the current product direction: reliable local dictation th
 Focus: make the public project robust for wider use.
 
 - Harden parity between CLI, Raycast, and SwiftBar behaviors.
-- Improve diagnostics (`tmux-whisper debug`, `tmux-whisper doctor`) for install/path/config issues.
+- Improve diagnostics (`tmux-whisper doctor`) for install/path/config issues.
 - Add contributor-facing repo hygiene:
   - `CONTRIBUTING.md`
   - issue templates

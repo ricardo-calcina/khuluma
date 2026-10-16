@@ -86,7 +86,6 @@ save_history() {
   append_audio_line "capture_wav_ms" "${INLINE_CAPTURE_WAV_MS:-}"
   append_audio_line "capture_wav_bytes" "${INLINE_CAPTURE_WAV_BYTES:-}"
   append_audio_line "capture_gap_to_record_ms" "${INLINE_CAPTURE_GAP_TO_RECORD_MS:-}"
-  append_audio_line "capture_gap_to_record_plus_grace_ms" "${INLINE_CAPTURE_GAP_TO_RECORD_PLUS_GRACE_MS:-}"
   append_audio_line "archive_wav_ms" "${INLINE_ARCHIVE_WAV_MS:-}"
   append_audio_line "archive_wav_bytes" "${INLINE_ARCHIVE_WAV_BYTES:-}"
   append_audio_line "wav_retention_days" "${INLINE_DEBUG_WAV_RETENTION_DAYS:-}"
@@ -1160,7 +1159,6 @@ payload = {
     "next_commands": [
         "tmux-whisper history stats",
         "tmux-whisper bench 10",
-        "tmux-whisper logs tail transcribe --lines 40",
     ],
 }
 
@@ -1212,7 +1210,6 @@ print("")
 print("Next:")
 print("  tmux-whisper history stats")
 print("  tmux-whisper bench 10")
-print("  tmux-whisper logs tail transcribe --lines 40")
 PYEOF
 }
 

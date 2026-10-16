@@ -12,7 +12,6 @@ default_config_toml() {
 config_version = 1
 
 [audio]
-source = "auto"
 silence_trim = false
 silence_trim_mode = "edges"
 silence_threshold_db = -60
@@ -44,34 +43,8 @@ process_sound = true
 paste_target = "current"
 send_mode = "enter"
 
-[tmux]
-autosend = true
-paste_target = "origin"
-postprocess = false
-process_sound = true
-mode = "code"
-send_mode = "auto"
-
 [debug]
 keep_logs = false
-
-[ui.keybinds]
-tmux = "F12"
-inline = "F11"
-
-[ui.icons]
-recording = "🔴"
-processing = "🔲"
-ready = "🔳"
-error = "⚠️"
-base = ""
-code = ""
-long = ""
-email = ""
-chat = ""
-linkedin = ""
-twitter = ""
-cancel = "🚫"
 
 [audio.sounds]
 cancel = "~/.local/share/sounds/dictate/cancel.wav"
@@ -122,8 +95,7 @@ last_good = os.path.join(os.path.dirname(path), "." + os.path.basename(path) + "
 BOOL_KEYS = (
   "audio.silence_trim", "audio.sounds.enabled", "audio.sounds.start_enabled", "audio.sounds.stop_enabled",
   "audio.sounds.process_enabled", "audio.sounds.error_enabled", "audio.sounds.cancel_enabled",
-  "postprocess.enabled", "inline.autosend", "inline.process_sound", "tmux.autosend", "tmux.postprocess",
-  "tmux.process_sound", "debug.keep_logs", "app.supervise_daemon",
+  "postprocess.enabled", "inline.autosend", "inline.process_sound", "debug.keep_logs", "app.supervise_daemon",
 )
 
 class InvalidConfig(ValueError):
@@ -225,11 +197,6 @@ out = {
   "CFG_CONFIG_PARSE_ERROR": parse_error,
   "CFG_CONFIG_SOURCE": config_source,
   "CFG_META_CONFIG_VERSION": str(get("meta.config_version", "")) if isinstance(get("meta.config_version", ""), int) else "",
-  "CFG_AUDIO_SOURCE": str(get("audio.source", "auto")),
-  "CFG_AUDIO_DEVICE_NAME": str(get("audio.device_name", "")),
-  "CFG_AUDIO_MAC_NAME": str(get("audio.mac_name", "MacBook Air Microphone")),
-  "CFG_AUDIO_IPHONE_NAME": str(get("audio.iphone_name", "")),
-  "CFG_AUDIO_DEVICE_INDEX": str(get("audio.device_index", "")) if get("audio.device_index", None) is not None else "",
   "CFG_AUDIO_SILENCE_TRIM": "1" if b(get("audio.silence_trim", False), False) else "0",
   "CFG_AUDIO_SILENCE_TRIM_MODE": str(get("audio.silence_trim_mode", "edges")),
   "CFG_AUDIO_SILENCE_THRESHOLD_DB": str(get("audio.silence_threshold_db", "-60")),
@@ -264,15 +231,7 @@ out = {
   "CFG_INLINE_PROCESS_SOUND": "1" if b(get("inline.process_sound", True), True) else "0",
   "CFG_INLINE_PASTE_TARGET": str(get("inline.paste_target", "current")),
   "CFG_INLINE_SEND_MODE": str(get("inline.send_mode", "enter")),
-  "CFG_TMUX_AUTOSEND": "1" if b(get("tmux.autosend", True), True) else "0",
-  "CFG_TMUX_PASTE_TARGET": str(get("tmux.paste_target", "origin")),
-  "CFG_TMUX_POSTPROCESS": "1" if b(get("tmux.postprocess", False), False) else "0",
-  "CFG_TMUX_PROCESS_SOUND": "1" if b(get("tmux.process_sound", True), True) else "0",
-  "CFG_TMUX_MODE": str(get("tmux.mode", "code")),
-  "CFG_TMUX_SEND_MODE": str(get("tmux.send_mode", "auto")),
   "CFG_DEBUG_KEEP_LOGS": "1" if b(get("debug.keep_logs", False), False) else "0",
-  "CFG_UI_KEYBIND_TMUX": str(get("ui.keybinds.tmux", "F12")),
-  "CFG_UI_KEYBIND_INLINE": str(get("ui.keybinds.inline", "F11")),
   "CFG_APP_HOTKEY": str(get("app.hotkey", "ctrl+option+space")),
   "CFG_APP_SUPERVISE_DAEMON": "1" if b(get("app.supervise_daemon", True), True) else "0",
   "CFG_CLEAN_REPEATS_LEVEL": str(get("clean.repeats_level", "1")),
@@ -310,7 +269,6 @@ if isinstance(budget_profiles, dict):
 # No trustworthy settings (invalid file and no valid copy): never send.
 if parse_error and config_source == "defaults":
   out["CFG_INLINE_AUTOSEND"] = "0"
-  out["CFG_TMUX_AUTOSEND"] = "0"
 
 for k, v in out.items():
   print(f"{k}={shlex.quote(v)}")
@@ -322,7 +280,6 @@ PYEOF
     CFG_CONFIG_PARSE_ERROR="the config loader failed"
     CFG_CONFIG_SOURCE="defaults"
     CFG_INLINE_AUTOSEND="0"
-    CFG_TMUX_AUTOSEND="0"
   fi
 }
 
