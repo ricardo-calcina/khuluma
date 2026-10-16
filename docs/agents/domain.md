@@ -12,16 +12,18 @@ If these files do not exist, proceed silently. Do not flag their absence or sugg
 
 ## Layout
 
-This is a single-context repo. Tmux Whisper is a macOS dictation project being renamed to Lowkey (`docs/plans/LOWKEY_RENAME_ROADMAP.md`). Lowkey, the native menu-bar app in `tmux-whisperd/`, is the main dictation path; the `tmux-whisper` CLI owns config, history, usage and the daemon lifecycle, plus file transcription. The Raycast scripts and the SwiftBar plugin were retired in v0.11.
+This is a single-context repo. Tmux Whisper is a macOS dictation project being renamed to Lowkey (`docs/plans/LOWKEY_RENAME_ROADMAP.md`). Lowkey, the native menu-bar app in `tmux-whisperd/`, is the only way to dictate. The `tmux-whisper` CLI is its back end (config, modes, vocab, history, usage, the daemon lifecycle) and transcribes audio files. The tmux flow, CLI recording, LLM post-processing, Raycast and SwiftBar were removed in v0.11.
 
 Use the repo's established terms:
 
 - `tmux-whisper` for the public command.
-- `dictate` only for legacy config, state, temp, and user-local runtime paths that intentionally still use that name.
-- `inline` for frontmost-app paste/send dictation.
-- `tmux` for pane-targeted dictation.
-- `Lowkey` for the native menu-bar app; `Finder Quick Action` and the agent skill for the `transcribe` adapters.
-- `processing markers`, `state files`, and `install receipt` for runtime/integration observability.
+- `dictate` only for legacy config, temp and user-local runtime paths that intentionally still use that name (`~/.config/dictate`, `DICTATE_*`).
+- `Lowkey` for the app; `tmux-whisperd` for the Parakeet daemon; `TmuxWhisperKit`, `LowkeyCore` and `Lowkey` for the Swift modules.
+- `take` for one recording through delivery. A take goes the `native` path (daemon socket and Swift cleanup) or `falls back` to the CLI's `inline process`.
+- `inline` for the CLI's pipeline that Lowkey uses (`inline process`, `inline record`, `inline cleanup`), and for the frontmost-app delivery settings (`[inline]`). `tmux` survives only as a value in old history, usage and mode `flows` files.
+- `app contract` for the integer Lowkey and the CLI must agree on.
+- `take markers` (processing markers) for the files that show a take is in progress; `install receipt` for install provenance.
+- `Finder Quick Action` and the agent skill for the `transcribe` adapters.
 
 ## ADRs
 

@@ -18,8 +18,8 @@ body:
       options:
         - lowkey
         - transcribe
-        - tmux
-        - inline
+        - cli
+        - daemon
         - install/bootstrap
         - homebrew
     validations:
@@ -50,5 +50,5 @@ body:
       placeholder: |
         macOS:
         install channel (brew/bootstrap/local):
-        whisper model:
-        tmux version (if relevant):
+        Parakeet model:
+        Lowkey line from app.log (`settings: ... cli X (contract N)`):

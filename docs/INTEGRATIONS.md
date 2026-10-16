@@ -7,14 +7,14 @@ Lowkey, the native menu-bar app in `tmux-whisperd/`, is the main way to dictate.
 - Supported platform: macOS with the requirements listed in the README.
 - Supported install channels: Homebrew stable, bootstrap from GitHub, and local clone installs via `./install.sh`.
 - Supported runtime source of truth: the CLI, config under `~/.config/dictate`, install receipt, processing markers, and CLI status/diagnostic commands.
-- Unsupported as production surfaces: alternate backend experiments and direct parsing of private state files when a CLI read contract exists.
+- Unsupported as production surfaces: alternate backend experiments and direct parsing of private files when a CLI read contract exists.
 
 ## Compatibility Matrix
 
 | Surface | Status | Install/update path | Notes |
 | --- | --- | --- | --- |
 | Lowkey (native menu-bar app) | Daily driver | `tools/build-lowkey-app.sh` (see the README) | Owns the hotkey, capture, sounds, paste and the Stats window. Transcribes over the daemon socket and cleans text natively; uses the installed CLI for settings, history, usage and the daemon lifecycle (`docs/CLI_CONTRACTS.md`). |
-| `tmux-whisper` CLI | Supported | Homebrew, bootstrap, or local `./install.sh --force` | Source of truth for config, history, usage, status and doctor. |
+| `tmux-whisper` CLI | Supported (Lowkey's back end) | Local `./install.sh --force` for Lowkey; Homebrew or bootstrap for the CLI alone | Source of truth for config, modes, vocab, history, usage, status and doctor. Lowkey needs the CLI from its own checkout (app contract). |
 | CLI inline and tmux dictation | Retired (v0.11) | None | Lowkey replaces both. `inline process`, `inline record` and `inline cleanup` stay as Lowkey's back end. |
 | Finder Quick Action (transcribe files) | Supported | `tmux-whisper finder install` | Runs `integrations/finder/tmux-whisper-transcribe.sh`, which calls `tmux-whisper transcribe --beside --clipboard`. The handler is installed beside the binary (Homebrew's `share/tmux-whisper`, or `~/.local/share/tmux-whisper/integrations`). |
 | Agent skill (`integrations/agents/transcribe-audio/`) | Supported | Copy into your agent's skills folder | Tells Claude Code and Codex to use `tmux-whisper transcribe` for audio files. |

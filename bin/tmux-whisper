@@ -45,7 +45,7 @@ NATIVE APP BACK-END (used by the menu-bar app):
   tmux-whisper inline process <wav> --json # inline pipeline without paste (app delivers)
 
 DIAGNOSTICS:
-  tmux-whisper doctor [--json]    # quick health summary (state files, markers, logs)
+  tmux-whisper doctor [--json]    # quick health summary (install, config, modes, daemon)
   tmux-whisper config [--json]    # show config path + schema health + key values
   tmux-whisper config path [--json] # print active config path
   tmux-whisper config get <path> [--json] # inspect one config value (file/default)
