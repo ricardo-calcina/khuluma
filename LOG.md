@@ -8,6 +8,7 @@ Turn tmux-whisper into Khuluma (the app carries the name from v0.11): rename, ma
 - [ ] P1 · Before phase 2: search UKIPO and EUIPO by hand for KHULUMA; register khuluma.app · added 2026-10-17
 - [ ] P1 · Khuluma app icon: the bundle has none yet (Dock, Finder, Login Items, System Settings show a blank icon); a menu-bar glyph to match · added 2026-10-17
 - [x] P1 · Drop modes, keep one vocab: modes now only pick a vocab list (the prompts died with post-processing, and the email/code profiles aren't needed with today's models). Fold the base and code vocab into the main list for filler words and brand spellings; remove `current-mode`, `modes/`, the `mode` commands and ModeResolver. Today `code` allows only the tmux flow, so code apps fall back to base and miss its vocab · added 2026-10-17
+- [ ] P2 · Skip auto-send for one take: hold a key (Shift or similar, to decide) so the take pastes without pressing Enter; auto-send stays the default · added 2026-10-17
 - [ ] P1 · Confirm new repo vs rename in place; join the Apple Developer Program before phase 2 · added 2026-10-15
 - [ ] P2 · Stats stage 3 ideas (not committed): weeks view, wpm trend, longest take, typing_wpm config, streak line, time of day, opt-in per-app · added 2026-10-16
 - [ ] P2 · Lowkey ideas parked from 3c, only with evidence: config file watcher, warm mic/pre-roll · added 2026-10-16
