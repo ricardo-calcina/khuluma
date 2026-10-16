@@ -1739,910 +1739,9 @@
    "input": "Kolor"
   },
   {
-   "id": "paragraphs-001",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "70"
-   ],
-   "input": "Sentence number 1 has a few words in it. Sentence number 2 has a few words in it. Sentence number 3 has a few words in it. Sentence number 4 has a few words in it. Sentence number 5 has a few words in it. Sentence number 6 has a few words in it. Sentence number 7 has a few words in it. Sentence number 8 has a few words in it. Sentence number 9 has a few words in it. Sentence number 10 has a few words in it. Sentence number 11 has a few words in it. Sentence number 12 has a few words in it. Sentence number 13 has a few words in it. Sentence number 14 has a few words in it. Sentence number 15 has a few words in it."
-  },
-  {
-   "id": "paragraphs-002",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "70"
-   ],
-   "input": "Sentence number 1 has a few words in it.  Sentence number 2 has a few words in it.  Sentence number 3 has a few words in it.  Sentence number 4 has a few words in it.  Sentence number 5 has a few words in it.  Sentence number 6 has a few words in it.  Sentence number 7 has a few words in it.  Sentence number 8 has a few words in it.  Sentence number 9 has a few words in it.  Sentence number 10 has a few words in it.  Sentence number 11 has a few words in it.  Sentence number 12 has a few words in it.  Sentence number 13 has a few words in it.  Sentence number 14 has a few words in it.  Sentence number 15 has a few words in it."
-  },
-  {
-   "id": "paragraphs-003",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "70"
-   ],
-   "input": "Sentence number 1 has a few words in it.\tSentence number 2 has a few words in it.\tSentence number 3 has a few words in it.\tSentence number 4 has a few words in it.\tSentence number 5 has a few words in it.\tSentence number 6 has a few words in it.\tSentence number 7 has a few words in it.\tSentence number 8 has a few words in it.\tSentence number 9 has a few words in it.\tSentence number 10 has a few words in it.\tSentence number 11 has a few words in it.\tSentence number 12 has a few words in it.\tSentence number 13 has a few words in it.\tSentence number 14 has a few words in it.\tSentence number 15 has a few words in it."
-  },
-  {
-   "id": "paragraphs-004",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "70"
-   ],
-   "input": "One. Two. Three."
-  },
-  {
-   "id": "paragraphs-005",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "70"
-   ],
-   "input": "No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all "
-  },
-  {
-   "id": "paragraphs-006",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "70"
-   ],
-   "input": "Sentence number 1 has a few words in it. Sentence number 2 has a few words in it. Sentence number 3 has a few words in it. Sentence number 4 has a few words in it. Sentence number 5 has a few words in it. Sentence number 6 has a few words in it. Sentence number 7 has a few words in it. Sentence number 8 has a few words in it. Sentence number 9 has a few words in it. Sentence number 10 has a few words in it. Sentence number 11 has a few words in it. Sentence number 12 has a few words in it. Sentence number 13 has a few words in it. Sentence number 14 has a few words in it. Sentence number 15 has a few words in it. "
-  },
-  {
-   "id": "paragraphs-007",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "70"
-   ],
-   "input": "Short. text! here? yes."
-  },
-  {
-   "id": "paragraphs-008",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "70"
-   ],
-   "input": "line\nSentence number 1 has a few words in it. Sentence number 2 has a few words in it. Sentence number 3 has a few words in it. Sentence number 4 has a few words in it. Sentence number 5 has a few words in it. Sentence number 6 has a few words in it. Sentence number 7 has a few words in it. Sentence number 8 has a few words in it. Sentence number 9 has a few words in it. Sentence number 10 has a few words in it. Sentence number 11 has a few words in it. Sentence number 12 has a few words in it. Sentence number 13 has a few words in it. Sentence number 14 has a few words in it. Sentence number 15 has a few words in it."
-  },
-  {
-   "id": "paragraphs-009",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "70"
-   ],
-   "input": "It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. "
-  },
-  {
-   "id": "paragraphs-010",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "70"
-   ],
-   "input": "A. B. C. D. E. F. G."
-  },
-  {
-   "id": "paragraphs-011",
-   "fn": "paragraphs",
-   "args": [
-    "long",
-    "55"
-   ],
-   "input": "Sentence number 1 has a few words in it. Sentence number 2 has a few words in it. Sentence number 3 has a few words in it. Sentence number 4 has a few words in it. Sentence number 5 has a few words in it. Sentence number 6 has a few words in it. Sentence number 7 has a few words in it. Sentence number 8 has a few words in it. Sentence number 9 has a few words in it. Sentence number 10 has a few words in it. Sentence number 11 has a few words in it. Sentence number 12 has a few words in it. Sentence number 13 has a few words in it. Sentence number 14 has a few words in it. Sentence number 15 has a few words in it."
-  },
-  {
-   "id": "paragraphs-012",
-   "fn": "paragraphs",
-   "args": [
-    "long",
-    "55"
-   ],
-   "input": "Sentence number 1 has a few words in it.  Sentence number 2 has a few words in it.  Sentence number 3 has a few words in it.  Sentence number 4 has a few words in it.  Sentence number 5 has a few words in it.  Sentence number 6 has a few words in it.  Sentence number 7 has a few words in it.  Sentence number 8 has a few words in it.  Sentence number 9 has a few words in it.  Sentence number 10 has a few words in it.  Sentence number 11 has a few words in it.  Sentence number 12 has a few words in it.  Sentence number 13 has a few words in it.  Sentence number 14 has a few words in it.  Sentence number 15 has a few words in it."
-  },
-  {
-   "id": "paragraphs-013",
-   "fn": "paragraphs",
-   "args": [
-    "long",
-    "55"
-   ],
-   "input": "Sentence number 1 has a few words in it.\tSentence number 2 has a few words in it.\tSentence number 3 has a few words in it.\tSentence number 4 has a few words in it.\tSentence number 5 has a few words in it.\tSentence number 6 has a few words in it.\tSentence number 7 has a few words in it.\tSentence number 8 has a few words in it.\tSentence number 9 has a few words in it.\tSentence number 10 has a few words in it.\tSentence number 11 has a few words in it.\tSentence number 12 has a few words in it.\tSentence number 13 has a few words in it.\tSentence number 14 has a few words in it.\tSentence number 15 has a few words in it."
-  },
-  {
-   "id": "paragraphs-014",
-   "fn": "paragraphs",
-   "args": [
-    "long",
-    "55"
-   ],
-   "input": "One. Two. Three."
-  },
-  {
-   "id": "paragraphs-015",
-   "fn": "paragraphs",
-   "args": [
-    "long",
-    "55"
-   ],
-   "input": "No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all "
-  },
-  {
-   "id": "paragraphs-016",
-   "fn": "paragraphs",
-   "args": [
-    "long",
-    "55"
-   ],
-   "input": "Sentence number 1 has a few words in it. Sentence number 2 has a few words in it. Sentence number 3 has a few words in it. Sentence number 4 has a few words in it. Sentence number 5 has a few words in it. Sentence number 6 has a few words in it. Sentence number 7 has a few words in it. Sentence number 8 has a few words in it. Sentence number 9 has a few words in it. Sentence number 10 has a few words in it. Sentence number 11 has a few words in it. Sentence number 12 has a few words in it. Sentence number 13 has a few words in it. Sentence number 14 has a few words in it. Sentence number 15 has a few words in it. "
-  },
-  {
-   "id": "paragraphs-017",
-   "fn": "paragraphs",
-   "args": [
-    "long",
-    "55"
-   ],
-   "input": "Short. text! here? yes."
-  },
-  {
-   "id": "paragraphs-018",
-   "fn": "paragraphs",
-   "args": [
-    "long",
-    "55"
-   ],
-   "input": "line\nSentence number 1 has a few words in it. Sentence number 2 has a few words in it. Sentence number 3 has a few words in it. Sentence number 4 has a few words in it. Sentence number 5 has a few words in it. Sentence number 6 has a few words in it. Sentence number 7 has a few words in it. Sentence number 8 has a few words in it. Sentence number 9 has a few words in it. Sentence number 10 has a few words in it. Sentence number 11 has a few words in it. Sentence number 12 has a few words in it. Sentence number 13 has a few words in it. Sentence number 14 has a few words in it. Sentence number 15 has a few words in it."
-  },
-  {
-   "id": "paragraphs-019",
-   "fn": "paragraphs",
-   "args": [
-    "long",
-    "55"
-   ],
-   "input": "It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. "
-  },
-  {
-   "id": "paragraphs-020",
-   "fn": "paragraphs",
-   "args": [
-    "long",
-    "55"
-   ],
-   "input": "A. B. C. D. E. F. G."
-  },
-  {
-   "id": "paragraphs-021",
-   "fn": "paragraphs",
-   "args": [
-    "LONG",
-    "10"
-   ],
-   "input": "Sentence number 1 has a few words in it. Sentence number 2 has a few words in it. Sentence number 3 has a few words in it. Sentence number 4 has a few words in it. Sentence number 5 has a few words in it. Sentence number 6 has a few words in it. Sentence number 7 has a few words in it. Sentence number 8 has a few words in it. Sentence number 9 has a few words in it. Sentence number 10 has a few words in it. Sentence number 11 has a few words in it. Sentence number 12 has a few words in it. Sentence number 13 has a few words in it. Sentence number 14 has a few words in it. Sentence number 15 has a few words in it."
-  },
-  {
-   "id": "paragraphs-022",
-   "fn": "paragraphs",
-   "args": [
-    "LONG",
-    "10"
-   ],
-   "input": "Sentence number 1 has a few words in it.  Sentence number 2 has a few words in it.  Sentence number 3 has a few words in it.  Sentence number 4 has a few words in it.  Sentence number 5 has a few words in it.  Sentence number 6 has a few words in it.  Sentence number 7 has a few words in it.  Sentence number 8 has a few words in it.  Sentence number 9 has a few words in it.  Sentence number 10 has a few words in it.  Sentence number 11 has a few words in it.  Sentence number 12 has a few words in it.  Sentence number 13 has a few words in it.  Sentence number 14 has a few words in it.  Sentence number 15 has a few words in it."
-  },
-  {
-   "id": "paragraphs-023",
-   "fn": "paragraphs",
-   "args": [
-    "LONG",
-    "10"
-   ],
-   "input": "Sentence number 1 has a few words in it.\tSentence number 2 has a few words in it.\tSentence number 3 has a few words in it.\tSentence number 4 has a few words in it.\tSentence number 5 has a few words in it.\tSentence number 6 has a few words in it.\tSentence number 7 has a few words in it.\tSentence number 8 has a few words in it.\tSentence number 9 has a few words in it.\tSentence number 10 has a few words in it.\tSentence number 11 has a few words in it.\tSentence number 12 has a few words in it.\tSentence number 13 has a few words in it.\tSentence number 14 has a few words in it.\tSentence number 15 has a few words in it."
-  },
-  {
-   "id": "paragraphs-024",
-   "fn": "paragraphs",
-   "args": [
-    "LONG",
-    "10"
-   ],
-   "input": "One. Two. Three."
-  },
-  {
-   "id": "paragraphs-025",
-   "fn": "paragraphs",
-   "args": [
-    "LONG",
-    "10"
-   ],
-   "input": "No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all "
-  },
-  {
-   "id": "paragraphs-026",
-   "fn": "paragraphs",
-   "args": [
-    "LONG",
-    "10"
-   ],
-   "input": "Sentence number 1 has a few words in it. Sentence number 2 has a few words in it. Sentence number 3 has a few words in it. Sentence number 4 has a few words in it. Sentence number 5 has a few words in it. Sentence number 6 has a few words in it. Sentence number 7 has a few words in it. Sentence number 8 has a few words in it. Sentence number 9 has a few words in it. Sentence number 10 has a few words in it. Sentence number 11 has a few words in it. Sentence number 12 has a few words in it. Sentence number 13 has a few words in it. Sentence number 14 has a few words in it. Sentence number 15 has a few words in it. "
-  },
-  {
-   "id": "paragraphs-027",
-   "fn": "paragraphs",
-   "args": [
-    "LONG",
-    "10"
-   ],
-   "input": "Short. text! here? yes."
-  },
-  {
-   "id": "paragraphs-028",
-   "fn": "paragraphs",
-   "args": [
-    "LONG",
-    "10"
-   ],
-   "input": "line\nSentence number 1 has a few words in it. Sentence number 2 has a few words in it. Sentence number 3 has a few words in it. Sentence number 4 has a few words in it. Sentence number 5 has a few words in it. Sentence number 6 has a few words in it. Sentence number 7 has a few words in it. Sentence number 8 has a few words in it. Sentence number 9 has a few words in it. Sentence number 10 has a few words in it. Sentence number 11 has a few words in it. Sentence number 12 has a few words in it. Sentence number 13 has a few words in it. Sentence number 14 has a few words in it. Sentence number 15 has a few words in it."
-  },
-  {
-   "id": "paragraphs-029",
-   "fn": "paragraphs",
-   "args": [
-    "LONG",
-    "10"
-   ],
-   "input": "It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. "
-  },
-  {
-   "id": "paragraphs-030",
-   "fn": "paragraphs",
-   "args": [
-    "LONG",
-    "10"
-   ],
-   "input": "A. B. C. D. E. F. G."
-  },
-  {
-   "id": "paragraphs-031",
-   "fn": "paragraphs",
-   "args": [
-    "base",
-    "10"
-   ],
-   "input": "Sentence number 1 has a few words in it. Sentence number 2 has a few words in it. Sentence number 3 has a few words in it. Sentence number 4 has a few words in it. Sentence number 5 has a few words in it. Sentence number 6 has a few words in it. Sentence number 7 has a few words in it. Sentence number 8 has a few words in it. Sentence number 9 has a few words in it. Sentence number 10 has a few words in it. Sentence number 11 has a few words in it. Sentence number 12 has a few words in it. Sentence number 13 has a few words in it. Sentence number 14 has a few words in it. Sentence number 15 has a few words in it."
-  },
-  {
-   "id": "paragraphs-032",
-   "fn": "paragraphs",
-   "args": [
-    "base",
-    "10"
-   ],
-   "input": "Sentence number 1 has a few words in it.  Sentence number 2 has a few words in it.  Sentence number 3 has a few words in it.  Sentence number 4 has a few words in it.  Sentence number 5 has a few words in it.  Sentence number 6 has a few words in it.  Sentence number 7 has a few words in it.  Sentence number 8 has a few words in it.  Sentence number 9 has a few words in it.  Sentence number 10 has a few words in it.  Sentence number 11 has a few words in it.  Sentence number 12 has a few words in it.  Sentence number 13 has a few words in it.  Sentence number 14 has a few words in it.  Sentence number 15 has a few words in it."
-  },
-  {
-   "id": "paragraphs-033",
-   "fn": "paragraphs",
-   "args": [
-    "base",
-    "10"
-   ],
-   "input": "Sentence number 1 has a few words in it.\tSentence number 2 has a few words in it.\tSentence number 3 has a few words in it.\tSentence number 4 has a few words in it.\tSentence number 5 has a few words in it.\tSentence number 6 has a few words in it.\tSentence number 7 has a few words in it.\tSentence number 8 has a few words in it.\tSentence number 9 has a few words in it.\tSentence number 10 has a few words in it.\tSentence number 11 has a few words in it.\tSentence number 12 has a few words in it.\tSentence number 13 has a few words in it.\tSentence number 14 has a few words in it.\tSentence number 15 has a few words in it."
-  },
-  {
-   "id": "paragraphs-034",
-   "fn": "paragraphs",
-   "args": [
-    "base",
-    "10"
-   ],
-   "input": "One. Two. Three."
-  },
-  {
-   "id": "paragraphs-035",
-   "fn": "paragraphs",
-   "args": [
-    "base",
-    "10"
-   ],
-   "input": "No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all "
-  },
-  {
-   "id": "paragraphs-036",
-   "fn": "paragraphs",
-   "args": [
-    "base",
-    "10"
-   ],
-   "input": "Sentence number 1 has a few words in it. Sentence number 2 has a few words in it. Sentence number 3 has a few words in it. Sentence number 4 has a few words in it. Sentence number 5 has a few words in it. Sentence number 6 has a few words in it. Sentence number 7 has a few words in it. Sentence number 8 has a few words in it. Sentence number 9 has a few words in it. Sentence number 10 has a few words in it. Sentence number 11 has a few words in it. Sentence number 12 has a few words in it. Sentence number 13 has a few words in it. Sentence number 14 has a few words in it. Sentence number 15 has a few words in it. "
-  },
-  {
-   "id": "paragraphs-037",
-   "fn": "paragraphs",
-   "args": [
-    "base",
-    "10"
-   ],
-   "input": "Short. text! here? yes."
-  },
-  {
-   "id": "paragraphs-038",
-   "fn": "paragraphs",
-   "args": [
-    "base",
-    "10"
-   ],
-   "input": "line\nSentence number 1 has a few words in it. Sentence number 2 has a few words in it. Sentence number 3 has a few words in it. Sentence number 4 has a few words in it. Sentence number 5 has a few words in it. Sentence number 6 has a few words in it. Sentence number 7 has a few words in it. Sentence number 8 has a few words in it. Sentence number 9 has a few words in it. Sentence number 10 has a few words in it. Sentence number 11 has a few words in it. Sentence number 12 has a few words in it. Sentence number 13 has a few words in it. Sentence number 14 has a few words in it. Sentence number 15 has a few words in it."
-  },
-  {
-   "id": "paragraphs-039",
-   "fn": "paragraphs",
-   "args": [
-    "base",
-    "10"
-   ],
-   "input": "It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. "
-  },
-  {
-   "id": "paragraphs-040",
-   "fn": "paragraphs",
-   "args": [
-    "base",
-    "10"
-   ],
-   "input": "A. B. C. D. E. F. G."
-  },
-  {
-   "id": "paragraphs-041",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "abc"
-   ],
-   "input": "Sentence number 1 has a few words in it. Sentence number 2 has a few words in it. Sentence number 3 has a few words in it. Sentence number 4 has a few words in it. Sentence number 5 has a few words in it. Sentence number 6 has a few words in it. Sentence number 7 has a few words in it. Sentence number 8 has a few words in it. Sentence number 9 has a few words in it. Sentence number 10 has a few words in it. Sentence number 11 has a few words in it. Sentence number 12 has a few words in it. Sentence number 13 has a few words in it. Sentence number 14 has a few words in it. Sentence number 15 has a few words in it."
-  },
-  {
-   "id": "paragraphs-042",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "abc"
-   ],
-   "input": "Sentence number 1 has a few words in it.  Sentence number 2 has a few words in it.  Sentence number 3 has a few words in it.  Sentence number 4 has a few words in it.  Sentence number 5 has a few words in it.  Sentence number 6 has a few words in it.  Sentence number 7 has a few words in it.  Sentence number 8 has a few words in it.  Sentence number 9 has a few words in it.  Sentence number 10 has a few words in it.  Sentence number 11 has a few words in it.  Sentence number 12 has a few words in it.  Sentence number 13 has a few words in it.  Sentence number 14 has a few words in it.  Sentence number 15 has a few words in it."
-  },
-  {
-   "id": "paragraphs-043",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "abc"
-   ],
-   "input": "Sentence number 1 has a few words in it.\tSentence number 2 has a few words in it.\tSentence number 3 has a few words in it.\tSentence number 4 has a few words in it.\tSentence number 5 has a few words in it.\tSentence number 6 has a few words in it.\tSentence number 7 has a few words in it.\tSentence number 8 has a few words in it.\tSentence number 9 has a few words in it.\tSentence number 10 has a few words in it.\tSentence number 11 has a few words in it.\tSentence number 12 has a few words in it.\tSentence number 13 has a few words in it.\tSentence number 14 has a few words in it.\tSentence number 15 has a few words in it."
-  },
-  {
-   "id": "paragraphs-044",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "abc"
-   ],
-   "input": "One. Two. Three."
-  },
-  {
-   "id": "paragraphs-045",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "abc"
-   ],
-   "input": "No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all "
-  },
-  {
-   "id": "paragraphs-046",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "abc"
-   ],
-   "input": "Sentence number 1 has a few words in it. Sentence number 2 has a few words in it. Sentence number 3 has a few words in it. Sentence number 4 has a few words in it. Sentence number 5 has a few words in it. Sentence number 6 has a few words in it. Sentence number 7 has a few words in it. Sentence number 8 has a few words in it. Sentence number 9 has a few words in it. Sentence number 10 has a few words in it. Sentence number 11 has a few words in it. Sentence number 12 has a few words in it. Sentence number 13 has a few words in it. Sentence number 14 has a few words in it. Sentence number 15 has a few words in it. "
-  },
-  {
-   "id": "paragraphs-047",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "abc"
-   ],
-   "input": "Short. text! here? yes."
-  },
-  {
-   "id": "paragraphs-048",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "abc"
-   ],
-   "input": "line\nSentence number 1 has a few words in it. Sentence number 2 has a few words in it. Sentence number 3 has a few words in it. Sentence number 4 has a few words in it. Sentence number 5 has a few words in it. Sentence number 6 has a few words in it. Sentence number 7 has a few words in it. Sentence number 8 has a few words in it. Sentence number 9 has a few words in it. Sentence number 10 has a few words in it. Sentence number 11 has a few words in it. Sentence number 12 has a few words in it. Sentence number 13 has a few words in it. Sentence number 14 has a few words in it. Sentence number 15 has a few words in it."
-  },
-  {
-   "id": "paragraphs-049",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "abc"
-   ],
-   "input": "It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. "
-  },
-  {
-   "id": "paragraphs-050",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "abc"
-   ],
-   "input": "A. B. C. D. E. F. G."
-  },
-  {
-   "id": "paragraphs-051",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "0"
-   ],
-   "input": "Sentence number 1 has a few words in it. Sentence number 2 has a few words in it. Sentence number 3 has a few words in it. Sentence number 4 has a few words in it. Sentence number 5 has a few words in it. Sentence number 6 has a few words in it. Sentence number 7 has a few words in it. Sentence number 8 has a few words in it. Sentence number 9 has a few words in it. Sentence number 10 has a few words in it. Sentence number 11 has a few words in it. Sentence number 12 has a few words in it. Sentence number 13 has a few words in it. Sentence number 14 has a few words in it. Sentence number 15 has a few words in it."
-  },
-  {
-   "id": "paragraphs-052",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "0"
-   ],
-   "input": "Sentence number 1 has a few words in it.  Sentence number 2 has a few words in it.  Sentence number 3 has a few words in it.  Sentence number 4 has a few words in it.  Sentence number 5 has a few words in it.  Sentence number 6 has a few words in it.  Sentence number 7 has a few words in it.  Sentence number 8 has a few words in it.  Sentence number 9 has a few words in it.  Sentence number 10 has a few words in it.  Sentence number 11 has a few words in it.  Sentence number 12 has a few words in it.  Sentence number 13 has a few words in it.  Sentence number 14 has a few words in it.  Sentence number 15 has a few words in it."
-  },
-  {
-   "id": "paragraphs-053",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "0"
-   ],
-   "input": "Sentence number 1 has a few words in it.\tSentence number 2 has a few words in it.\tSentence number 3 has a few words in it.\tSentence number 4 has a few words in it.\tSentence number 5 has a few words in it.\tSentence number 6 has a few words in it.\tSentence number 7 has a few words in it.\tSentence number 8 has a few words in it.\tSentence number 9 has a few words in it.\tSentence number 10 has a few words in it.\tSentence number 11 has a few words in it.\tSentence number 12 has a few words in it.\tSentence number 13 has a few words in it.\tSentence number 14 has a few words in it.\tSentence number 15 has a few words in it."
-  },
-  {
-   "id": "paragraphs-054",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "0"
-   ],
-   "input": "One. Two. Three."
-  },
-  {
-   "id": "paragraphs-055",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "0"
-   ],
-   "input": "No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all "
-  },
-  {
-   "id": "paragraphs-056",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "0"
-   ],
-   "input": "Sentence number 1 has a few words in it. Sentence number 2 has a few words in it. Sentence number 3 has a few words in it. Sentence number 4 has a few words in it. Sentence number 5 has a few words in it. Sentence number 6 has a few words in it. Sentence number 7 has a few words in it. Sentence number 8 has a few words in it. Sentence number 9 has a few words in it. Sentence number 10 has a few words in it. Sentence number 11 has a few words in it. Sentence number 12 has a few words in it. Sentence number 13 has a few words in it. Sentence number 14 has a few words in it. Sentence number 15 has a few words in it. "
-  },
-  {
-   "id": "paragraphs-057",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "0"
-   ],
-   "input": "Short. text! here? yes."
-  },
-  {
-   "id": "paragraphs-058",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "0"
-   ],
-   "input": "line\nSentence number 1 has a few words in it. Sentence number 2 has a few words in it. Sentence number 3 has a few words in it. Sentence number 4 has a few words in it. Sentence number 5 has a few words in it. Sentence number 6 has a few words in it. Sentence number 7 has a few words in it. Sentence number 8 has a few words in it. Sentence number 9 has a few words in it. Sentence number 10 has a few words in it. Sentence number 11 has a few words in it. Sentence number 12 has a few words in it. Sentence number 13 has a few words in it. Sentence number 14 has a few words in it. Sentence number 15 has a few words in it."
-  },
-  {
-   "id": "paragraphs-059",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "0"
-   ],
-   "input": "It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. "
-  },
-  {
-   "id": "paragraphs-060",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "0"
-   ],
-   "input": "A. B. C. D. E. F. G."
-  },
-  {
-   "id": "paragraphs-061",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "007"
-   ],
-   "input": "Sentence number 1 has a few words in it. Sentence number 2 has a few words in it. Sentence number 3 has a few words in it. Sentence number 4 has a few words in it. Sentence number 5 has a few words in it. Sentence number 6 has a few words in it. Sentence number 7 has a few words in it. Sentence number 8 has a few words in it. Sentence number 9 has a few words in it. Sentence number 10 has a few words in it. Sentence number 11 has a few words in it. Sentence number 12 has a few words in it. Sentence number 13 has a few words in it. Sentence number 14 has a few words in it. Sentence number 15 has a few words in it."
-  },
-  {
-   "id": "paragraphs-062",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "007"
-   ],
-   "input": "Sentence number 1 has a few words in it.  Sentence number 2 has a few words in it.  Sentence number 3 has a few words in it.  Sentence number 4 has a few words in it.  Sentence number 5 has a few words in it.  Sentence number 6 has a few words in it.  Sentence number 7 has a few words in it.  Sentence number 8 has a few words in it.  Sentence number 9 has a few words in it.  Sentence number 10 has a few words in it.  Sentence number 11 has a few words in it.  Sentence number 12 has a few words in it.  Sentence number 13 has a few words in it.  Sentence number 14 has a few words in it.  Sentence number 15 has a few words in it."
-  },
-  {
-   "id": "paragraphs-063",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "007"
-   ],
-   "input": "Sentence number 1 has a few words in it.\tSentence number 2 has a few words in it.\tSentence number 3 has a few words in it.\tSentence number 4 has a few words in it.\tSentence number 5 has a few words in it.\tSentence number 6 has a few words in it.\tSentence number 7 has a few words in it.\tSentence number 8 has a few words in it.\tSentence number 9 has a few words in it.\tSentence number 10 has a few words in it.\tSentence number 11 has a few words in it.\tSentence number 12 has a few words in it.\tSentence number 13 has a few words in it.\tSentence number 14 has a few words in it.\tSentence number 15 has a few words in it."
-  },
-  {
-   "id": "paragraphs-064",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "007"
-   ],
-   "input": "One. Two. Three."
-  },
-  {
-   "id": "paragraphs-065",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "007"
-   ],
-   "input": "No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all "
-  },
-  {
-   "id": "paragraphs-066",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "007"
-   ],
-   "input": "Sentence number 1 has a few words in it. Sentence number 2 has a few words in it. Sentence number 3 has a few words in it. Sentence number 4 has a few words in it. Sentence number 5 has a few words in it. Sentence number 6 has a few words in it. Sentence number 7 has a few words in it. Sentence number 8 has a few words in it. Sentence number 9 has a few words in it. Sentence number 10 has a few words in it. Sentence number 11 has a few words in it. Sentence number 12 has a few words in it. Sentence number 13 has a few words in it. Sentence number 14 has a few words in it. Sentence number 15 has a few words in it. "
-  },
-  {
-   "id": "paragraphs-067",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "007"
-   ],
-   "input": "Short. text! here? yes."
-  },
-  {
-   "id": "paragraphs-068",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "007"
-   ],
-   "input": "line\nSentence number 1 has a few words in it. Sentence number 2 has a few words in it. Sentence number 3 has a few words in it. Sentence number 4 has a few words in it. Sentence number 5 has a few words in it. Sentence number 6 has a few words in it. Sentence number 7 has a few words in it. Sentence number 8 has a few words in it. Sentence number 9 has a few words in it. Sentence number 10 has a few words in it. Sentence number 11 has a few words in it. Sentence number 12 has a few words in it. Sentence number 13 has a few words in it. Sentence number 14 has a few words in it. Sentence number 15 has a few words in it."
-  },
-  {
-   "id": "paragraphs-069",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "007"
-   ],
-   "input": "It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. "
-  },
-  {
-   "id": "paragraphs-070",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "007"
-   ],
-   "input": "A. B. C. D. E. F. G."
-  },
-  {
-   "id": "paragraphs-071",
-   "fn": "paragraphs",
-   "args": [
-    "long",
-    ""
-   ],
-   "input": "Sentence number 1 has a few words in it. Sentence number 2 has a few words in it. Sentence number 3 has a few words in it. Sentence number 4 has a few words in it. Sentence number 5 has a few words in it. Sentence number 6 has a few words in it. Sentence number 7 has a few words in it. Sentence number 8 has a few words in it. Sentence number 9 has a few words in it. Sentence number 10 has a few words in it. Sentence number 11 has a few words in it. Sentence number 12 has a few words in it. Sentence number 13 has a few words in it. Sentence number 14 has a few words in it. Sentence number 15 has a few words in it."
-  },
-  {
-   "id": "paragraphs-072",
-   "fn": "paragraphs",
-   "args": [
-    "long",
-    ""
-   ],
-   "input": "Sentence number 1 has a few words in it.  Sentence number 2 has a few words in it.  Sentence number 3 has a few words in it.  Sentence number 4 has a few words in it.  Sentence number 5 has a few words in it.  Sentence number 6 has a few words in it.  Sentence number 7 has a few words in it.  Sentence number 8 has a few words in it.  Sentence number 9 has a few words in it.  Sentence number 10 has a few words in it.  Sentence number 11 has a few words in it.  Sentence number 12 has a few words in it.  Sentence number 13 has a few words in it.  Sentence number 14 has a few words in it.  Sentence number 15 has a few words in it."
-  },
-  {
-   "id": "paragraphs-073",
-   "fn": "paragraphs",
-   "args": [
-    "long",
-    ""
-   ],
-   "input": "Sentence number 1 has a few words in it.\tSentence number 2 has a few words in it.\tSentence number 3 has a few words in it.\tSentence number 4 has a few words in it.\tSentence number 5 has a few words in it.\tSentence number 6 has a few words in it.\tSentence number 7 has a few words in it.\tSentence number 8 has a few words in it.\tSentence number 9 has a few words in it.\tSentence number 10 has a few words in it.\tSentence number 11 has a few words in it.\tSentence number 12 has a few words in it.\tSentence number 13 has a few words in it.\tSentence number 14 has a few words in it.\tSentence number 15 has a few words in it."
-  },
-  {
-   "id": "paragraphs-074",
-   "fn": "paragraphs",
-   "args": [
-    "long",
-    ""
-   ],
-   "input": "One. Two. Three."
-  },
-  {
-   "id": "paragraphs-075",
-   "fn": "paragraphs",
-   "args": [
-    "long",
-    ""
-   ],
-   "input": "No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all "
-  },
-  {
-   "id": "paragraphs-076",
-   "fn": "paragraphs",
-   "args": [
-    "long",
-    ""
-   ],
-   "input": "Sentence number 1 has a few words in it. Sentence number 2 has a few words in it. Sentence number 3 has a few words in it. Sentence number 4 has a few words in it. Sentence number 5 has a few words in it. Sentence number 6 has a few words in it. Sentence number 7 has a few words in it. Sentence number 8 has a few words in it. Sentence number 9 has a few words in it. Sentence number 10 has a few words in it. Sentence number 11 has a few words in it. Sentence number 12 has a few words in it. Sentence number 13 has a few words in it. Sentence number 14 has a few words in it. Sentence number 15 has a few words in it. "
-  },
-  {
-   "id": "paragraphs-077",
-   "fn": "paragraphs",
-   "args": [
-    "long",
-    ""
-   ],
-   "input": "Short. text! here? yes."
-  },
-  {
-   "id": "paragraphs-078",
-   "fn": "paragraphs",
-   "args": [
-    "long",
-    ""
-   ],
-   "input": "line\nSentence number 1 has a few words in it. Sentence number 2 has a few words in it. Sentence number 3 has a few words in it. Sentence number 4 has a few words in it. Sentence number 5 has a few words in it. Sentence number 6 has a few words in it. Sentence number 7 has a few words in it. Sentence number 8 has a few words in it. Sentence number 9 has a few words in it. Sentence number 10 has a few words in it. Sentence number 11 has a few words in it. Sentence number 12 has a few words in it. Sentence number 13 has a few words in it. Sentence number 14 has a few words in it. Sentence number 15 has a few words in it."
-  },
-  {
-   "id": "paragraphs-079",
-   "fn": "paragraphs",
-   "args": [
-    "long",
-    ""
-   ],
-   "input": "It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. "
-  },
-  {
-   "id": "paragraphs-080",
-   "fn": "paragraphs",
-   "args": [
-    "long",
-    ""
-   ],
-   "input": "A. B. C. D. E. F. G."
-  },
-  {
-   "id": "paragraphs-081",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "5"
-   ],
-   "input": "Sentence number 1 has a few words in it. Sentence number 2 has a few words in it. Sentence number 3 has a few words in it. Sentence number 4 has a few words in it. Sentence number 5 has a few words in it. Sentence number 6 has a few words in it. Sentence number 7 has a few words in it. Sentence number 8 has a few words in it. Sentence number 9 has a few words in it. Sentence number 10 has a few words in it. Sentence number 11 has a few words in it. Sentence number 12 has a few words in it. Sentence number 13 has a few words in it. Sentence number 14 has a few words in it. Sentence number 15 has a few words in it."
-  },
-  {
-   "id": "paragraphs-082",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "5"
-   ],
-   "input": "Sentence number 1 has a few words in it.  Sentence number 2 has a few words in it.  Sentence number 3 has a few words in it.  Sentence number 4 has a few words in it.  Sentence number 5 has a few words in it.  Sentence number 6 has a few words in it.  Sentence number 7 has a few words in it.  Sentence number 8 has a few words in it.  Sentence number 9 has a few words in it.  Sentence number 10 has a few words in it.  Sentence number 11 has a few words in it.  Sentence number 12 has a few words in it.  Sentence number 13 has a few words in it.  Sentence number 14 has a few words in it.  Sentence number 15 has a few words in it."
-  },
-  {
-   "id": "paragraphs-083",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "5"
-   ],
-   "input": "Sentence number 1 has a few words in it.\tSentence number 2 has a few words in it.\tSentence number 3 has a few words in it.\tSentence number 4 has a few words in it.\tSentence number 5 has a few words in it.\tSentence number 6 has a few words in it.\tSentence number 7 has a few words in it.\tSentence number 8 has a few words in it.\tSentence number 9 has a few words in it.\tSentence number 10 has a few words in it.\tSentence number 11 has a few words in it.\tSentence number 12 has a few words in it.\tSentence number 13 has a few words in it.\tSentence number 14 has a few words in it.\tSentence number 15 has a few words in it."
-  },
-  {
-   "id": "paragraphs-084",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "5"
-   ],
-   "input": "One. Two. Three."
-  },
-  {
-   "id": "paragraphs-085",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "5"
-   ],
-   "input": "No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all "
-  },
-  {
-   "id": "paragraphs-086",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "5"
-   ],
-   "input": "Sentence number 1 has a few words in it. Sentence number 2 has a few words in it. Sentence number 3 has a few words in it. Sentence number 4 has a few words in it. Sentence number 5 has a few words in it. Sentence number 6 has a few words in it. Sentence number 7 has a few words in it. Sentence number 8 has a few words in it. Sentence number 9 has a few words in it. Sentence number 10 has a few words in it. Sentence number 11 has a few words in it. Sentence number 12 has a few words in it. Sentence number 13 has a few words in it. Sentence number 14 has a few words in it. Sentence number 15 has a few words in it. "
-  },
-  {
-   "id": "paragraphs-087",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "5"
-   ],
-   "input": "Short. text! here? yes."
-  },
-  {
-   "id": "paragraphs-088",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "5"
-   ],
-   "input": "line\nSentence number 1 has a few words in it. Sentence number 2 has a few words in it. Sentence number 3 has a few words in it. Sentence number 4 has a few words in it. Sentence number 5 has a few words in it. Sentence number 6 has a few words in it. Sentence number 7 has a few words in it. Sentence number 8 has a few words in it. Sentence number 9 has a few words in it. Sentence number 10 has a few words in it. Sentence number 11 has a few words in it. Sentence number 12 has a few words in it. Sentence number 13 has a few words in it. Sentence number 14 has a few words in it. Sentence number 15 has a few words in it."
-  },
-  {
-   "id": "paragraphs-089",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "5"
-   ],
-   "input": "It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. "
-  },
-  {
-   "id": "paragraphs-090",
-   "fn": "paragraphs",
-   "args": [
-    "code",
-    "5"
-   ],
-   "input": "A. B. C. D. E. F. G."
-  },
-  {
-   "id": "paragraphs-091",
-   "fn": "paragraphs",
-   "args": [
-    "long",
-    "99999999999999999999"
-   ],
-   "input": "Sentence number 1 has a few words in it. Sentence number 2 has a few words in it. Sentence number 3 has a few words in it. Sentence number 4 has a few words in it. Sentence number 5 has a few words in it. Sentence number 6 has a few words in it. Sentence number 7 has a few words in it. Sentence number 8 has a few words in it. Sentence number 9 has a few words in it. Sentence number 10 has a few words in it. Sentence number 11 has a few words in it. Sentence number 12 has a few words in it. Sentence number 13 has a few words in it. Sentence number 14 has a few words in it. Sentence number 15 has a few words in it."
-  },
-  {
-   "id": "paragraphs-092",
-   "fn": "paragraphs",
-   "args": [
-    "long",
-    "99999999999999999999"
-   ],
-   "input": "Sentence number 1 has a few words in it.  Sentence number 2 has a few words in it.  Sentence number 3 has a few words in it.  Sentence number 4 has a few words in it.  Sentence number 5 has a few words in it.  Sentence number 6 has a few words in it.  Sentence number 7 has a few words in it.  Sentence number 8 has a few words in it.  Sentence number 9 has a few words in it.  Sentence number 10 has a few words in it.  Sentence number 11 has a few words in it.  Sentence number 12 has a few words in it.  Sentence number 13 has a few words in it.  Sentence number 14 has a few words in it.  Sentence number 15 has a few words in it."
-  },
-  {
-   "id": "paragraphs-093",
-   "fn": "paragraphs",
-   "args": [
-    "long",
-    "99999999999999999999"
-   ],
-   "input": "Sentence number 1 has a few words in it.\tSentence number 2 has a few words in it.\tSentence number 3 has a few words in it.\tSentence number 4 has a few words in it.\tSentence number 5 has a few words in it.\tSentence number 6 has a few words in it.\tSentence number 7 has a few words in it.\tSentence number 8 has a few words in it.\tSentence number 9 has a few words in it.\tSentence number 10 has a few words in it.\tSentence number 11 has a few words in it.\tSentence number 12 has a few words in it.\tSentence number 13 has a few words in it.\tSentence number 14 has a few words in it.\tSentence number 15 has a few words in it."
-  },
-  {
-   "id": "paragraphs-094",
-   "fn": "paragraphs",
-   "args": [
-    "long",
-    "99999999999999999999"
-   ],
-   "input": "One. Two. Three."
-  },
-  {
-   "id": "paragraphs-095",
-   "fn": "paragraphs",
-   "args": [
-    "long",
-    "99999999999999999999"
-   ],
-   "input": "No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all No punctuation at all "
-  },
-  {
-   "id": "paragraphs-096",
-   "fn": "paragraphs",
-   "args": [
-    "long",
-    "99999999999999999999"
-   ],
-   "input": "Sentence number 1 has a few words in it. Sentence number 2 has a few words in it. Sentence number 3 has a few words in it. Sentence number 4 has a few words in it. Sentence number 5 has a few words in it. Sentence number 6 has a few words in it. Sentence number 7 has a few words in it. Sentence number 8 has a few words in it. Sentence number 9 has a few words in it. Sentence number 10 has a few words in it. Sentence number 11 has a few words in it. Sentence number 12 has a few words in it. Sentence number 13 has a few words in it. Sentence number 14 has a few words in it. Sentence number 15 has a few words in it. "
-  },
-  {
-   "id": "paragraphs-097",
-   "fn": "paragraphs",
-   "args": [
-    "long",
-    "99999999999999999999"
-   ],
-   "input": "Short. text! here? yes."
-  },
-  {
-   "id": "paragraphs-098",
-   "fn": "paragraphs",
-   "args": [
-    "long",
-    "99999999999999999999"
-   ],
-   "input": "line\nSentence number 1 has a few words in it. Sentence number 2 has a few words in it. Sentence number 3 has a few words in it. Sentence number 4 has a few words in it. Sentence number 5 has a few words in it. Sentence number 6 has a few words in it. Sentence number 7 has a few words in it. Sentence number 8 has a few words in it. Sentence number 9 has a few words in it. Sentence number 10 has a few words in it. Sentence number 11 has a few words in it. Sentence number 12 has a few words in it. Sentence number 13 has a few words in it. Sentence number 14 has a few words in it. Sentence number 15 has a few words in it."
-  },
-  {
-   "id": "paragraphs-099",
-   "fn": "paragraphs",
-   "args": [
-    "long",
-    "99999999999999999999"
-   ],
-   "input": "It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. It's well-known. "
-  },
-  {
-   "id": "paragraphs-100",
-   "fn": "paragraphs",
-   "args": [
-    "long",
-    "99999999999999999999"
-   ],
-   "input": "A. B. C. D. E. F. G."
-  },
-  {
    "id": "vocab-001",
    "fn": "vocab",
    "args": [
-    "code",
     "cascade"
    ],
    "input": "open ai is great"
@@ -2651,7 +1750,6 @@
    "id": "vocab-002",
    "fn": "vocab",
    "args": [
-    "code",
     "cascade"
    ],
    "input": "OPEN  AI and open\tai"
@@ -2660,7 +1758,6 @@
    "id": "vocab-003",
    "fn": "vocab",
    "args": [
-    "code",
     "cascade"
    ],
    "input": "jason and Jason's json"
@@ -2669,7 +1766,6 @@
    "id": "vocab-004",
    "fn": "vocab",
    "args": [
-    "code",
     "cascade"
    ],
    "input": "get hub GET HUB"
@@ -2678,7 +1774,6 @@
    "id": "vocab-005",
    "fn": "vocab",
    "args": [
-    "code",
     "cascade"
    ],
    "input": "a p i and A P I and a.p.i and a-b-c-d"
@@ -2687,7 +1782,6 @@
    "id": "vocab-006",
    "fn": "vocab",
    "args": [
-    "code",
     "cascade"
    ],
    "input": "x x x and a b c d e f g h i j"
@@ -2696,7 +1790,6 @@
    "id": "vocab-007",
    "fn": "vocab",
    "args": [
-    "code",
     "cascade"
    ],
    "input": "node.js and node.jsx and xnode.js"
@@ -2705,7 +1798,6 @@
    "id": "vocab-008",
    "fn": "vocab",
    "args": [
-    "code",
     "cascade"
    ],
    "input": "c++ and c++x"
@@ -2714,7 +1806,6 @@
    "id": "vocab-009",
    "fn": "vocab",
    "args": [
-    "code",
     "cascade"
    ],
    "input": ".net and dotnet and x.net"
@@ -2723,7 +1814,6 @@
    "id": "vocab-010",
    "fn": "vocab",
    "args": [
-    "code",
     "cascade"
    ],
    "input": "café CAFÉ Café"
@@ -2732,7 +1822,6 @@
    "id": "vocab-011",
    "fn": "vocab",
    "args": [
-    "code",
     "cascade"
    ],
    "input": "naïve NAÏVE"
@@ -2741,7 +1830,6 @@
    "id": "vocab-012",
    "fn": "vocab",
    "args": [
-    "code",
     "cascade"
    ],
    "input": "strasse STRASSE straße"
@@ -2750,7 +1838,6 @@
    "id": "vocab-013",
    "fn": "vocab",
    "args": [
-    "code",
     "cascade"
    ],
    "input": "k8s K8S K8s"
@@ -2759,7 +1846,6 @@
    "id": "vocab-014",
    "fn": "vocab",
    "args": [
-    "code",
     "cascade"
    ],
    "input": "foo bar foo   bar"
@@ -2768,7 +1854,6 @@
    "id": "vocab-015",
    "fn": "vocab",
    "args": [
-    "code",
     "cascade"
    ],
    "input": "x->y and a and tab sep"
@@ -2777,7 +1862,6 @@
    "id": "vocab-016",
    "fn": "vocab",
    "args": [
-    "code",
     "cascade"
    ],
    "input": "indented teh the the"
@@ -2786,7 +1870,6 @@
    "id": "vocab-017",
    "fn": "vocab",
    "args": [
-    "code",
     "cascade"
    ],
    "input": "wez term zzz"
@@ -2795,7 +1878,6 @@
    "id": "vocab-018",
    "fn": "vocab",
    "args": [
-    "code",
     "cascade"
    ],
    "input": "regards and kind regards"
@@ -2804,7 +1886,6 @@
    "id": "vocab-019",
    "fn": "vocab",
    "args": [
-    "code",
     "cascade"
    ],
    "input": "api npm API!"
@@ -2813,7 +1894,6 @@
    "id": "vocab-020",
    "fn": "vocab",
    "args": [
-    "code",
     "cascade"
    ],
    "input": "﻿bom rule"
@@ -2822,7 +1902,6 @@
    "id": "vocab-021",
    "fn": "vocab",
    "args": [
-    "code",
     "cascade"
    ],
    "input": "line one open ai\nline two  jason  \n"
@@ -2831,7 +1910,6 @@
    "id": "vocab-022",
    "fn": "vocab",
    "args": [
-    "code",
     "cascade"
    ],
    "input": "   spaces   around   "
@@ -2840,7 +1918,6 @@
    "id": "vocab-023",
    "fn": "vocab",
    "args": [
-    "code",
     "cascade"
    ],
    "input": "a_b_c"
@@ -2849,7 +1926,6 @@
    "id": "vocab-024",
    "fn": "vocab",
    "args": [
-    "code",
     "cascade"
    ],
    "input": "G.P.T-4"
@@ -2858,7 +1934,6 @@
    "id": "vocab-025",
    "fn": "vocab",
    "args": [
-    "code",
     "cascade"
    ],
    "input": "é open ai"
@@ -2867,7 +1942,6 @@
    "id": "vocab-026",
    "fn": "vocab",
    "args": [
-    "code",
     "cascade"
    ],
    "input": "openai OpenAI"
@@ -2876,7 +1950,6 @@
    "id": "vocab-027",
    "fn": "vocab",
    "args": [
-    "code",
     "cascade"
    ],
    "input": "zz → x"
@@ -2885,763 +1958,6 @@
    "id": "vocab-028",
    "fn": "vocab",
    "args": [
-    "code",
-    "cascade"
-   ],
-   "input": ""
-  },
-  {
-   "id": "vocab-029",
-   "fn": "vocab",
-   "args": [
-    "email",
-    "cascade"
-   ],
-   "input": "open ai is great"
-  },
-  {
-   "id": "vocab-030",
-   "fn": "vocab",
-   "args": [
-    "email",
-    "cascade"
-   ],
-   "input": "OPEN  AI and open\tai"
-  },
-  {
-   "id": "vocab-031",
-   "fn": "vocab",
-   "args": [
-    "email",
-    "cascade"
-   ],
-   "input": "jason and Jason's json"
-  },
-  {
-   "id": "vocab-032",
-   "fn": "vocab",
-   "args": [
-    "email",
-    "cascade"
-   ],
-   "input": "get hub GET HUB"
-  },
-  {
-   "id": "vocab-033",
-   "fn": "vocab",
-   "args": [
-    "email",
-    "cascade"
-   ],
-   "input": "a p i and A P I and a.p.i and a-b-c-d"
-  },
-  {
-   "id": "vocab-034",
-   "fn": "vocab",
-   "args": [
-    "email",
-    "cascade"
-   ],
-   "input": "x x x and a b c d e f g h i j"
-  },
-  {
-   "id": "vocab-035",
-   "fn": "vocab",
-   "args": [
-    "email",
-    "cascade"
-   ],
-   "input": "node.js and node.jsx and xnode.js"
-  },
-  {
-   "id": "vocab-036",
-   "fn": "vocab",
-   "args": [
-    "email",
-    "cascade"
-   ],
-   "input": "c++ and c++x"
-  },
-  {
-   "id": "vocab-037",
-   "fn": "vocab",
-   "args": [
-    "email",
-    "cascade"
-   ],
-   "input": ".net and dotnet and x.net"
-  },
-  {
-   "id": "vocab-038",
-   "fn": "vocab",
-   "args": [
-    "email",
-    "cascade"
-   ],
-   "input": "café CAFÉ Café"
-  },
-  {
-   "id": "vocab-039",
-   "fn": "vocab",
-   "args": [
-    "email",
-    "cascade"
-   ],
-   "input": "naïve NAÏVE"
-  },
-  {
-   "id": "vocab-040",
-   "fn": "vocab",
-   "args": [
-    "email",
-    "cascade"
-   ],
-   "input": "strasse STRASSE straße"
-  },
-  {
-   "id": "vocab-041",
-   "fn": "vocab",
-   "args": [
-    "email",
-    "cascade"
-   ],
-   "input": "k8s K8S K8s"
-  },
-  {
-   "id": "vocab-042",
-   "fn": "vocab",
-   "args": [
-    "email",
-    "cascade"
-   ],
-   "input": "foo bar foo   bar"
-  },
-  {
-   "id": "vocab-043",
-   "fn": "vocab",
-   "args": [
-    "email",
-    "cascade"
-   ],
-   "input": "x->y and a and tab sep"
-  },
-  {
-   "id": "vocab-044",
-   "fn": "vocab",
-   "args": [
-    "email",
-    "cascade"
-   ],
-   "input": "indented teh the the"
-  },
-  {
-   "id": "vocab-045",
-   "fn": "vocab",
-   "args": [
-    "email",
-    "cascade"
-   ],
-   "input": "wez term zzz"
-  },
-  {
-   "id": "vocab-046",
-   "fn": "vocab",
-   "args": [
-    "email",
-    "cascade"
-   ],
-   "input": "regards and kind regards"
-  },
-  {
-   "id": "vocab-047",
-   "fn": "vocab",
-   "args": [
-    "email",
-    "cascade"
-   ],
-   "input": "api npm API!"
-  },
-  {
-   "id": "vocab-048",
-   "fn": "vocab",
-   "args": [
-    "email",
-    "cascade"
-   ],
-   "input": "﻿bom rule"
-  },
-  {
-   "id": "vocab-049",
-   "fn": "vocab",
-   "args": [
-    "email",
-    "cascade"
-   ],
-   "input": "line one open ai\nline two  jason  \n"
-  },
-  {
-   "id": "vocab-050",
-   "fn": "vocab",
-   "args": [
-    "email",
-    "cascade"
-   ],
-   "input": "   spaces   around   "
-  },
-  {
-   "id": "vocab-051",
-   "fn": "vocab",
-   "args": [
-    "email",
-    "cascade"
-   ],
-   "input": "a_b_c"
-  },
-  {
-   "id": "vocab-052",
-   "fn": "vocab",
-   "args": [
-    "email",
-    "cascade"
-   ],
-   "input": "G.P.T-4"
-  },
-  {
-   "id": "vocab-053",
-   "fn": "vocab",
-   "args": [
-    "email",
-    "cascade"
-   ],
-   "input": "é open ai"
-  },
-  {
-   "id": "vocab-054",
-   "fn": "vocab",
-   "args": [
-    "email",
-    "cascade"
-   ],
-   "input": "openai OpenAI"
-  },
-  {
-   "id": "vocab-055",
-   "fn": "vocab",
-   "args": [
-    "email",
-    "cascade"
-   ],
-   "input": "zz → x"
-  },
-  {
-   "id": "vocab-056",
-   "fn": "vocab",
-   "args": [
-    "email",
-    "cascade"
-   ],
-   "input": ""
-  },
-  {
-   "id": "vocab-057",
-   "fn": "vocab",
-   "args": [
-    "",
-    "cascade"
-   ],
-   "input": "open ai is great"
-  },
-  {
-   "id": "vocab-058",
-   "fn": "vocab",
-   "args": [
-    "",
-    "cascade"
-   ],
-   "input": "OPEN  AI and open\tai"
-  },
-  {
-   "id": "vocab-059",
-   "fn": "vocab",
-   "args": [
-    "",
-    "cascade"
-   ],
-   "input": "jason and Jason's json"
-  },
-  {
-   "id": "vocab-060",
-   "fn": "vocab",
-   "args": [
-    "",
-    "cascade"
-   ],
-   "input": "get hub GET HUB"
-  },
-  {
-   "id": "vocab-061",
-   "fn": "vocab",
-   "args": [
-    "",
-    "cascade"
-   ],
-   "input": "a p i and A P I and a.p.i and a-b-c-d"
-  },
-  {
-   "id": "vocab-062",
-   "fn": "vocab",
-   "args": [
-    "",
-    "cascade"
-   ],
-   "input": "x x x and a b c d e f g h i j"
-  },
-  {
-   "id": "vocab-063",
-   "fn": "vocab",
-   "args": [
-    "",
-    "cascade"
-   ],
-   "input": "node.js and node.jsx and xnode.js"
-  },
-  {
-   "id": "vocab-064",
-   "fn": "vocab",
-   "args": [
-    "",
-    "cascade"
-   ],
-   "input": "c++ and c++x"
-  },
-  {
-   "id": "vocab-065",
-   "fn": "vocab",
-   "args": [
-    "",
-    "cascade"
-   ],
-   "input": ".net and dotnet and x.net"
-  },
-  {
-   "id": "vocab-066",
-   "fn": "vocab",
-   "args": [
-    "",
-    "cascade"
-   ],
-   "input": "café CAFÉ Café"
-  },
-  {
-   "id": "vocab-067",
-   "fn": "vocab",
-   "args": [
-    "",
-    "cascade"
-   ],
-   "input": "naïve NAÏVE"
-  },
-  {
-   "id": "vocab-068",
-   "fn": "vocab",
-   "args": [
-    "",
-    "cascade"
-   ],
-   "input": "strasse STRASSE straße"
-  },
-  {
-   "id": "vocab-069",
-   "fn": "vocab",
-   "args": [
-    "",
-    "cascade"
-   ],
-   "input": "k8s K8S K8s"
-  },
-  {
-   "id": "vocab-070",
-   "fn": "vocab",
-   "args": [
-    "",
-    "cascade"
-   ],
-   "input": "foo bar foo   bar"
-  },
-  {
-   "id": "vocab-071",
-   "fn": "vocab",
-   "args": [
-    "",
-    "cascade"
-   ],
-   "input": "x->y and a and tab sep"
-  },
-  {
-   "id": "vocab-072",
-   "fn": "vocab",
-   "args": [
-    "",
-    "cascade"
-   ],
-   "input": "indented teh the the"
-  },
-  {
-   "id": "vocab-073",
-   "fn": "vocab",
-   "args": [
-    "",
-    "cascade"
-   ],
-   "input": "wez term zzz"
-  },
-  {
-   "id": "vocab-074",
-   "fn": "vocab",
-   "args": [
-    "",
-    "cascade"
-   ],
-   "input": "regards and kind regards"
-  },
-  {
-   "id": "vocab-075",
-   "fn": "vocab",
-   "args": [
-    "",
-    "cascade"
-   ],
-   "input": "api npm API!"
-  },
-  {
-   "id": "vocab-076",
-   "fn": "vocab",
-   "args": [
-    "",
-    "cascade"
-   ],
-   "input": "﻿bom rule"
-  },
-  {
-   "id": "vocab-077",
-   "fn": "vocab",
-   "args": [
-    "",
-    "cascade"
-   ],
-   "input": "line one open ai\nline two  jason  \n"
-  },
-  {
-   "id": "vocab-078",
-   "fn": "vocab",
-   "args": [
-    "",
-    "cascade"
-   ],
-   "input": "   spaces   around   "
-  },
-  {
-   "id": "vocab-079",
-   "fn": "vocab",
-   "args": [
-    "",
-    "cascade"
-   ],
-   "input": "a_b_c"
-  },
-  {
-   "id": "vocab-080",
-   "fn": "vocab",
-   "args": [
-    "",
-    "cascade"
-   ],
-   "input": "G.P.T-4"
-  },
-  {
-   "id": "vocab-081",
-   "fn": "vocab",
-   "args": [
-    "",
-    "cascade"
-   ],
-   "input": "é open ai"
-  },
-  {
-   "id": "vocab-082",
-   "fn": "vocab",
-   "args": [
-    "",
-    "cascade"
-   ],
-   "input": "openai OpenAI"
-  },
-  {
-   "id": "vocab-083",
-   "fn": "vocab",
-   "args": [
-    "",
-    "cascade"
-   ],
-   "input": "zz → x"
-  },
-  {
-   "id": "vocab-084",
-   "fn": "vocab",
-   "args": [
-    "",
-    "cascade"
-   ],
-   "input": ""
-  },
-  {
-   "id": "vocab-085",
-   "fn": "vocab",
-   "args": [
-    "missing",
-    "cascade"
-   ],
-   "input": "open ai is great"
-  },
-  {
-   "id": "vocab-086",
-   "fn": "vocab",
-   "args": [
-    "missing",
-    "cascade"
-   ],
-   "input": "OPEN  AI and open\tai"
-  },
-  {
-   "id": "vocab-087",
-   "fn": "vocab",
-   "args": [
-    "missing",
-    "cascade"
-   ],
-   "input": "jason and Jason's json"
-  },
-  {
-   "id": "vocab-088",
-   "fn": "vocab",
-   "args": [
-    "missing",
-    "cascade"
-   ],
-   "input": "get hub GET HUB"
-  },
-  {
-   "id": "vocab-089",
-   "fn": "vocab",
-   "args": [
-    "missing",
-    "cascade"
-   ],
-   "input": "a p i and A P I and a.p.i and a-b-c-d"
-  },
-  {
-   "id": "vocab-090",
-   "fn": "vocab",
-   "args": [
-    "missing",
-    "cascade"
-   ],
-   "input": "x x x and a b c d e f g h i j"
-  },
-  {
-   "id": "vocab-091",
-   "fn": "vocab",
-   "args": [
-    "missing",
-    "cascade"
-   ],
-   "input": "node.js and node.jsx and xnode.js"
-  },
-  {
-   "id": "vocab-092",
-   "fn": "vocab",
-   "args": [
-    "missing",
-    "cascade"
-   ],
-   "input": "c++ and c++x"
-  },
-  {
-   "id": "vocab-093",
-   "fn": "vocab",
-   "args": [
-    "missing",
-    "cascade"
-   ],
-   "input": ".net and dotnet and x.net"
-  },
-  {
-   "id": "vocab-094",
-   "fn": "vocab",
-   "args": [
-    "missing",
-    "cascade"
-   ],
-   "input": "café CAFÉ Café"
-  },
-  {
-   "id": "vocab-095",
-   "fn": "vocab",
-   "args": [
-    "missing",
-    "cascade"
-   ],
-   "input": "naïve NAÏVE"
-  },
-  {
-   "id": "vocab-096",
-   "fn": "vocab",
-   "args": [
-    "missing",
-    "cascade"
-   ],
-   "input": "strasse STRASSE straße"
-  },
-  {
-   "id": "vocab-097",
-   "fn": "vocab",
-   "args": [
-    "missing",
-    "cascade"
-   ],
-   "input": "k8s K8S K8s"
-  },
-  {
-   "id": "vocab-098",
-   "fn": "vocab",
-   "args": [
-    "missing",
-    "cascade"
-   ],
-   "input": "foo bar foo   bar"
-  },
-  {
-   "id": "vocab-099",
-   "fn": "vocab",
-   "args": [
-    "missing",
-    "cascade"
-   ],
-   "input": "x->y and a and tab sep"
-  },
-  {
-   "id": "vocab-100",
-   "fn": "vocab",
-   "args": [
-    "missing",
-    "cascade"
-   ],
-   "input": "indented teh the the"
-  },
-  {
-   "id": "vocab-101",
-   "fn": "vocab",
-   "args": [
-    "missing",
-    "cascade"
-   ],
-   "input": "wez term zzz"
-  },
-  {
-   "id": "vocab-102",
-   "fn": "vocab",
-   "args": [
-    "missing",
-    "cascade"
-   ],
-   "input": "regards and kind regards"
-  },
-  {
-   "id": "vocab-103",
-   "fn": "vocab",
-   "args": [
-    "missing",
-    "cascade"
-   ],
-   "input": "api npm API!"
-  },
-  {
-   "id": "vocab-104",
-   "fn": "vocab",
-   "args": [
-    "missing",
-    "cascade"
-   ],
-   "input": "﻿bom rule"
-  },
-  {
-   "id": "vocab-105",
-   "fn": "vocab",
-   "args": [
-    "missing",
-    "cascade"
-   ],
-   "input": "line one open ai\nline two  jason  \n"
-  },
-  {
-   "id": "vocab-106",
-   "fn": "vocab",
-   "args": [
-    "missing",
-    "cascade"
-   ],
-   "input": "   spaces   around   "
-  },
-  {
-   "id": "vocab-107",
-   "fn": "vocab",
-   "args": [
-    "missing",
-    "cascade"
-   ],
-   "input": "a_b_c"
-  },
-  {
-   "id": "vocab-108",
-   "fn": "vocab",
-   "args": [
-    "missing",
-    "cascade"
-   ],
-   "input": "G.P.T-4"
-  },
-  {
-   "id": "vocab-109",
-   "fn": "vocab",
-   "args": [
-    "missing",
-    "cascade"
-   ],
-   "input": "é open ai"
-  },
-  {
-   "id": "vocab-110",
-   "fn": "vocab",
-   "args": [
-    "missing",
-    "cascade"
-   ],
-   "input": "openai OpenAI"
-  },
-  {
-   "id": "vocab-111",
-   "fn": "vocab",
-   "args": [
-    "missing",
-    "cascade"
-   ],
-   "input": "zz → x"
-  },
-  {
-   "id": "vocab-112",
-   "fn": "vocab",
-   "args": [
-    "missing",
     "cascade"
    ],
    "input": ""
@@ -3650,7 +1966,6 @@
    "id": "vocab-113",
    "fn": "vocab",
    "args": [
-    "code",
     "repo"
    ],
    "input": "open ai is great"
@@ -3659,7 +1974,6 @@
    "id": "vocab-114",
    "fn": "vocab",
    "args": [
-    "code",
     "repo"
    ],
    "input": "OPEN  AI and open\tai"
@@ -3668,7 +1982,6 @@
    "id": "vocab-115",
    "fn": "vocab",
    "args": [
-    "code",
     "repo"
    ],
    "input": "jason and Jason's json"
@@ -3677,7 +1990,6 @@
    "id": "vocab-116",
    "fn": "vocab",
    "args": [
-    "code",
     "repo"
    ],
    "input": "get hub GET HUB"
@@ -3686,7 +1998,6 @@
    "id": "vocab-117",
    "fn": "vocab",
    "args": [
-    "code",
     "repo"
    ],
    "input": "a p i and A P I and a.p.i and a-b-c-d"
@@ -3695,7 +2006,6 @@
    "id": "vocab-118",
    "fn": "vocab",
    "args": [
-    "code",
     "repo"
    ],
    "input": "x x x and a b c d e f g h i j"
@@ -3704,7 +2014,6 @@
    "id": "vocab-119",
    "fn": "vocab",
    "args": [
-    "code",
     "repo"
    ],
    "input": "node.js and node.jsx and xnode.js"
@@ -3713,7 +2022,6 @@
    "id": "vocab-120",
    "fn": "vocab",
    "args": [
-    "code",
     "repo"
    ],
    "input": "c++ and c++x"
@@ -3722,7 +2030,6 @@
    "id": "vocab-121",
    "fn": "vocab",
    "args": [
-    "code",
     "repo"
    ],
    "input": ".net and dotnet and x.net"
@@ -3731,7 +2038,6 @@
    "id": "vocab-122",
    "fn": "vocab",
    "args": [
-    "code",
     "repo"
    ],
    "input": "café CAFÉ Café"
@@ -3740,7 +2046,6 @@
    "id": "vocab-123",
    "fn": "vocab",
    "args": [
-    "code",
     "repo"
    ],
    "input": "naïve NAÏVE"
@@ -3749,7 +2054,6 @@
    "id": "vocab-124",
    "fn": "vocab",
    "args": [
-    "code",
     "repo"
    ],
    "input": "strasse STRASSE straße"
@@ -3758,7 +2062,6 @@
    "id": "vocab-125",
    "fn": "vocab",
    "args": [
-    "code",
     "repo"
    ],
    "input": "k8s K8S K8s"
@@ -3767,7 +2070,6 @@
    "id": "vocab-126",
    "fn": "vocab",
    "args": [
-    "code",
     "repo"
    ],
    "input": "foo bar foo   bar"
@@ -3776,7 +2078,6 @@
    "id": "vocab-127",
    "fn": "vocab",
    "args": [
-    "code",
     "repo"
    ],
    "input": "x->y and a and tab sep"
@@ -3785,7 +2086,6 @@
    "id": "vocab-128",
    "fn": "vocab",
    "args": [
-    "code",
     "repo"
    ],
    "input": "indented teh the the"
@@ -3794,7 +2094,6 @@
    "id": "vocab-129",
    "fn": "vocab",
    "args": [
-    "code",
     "repo"
    ],
    "input": "wez term zzz"
@@ -3803,7 +2102,6 @@
    "id": "vocab-130",
    "fn": "vocab",
    "args": [
-    "code",
     "repo"
    ],
    "input": "regards and kind regards"
@@ -3812,7 +2110,6 @@
    "id": "vocab-131",
    "fn": "vocab",
    "args": [
-    "code",
     "repo"
    ],
    "input": "api npm API!"
@@ -3821,7 +2118,6 @@
    "id": "vocab-132",
    "fn": "vocab",
    "args": [
-    "code",
     "repo"
    ],
    "input": "﻿bom rule"
@@ -3830,7 +2126,6 @@
    "id": "vocab-133",
    "fn": "vocab",
    "args": [
-    "code",
     "repo"
    ],
    "input": "line one open ai\nline two  jason  \n"
@@ -3839,7 +2134,6 @@
    "id": "vocab-134",
    "fn": "vocab",
    "args": [
-    "code",
     "repo"
    ],
    "input": "   spaces   around   "
@@ -3848,7 +2142,6 @@
    "id": "vocab-135",
    "fn": "vocab",
    "args": [
-    "code",
     "repo"
    ],
    "input": "a_b_c"
@@ -3857,7 +2150,6 @@
    "id": "vocab-136",
    "fn": "vocab",
    "args": [
-    "code",
     "repo"
    ],
    "input": "G.P.T-4"
@@ -3866,7 +2158,6 @@
    "id": "vocab-137",
    "fn": "vocab",
    "args": [
-    "code",
     "repo"
    ],
    "input": "é open ai"
@@ -3875,7 +2166,6 @@
    "id": "vocab-138",
    "fn": "vocab",
    "args": [
-    "code",
     "repo"
    ],
    "input": "openai OpenAI"
@@ -3884,7 +2174,6 @@
    "id": "vocab-139",
    "fn": "vocab",
    "args": [
-    "code",
     "repo"
    ],
    "input": "zz → x"
@@ -3893,259 +2182,6 @@
    "id": "vocab-140",
    "fn": "vocab",
    "args": [
-    "code",
-    "repo"
-   ],
-   "input": ""
-  },
-  {
-   "id": "vocab-141",
-   "fn": "vocab",
-   "args": [
-    "base",
-    "repo"
-   ],
-   "input": "open ai is great"
-  },
-  {
-   "id": "vocab-142",
-   "fn": "vocab",
-   "args": [
-    "base",
-    "repo"
-   ],
-   "input": "OPEN  AI and open\tai"
-  },
-  {
-   "id": "vocab-143",
-   "fn": "vocab",
-   "args": [
-    "base",
-    "repo"
-   ],
-   "input": "jason and Jason's json"
-  },
-  {
-   "id": "vocab-144",
-   "fn": "vocab",
-   "args": [
-    "base",
-    "repo"
-   ],
-   "input": "get hub GET HUB"
-  },
-  {
-   "id": "vocab-145",
-   "fn": "vocab",
-   "args": [
-    "base",
-    "repo"
-   ],
-   "input": "a p i and A P I and a.p.i and a-b-c-d"
-  },
-  {
-   "id": "vocab-146",
-   "fn": "vocab",
-   "args": [
-    "base",
-    "repo"
-   ],
-   "input": "x x x and a b c d e f g h i j"
-  },
-  {
-   "id": "vocab-147",
-   "fn": "vocab",
-   "args": [
-    "base",
-    "repo"
-   ],
-   "input": "node.js and node.jsx and xnode.js"
-  },
-  {
-   "id": "vocab-148",
-   "fn": "vocab",
-   "args": [
-    "base",
-    "repo"
-   ],
-   "input": "c++ and c++x"
-  },
-  {
-   "id": "vocab-149",
-   "fn": "vocab",
-   "args": [
-    "base",
-    "repo"
-   ],
-   "input": ".net and dotnet and x.net"
-  },
-  {
-   "id": "vocab-150",
-   "fn": "vocab",
-   "args": [
-    "base",
-    "repo"
-   ],
-   "input": "café CAFÉ Café"
-  },
-  {
-   "id": "vocab-151",
-   "fn": "vocab",
-   "args": [
-    "base",
-    "repo"
-   ],
-   "input": "naïve NAÏVE"
-  },
-  {
-   "id": "vocab-152",
-   "fn": "vocab",
-   "args": [
-    "base",
-    "repo"
-   ],
-   "input": "strasse STRASSE straße"
-  },
-  {
-   "id": "vocab-153",
-   "fn": "vocab",
-   "args": [
-    "base",
-    "repo"
-   ],
-   "input": "k8s K8S K8s"
-  },
-  {
-   "id": "vocab-154",
-   "fn": "vocab",
-   "args": [
-    "base",
-    "repo"
-   ],
-   "input": "foo bar foo   bar"
-  },
-  {
-   "id": "vocab-155",
-   "fn": "vocab",
-   "args": [
-    "base",
-    "repo"
-   ],
-   "input": "x->y and a and tab sep"
-  },
-  {
-   "id": "vocab-156",
-   "fn": "vocab",
-   "args": [
-    "base",
-    "repo"
-   ],
-   "input": "indented teh the the"
-  },
-  {
-   "id": "vocab-157",
-   "fn": "vocab",
-   "args": [
-    "base",
-    "repo"
-   ],
-   "input": "wez term zzz"
-  },
-  {
-   "id": "vocab-158",
-   "fn": "vocab",
-   "args": [
-    "base",
-    "repo"
-   ],
-   "input": "regards and kind regards"
-  },
-  {
-   "id": "vocab-159",
-   "fn": "vocab",
-   "args": [
-    "base",
-    "repo"
-   ],
-   "input": "api npm API!"
-  },
-  {
-   "id": "vocab-160",
-   "fn": "vocab",
-   "args": [
-    "base",
-    "repo"
-   ],
-   "input": "﻿bom rule"
-  },
-  {
-   "id": "vocab-161",
-   "fn": "vocab",
-   "args": [
-    "base",
-    "repo"
-   ],
-   "input": "line one open ai\nline two  jason  \n"
-  },
-  {
-   "id": "vocab-162",
-   "fn": "vocab",
-   "args": [
-    "base",
-    "repo"
-   ],
-   "input": "   spaces   around   "
-  },
-  {
-   "id": "vocab-163",
-   "fn": "vocab",
-   "args": [
-    "base",
-    "repo"
-   ],
-   "input": "a_b_c"
-  },
-  {
-   "id": "vocab-164",
-   "fn": "vocab",
-   "args": [
-    "base",
-    "repo"
-   ],
-   "input": "G.P.T-4"
-  },
-  {
-   "id": "vocab-165",
-   "fn": "vocab",
-   "args": [
-    "base",
-    "repo"
-   ],
-   "input": "é open ai"
-  },
-  {
-   "id": "vocab-166",
-   "fn": "vocab",
-   "args": [
-    "base",
-    "repo"
-   ],
-   "input": "openai OpenAI"
-  },
-  {
-   "id": "vocab-167",
-   "fn": "vocab",
-   "args": [
-    "base",
-    "repo"
-   ],
-   "input": "zz → x"
-  },
-  {
-   "id": "vocab-168",
-   "fn": "vocab",
-   "args": [
-    "base",
     "repo"
    ],
    "input": ""
@@ -4154,7 +2190,6 @@
    "id": "vocab-169",
    "fn": "vocab",
    "args": [
-    "code",
     "empty"
    ],
    "input": "open ai is great"
@@ -4163,7 +2198,6 @@
    "id": "vocab-170",
    "fn": "vocab",
    "args": [
-    "code",
     "empty"
    ],
    "input": "OPEN  AI and open\tai"
@@ -4172,7 +2206,6 @@
    "id": "vocab-171",
    "fn": "vocab",
    "args": [
-    "code",
     "empty"
    ],
    "input": "jason and Jason's json"
@@ -4181,7 +2214,6 @@
    "id": "vocab-172",
    "fn": "vocab",
    "args": [
-    "code",
     "empty"
    ],
    "input": "get hub GET HUB"
@@ -4190,7 +2222,6 @@
    "id": "vocab-173",
    "fn": "vocab",
    "args": [
-    "code",
     "empty"
    ],
    "input": "a p i and A P I and a.p.i and a-b-c-d"
@@ -4199,7 +2230,6 @@
    "id": "vocab-174",
    "fn": "vocab",
    "args": [
-    "code",
     "empty"
    ],
    "input": "x x x and a b c d e f g h i j"
@@ -4208,7 +2238,6 @@
    "id": "vocab-175",
    "fn": "vocab",
    "args": [
-    "code",
     "empty"
    ],
    "input": "node.js and node.jsx and xnode.js"
@@ -4217,7 +2246,6 @@
    "id": "vocab-176",
    "fn": "vocab",
    "args": [
-    "code",
     "empty"
    ],
    "input": "c++ and c++x"
@@ -4226,7 +2254,6 @@
    "id": "vocab-177",
    "fn": "vocab",
    "args": [
-    "code",
     "empty"
    ],
    "input": ".net and dotnet and x.net"
@@ -4235,7 +2262,6 @@
    "id": "vocab-178",
    "fn": "vocab",
    "args": [
-    "code",
     "empty"
    ],
    "input": "café CAFÉ Café"
@@ -4244,7 +2270,6 @@
    "id": "vocab-179",
    "fn": "vocab",
    "args": [
-    "code",
     "empty"
    ],
    "input": "naïve NAÏVE"
@@ -4253,7 +2278,6 @@
    "id": "vocab-180",
    "fn": "vocab",
    "args": [
-    "code",
     "empty"
    ],
    "input": "strasse STRASSE straße"
@@ -4262,7 +2286,6 @@
    "id": "vocab-181",
    "fn": "vocab",
    "args": [
-    "code",
     "empty"
    ],
    "input": "k8s K8S K8s"
@@ -4271,7 +2294,6 @@
    "id": "vocab-182",
    "fn": "vocab",
    "args": [
-    "code",
     "empty"
    ],
    "input": "foo bar foo   bar"
@@ -4280,7 +2302,6 @@
    "id": "vocab-183",
    "fn": "vocab",
    "args": [
-    "code",
     "empty"
    ],
    "input": "x->y and a and tab sep"
@@ -4289,7 +2310,6 @@
    "id": "vocab-184",
    "fn": "vocab",
    "args": [
-    "code",
     "empty"
    ],
    "input": "indented teh the the"
@@ -4298,7 +2318,6 @@
    "id": "vocab-185",
    "fn": "vocab",
    "args": [
-    "code",
     "empty"
    ],
    "input": "wez term zzz"
@@ -4307,7 +2326,6 @@
    "id": "vocab-186",
    "fn": "vocab",
    "args": [
-    "code",
     "empty"
    ],
    "input": "regards and kind regards"
@@ -4316,7 +2334,6 @@
    "id": "vocab-187",
    "fn": "vocab",
    "args": [
-    "code",
     "empty"
    ],
    "input": "api npm API!"
@@ -4325,7 +2342,6 @@
    "id": "vocab-188",
    "fn": "vocab",
    "args": [
-    "code",
     "empty"
    ],
    "input": "﻿bom rule"
@@ -4334,7 +2350,6 @@
    "id": "vocab-189",
    "fn": "vocab",
    "args": [
-    "code",
     "empty"
    ],
    "input": "line one open ai\nline two  jason  \n"
@@ -4343,7 +2358,6 @@
    "id": "vocab-190",
    "fn": "vocab",
    "args": [
-    "code",
     "empty"
    ],
    "input": "   spaces   around   "
@@ -4352,7 +2366,6 @@
    "id": "vocab-191",
    "fn": "vocab",
    "args": [
-    "code",
     "empty"
    ],
    "input": "a_b_c"
@@ -4361,7 +2374,6 @@
    "id": "vocab-192",
    "fn": "vocab",
    "args": [
-    "code",
     "empty"
    ],
    "input": "G.P.T-4"
@@ -4370,7 +2382,6 @@
    "id": "vocab-193",
    "fn": "vocab",
    "args": [
-    "code",
     "empty"
    ],
    "input": "é open ai"
@@ -4379,7 +2390,6 @@
    "id": "vocab-194",
    "fn": "vocab",
    "args": [
-    "code",
     "empty"
    ],
    "input": "openai OpenAI"
@@ -4388,7 +2398,6 @@
    "id": "vocab-195",
    "fn": "vocab",
    "args": [
-    "code",
     "empty"
    ],
    "input": "zz → x"
@@ -4397,260 +2406,7 @@
    "id": "vocab-196",
    "fn": "vocab",
    "args": [
-    "code",
     "empty"
-   ],
-   "input": ""
-  },
-  {
-   "id": "vocab-197",
-   "fn": "vocab",
-   "args": [
-    "alpha",
-    "fixed"
-   ],
-   "input": "open ai is great"
-  },
-  {
-   "id": "vocab-198",
-   "fn": "vocab",
-   "args": [
-    "alpha",
-    "fixed"
-   ],
-   "input": "OPEN  AI and open\tai"
-  },
-  {
-   "id": "vocab-199",
-   "fn": "vocab",
-   "args": [
-    "alpha",
-    "fixed"
-   ],
-   "input": "jason and Jason's json"
-  },
-  {
-   "id": "vocab-200",
-   "fn": "vocab",
-   "args": [
-    "alpha",
-    "fixed"
-   ],
-   "input": "get hub GET HUB"
-  },
-  {
-   "id": "vocab-201",
-   "fn": "vocab",
-   "args": [
-    "alpha",
-    "fixed"
-   ],
-   "input": "a p i and A P I and a.p.i and a-b-c-d"
-  },
-  {
-   "id": "vocab-202",
-   "fn": "vocab",
-   "args": [
-    "alpha",
-    "fixed"
-   ],
-   "input": "x x x and a b c d e f g h i j"
-  },
-  {
-   "id": "vocab-203",
-   "fn": "vocab",
-   "args": [
-    "alpha",
-    "fixed"
-   ],
-   "input": "node.js and node.jsx and xnode.js"
-  },
-  {
-   "id": "vocab-204",
-   "fn": "vocab",
-   "args": [
-    "alpha",
-    "fixed"
-   ],
-   "input": "c++ and c++x"
-  },
-  {
-   "id": "vocab-205",
-   "fn": "vocab",
-   "args": [
-    "alpha",
-    "fixed"
-   ],
-   "input": ".net and dotnet and x.net"
-  },
-  {
-   "id": "vocab-206",
-   "fn": "vocab",
-   "args": [
-    "alpha",
-    "fixed"
-   ],
-   "input": "café CAFÉ Café"
-  },
-  {
-   "id": "vocab-207",
-   "fn": "vocab",
-   "args": [
-    "alpha",
-    "fixed"
-   ],
-   "input": "naïve NAÏVE"
-  },
-  {
-   "id": "vocab-208",
-   "fn": "vocab",
-   "args": [
-    "alpha",
-    "fixed"
-   ],
-   "input": "strasse STRASSE straße"
-  },
-  {
-   "id": "vocab-209",
-   "fn": "vocab",
-   "args": [
-    "alpha",
-    "fixed"
-   ],
-   "input": "k8s K8S K8s"
-  },
-  {
-   "id": "vocab-210",
-   "fn": "vocab",
-   "args": [
-    "alpha",
-    "fixed"
-   ],
-   "input": "foo bar foo   bar"
-  },
-  {
-   "id": "vocab-211",
-   "fn": "vocab",
-   "args": [
-    "alpha",
-    "fixed"
-   ],
-   "input": "x->y and a and tab sep"
-  },
-  {
-   "id": "vocab-212",
-   "fn": "vocab",
-   "args": [
-    "alpha",
-    "fixed"
-   ],
-   "input": "indented teh the the"
-  },
-  {
-   "id": "vocab-213",
-   "fn": "vocab",
-   "args": [
-    "alpha",
-    "fixed"
-   ],
-   "input": "wez term zzz"
-  },
-  {
-   "id": "vocab-214",
-   "fn": "vocab",
-   "args": [
-    "alpha",
-    "fixed"
-   ],
-   "input": "regards and kind regards"
-  },
-  {
-   "id": "vocab-215",
-   "fn": "vocab",
-   "args": [
-    "alpha",
-    "fixed"
-   ],
-   "input": "api npm API!"
-  },
-  {
-   "id": "vocab-216",
-   "fn": "vocab",
-   "args": [
-    "alpha",
-    "fixed"
-   ],
-   "input": "﻿bom rule"
-  },
-  {
-   "id": "vocab-217",
-   "fn": "vocab",
-   "args": [
-    "alpha",
-    "fixed"
-   ],
-   "input": "line one open ai\nline two  jason  \n"
-  },
-  {
-   "id": "vocab-218",
-   "fn": "vocab",
-   "args": [
-    "alpha",
-    "fixed"
-   ],
-   "input": "   spaces   around   "
-  },
-  {
-   "id": "vocab-219",
-   "fn": "vocab",
-   "args": [
-    "alpha",
-    "fixed"
-   ],
-   "input": "a_b_c"
-  },
-  {
-   "id": "vocab-220",
-   "fn": "vocab",
-   "args": [
-    "alpha",
-    "fixed"
-   ],
-   "input": "G.P.T-4"
-  },
-  {
-   "id": "vocab-221",
-   "fn": "vocab",
-   "args": [
-    "alpha",
-    "fixed"
-   ],
-   "input": "é open ai"
-  },
-  {
-   "id": "vocab-222",
-   "fn": "vocab",
-   "args": [
-    "alpha",
-    "fixed"
-   ],
-   "input": "openai OpenAI"
-  },
-  {
-   "id": "vocab-223",
-   "fn": "vocab",
-   "args": [
-    "alpha",
-    "fixed"
-   ],
-   "input": "zz → x"
-  },
-  {
-   "id": "vocab-224",
-   "fn": "vocab",
-   "args": [
-    "alpha",
-    "fixed"
    ],
    "input": ""
   },
@@ -4658,16 +2414,6 @@
    "id": "vocab-canonical-1",
    "fn": "vocab",
    "args": [
-    "code",
-    "cascade"
-   ],
-   "input": "q̣́ and q̣́ and Q̣́"
-  },
-  {
-   "id": "vocab-canonical-2",
-   "fn": "vocab",
-   "args": [
-    "",
     "cascade"
    ],
    "input": "q̣́ and q̣́ and Q̣́"
@@ -4853,63 +2599,12 @@
   {
    "id": "pipeline-001",
    "config": "repo",
-   "app": "Ghostty",
-   "env": {},
-   "input": "um so the color of the the api is open ai and get hub [blank audio] ok"
-  },
-  {
-   "id": "pipeline-002",
-   "config": "repo",
-   "app": "ghostty",
-   "env": {},
-   "input": "um so the color of the the api is open ai and get hub [blank audio] ok"
-  },
-  {
-   "id": "pipeline-003",
-   "config": "repo",
-   "app": "WezTerm",
-   "env": {},
-   "input": "um so the color of the the api is open ai and get hub [blank audio] ok"
-  },
-  {
-   "id": "pipeline-004",
-   "config": "repo",
-   "app": "Mail",
-   "env": {},
-   "input": "um so the color of the the api is open ai and get hub [blank audio] ok"
-  },
-  {
-   "id": "pipeline-005",
-   "config": "repo",
-   "app": "Slack",
-   "env": {},
-   "input": "um so the color of the the api is open ai and get hub [blank audio] ok"
-  },
-  {
-   "id": "pipeline-006",
-   "config": "repo",
-   "app": "Messages",
-   "env": {},
-   "input": "um so the color of the the api is open ai and get hub [blank audio] ok"
-  },
-  {
-   "id": "pipeline-007",
-   "config": "repo",
-   "app": "Notes",
-   "env": {},
-   "input": "um so the color of the the api is open ai and get hub [blank audio] ok"
-  },
-  {
-   "id": "pipeline-008",
-   "config": "repo",
-   "app": "Unknown App",
    "env": {},
    "input": "um so the color of the the api is open ai and get hub [blank audio] ok"
   },
   {
    "id": "pipeline-009",
    "config": "repo",
-   "app": "Ghostty",
    "env": {
     "DICTATE_CLEAN": "1"
    },
@@ -4918,7 +2613,6 @@
   {
    "id": "pipeline-010",
    "config": "repo",
-   "app": "Ghostty",
    "env": {
     "DICTATE_CLEAN": "true"
    },
@@ -4927,7 +2621,6 @@
   {
    "id": "pipeline-011",
    "config": "repo",
-   "app": "Ghostty",
    "env": {
     "DICTATE_CLEAN": "1",
     "DICTATE_REPEATS_LEVEL": "0"
@@ -4937,7 +2630,6 @@
   {
    "id": "pipeline-012",
    "config": "repo",
-   "app": "Ghostty",
    "env": {
     "DICTATE_CLEAN": "1",
     "DICTATE_REPEATS_LEVEL": "2"
@@ -4947,7 +2639,6 @@
   {
    "id": "pipeline-013",
    "config": "cascade",
-   "app": "Ghostty",
    "env": {
     "DICTATE_CLEAN": "1"
    },
@@ -4956,7 +2647,6 @@
   {
    "id": "pipeline-014",
    "config": "repo",
-   "app": "Ghostty",
    "env": {
     "DICTATE_BRITISH_SPELLING": "off"
    },
@@ -4965,7 +2655,6 @@
   {
    "id": "pipeline-015",
    "config": "repo",
-   "app": "Ghostty",
    "env": {
     "DICTATE_VOCAB_CLEAN": "no"
    },
@@ -4974,41 +2663,20 @@
   {
    "id": "pipeline-016",
    "config": "repo",
-   "app": "Ghostty",
    "env": {
     "DICTATE_VOCAB_CLEAN": "YES"
    },
    "input": "um so the color of the the api is open ai and get hub [blank audio] ok"
   },
   {
-   "id": "pipeline-017",
-   "config": "repo",
-   "app": "Ghostty",
-   "env": {
-    "DICTATE_FORCE_MODE": "email"
-   },
-   "input": "um so the color of the the api is open ai and get hub [blank audio] ok"
-  },
-  {
-   "id": "pipeline-018",
-   "config": "repo",
-   "app": "Ghostty",
-   "env": {
-    "DICTATE_FORCE_MODE": "nope"
-   },
-   "input": "um so the color of the the api is open ai and get hub [blank audio] ok"
-  },
-  {
    "id": "pipeline-021",
    "config": "repo",
-   "app": "Ghostty",
    "env": {},
    "input": "[blank audio]"
   },
   {
    "id": "pipeline-022",
    "config": "repo",
-   "app": "Ghostty",
    "env": {
     "DICTATE_CLEAN": "1"
    },
@@ -5017,28 +2685,24 @@
   {
    "id": "pipeline-023",
    "config": "repo",
-   "app": "Ghostty",
    "env": {},
    "input": "\n\n"
   },
   {
    "id": "pipeline-024",
    "config": "repo",
-   "app": "Ghostty",
    "env": {},
    "input": "text with trailing newlines\n\n\n"
   },
   {
    "id": "pipeline-025",
    "config": "repo",
-   "app": "Ghostty",
    "env": {},
    "input": "two\nlines here\n"
   },
   {
    "id": "pipeline-026",
    "config": "repo",
-   "app": "Ghostty",
    "env": {
     "DICTATE_CLEAN": "1"
    },
@@ -5047,607 +2711,30 @@
   {
    "id": "pipeline-027",
    "config": "repo",
-   "app": "Ghostty",
    "env": {},
-   "input": "Sentence number 1 has a few words in it. Sentence number 2 has a few words in it. Sentence number 3 has a few words in it. Sentence number 4 has a few words in it. Sentence number 5 has a few words in it. Sentence number 6 has a few words in it. Sentence number 7 has a few words in it. Sentence number 8 has a few words in it. Sentence number 9 has a few words in it. Sentence number 10 has a few words in it. Sentence number 11 has a few words in it. Sentence number 12 has a few words in it. Sentence number 13 has a few words in it. Sentence number 14 has a few words in it. Sentence number 15 has a few words in it."
-  },
-  {
-   "id": "pipeline-028",
-   "config": "repo",
-   "app": "Ghostty",
-   "env": {
-    "DICTATE_CODE_PARAGRAPH_MIN_WORDS": "500"
-   },
-   "input": "Sentence number 1 has a few words in it. Sentence number 2 has a few words in it. Sentence number 3 has a few words in it. Sentence number 4 has a few words in it. Sentence number 5 has a few words in it. Sentence number 6 has a few words in it. Sentence number 7 has a few words in it. Sentence number 8 has a few words in it. Sentence number 9 has a few words in it. Sentence number 10 has a few words in it. Sentence number 11 has a few words in it. Sentence number 12 has a few words in it. Sentence number 13 has a few words in it. Sentence number 14 has a few words in it. Sentence number 15 has a few words in it."
-  },
-  {
-   "id": "pipeline-029",
-   "config": "cascade",
-   "app": "Notes",
-   "env": {},
-   "input": "Sentence number 1 has a few words in it. Sentence number 2 has a few words in it. Sentence number 3 has a few words in it. Sentence number 4 has a few words in it. Sentence number 5 has a few words in it. Sentence number 6 has a few words in it. Sentence number 7 has a few words in it. Sentence number 8 has a few words in it. Sentence number 9 has a few words in it. Sentence number 10 has a few words in it. Sentence number 11 has a few words in it. Sentence number 12 has a few words in it. Sentence number 13 has a few words in it. Sentence number 14 has a few words in it. Sentence number 15 has a few words in it."
-  },
-  {
-   "id": "pipeline-030",
-   "config": "cascade",
-   "app": "NotesApp",
-   "env": {},
-   "input": "Sentence number 1 has a few words in it. Sentence number 2 has a few words in it. Sentence number 3 has a few words in it. Sentence number 4 has a few words in it. Sentence number 5 has a few words in it. Sentence number 6 has a few words in it. Sentence number 7 has a few words in it. Sentence number 8 has a few words in it. Sentence number 9 has a few words in it. Sentence number 10 has a few words in it. Sentence number 11 has a few words in it. Sentence number 12 has a few words in it. Sentence number 13 has a few words in it. Sentence number 14 has a few words in it. Sentence number 15 has a few words in it."
-  },
-  {
-   "id": "pipeline-031",
-   "config": "cascade",
-   "app": "TextEdit",
-   "env": {
-    "DICTATE_LONG_PARAGRAPH_MIN_WORDS": "x"
-   },
    "input": "Sentence number 1 has a few words in it. Sentence number 2 has a few words in it. Sentence number 3 has a few words in it. Sentence number 4 has a few words in it. Sentence number 5 has a few words in it. Sentence number 6 has a few words in it. Sentence number 7 has a few words in it. Sentence number 8 has a few words in it. Sentence number 9 has a few words in it. Sentence number 10 has a few words in it. Sentence number 11 has a few words in it. Sentence number 12 has a few words in it. Sentence number 13 has a few words in it. Sentence number 14 has a few words in it. Sentence number 15 has a few words in it."
   },
   {
    "id": "pipeline-032",
    "config": "cascade",
-   "app": "Ghostty",
-   "env": {},
-   "input": "open ai with api and kind regards"
-  },
-  {
-   "id": "pipeline-033",
-   "config": "cascade",
-   "app": "GHOSTTY",
-   "env": {},
-   "input": "open ai with api and kind regards"
-  },
-  {
-   "id": "pipeline-034",
-   "config": "cascade",
-   "app": "wezterm-gui",
-   "env": {},
-   "input": "open ai with api and kind regards"
-  },
-  {
-   "id": "pipeline-035",
-   "config": "cascade",
-   "app": "Code.app",
-   "env": {},
-   "input": "open ai with api and kind regards"
-  },
-  {
-   "id": "pipeline-036",
-   "config": "cascade",
-   "app": "CodeXapp",
-   "env": {},
-   "input": "open ai with api and kind regards"
-  },
-  {
-   "id": "pipeline-037",
-   "config": "cascade",
-   "app": "Spaced",
-   "env": {},
-   "input": "open ai with api and kind regards"
-  },
-  {
-   "id": "pipeline-038",
-   "config": "cascade",
-   "app": "  Spaced  ",
-   "env": {},
-   "input": "open ai with api and kind regards"
-  },
-  {
-   "id": "pipeline-039",
-   "config": "cascade",
-   "app": "*Star",
-   "env": {},
-   "input": "open ai with api and kind regards"
-  },
-  {
-   "id": "pipeline-040",
-   "config": "cascade",
-   "app": "Terminal",
-   "env": {},
-   "input": "open ai with api and kind regards"
-  },
-  {
-   "id": "pipeline-041",
-   "config": "cascade",
-   "app": "Mail",
-   "env": {},
-   "input": "open ai with api and kind regards"
-  },
-  {
-   "id": "pipeline-042",
-   "config": "cascade",
-   "app": "Out$look",
-   "env": {},
-   "input": "open ai with api and kind regards"
-  },
-  {
-   "id": "pipeline-043",
-   "config": "cascade",
-   "app": "^Caret",
-   "env": {},
-   "input": "open ai with api and kind regards"
-  },
-  {
-   "id": "pipeline-044",
-   "config": "cascade",
-   "app": "Notes",
-   "env": {},
-   "input": "open ai with api and kind regards"
-  },
-  {
-   "id": "pipeline-045",
-   "config": "cascade",
-   "app": "Notes*",
-   "env": {},
-   "input": "open ai with api and kind regards"
-  },
-  {
-   "id": "pipeline-046",
-   "config": "cascade",
-   "app": "NotesNotes",
-   "env": {},
-   "input": "open ai with api and kind regards"
-  },
-  {
-   "id": "pipeline-047",
-   "config": "cascade",
-   "app": "Note",
-   "env": {},
-   "input": "open ai with api and kind regards"
-  },
-  {
-   "id": "pipeline-048",
-   "config": "cascade",
-   "app": "WhatsApp",
-   "env": {},
-   "input": "open ai with api and kind regards"
-  },
-  {
-   "id": "pipeline-049",
-   "config": "cascade",
-   "app": "Whats.pp",
-   "env": {},
-   "input": "open ai with api and kind regards"
-  },
-  {
-   "id": "pipeline-050",
-   "config": "cascade",
-   "app": "Slack",
-   "env": {},
-   "input": "open ai with api and kind regards"
-  },
-  {
-   "id": "pipeline-051",
-   "config": "cascade",
-   "app": "Sl\\ack",
-   "env": {},
-   "input": "open ai with api and kind regards"
-  },
-  {
-   "id": "pipeline-052",
-   "config": "cascade",
-   "app": "Slack\\",
-   "env": {},
-   "input": "open ai with api and kind regards"
-  },
-  {
-   "id": "pipeline-053",
-   "config": "cascade",
-   "app": "br[ack",
-   "env": {},
-   "input": "open ai with api and kind regards"
-  },
-  {
-   "id": "pipeline-054",
-   "config": "cascade",
-   "app": "Café App",
-   "env": {},
-   "input": "open ai with api and kind regards"
-  },
-  {
-   "id": "pipeline-055",
-   "config": "cascade",
-   "app": "CAFÉ APP",
-   "env": {},
-   "input": "open ai with api and kind regards"
-  },
-  {
-   "id": "pipeline-056",
-   "config": "cascade",
-   "app": "Messages",
-   "env": {},
-   "input": "open ai with api and kind regards"
-  },
-  {
-   "id": "pipeline-057",
-   "config": "cascade",
-   "app": ".*",
    "env": {},
    "input": "open ai with api and kind regards"
   },
   {
    "id": "pipeline-059",
    "config": "cascade",
-   "app": "Ghostty",
    "env": {},
    "input": "open ai teh color"
   },
   {
-   "id": "pipeline-060",
-   "config": "cascade",
-   "app": "Ghostty",
-   "env": {},
-   "input": "open ai teh color",
-   "current_mode": "auto"
-  },
-  {
-   "id": "pipeline-061",
-   "config": "cascade",
-   "app": "Ghostty",
-   "env": {},
-   "input": "open ai teh color",
-   "current_mode": ""
-  },
-  {
-   "id": "pipeline-062",
-   "config": "cascade",
-   "app": "Ghostty",
-   "env": {},
-   "input": "open ai teh color",
-   "current_mode": "  email  \n"
-  },
-  {
-   "id": "pipeline-063",
-   "config": "cascade",
-   "app": "Ghostty",
-   "env": {},
-   "input": "open ai teh color",
-   "current_mode": "tmuxonly\n"
-  },
-  {
-   "id": "pipeline-064",
-   "config": "cascade",
-   "app": "Ghostty",
-   "env": {},
-   "input": "open ai teh color",
-   "current_mode": "code\r\n"
-  },
-  {
-   "id": "pipeline-065",
-   "config": "cascade",
-   "app": "Ghostty",
-   "env": {},
-   "input": "open ai teh color",
-   "current_mode": "missing\n"
-  },
-  {
-   "id": "pipeline-066",
-   "config": "cascade",
-   "app": "Ghostty",
-   "env": {},
-   "input": "open ai teh color",
-   "current_mode": "long"
-  },
-  {
-   "id": "pipeline-067",
-   "config": "cascade",
-   "app": "Ghostty",
-   "env": {},
-   "input": "open ai teh color",
-   "current_mode": "Base"
-  },
-  {
-   "id": "pipeline-068",
-   "config": "cascade",
-   "app": "Ghostty",
-   "env": {},
-   "input": "open ai teh color",
-   "current_mode": false
-  },
-  {
-   "id": "pipeline-069",
-   "config": "fixed",
-   "app": "ZetaApp",
-   "env": {},
-   "input": "alpha color text"
-  },
-  {
-   "id": "pipeline-070",
-   "config": "fixed",
-   "app": "BetaApp",
-   "env": {},
-   "input": "alpha color text"
-  },
-  {
-   "id": "pipeline-071",
-   "config": "fixed",
-   "app": "Ghostty",
-   "env": {},
-   "input": "alpha color text"
-  },
-  {
-   "id": "pipeline-072",
-   "config": "fixed",
-   "app": "Other",
-   "env": {},
-   "input": "alpha color text"
-  },
-  {
-   "id": "pipeline-073",
-   "config": "fixed",
-   "app": "ZetaApp",
-   "env": {},
-   "input": "alpha color text",
-   "current_mode": "Zeta"
-  },
-  {
-   "id": "pipeline-074",
-   "config": "fixed",
-   "app": "BetaApp",
-   "env": {},
-   "input": "alpha color text",
-   "current_mode": "Zeta"
-  },
-  {
-   "id": "pipeline-075",
-   "config": "fixed",
-   "app": "Ghostty",
-   "env": {},
-   "input": "alpha color text",
-   "current_mode": "Zeta"
-  },
-  {
-   "id": "pipeline-076",
-   "config": "fixed",
-   "app": "Other",
-   "env": {},
-   "input": "alpha color text",
-   "current_mode": "Zeta"
-  },
-  {
-   "id": "pipeline-077",
-   "config": "fixed",
-   "app": "ZetaApp",
-   "env": {},
-   "input": "alpha color text",
-   "current_mode": "missing"
-  },
-  {
-   "id": "pipeline-078",
-   "config": "fixed",
-   "app": "BetaApp",
-   "env": {},
-   "input": "alpha color text",
-   "current_mode": "missing"
-  },
-  {
-   "id": "pipeline-079",
-   "config": "fixed",
-   "app": "Ghostty",
-   "env": {},
-   "input": "alpha color text",
-   "current_mode": "missing"
-  },
-  {
-   "id": "pipeline-080",
-   "config": "fixed",
-   "app": "Other",
-   "env": {},
-   "input": "alpha color text",
-   "current_mode": "missing"
-  },
-  {
-   "id": "pipeline-081",
-   "config": "fixed",
-   "app": "ZetaApp",
-   "env": {},
-   "input": "alpha color text",
-   "current_mode": ""
-  },
-  {
-   "id": "pipeline-082",
-   "config": "fixed",
-   "app": "BetaApp",
-   "env": {},
-   "input": "alpha color text",
-   "current_mode": ""
-  },
-  {
-   "id": "pipeline-083",
-   "config": "fixed",
-   "app": "Ghostty",
-   "env": {},
-   "input": "alpha color text",
-   "current_mode": ""
-  },
-  {
-   "id": "pipeline-084",
-   "config": "fixed",
-   "app": "Other",
-   "env": {},
-   "input": "alpha color text",
-   "current_mode": ""
-  },
-  {
-   "id": "pipeline-085",
-   "config": "fixed",
-   "app": "ZetaApp",
-   "env": {},
-   "input": "alpha color text",
-   "current_mode": "code"
-  },
-  {
-   "id": "pipeline-086",
-   "config": "fixed",
-   "app": "BetaApp",
-   "env": {},
-   "input": "alpha color text",
-   "current_mode": "code"
-  },
-  {
-   "id": "pipeline-087",
-   "config": "fixed",
-   "app": "Ghostty",
-   "env": {},
-   "input": "alpha color text",
-   "current_mode": "code"
-  },
-  {
-   "id": "pipeline-088",
-   "config": "fixed",
-   "app": "Other",
-   "env": {},
-   "input": "alpha color text",
-   "current_mode": "code"
-  },
-  {
-   "id": "pipeline-089",
-   "config": "fixed",
-   "app": "ZetaApp",
-   "env": {},
-   "input": "alpha color text",
-   "current_mode": "beta"
-  },
-  {
-   "id": "pipeline-090",
-   "config": "fixed",
-   "app": "BetaApp",
-   "env": {},
-   "input": "alpha color text",
-   "current_mode": "beta"
-  },
-  {
-   "id": "pipeline-091",
-   "config": "fixed",
-   "app": "Ghostty",
-   "env": {},
-   "input": "alpha color text",
-   "current_mode": "beta"
-  },
-  {
-   "id": "pipeline-092",
-   "config": "fixed",
-   "app": "Other",
-   "env": {},
-   "input": "alpha color text",
-   "current_mode": "beta"
-  },
-  {
-   "id": "pipeline-093",
-   "config": "fixed",
-   "app": "ZetaApp",
-   "env": {},
-   "input": "alpha color text",
-   "current_mode": "auto"
-  },
-  {
-   "id": "pipeline-094",
-   "config": "fixed",
-   "app": "BetaApp",
-   "env": {},
-   "input": "alpha color text",
-   "current_mode": "auto"
-  },
-  {
-   "id": "pipeline-095",
-   "config": "fixed",
-   "app": "Ghostty",
-   "env": {},
-   "input": "alpha color text",
-   "current_mode": "auto"
-  },
-  {
-   "id": "pipeline-096",
-   "config": "fixed",
-   "app": "Other",
-   "env": {},
-   "input": "alpha color text",
-   "current_mode": "auto"
-  },
-  {
-   "id": "pipeline-097",
-   "config": "fixed",
-   "app": "ZetaApp",
-   "env": {},
-   "input": "alpha color text",
-   "current_mode": ".hidden"
-  },
-  {
-   "id": "pipeline-098",
-   "config": "fixed",
-   "app": "BetaApp",
-   "env": {},
-   "input": "alpha color text",
-   "current_mode": ".hidden"
-  },
-  {
-   "id": "pipeline-099",
-   "config": "fixed",
-   "app": "Ghostty",
-   "env": {},
-   "input": "alpha color text",
-   "current_mode": ".hidden"
-  },
-  {
-   "id": "pipeline-100",
-   "config": "fixed",
-   "app": "Other",
-   "env": {},
-   "input": "alpha color text",
-   "current_mode": ".hidden"
-  },
-  {
-   "id": "pipeline-101",
-   "config": "fixed",
-   "app": "ZetaApp",
-   "env": {},
-   "input": "alpha color text",
-   "current_mode": false
-  },
-  {
-   "id": "pipeline-102",
-   "config": "fixed",
-   "app": "BetaApp",
-   "env": {},
-   "input": "alpha color text",
-   "current_mode": false
-  },
-  {
-   "id": "pipeline-103",
-   "config": "fixed",
-   "app": "Ghostty",
-   "env": {},
-   "input": "alpha color text",
-   "current_mode": false
-  },
-  {
-   "id": "pipeline-104",
-   "config": "fixed",
-   "app": "Other",
-   "env": {},
-   "input": "alpha color text",
-   "current_mode": false
-  },
-  {
    "id": "pipeline-105",
    "config": "empty",
-   "app": "Ghostty",
    "env": {},
-   "input": "anything open ai"
-  },
-  {
-   "id": "pipeline-106",
-   "config": "empty",
-   "app": "Ghostty",
-   "env": {
-    "DICTATE_FORCE_MODE": "code"
-   },
    "input": "anything open ai"
   },
   {
    "id": "pipeline-locale-utf8",
    "config": "repo",
-   "app": "Ghostty",
    "env": {
     "LC_ALL": "",
     "LANG": "en_US.UTF-8"
@@ -5657,7 +2744,6 @@
   {
    "id": "pipeline-locale-ctype",
    "config": "repo",
-   "app": "Ghostty",
    "env": {
     "LC_ALL": "",
     "LC_CTYPE": "en_US.UTF-8"
@@ -5667,7 +2753,6 @@
   {
    "id": "pipeline-locale-posix",
    "config": "repo",
-   "app": "Ghostty",
    "env": {
     "LC_ALL": "POSIX"
    },
@@ -5676,7 +2761,6 @@
   {
    "id": "pipeline-canonical-vocab",
    "config": "cascade",
-   "app": "Ghostty",
    "env": {},
    "input": "q̣́ text"
   }

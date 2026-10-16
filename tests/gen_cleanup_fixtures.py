@@ -41,8 +41,7 @@ while IFS=$'\x1f' read -r idx fn a1 a2 _end; do
     fillers) dictate_lib_clean_fillers <"$in" >"$out" ;;
     repeats) dictate_lib_clean_repeats "$a1" <"$in" >"$out" ;;
     british) dictate_lib_normalize_british_spelling "$a1" <"$in" >"$out" ;;
-    paragraphs) dictate_lib_auto_paragraphs "$a1" "$a2" <"$in" >"$out" ;;
-    vocab) dictate_lib_apply_vocab_corrections "$a1" "$a2" <"$in" >"$out" ;;
+    vocab) dictate_lib_apply_vocab_corrections "$a1" <"$in" >"$out" ;;
     *) echo "unknown stage: $fn" >&2; exit 1 ;;
   esac
 done <"$work/manifest"
@@ -96,11 +95,8 @@ def fuzz_cases(rng):
         add("repeats", soup(rng), rng.choice(["0", "1", "2"]))
     for _ in range(60):
         add("british", soup(rng), rng.choice(["1", "1", "0"]))
-    for _ in range(60):
-        add("paragraphs", long_soup(rng), rng.choice(["code", "long"]), rng.choice(["10", "30", "55", "70"]))
     for _ in range(100):
-        cfg, mode = rng.choice([("cascade", "code"), ("cascade", "email"), ("cascade", ""), ("repo", "code"), ("repo", "base")])
-        add("vocab", soup(rng), mode, cfg)
+        add("vocab", soup(rng), rng.choice(["cascade", "repo"]))
 
     words = ["so", "the", "plan", "is", "to", "ship", "it", "today", "tomorrow", "we", "can", "it's", "API",
              "test", "again", "and", "then", "done", "3", "v2", "ok"]
@@ -119,13 +115,12 @@ def fuzz_cases(rng):
             tail_text = rng.choice(["", "  ", "\n", "\u00a0", tail_text + "\n" + tail_text])
         add("merge", full, tail_text)
 
-    apps = ["Ghostty", "WezTerm", "Mail", "Notes", "Slack", "Messages", "TextEdit", "Other"]
     envs = [{}, {"DICTATE_CLEAN": "1"}, {"DICTATE_CLEAN": "1", "DICTATE_REPEATS_LEVEL": "2"},
             {"DICTATE_BRITISH_SPELLING": "0"}, {"DICTATE_VOCAB_CLEAN": "0"}]
     for i in range(30):
         text = long_soup(rng) if rng.random() < 0.3 else soup(rng)
         pipeline.append({"id": f"fuzz-pipeline-{i + 1:03d}", "config": rng.choice(["repo", "cascade"]),
-                         "app": rng.choice(apps), "env": rng.choice(envs), "input": text})
+                         "env": rng.choice(envs), "input": text})
     return stage, pipeline
 
 
@@ -133,16 +128,9 @@ def config_path(name):
     return os.path.join(ROOT, "config") if name == "repo" else os.path.join(FIXTURES, "configs", name)
 
 
-def prepare_config(name, current_mode, dest):
-    """Scratch copy of a fixture config dir, with the case's current-mode."""
+def prepare_config(name, dest):
+    """Scratch copy of a fixture config dir."""
     shutil.copytree(config_path(name), dest, symlinks=True)
-    mode_file = os.path.join(dest, "current-mode")
-    if current_mode is False:
-        if os.path.exists(mode_file):
-            os.remove(mode_file)
-    elif current_mode is not None:
-        with open(mode_file, "w", encoding="utf-8", newline="") as f:
-            f.write(current_mode)
 
 
 def merge_script():
@@ -182,7 +170,7 @@ def run_stage_cases(cases, work):
                 f.write(case["input"])
             args = list(case["args"]) + ["", ""]
             if case["fn"] == "vocab":
-                args[1] = config_path(args[1])
+                args[0] = config_path(args[0])
             manifest.write("\x1f".join([str(idx), case["fn"], args[0], args[1], "END"]) + "\n")
     env = {"PATH": "/usr/bin:/bin", "LC_ALL": "C", "HOME": work}
     subprocess.run(["bash", "-c", STAGE_RUNNER, "runner", ROOT, work], env=env, check=True)
@@ -200,7 +188,7 @@ def run_pipeline_cases(cases, work):
         home = os.path.join(case_dir, "home")
         cfg = os.path.join(case_dir, "config")
         os.makedirs(home)
-        prepare_config(case["config"], case.get("current_mode"), cfg)
+        prepare_config(case["config"], cfg)
         env = {
             "HOME": home,
             "PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
@@ -212,7 +200,7 @@ def run_pipeline_cases(cases, work):
         }
         env.update(case["env"])
         proc = subprocess.run(
-            [os.path.join(ROOT, "bin", "tmux-whisper"), "inline", "cleanup", "--app", case["app"], "--json"],
+            [os.path.join(ROOT, "bin", "tmux-whisper"), "inline", "cleanup", "--json"],
             input=case["input"].encode("utf-8"), env=env, capture_output=True)
         if proc.returncode != 0:
             sys.exit(f"{case['id']}: inline cleanup failed ({proc.returncode}): {proc.stderr.decode(errors='replace')}")
@@ -222,7 +210,7 @@ def run_pipeline_cases(cases, work):
             sys.exit(f"{case['id']}: unexpected config_dir {settings['config_dir']!r}")
         settings["config_dir"] = "@config"
         results.append(dict(case, settings=settings, status=out["status"], raw_text=out["raw_text"],
-                            text=out["text"], mode=out["mode"]))
+                            text=out["text"]))
     return results
 
 

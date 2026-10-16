@@ -27,9 +27,6 @@ app_cleanup_settings_json() {
   APPCLEAN_REPEATS_LEVEL="${DICTATE_REPEATS_LEVEL:-${CFG_CLEAN_REPEATS_LEVEL:-1}}" \
   APPCLEAN_VOCAB_CLEAN="${DICTATE_VOCAB_CLEAN:-1}" \
   APPCLEAN_BRITISH_SPELLING="${DICTATE_BRITISH_SPELLING:-1}" \
-  APPCLEAN_CODE_PARAGRAPH_MIN_WORDS="${DICTATE_CODE_PARAGRAPH_MIN_WORDS:-70}" \
-  APPCLEAN_LONG_PARAGRAPH_MIN_WORDS="${DICTATE_LONG_PARAGRAPH_MIN_WORDS:-55}" \
-  APPCLEAN_FORCE_MODE="${DICTATE_FORCE_MODE:-}" \
   APPCLEAN_LOCALE_CTYPE="${LC_ALL:-${LC_CTYPE:-${LANG:-}}}" \
   APPCLEAN_LOCALE_COLLATE="${LC_ALL:-${LC_COLLATE:-${LANG:-}}}" \
   APPCLEAN_CHILD_LC_ALL="$(printenv LC_ALL || true)" \
@@ -59,10 +56,7 @@ print(json.dumps({
     "repeats_level": e["APPCLEAN_REPEATS_LEVEL"],
     "vocab_clean": e["APPCLEAN_VOCAB_CLEAN"],
     "british_spelling": e["APPCLEAN_BRITISH_SPELLING"],
-    "code_paragraph_min_words": e["APPCLEAN_CODE_PARAGRAPH_MIN_WORDS"],
-    "long_paragraph_min_words": e["APPCLEAN_LONG_PARAGRAPH_MIN_WORDS"],
-    "force_mode": e["APPCLEAN_FORCE_MODE"] or None,
-    # Mode detection (grep -i, sed, glob order) and the blank check depend on
+    # The blank check and the text filters' character classes depend on
     # these; the native pipeline only reproduces the C locale.
     "locale_ctype": effective_locale("CTYPE"),
     "locale_collate": effective_locale("COLLATE"),
@@ -190,7 +184,7 @@ PYEOF
 # --defer-usage (what Khuluma always passes): don't count the take in the
 # usage ledger; the caller records it with `inline record` (usage_only) once
 # it has actually delivered the text.
-# Prints one JSON object: {ok, status, text, raw_text, mode, message,
+# Prints one JSON object: {ok, status, text, raw_text, message,
 # delivery: {...}, timings: {...}}. Human progress goes to the log, never
 # stdout. The caller owns the WAV file.
 inline_process_json() {
@@ -227,7 +221,6 @@ inline_process_json() {
   INLINE_DEFER_USAGE="$defer_usage"
   INLINE_EXTERNAL_TEXT=""
   INLINE_EXTERNAL_RAW_TEXT=""
-  INLINE_EXTERNAL_MODE=""
   INLINE_EXTERNAL_TIMINGS=""
   process_inline_recording "$work_wav" "$app" "$(current_transcribe_model_label)" "$record_ms" \
     "$startup_ms" "app:avaudioengine" "$started_at_ms" >"$log" 2>&1 || rc=$?
@@ -236,7 +229,6 @@ inline_process_json() {
   APPPROC_RC="$rc" \
   APPPROC_TEXT="$INLINE_EXTERNAL_TEXT" \
   APPPROC_RAW="$INLINE_EXTERNAL_RAW_TEXT" \
-  APPPROC_MODE="$INLINE_EXTERNAL_MODE" \
   APPPROC_TIMINGS="$INLINE_EXTERNAL_TIMINGS" \
   APPPROC_LOG="$log" \
   APPPROC_AUTOSEND="$APP_AUTOSEND" \
@@ -268,7 +260,6 @@ print(json.dumps({
     "status": status,
     "text": text if ok else "",
     "raw_text": e.get("APPPROC_RAW", "") if ok else "",
-    "mode": e.get("APPPROC_MODE") or None,
     "message": message,
     "delivery": {
         "autosend": e.get("APPPROC_AUTOSEND") == "1",
@@ -285,40 +276,29 @@ PYEOF
   return 0
 }
 
-# tmux-whisper inline cleanup [--app NAME] --json   (transcript on stdin)
+# tmux-whisper inline cleanup --json   (transcript on stdin)
 # Runs only the deterministic text cleanup of an inline take (artefacts,
-# fillers/repeats, mode, vocab, paragraphs, British spelling), never the LLM.
+# fillers/repeats, vocab, British spelling).
 # Used to generate Khuluma's TextPipeline parity fixtures
-# (tests/gen-cleanup-fixtures.sh). Prints {ok, status, raw_text, text, mode, cleanup}.
+# (tests/gen-cleanup-fixtures.sh). Prints {ok, status, raw_text, text, cleanup}.
 inline_cleanup_json() {
-  local app=""
-  while [[ $# -gt 0 ]]; do
-    case "$1" in
-      --json) ;;
-      --app) [[ $# -ge 2 ]] || die "inline cleanup: --app requires a value"; app="$2"; shift ;;
-      *) die "usage: tmux-whisper inline cleanup [--app NAME] --json < transcript" ;;
-    esac
-    shift
-  done
+  [[ "${1:-}" == "--json" && $# -eq 1 ]] || die "usage: tmux-whisper inline cleanup --json < transcript"
   need python3
 
-  local raw txt="" final="" mode="" status="no_speech"
+  local raw txt="" final="" status="no_speech"
   # $(...) drops trailing newlines, like the transcription capture does.
   raw="$(cat)"
   cleanup_raw_transcript "$raw"
   txt="$CLEANUP_TEXT"
   if [[ -n "${txt//[[:space:]]/}" ]]; then
     status="ok"
-    resolve_inline_mode "$app"
-    mode="$RESOLVED_MODE"
-    finish_transcript_text "$txt" "$mode"
+    finish_transcript_text "$txt"
     final="$CLEANUP_TEXT"
   fi
 
   APPCLEANUP_STATUS="$status" \
   APPCLEANUP_RAW="$txt" \
   APPCLEANUP_TEXT="$final" \
-  APPCLEANUP_MODE="$mode" \
   APPCLEANUP_SETTINGS="$(app_cleanup_settings_json)" \
   python3 - <<'PYEOF'
 import json, os
@@ -329,7 +309,6 @@ print(json.dumps({
     "status": e["APPCLEANUP_STATUS"],
     "raw_text": e["APPCLEANUP_RAW"] if ok else "",
     "text": e["APPCLEANUP_TEXT"] if ok else "",
-    "mode": e["APPCLEANUP_MODE"] if ok else None,
     "cleanup": json.loads(e["APPCLEANUP_SETTINGS"]),
 }))
 PYEOF
@@ -341,7 +320,7 @@ PYEOF
 # CLI's own writers so formats and locking stay single-sourced. Usage is only
 # counted for a delivered take; status "recovered" (a take saved at quit and
 # transcribed without pasting) gets history but no usage. Payload: take_id, status, delivered,
-# raw_text, text, mode, app, record_ms, transcribe_ms, clean_ms, paste_ms,
+# raw_text, text, app, record_ms, transcribe_ms, clean_ms, paste_ms,
 # total_ms, startup_ms, started_at_ms, delivered_at_ms, capture_wav_ms,
 # capture_wav_bytes, startup_source, and wav_path (the padded WAV, only with
 # [debug] keep_logs; this command takes ownership and removes it).
@@ -382,7 +361,6 @@ out = {
     "REC_DELIVERED": "1" if p.get("delivered") is True else "0",
     "REC_RAW": text("raw_text"),
     "REC_TEXT": text("text"),
-    "REC_MODE": text("mode"),
     "REC_APP": text("app"),
     "REC_STARTUP_SOURCE": text("startup_source") or "app:native",
     "REC_WAV_PATH": text("wav_path"),
@@ -416,10 +394,9 @@ print(json.dumps({"ok": True, "take_id": os.environ["APPREC_TAKE_ID"], "duplicat
     return 0
   fi
 
-  local model_id mode record_ms transcribe_ms clean_ms paste_ms total_ms usage_recorded="0" history_saved="0"
+  local model_id record_ms transcribe_ms clean_ms paste_ms total_ms usage_recorded="0" history_saved="0"
   # The app's snapshot of the model label; resolve it now only for older apps.
   model_id="${REC_MODEL:-$(current_transcribe_model_label)}"
-  mode="${REC_MODE:-none}"
   record_ms="${REC_RECORD_MS:-0}"
   transcribe_ms="${REC_TRANSCRIBE_MS:-0}"
   clean_ms="${REC_CLEAN_MS:-0}"
@@ -470,7 +447,7 @@ print(json.dumps({"ok": True, "take_id": os.environ["APPREC_TAKE_ID"], "duplicat
   fi
 
   if [[ "$bench_done" != "1" ]]; then
-    append_bench_entry "inline" "$REC_STATUS" "$model_id" "$mode" "0" "${#REC_RAW}" "${#REC_TEXT}" \
+    append_bench_entry "inline" "$REC_STATUS" "$model_id" "0" "${#REC_RAW}" "${#REC_TEXT}" \
       "$record_ms" "$transcribe_ms" "$clean_ms" "0" "$paste_ms" "$total_ms" \
       "${REC_STARTUP_MS:-0}" "0" "0" "0" "$REC_STARTUP_SOURCE"
 
@@ -496,7 +473,7 @@ print(json.dumps({"ok": True, "take_id": os.environ["APPREC_TAKE_ID"], "duplicat
     [[ "$needs_history" == "1" ]] && history_saved="1"
   else
     local history_app="${REC_APP:-current}"
-    if save_history "$REC_RAW" "$REC_TEXT" "$mode" "$history_app" "$record_ms" "$transcribe_ms" "$clean_ms" "$paste_ms" "$total_ms"; then
+    if save_history "$REC_RAW" "$REC_TEXT" "$history_app" "$record_ms" "$transcribe_ms" "$clean_ms" "$paste_ms" "$total_ms"; then
       history_saved="1"
       history_done="1"
       inline_record_mark "$history_ledger"

@@ -38,76 +38,6 @@ collect_set_env_overrides() {
   done
 }
 
-doctor_mode_count_for_flow() {
-  local flow="${1:-}"
-  local count="0"
-  while IFS= read -r _mode_name; do
-    [[ -n "$_mode_name" ]] || continue
-    count=$((count + 1))
-  done < <(list_modes "$flow")
-  printf '%s\n' "$count"
-}
-
-doctor_mode_seed_for_flow() {
-  local flow="${1:-}"
-  case "$flow" in
-    inline)
-      if mode_exists "base"; then
-        echo "base"
-        return 0
-      fi
-      if mode_exists "code"; then
-        echo "code"
-        return 0
-      fi
-      ;;
-  esac
-
-  local first_mode=""
-  first_mode="$(list_modes "" | head -n 1)"
-  [[ -n "$first_mode" ]] && printf '%s\n' "$first_mode"
-}
-
-doctor_mode_flow_fix_suggestion() {
-  local mode
-  mode="$(canonical_mode_name "${1:-}")"
-  [[ -n "$mode" ]] || return 1
-  printf "Let Khuluma use '%s': tmux-whisper mode flows %s inline\n" "$mode" "$mode"
-}
-
-doctor_mode_inventory_tsv() {
-  local mode_name mode_label
-  local flows_file flows_summary flows_explicit invalid_entries
-  local inline_enabled apps_file apps_count apps_ignored
-  local sep=$'\x1f'
-
-  while IFS= read -r mode_name; do
-    [[ -n "$mode_name" ]] || continue
-    mode_label="$(mode_display_name "$mode_name")"
-
-    flows_file="$(mode_flows_file_path "$mode_name")"
-    flows_summary="$(mode_flow_summary "$mode_name")"
-    flows_explicit="0"
-    [[ -f "$flows_file" ]] && flows_explicit="1"
-    invalid_entries="$(mode_invalid_flow_entries "$mode_name" | paste -sd ',' - 2>/dev/null || true)"
-
-    inline_enabled="0"
-    mode_allows_flow "$mode_name" "inline" && inline_enabled="1"
-
-    apps_file="$(mode_apps_file_path "$mode_name")"
-    apps_count="$(mode_app_entry_count "$mode_name")"
-    apps_ignored="0"
-    if [[ "$apps_count" =~ ^[0-9]+$ ]] && (( apps_count > 0 )) && [[ "$inline_enabled" != "1" ]]; then
-      apps_ignored="1"
-    fi
-
-    printf '%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n' \
-      "$mode_name" "$sep" "$mode_label" "$sep" \
-      "$flows_summary" "$sep" "$inline_enabled" "$sep" "$flows_file" "$sep" "$flows_explicit" "$sep" \
-      "${invalid_entries:-}" "$sep" "$apps_file" "$sep" "$apps_count" "$sep" "$apps_ignored"
-  done < <(list_modes "")
-}
-
 doctor_json() {
   load_backend_runtime_cache >/dev/null 2>&1 || true
 
@@ -217,95 +147,16 @@ doctor_json() {
     doctor_json_add_suggestion "Move or copy the Parakeet model into $swift_models_dir so tmux-whisper does not depend on Spokenly/FluidAudio being installed"
   fi
 
-  local mode_inventory_lines=""
-  local mode_total_count inline_mode_count any_modes_present
-  local mode_line
-  mode_inventory_lines="$(doctor_mode_inventory_tsv)"
-  mode_total_count="$(doctor_mode_count_for_flow "")"
-  inline_mode_count="$(doctor_mode_count_for_flow "inline")"
-  any_modes_present="0"
-  [[ -n "${mode_inventory_lines//[[:space:]]/}" ]] && any_modes_present="1"
-
-  while IFS= read -r mode_line; do
-    [[ -n "$mode_line" ]] || continue
-    local inv_mode inv_label inv_flows_summary
-    local inv_inline_enabled inv_flows_path inv_flows_explicit inv_invalid_entries
-    local inv_apps_path inv_apps_count inv_apps_ignored
-    IFS=$'\x1f' read -r inv_mode inv_label inv_flows_summary \
-      inv_inline_enabled inv_flows_path inv_flows_explicit inv_invalid_entries \
-      inv_apps_path inv_apps_count inv_apps_ignored <<<"$mode_line"
-
-    if [[ -n "$inv_invalid_entries" ]]; then
-      warnings=$((warnings + 1))
-      doctor_json_add_suggestion "Review flow filter for '$inv_mode': tmux-whisper mode flows $inv_mode"
-      if [[ "$inv_inline_enabled" != "1" && "$inv_apps_count" =~ ^[0-9]+$ && "$inv_apps_count" -gt 0 ]]; then
-        doctor_json_add_suggestion "$(doctor_mode_flow_fix_suggestion "$inv_mode" "inline")"
-      fi
-    fi
-
-    if [[ "$inv_apps_ignored" == "1" ]]; then
-      warnings=$((warnings + 1))
-      doctor_json_add_suggestion "$(doctor_mode_flow_fix_suggestion "$inv_mode" "inline")"
-    fi
-  done <<<"$mode_inventory_lines"
-
-  if [[ "$any_modes_present" != "1" ]]; then
-    warnings=$((warnings + 1))
-    doctor_json_add_suggestion "Repair mode defaults: ./install.sh --force"
-  elif [[ "$inline_mode_count" -eq 0 ]]; then
-    warnings=$((warnings + 1))
-    local inline_seed_mode=""
-    inline_seed_mode="$(doctor_mode_seed_for_flow "inline")"
-    if [[ -n "$inline_seed_mode" ]]; then
-      doctor_json_add_suggestion "$(doctor_mode_flow_fix_suggestion "$inline_seed_mode" "inline")"
-    else
-      doctor_json_add_suggestion "Repair mode defaults: ./install.sh --force"
-    fi
+  local vocab_path vocab_present="0" vocab_rules="0" legacy_modes="0"
+  vocab_path="$DICTATE_CONFIG_DIR/vocab"
+  if [[ -f "$vocab_path" ]]; then
+    vocab_present="1"
+    vocab_rules="$(vocab_rule_count "$vocab_path")"
   fi
-
-  local inline_mode_requested inline_mode_effective inline_mode_source inline_mode_status
-  local inline_mode_requested_exists="0" inline_mode_flow_allowed="0"
-  if [[ -f "$MODE_FILE" ]]; then
-    inline_mode_requested="$(head -n 1 "$MODE_FILE" 2>/dev/null | tr -d '\r' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
-  else
-    inline_mode_requested="auto"
-  fi
-  if [[ -z "$inline_mode_requested" ]]; then
-    inline_mode_effective="$(default_inline_mode)"
-    inline_mode_source="fixed"
-    inline_mode_status="invalid_empty"
+  if legacy_modes_present; then
+    legacy_modes="1"
     warnings=$((warnings + 1))
-    doctor_json_add_suggestion "Set inline mode policy: tmux-whisper mode auto"
-  elif [[ "$inline_mode_requested" == "auto" ]]; then
-    inline_mode_effective="$(get_current_mode 2>/dev/null || true)"
-    [[ -n "$inline_mode_effective" ]] || inline_mode_effective="$(default_inline_mode)"
-    inline_mode_source="auto"
-    if [[ "$inline_mode_count" -gt 0 ]]; then
-      inline_mode_status="ok"
-    else
-      inline_mode_status="no_inline_modes"
-    fi
-  elif mode_exists "$inline_mode_requested"; then
-    inline_mode_effective="$(canonical_mode_name "$inline_mode_requested")"
-    inline_mode_source="fixed"
-    inline_mode_requested_exists="1"
-    if mode_allows_flow "$inline_mode_effective" "inline"; then
-      inline_mode_status="ok"
-      inline_mode_flow_allowed="1"
-    else
-      inline_mode_effective="$(default_inline_mode)"
-      inline_mode_status="flow_disabled"
-      warnings=$((warnings + 1))
-      doctor_json_add_suggestion "Set inline mode policy: tmux-whisper mode auto"
-      doctor_json_add_suggestion "$(doctor_mode_flow_fix_suggestion "$inline_mode_requested" "inline")"
-    fi
-  else
-    inline_mode_effective="$(default_inline_mode)"
-    inline_mode_source="fixed"
-    inline_mode_status="invalid"
-    warnings=$((warnings + 1))
-    doctor_json_add_suggestion "Set inline mode policy: tmux-whisper mode auto"
-    doctor_json_add_suggestion "Or create the missing mode: tmux-whisper mode create \"$inline_mode_requested\""
+    doctor_json_add_suggestion "Fold the old modes/*/vocab into vocab: tmux-whisper migrate-modes"
   fi
 
   local proc_dir="${DICTATE_PROCESSING_DIR:-/tmp/dictate-processing}"
@@ -375,17 +226,10 @@ doctor_json() {
     JSON_PARAKEET_MODEL="$swift_model_path" \
     JSON_PARAKEET_MODEL_OK="$swift_model_ok" \
     JSON_PARAKEET_MODEL_VERSION="$swift_model_version" \
-    JSON_MODE_INLINE_REQUESTED="$inline_mode_requested" \
-    JSON_MODE_INLINE_EFFECTIVE="$inline_mode_effective" \
-    JSON_MODE_INLINE_DISPLAY="$(mode_display_name "$inline_mode_effective")" \
-    JSON_MODE_INLINE_SOURCE="$inline_mode_source" \
-    JSON_MODE_INLINE_STATUS="$inline_mode_status" \
-    JSON_MODE_INLINE_REQUESTED_EXISTS="$inline_mode_requested_exists" \
-    JSON_MODE_INLINE_FLOW_ALLOWED="$inline_mode_flow_allowed" \
-    JSON_MODE_INVENTORY="$mode_inventory_lines" \
-    JSON_MODE_TOTAL_COUNT="$mode_total_count" \
-    JSON_MODE_INLINE_COUNT="$inline_mode_count" \
-    JSON_ANY_MODES_PRESENT="$any_modes_present" \
+    JSON_VOCAB_PATH="$vocab_path" \
+    JSON_VOCAB_PRESENT="$vocab_present" \
+    JSON_VOCAB_RULES="$vocab_rules" \
+    JSON_LEGACY_MODES="$legacy_modes" \
     JSON_PROC_DIR="$proc_dir" \
     JSON_PROC_TOTAL="$proc_total" \
     JSON_PROC_LIVE="$proc_live" \
@@ -427,48 +271,6 @@ for line in s("JSON_DEPENDENCIES").splitlines():
         "path": path or None,
     }
 
-mode_inventory = []
-for line in s("JSON_MODE_INVENTORY").splitlines():
-    if not line:
-        continue
-    cols = line.split("\x1f")
-    cols += [""] * (10 - len(cols))
-    (
-        mode,
-        label,
-        flows_summary,
-        inline_enabled,
-        flows_path,
-        flows_explicit,
-        invalid_entries,
-        apps_path,
-        apps_count,
-        apps_ignored,
-    ) = cols[:10]
-    try:
-        parsed_apps_count = int(apps_count)
-    except Exception:
-        parsed_apps_count = 0
-    invalid_entry_list = [entry for entry in invalid_entries.split(",") if entry]
-    mode_inventory.append(
-        {
-            "mode": mode,
-            "label": label,
-            "flows": {
-                "summary": flows_summary,
-                "path": flows_path or None,
-                "explicit": flows_explicit == "1",
-                "inline_enabled": inline_enabled == "1",
-                "invalid_entries": invalid_entry_list,
-            },
-            "apps": {
-                "path": apps_path or None,
-                "count": parsed_apps_count,
-                "ignored": apps_ignored == "1",
-            },
-        }
-    )
-
 data = {
     "command": "doctor",
     "dependencies": dependencies,
@@ -495,22 +297,11 @@ data = {
             "version": maybe("JSON_PARAKEET_MODEL_VERSION"),
         },
     },
-    "mode_config": {
-        "available": {
-            "total": to_int("JSON_MODE_TOTAL_COUNT") or 0,
-            "inline_count": to_int("JSON_MODE_INLINE_COUNT") or 0,
-        },
-        "inline": {
-            "requested": maybe("JSON_MODE_INLINE_REQUESTED"),
-            "effective": maybe("JSON_MODE_INLINE_EFFECTIVE"),
-            "effective_display": maybe("JSON_MODE_INLINE_DISPLAY"),
-            "source": s("JSON_MODE_INLINE_SOURCE"),
-            "status": s("JSON_MODE_INLINE_STATUS"),
-            "requested_exists": to_bool_flag("JSON_MODE_INLINE_REQUESTED_EXISTS"),
-            "flow_allowed": to_bool_flag("JSON_MODE_INLINE_FLOW_ALLOWED"),
-        },
-        "modes_present": s("JSON_ANY_MODES_PRESENT") == "1",
-        "modes": mode_inventory,
+    "vocab": {
+        "path": s("JSON_VOCAB_PATH"),
+        "present": to_bool_flag("JSON_VOCAB_PRESENT"),
+        "rules": to_int("JSON_VOCAB_RULES") or 0,
+        "legacy_modes_present": to_bool_flag("JSON_LEGACY_MODES"),
     },
     "processing_markers": {
         "path": s("JSON_PROC_DIR"),
@@ -669,117 +460,17 @@ doctor() {
   fi
   echo ""
 
-  echo "Mode/config:"
-  local mode_inventory_lines="" mode_line=""
-  local mode_total_count inline_mode_count any_modes_present
-  mode_inventory_lines="$(doctor_mode_inventory_tsv)"
-  mode_total_count="$(doctor_mode_count_for_flow "")"
-  inline_mode_count="$(doctor_mode_count_for_flow "inline")"
-  any_modes_present="0"
-  [[ -n "${mode_inventory_lines//[[:space:]]/}" ]] && any_modes_present="1"
-
-  local inline_mode_requested inline_mode_effective inline_mode_source inline_mode_status
-  local inline_mode_requested_exists="0" inline_mode_flow_allowed="0"
-  if [[ -f "$MODE_FILE" ]]; then
-    inline_mode_requested="$(head -n 1 "$MODE_FILE" 2>/dev/null | tr -d '\r' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+  echo "Vocab:"
+  if [[ -f "$DICTATE_CONFIG_DIR/vocab" ]]; then
+    echo "  - vocab: $DICTATE_CONFIG_DIR/vocab ($(vocab_rule_count "$DICTATE_CONFIG_DIR/vocab") rules)"
   else
-    inline_mode_requested="auto"
+    echo "  - vocab: none yet (add with: tmux-whisper vocab add \"wrong::right\")"
   fi
-  if [[ -z "$inline_mode_requested" ]]; then
-    inline_mode_effective="$(default_inline_mode)"
-    inline_mode_source="fixed"
-    inline_mode_status="invalid_empty"
+  if legacy_modes_present; then
     warnings=$((warnings + 1))
-    echo "  - mode.current: <empty> (invalid, fallback=auto)"
-    add_suggestion "Set inline mode policy: tmux-whisper mode auto"
-  elif [[ "$inline_mode_requested" == "auto" ]]; then
-    inline_mode_effective="$(get_current_mode 2>/dev/null || true)"
-    [[ -n "$inline_mode_effective" ]] || inline_mode_effective="$(default_inline_mode)"
-    inline_mode_source="auto"
-    if [[ "$inline_mode_count" -gt 0 ]]; then
-      inline_mode_status="ok"
-      echo "  - mode.current: auto (app-detect, current=$(mode_display_name "$inline_mode_effective"))"
-    else
-      inline_mode_status="no_inline_modes"
-      echo "  - mode.current: auto (no inline-capable modes, fallback=$(mode_display_name "$inline_mode_effective"))"
-    fi
-  elif mode_exists "$inline_mode_requested"; then
-    inline_mode_requested_exists="1"
-    inline_mode_effective="$(canonical_mode_name "$inline_mode_requested")"
-    inline_mode_source="fixed"
-    if mode_allows_flow "$inline_mode_effective" "inline"; then
-      inline_mode_status="ok"
-      inline_mode_flow_allowed="1"
-      echo "  - mode.current: $(mode_display_name "$inline_mode_effective") (fixed)"
-    else
-      inline_mode_effective="$(default_inline_mode)"
-      inline_mode_status="flow_disabled"
-      warnings=$((warnings + 1))
-      echo "  - mode.current: $(mode_display_name "$inline_mode_requested") (fixed, inline disabled, fallback=$(mode_display_name "$inline_mode_effective"))"
-      add_suggestion "Set inline mode policy: tmux-whisper mode auto"
-      add_suggestion "$(doctor_mode_flow_fix_suggestion "$inline_mode_requested" "inline")"
-    fi
-  else
-    inline_mode_effective="$(default_inline_mode)"
-    inline_mode_source="fixed"
-    inline_mode_status="invalid"
-    warnings=$((warnings + 1))
-    echo "  - mode.current: $inline_mode_requested (invalid, fallback=auto)"
-    add_suggestion "Set inline mode policy: tmux-whisper mode auto"
-    add_suggestion "Or create the missing mode: tmux-whisper mode create \"$inline_mode_requested\""
+    echo "  - modes/: found but no longer read (modes were removed in v0.11)"
+    add_suggestion "Fold the old modes/*/vocab into vocab: tmux-whisper migrate-modes"
   fi
-
-  if [[ "$any_modes_present" != "1" ]]; then
-    warnings=$((warnings + 1))
-    echo "  - modes: none found in $DICTATE_CONFIG_DIR/modes"
-    add_suggestion "Repair mode defaults: ./install.sh --force"
-  else
-    echo "  - modes.total: $mode_total_count"
-    echo "  - modes.inline-capable: $inline_mode_count"
-    if [[ "$inline_mode_count" -eq 0 ]]; then
-      warnings=$((warnings + 1))
-      local inline_seed_mode=""
-      inline_seed_mode="$(doctor_mode_seed_for_flow "inline")"
-      if [[ -n "$inline_seed_mode" ]]; then
-        add_suggestion "$(doctor_mode_flow_fix_suggestion "$inline_seed_mode" "inline")"
-      else
-        add_suggestion "Repair mode defaults: ./install.sh --force"
-      fi
-    fi
-  fi
-
-  while IFS= read -r mode_line; do
-    [[ -n "$mode_line" ]] || continue
-    local inv_mode inv_label inv_flows_summary
-    local inv_inline_enabled inv_flows_path inv_flows_explicit inv_invalid_entries
-    local inv_apps_path inv_apps_count inv_apps_ignored inv_flow_origin inv_flow_note
-    IFS=$'\x1f' read -r inv_mode inv_label inv_flows_summary \
-      inv_inline_enabled inv_flows_path inv_flows_explicit inv_invalid_entries \
-      inv_apps_path inv_apps_count inv_apps_ignored <<<"$mode_line"
-
-    if [[ "$inv_flows_explicit" == "1" ]]; then
-      inv_flow_origin="explicit"
-    else
-      inv_flow_origin="default"
-    fi
-    inv_flow_note=""
-    if [[ -n "$inv_invalid_entries" ]]; then
-      inv_flow_note="; invalid=${inv_invalid_entries//,/, }"
-      warnings=$((warnings + 1))
-      add_suggestion "Review flow filter for '$inv_mode': tmux-whisper mode flows $inv_mode"
-    fi
-    echo "  - mode.$inv_mode.flows: $inv_flows_summary ($inv_flow_origin$inv_flow_note)"
-
-    if [[ "$inv_apps_count" =~ ^[0-9]+$ && "$inv_apps_count" -gt 0 ]]; then
-      if [[ "$inv_apps_ignored" == "1" ]]; then
-        warnings=$((warnings + 1))
-        echo "  - mode.$inv_mode.apps: $inv_apps_count mapping(s) ignored (inline flow disabled)"
-        add_suggestion "$(doctor_mode_flow_fix_suggestion "$inv_mode" "inline")"
-      else
-        echo "  - mode.$inv_mode.apps: $inv_apps_count mapping(s)"
-      fi
-    fi
-  done <<<"$mode_inventory_lines"
   echo ""
 
   echo "Processing markers:"
@@ -910,22 +601,6 @@ status() {
     fi
     echo "$total $live $stale"
   }
-
-  local inline_mode_setting mode_inline mode_inline_source
-  if [[ -f "$MODE_FILE" ]]; then
-    inline_mode_setting="$(head -n 1 "$MODE_FILE" 2>/dev/null | tr -d '\r' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
-  else
-    inline_mode_setting="auto"
-  fi
-  if [[ -z "$inline_mode_setting" || "$inline_mode_setting" == "auto" ]]; then
-    mode_inline_source="auto"
-  else
-    mode_inline_source="fixed"
-  fi
-  mode_inline="$(canonical_mode_name "$(get_current_mode)")"
-  if ! mode_exists "$mode_inline"; then
-    mode_inline="$(default_inline_mode)"
-  fi
 
   local backend_requested swift_model_path swift_model_version swift_socket_path
   backend_requested="$(resolve_transcribe_backend)"
@@ -1061,9 +736,6 @@ status() {
       JSON_CONFIG_SCHEMA_STATUS="$cfg_schema_status" \
       JSON_CONFIG_SCHEMA_PARSE_ERROR="$cfg_parse_error" \
       JSON_BACKEND="$backend_requested" \
-      JSON_MODE_INLINE="$mode_inline" \
-      JSON_MODE_INLINE_DISPLAY="$(mode_display_name "$mode_inline")" \
-      JSON_MODE_INLINE_SOURCE="$mode_inline_source" \
       JSON_SWIFT_MODEL_PATH="$swift_model_path" \
       JSON_SWIFT_MODEL_VERSION="$swift_model_version" \
       JSON_SWIFT_SOCKET_PATH="$swift_socket_path" \
@@ -1138,13 +810,6 @@ data = {
     "effective_settings": {
         "backend": s("JSON_BACKEND"),
         "language": s("JSON_LANGUAGE"),
-        "mode": {
-            "inline": {
-                "name": maybe("JSON_MODE_INLINE"),
-                "display_name": maybe("JSON_MODE_INLINE_DISPLAY"),
-                "source": s("JSON_MODE_INLINE_SOURCE"),
-            },
-        },
         "swift_parakeet": {
             "model": {
                 "path": maybe("JSON_SWIFT_MODEL_PATH"),
@@ -1187,7 +852,6 @@ PYEOF
     echo "Tmux Whisper status (compact)"
     echo ""
     echo "Summary: state=$summary_state backend=$backend_readiness flow=$summary_active_flow config=${cfg_schema_version}/${cfg_schema_status}"
-    echo "Modes: inline=$(mode_display_name "$mode_inline") [$mode_inline_source]"
     echo "Runtime: proc=${proc_live:-0}/${proc_total:-0} stale=${proc_stale:-0}"
     echo "Headline: $summary_headline"
     echo "Next: $summary_next_action"
@@ -1213,7 +877,6 @@ PYEOF
   echo "  config.schema: ${cfg_schema_version} (status=${cfg_schema_status})"
   [[ -n "$cfg_parse_error" ]] && echo "  config.parse_error: $cfg_parse_error"
   [[ -n "$cfg_parse_error" ]] && echo "  config.source: ${CFG_CONFIG_SOURCE:-defaults}"
-  echo "  mode.inline: $(mode_display_name "$mode_inline") ($mode_inline_source)"
   echo "  swift_parakeet.model: ${swift_model_path:-<missing>} (${swift_model_version})"
   echo "  swift_parakeet.socket: $swift_socket_path"
   echo "  language: ${DICTATE_LANGUAGE:-en}"

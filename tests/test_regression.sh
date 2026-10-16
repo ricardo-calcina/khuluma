@@ -265,7 +265,8 @@ assert_json_equals "status_json_inline_process_sound" "$backend_status_json" "ef
 backend_status_compact="$(HOME="$BACKEND_HOME" PATH="$BACKEND_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$BACKEND_CFG" DICTATE_CONFIG_FILE="$BACKEND_CFG/config.toml" DICTATE_PROCESSING_DIR="$BACKEND_PROCESSING_DIR" tmux-whisper status --preset compact)"
 assert_contains "status_compact_header" "$backend_status_compact" "Tmux Whisper status (compact)"
 assert_contains "status_compact_summary" "$backend_status_compact" "Summary: state=ready backend=cold flow=none config=v1/ok"
-assert_contains "status_compact_modes" "$backend_status_compact" "Modes: inline=code [auto]"
+assert_not_contains "status_compact_no_modes" "$backend_status_compact" "Modes:"
+assert_not_contains "status_no_mode_line" "$backend_status" "mode.inline"
 assert_contains "status_compact_runtime" "$backend_status_compact" "Runtime: proc=0/0 stale=0"
 assert_contains "status_compact_next" "$backend_status_compact" "Next: Use your normal hotkey, or run tmux-whisper warmup to pre-load the daemon."
 assert_contains "status_compact_more" "$backend_status_compact" "More: tmux-whisper last | tmux-whisper bench | tmux-whisper history sessions 5"
@@ -365,11 +366,13 @@ assert_file_exists "config_repair_invalid_backup_exists" "$invalidcfg_repair_bac
 assert_file_contains "config_repair_invalid_written_version" "$INVALIDCFG_CFG/config.toml" "config_version = 1"
 assert_file_contains "config_repair_invalid_written_inline" "$INVALIDCFG_CFG/config.toml" "paste_target = \"current\""
 
-# --- Regression 5: doctor mode checks should show clear fallbacks + fixes. ---
+# --- Regression 5: modes are gone. Doctor reports the vocab and flags a
+# leftover modes/ dir; `mode` points at migrate-modes, which folds the old
+# mode vocab in (a dry run first changes nothing). ---
 MODECHECK_HOME="$TMP_ROOT/home-modecheck"
 MODECHECK_BIN="$MODECHECK_HOME/.local/bin"
 MODECHECK_CFG="$MODECHECK_HOME/.config/dictate"
-mkdir -p "$MODECHECK_BIN" "$MODECHECK_CFG/modes/code" "$MODECHECK_CFG/modes/long"
+mkdir -p "$MODECHECK_BIN" "$MODECHECK_CFG/modes/code"
 install_test_runtime "$MODECHECK_BIN"
 cat >"$MODECHECK_CFG/config.toml" <<'EOF'
 [meta]
@@ -378,96 +381,41 @@ config_version = 1
 [audio]
 source = "auto"
 EOF
-printf '%s\n' "ghost" >"$MODECHECK_CFG/current-mode"
-modecheck_doctor="$(HOME="$MODECHECK_HOME" PATH="$MODECHECK_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$MODECHECK_CFG" DICTATE_CONFIG_FILE="$MODECHECK_CFG/config.toml" tmux-whisper doctor)"
-assert_contains "doctor_modecheck_section" "$modecheck_doctor" "Mode/config:"
-assert_contains "doctor_modecheck_fixed_invalid" "$modecheck_doctor" "mode.current: ghost (invalid, fallback=auto)"
-assert_contains "doctor_modecheck_fix_mode" "$modecheck_doctor" "Set inline mode policy: tmux-whisper mode auto"
-
-# --- Regression 5b: inline auto mode should use app detection with base fallback. ---
-MODEAUTO_HOME="$TMP_ROOT/home-modeauto"
-MODEAUTO_BIN="$MODEAUTO_HOME/.local/bin"
-MODEAUTO_CFG="$MODEAUTO_HOME/.config/dictate"
-mkdir -p "$MODEAUTO_BIN" "$MODEAUTO_CFG/modes/base" "$MODEAUTO_CFG/modes/chat" "$MODEAUTO_CFG/modes/code"
-install_test_runtime "$MODEAUTO_BIN"
-cat >"$MODEAUTO_CFG/config.toml" <<'EOF'
-[meta]
-config_version = 1
-
-[audio]
-source = "auto"
-EOF
-printf '%s\n' "auto" >"$MODEAUTO_CFG/current-mode"
-printf '%s\n' "inline" >"$MODEAUTO_CFG/modes/base/flows"
-printf '%s\n' "Messages" >"$MODEAUTO_CFG/modes/chat/apps"
-printf '%s\n' "inline" >"$MODEAUTO_CFG/modes/chat/flows"
-printf '%s\n' "tmux" "inline" >"$MODEAUTO_CFG/modes/code/flows"
-modeauto_status_messages="$(HOME="$MODEAUTO_HOME" PATH="$MODEAUTO_BIN:$STUB_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$MODEAUTO_CFG" DICTATE_CONFIG_FILE="$MODEAUTO_CFG/config.toml" DICTATE_TEST_FRONT_APP=Messages tmux-whisper status)"
-assert_contains "status_modeauto_chat" "$modeauto_status_messages" "mode.inline: chat (auto)"
-modeauto_status_preview="$(HOME="$MODEAUTO_HOME" PATH="$MODEAUTO_BIN:$STUB_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$MODEAUTO_CFG" DICTATE_CONFIG_FILE="$MODEAUTO_CFG/config.toml" DICTATE_TEST_FRONT_APP=Preview tmux-whisper status)"
-assert_contains "status_modeauto_base" "$modeauto_status_preview" "mode.inline: base (auto)"
-
-# --- Regression 5c: mode flow command should surface and set flow availability. ---
-MODEFLOWS_HOME="$TMP_ROOT/home-modeflows"
-MODEFLOWS_BIN="$MODEFLOWS_HOME/.local/bin"
-MODEFLOWS_CFG="$MODEFLOWS_HOME/.config/dictate"
-mkdir -p "$MODEFLOWS_BIN" "$MODEFLOWS_CFG/modes/code"
-install_test_runtime "$MODEFLOWS_BIN"
-cat >"$MODEFLOWS_CFG/config.toml" <<'EOF'
-[meta]
-config_version = 1
-
-[audio]
-source = "auto"
-EOF
-printf '%s\n' "code" >"$MODEFLOWS_CFG/current-mode"
-modeflows_tmux="$(HOME="$MODEFLOWS_HOME" PATH="$MODEFLOWS_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$MODEFLOWS_CFG" DICTATE_CONFIG_FILE="$MODEFLOWS_CFG/config.toml" tmux-whisper mode flows code tmux)"
-assert_contains "mode_flows_tmux_summary" "$modeflows_tmux" "Mode flows for code: tmux"
-assert_file_contains "mode_flows_tmux_file" "$MODEFLOWS_CFG/modes/code/flows" "tmux"
-modeflows_both="$(HOME="$MODEFLOWS_HOME" PATH="$MODEFLOWS_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$MODEFLOWS_CFG" DICTATE_CONFIG_FILE="$MODEFLOWS_CFG/config.toml" tmux-whisper mode flows code both)"
-assert_contains "mode_flows_both_summary" "$modeflows_both" "Mode flows for code: tmux+inline"
-assert_file_contains "mode_flows_both_file_tmux" "$MODEFLOWS_CFG/modes/code/flows" "tmux"
-assert_file_contains "mode_flows_both_file_inline" "$MODEFLOWS_CFG/modes/code/flows" "inline"
-
-# --- Regression 5d: doctor should flag flow-disabled modes and ignored app mappings. ---
-MODEDOCTOR_HOME="$TMP_ROOT/home-modedoctor"
-MODEDOCTOR_BIN="$MODEDOCTOR_HOME/.local/bin"
-MODEDOCTOR_CFG="$MODEDOCTOR_HOME/.config/dictate"
-mkdir -p "$MODEDOCTOR_BIN" \
-  "$MODEDOCTOR_CFG/modes/base" \
-  "$MODEDOCTOR_CFG/modes/chat" \
-  "$MODEDOCTOR_CFG/modes/code" \
-  "$MODEDOCTOR_CFG/modes/email"
-install_test_runtime "$MODEDOCTOR_BIN"
-cat >"$MODEDOCTOR_CFG/config.toml" <<'EOF'
-[meta]
-config_version = 1
-
-[audio]
-source = "auto"
-EOF
-printf '%s\n' "chat" >"$MODEDOCTOR_CFG/current-mode"
-printf '%s\n' "inline" >"$MODEDOCTOR_CFG/modes/base/flows"
-printf '%s\n' "tmux" >"$MODEDOCTOR_CFG/modes/chat/flows"
-printf '%s\n' "Messages" >"$MODEDOCTOR_CFG/modes/chat/apps"
-printf '%s\n' "tmux" >"$MODEDOCTOR_CFG/modes/code/flows"
-printf '%s\n' "voice" >"$MODEDOCTOR_CFG/modes/email/flows"
-modedoctor_out="$(HOME="$MODEDOCTOR_HOME" PATH="$MODEDOCTOR_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$MODEDOCTOR_CFG" DICTATE_CONFIG_FILE="$MODEDOCTOR_CFG/config.toml" tmux-whisper doctor)"
-assert_contains "doctor_flow_disabled_inline" "$modedoctor_out" "mode.current: chat (fixed, inline disabled, fallback=base)"
-assert_contains "doctor_flow_count_inline" "$modedoctor_out" "modes.inline-capable: 1"
-assert_contains "doctor_flow_apps_ignored" "$modedoctor_out" "mode.chat.apps: 1 mapping(s) ignored (inline flow disabled)"
-assert_contains "doctor_flow_invalid_entries" "$modedoctor_out" "mode.email.flows: hidden (explicit; invalid=voice)"
-assert_contains "doctor_flow_fix_inline" "$modedoctor_out" "Let Khuluma use 'chat': tmux-whisper mode flows chat inline"
-assert_contains "doctor_flow_fix_invalid" "$modedoctor_out" "Review flow filter for 'email': tmux-whisper mode flows email"
-
-modedoctor_json="$(HOME="$MODEDOCTOR_HOME" PATH="$MODEDOCTOR_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$MODEDOCTOR_CFG" DICTATE_CONFIG_FILE="$MODEDOCTOR_CFG/config.toml" tmux-whisper doctor --json)"
-assert_json_equals "doctor_flow_json_inline_status" "$modedoctor_json" "mode_config.inline.status" "flow_disabled"
-assert_json_equals "doctor_flow_json_inline_allowed" "$modedoctor_json" "mode_config.inline.flow_allowed" "false"
-assert_json_equals "doctor_flow_json_inline_count" "$modedoctor_json" "mode_config.available.inline_count" "1"
-assert_json_equals "doctor_flow_json_chat_mode" "$modedoctor_json" "mode_config.modes.1.mode" "chat"
-assert_json_equals "doctor_flow_json_chat_apps_ignored" "$modedoctor_json" "mode_config.modes.1.apps.ignored" "true"
-assert_json_equals "doctor_flow_json_email_mode" "$modedoctor_json" "mode_config.modes.3.mode" "email"
-assert_json_equals "doctor_flow_json_email_invalid_entry" "$modedoctor_json" "mode_config.modes.3.flows.invalid_entries.0" "voice"
+printf '%s\n' '# comment' 'open ai -> OpenAI' 'get hub::GitHub' 'not a rule' >"$MODECHECK_CFG/vocab"
+printf '%s\n' 'ghost tea::Ghostty' >"$MODECHECK_CFG/modes/code/vocab"
+printf '%s\n' "code" >"$MODECHECK_CFG/current-mode"
+modecheck_env=(HOME="$MODECHECK_HOME" PATH="$MODECHECK_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$MODECHECK_CFG" DICTATE_CONFIG_FILE="$MODECHECK_CFG/config.toml")
+modecheck_doctor="$(env "${modecheck_env[@]}" tmux-whisper doctor || true)"
+assert_contains "doctor_vocab_section" "$modecheck_doctor" "Vocab:"
+assert_contains "doctor_vocab_rules" "$modecheck_doctor" "vocab: $MODECHECK_CFG/vocab (2 rules)"
+assert_contains "doctor_legacy_modes" "$modecheck_doctor" "modes/: found but no longer read"
+assert_contains "doctor_legacy_modes_fix" "$modecheck_doctor" "tmux-whisper migrate-modes"
+assert_not_contains "doctor_no_mode_config" "$modecheck_doctor" "Mode/config:"
+modecheck_json="$(env "${modecheck_env[@]}" tmux-whisper doctor --json || true)"
+assert_json_equals "doctor_json_vocab_rules" "$modecheck_json" "vocab.rules" "2"
+assert_json_equals "doctor_json_legacy_modes" "$modecheck_json" "vocab.legacy_modes_present" "true"
+assert_not_contains "doctor_json_no_mode_config" "$modecheck_json" "mode_config"
+set +e
+modecheck_mode="$(env "${modecheck_env[@]}" tmux-whisper mode code 2>&1)"
+modecheck_mode_rc=$?
+set -e
+assert_equals "mode_command_fails" "$modecheck_mode_rc" "2"
+assert_contains "mode_command_points_at_migrate" "$modecheck_mode" "modes were removed in v0.11"
+modecheck_dry="$(env "${modecheck_env[@]}" tmux-whisper migrate-modes --dry-run)"
+assert_contains "migrate_dry_run_reports" "$modecheck_dry" "Would add 1 rule(s) from modes/code/vocab"
+assert_file_exists "migrate_dry_run_keeps_modes" "$MODECHECK_CFG/modes/code/vocab"
+assert_file_exists "migrate_dry_run_keeps_current_mode" "$MODECHECK_CFG/current-mode"
+modecheck_migrate="$(env "${modecheck_env[@]}" tmux-whisper migrate-modes)"
+assert_contains "migrate_reports" "$modecheck_migrate" "Added 1 rule(s) from modes/code/vocab (0 already in vocab)"
+assert_file_contains "migrate_appends_rule" "$MODECHECK_CFG/vocab" "ghost tea::Ghostty"
+assert_file_contains "migrate_keeps_comment" "$MODECHECK_CFG/vocab" "# comment"
+assert_file_not_exists "migrate_moves_current_mode" "$MODECHECK_CFG/current-mode"
+assert_glob_exists "migrate_archives_modes" "$MODECHECK_CFG/modes-archive/*-modes-removed/modes/code/vocab"
+modecheck_again="$(env "${modecheck_env[@]}" tmux-whisper migrate-modes)"
+assert_contains "migrate_second_run_noop" "$modecheck_again" "Nothing to migrate"
+modecheck_doctor_after="$(env "${modecheck_env[@]}" tmux-whisper doctor || true)"
+assert_contains "doctor_vocab_rules_after" "$modecheck_doctor_after" "vocab: $MODECHECK_CFG/vocab (3 rules)"
+assert_not_contains "doctor_no_legacy_after" "$modecheck_doctor_after" "modes/: found"
 
 # --- Regression 8: a Homebrew install finds the Finder Quick Action handler in
 # its pkgshare and ignores a stale local-install receipt. ---
@@ -557,11 +505,11 @@ assert_contains "history_stats_recent_7d" "$histobs_stats" "last_7d: entries=2 r
 assert_contains "history_stats_typing_equivalent" "$histobs_stats" "typing_equivalent.total: 1m 00s @ 40 wpm"
 assert_contains "history_stats_typing_delta" "$histobs_stats" "typing_delta.total: +32.6s vs end-to-end"
 assert_contains "history_stats_dictation_overall" "$histobs_stats" "dictation_wpm.overall: 92"
-assert_contains "history_stats_mode_breakdown" "$histobs_stats" "code: entries=2 processed_words=40 raw_words=40"
+assert_not_contains "history_stats_no_mode_breakdown" "$histobs_stats" "Mode breakdown"
 assert_contains "history_stats_app_breakdown" "$histobs_stats" "Ghostty: entries=1 processed_words=30 raw_words=30"
 histobs_sessions="$(HOME="$HISTOBS_HOME" PATH="$HISTOBS_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$HISTOBS_CFG" DICTATE_CONFIG_FILE="$HISTOBS_CFG/config.toml" tmux-whisper history sessions 2)"
 assert_contains "history_sessions_header" "$histobs_sessions" "Recent dictation sessions (newest first):"
-assert_contains "history_sessions_latest" "$histobs_sessions" "mode=code app=Ghostty words=30 record=18.0s"
+assert_contains "history_sessions_latest" "$histobs_sessions" "app=Ghostty words=30 record=18.0s"
 assert_contains "history_sessions_audio" "$histobs_sessions" "audio: capture_wav=18.1s archive_wav=18.0s capture_bytes=580000 archive_bytes=577000"
 assert_contains "history_sessions_debug" "$histobs_sessions" "debug: debug_archive_prefix=2026-02-22T17-05-00-inline; retention_note=debug wav retained"
 assert_contains "history_sessions_next" "$histobs_sessions" "  tmux-whisper bench 10"
@@ -578,11 +526,11 @@ assert_contains "history_show_metrics_section" "$histobs_show_latest" "--- Metri
 histobs_show_latest_json="$(HOME="$HISTOBS_HOME" PATH="$HISTOBS_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$HISTOBS_CFG" DICTATE_CONFIG_FILE="$HISTOBS_CFG/config.toml" tmux-whisper history --json 1)"
 assert_not_contains "history_show_no_metrics_postprocess" "$histobs_show_latest" "postprocess"
 assert_json_equals "history_show_json_index" "$histobs_show_latest_json" "index" "1"
-assert_json_equals "history_show_json_mode" "$histobs_show_latest_json" "entry.mode" "code"
+assert_not_contains "history_show_json_no_mode" "$histobs_show_latest_json" "\"mode\""
 histobs_list_json="$(HOME="$HISTOBS_HOME" PATH="$HISTOBS_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$HISTOBS_CFG" DICTATE_CONFIG_FILE="$HISTOBS_CFG/config.toml" tmux-whisper history list 2 --json)"
 assert_json_equals "history_list_json_first_index" "$histobs_list_json" "0.index" "1"
 assert_json_equals "history_list_json_first_filename" "$histobs_list_json" "0.filename" "2026-02-22T17-05-00.json"
-assert_json_equals "history_list_json_first_mode" "$histobs_list_json" "0.mode" "code"
+assert_not_contains "history_list_json_no_mode" "$histobs_list_json" "\"mode\""
 assert_json_equals "history_list_json_first_app" "$histobs_list_json" "0.app" "Ghostty"
 assert_json_equals "history_list_json_first_processed_words" "$histobs_list_json" "0.processed_words" "30"
 assert_json_equals "history_list_json_second_filename" "$histobs_list_json" "1.filename" "2026-02-22T17-00-00.json"
@@ -594,7 +542,7 @@ assert_not_contains "history_show_legacy_json_no_postprocess" "$histobs_show_leg
 assert_not_contains "history_list_json_no_postprocess" "$histobs_list_json" "postprocess"
 histobs_search_app="$(HOME="$HISTOBS_HOME" PATH="$HISTOBS_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$HISTOBS_CFG" DICTATE_CONFIG_FILE="$HISTOBS_CFG/config.toml" tmux-whisper history search Ghostty)"
 assert_contains "history_search_header" "$histobs_search_app" "History search: \"Ghostty\""
-assert_contains "history_search_app_match" "$histobs_search_app" "(code @ Ghostty) [app]"
+assert_contains "history_search_app_match" "$histobs_search_app" "(Ghostty) [app]"
 histobs_search_json="$(HOME="$HISTOBS_HOME" PATH="$HISTOBS_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$HISTOBS_CFG" DICTATE_CONFIG_FILE="$HISTOBS_CFG/config.toml" tmux-whisper history search tmux 5 --json)"
 assert_not_contains "history_search_json_no_postprocess" "$histobs_search_json" "postprocess"
 assert_json_equals "history_search_json_index" "$histobs_search_json" "0.index" "2"
@@ -616,12 +564,12 @@ assert_json_equals "history_export_json_first_filename" "$histobs_export_json" "
 assert_json_equals "history_export_json_first_app" "$histobs_export_json" "0.app" "Ghostty"
 assert_json_equals "history_export_json_first_processed_words" "$histobs_export_json" "0.processed_words" "30"
 assert_json_equals "history_export_json_second_filename" "$histobs_export_json" "1.filename" "2026-02-22T17-00-00.json"
-assert_json_equals "history_export_json_second_mode" "$histobs_export_json" "1.mode" "code"
+assert_not_contains "history_export_json_no_mode" "$histobs_export_json" "\"mode\""
 histobs_stats_json="$(HOME="$HISTOBS_HOME" PATH="$HISTOBS_BIN:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$HISTOBS_CFG" DICTATE_CONFIG_FILE="$HISTOBS_CFG/config.toml" DICTATE_HISTORY_STATS_NOW=2026-02-22T18:00:00Z tmux-whisper history stats --json)"
 assert_json_equals "history_stats_json_entries" "$histobs_stats_json" "entries" "2"
 assert_not_contains "history_stats_json_no_budget" "$histobs_stats_json" "postprocess_budget"
 assert_json_equals "history_stats_json_recent_24h" "$histobs_stats_json" "recent.last_24h.entries" "2"
-assert_json_equals "history_stats_json_mode_processed_words" "$histobs_stats_json" "breakdowns.modes.code.processed_words" "40"
+assert_not_contains "history_stats_json_no_modes" "$histobs_stats_json" "\"modes\""
 assert_json_equals "history_stats_json_app_processed_words" "$histobs_stats_json" "breakdowns.apps.Ghostty.processed_words" "30"
 assert_json_equals "history_stats_json_typing_wpm_assumed" "$histobs_stats_json" "estimates.typing_wpm_assumed" "40"
 assert_json_equals "history_stats_json_typing_delta" "$histobs_stats_json" "estimates.delta_vs_end_to_end_ms" "32650"
@@ -876,7 +824,8 @@ assert_json_equals "bench_json_flow_inline" "$bench_summary_json" "counts.flows.
 assert_json_equals "bench_json_status_ok" "$bench_summary_json" "counts.statuses.ok" "1"
 assert_json_equals "bench_json_total_stage_n" "$bench_summary_json" "stages.total_ms.n" "2"
 assert_json_equals "bench_json_latest_timestamp" "$bench_summary_json" "latest.timestamp" "2026-04-22T09:02:00Z"
-assert_json_equals "bench_json_latest_mode" "$bench_summary_json" "latest.mode" "email"
+# Column 5 (the old cleanup mode) still parses but is no longer reported.
+assert_not_contains "bench_json_no_mode" "$bench_summary_json" "\"mode\""
 assert_not_contains "bench_json_no_postprocess" "$bench_summary_json" "postprocess"
 assert_json_equals "bench_json_next" "$bench_summary_json" "next_commands.0" "tmux-whisper history sessions 5"
 

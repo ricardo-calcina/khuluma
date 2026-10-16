@@ -9,7 +9,7 @@ tmux-whisper doctor
 tmux-whisper status
 ```
 
-- `doctor`: install/dependency/mode/runtime checks with suggested fixes
+- `doctor`: install/dependency/vocab/runtime checks with suggested fixes
 - `status`: current runtime + effective settings snapshot
 
 ## 2) Khuluma
@@ -48,10 +48,6 @@ Khuluma shows errors on its menu's first line, and logs each one in `~/Library/L
 - Check `tmux-whisper autosend` and `tmux-whisper send-mode`.
 - If config.toml doesn't parse, Khuluma warns in the menu and uses the last valid settings, or, with none, the defaults with paste-only delivery. Fix the file (section 3), then **Reload Settings**.
 
-**A mode never applies**
-- A mode whose `flows` file says only `tmux` is hidden from Khuluma; `tmux-whisper doctor` flags it.
-- Fix: `tmux-whisper mode flows <name> inline`.
-
 ## 3) Setup and config issues
 
 Which install are you actually running?
@@ -86,7 +82,7 @@ tmux-whisper doctor
 tmux-whisper status
 ```
 
-`--force` refreshes binaries but preserves your live config, modes, and vocab.
+`--force` refreshes binaries but preserves your live config and vocab.
 
 Schema mismatch:
 
@@ -133,20 +129,19 @@ Parakeet backend unavailable:
   - ensure `swift` is installed if the native backend needs to rebuild
   - if you keep models outside the default location, set `swift_parakeet.model_path` explicitly
 
-## 4) Mode configuration issues
+## 4) Old modes
 
-Invalid fixed mode fallback:
+Modes were removed in v0.11: every take uses `~/.config/dictate/vocab`.
 
-- Symptom: `mode.current: <name> (invalid, fallback=auto)`
-- Fix either:
-  - reset to auto-detect: `tmux-whisper mode auto`
-  - create missing custom mode: `tmux-whisper mode create "<name>"`
-
-If the core modes (`base`, `code`) are missing after install drift, reinstall to seed them:
+- Symptom in `tmux-whisper doctor`: `modes/: found but no longer read`, or `tmux-whisper mode` fails with "modes were removed in v0.11".
+- Fix: fold the old `modes/*/vocab` into `vocab` and archive the rest (`./install.sh` does this too):
 
 ```bash
-./install.sh --force
+tmux-whisper migrate-modes --dry-run
+tmux-whisper migrate-modes
 ```
+
+A rule whose wrong words are already in `vocab` with a different correction is skipped and listed; `vocab` keeps its own. Nothing is deleted: `modes/`, `current-mode` and a copy of the previous `vocab` go to `~/.config/dictate/modes-archive/<date>-modes-removed/`.
 
 ## 5) Vocabulary workflow issues
 

@@ -1,8 +1,8 @@
 import Foundation
 
 /// Port of `dictate_lib_apply_vocab_corrections` (bin/dictate-lib.sh):
-/// spelled-out acronym compaction, then the global `vocab` rules, then the
-/// mode's `vocab` rules, applied in order so earlier rules can feed later ones.
+/// spelled-out acronym compaction, then the `vocab` rules, applied in order so
+/// earlier rules can feed later ones.
 ///
 /// That Perl runs with `-CS` (character strings), so unlike the other filters
 /// it uses Unicode rules: `\s` is `PerlText.unicodeSpaceClass`,
@@ -20,19 +20,14 @@ public struct VocabCorrector: Sendable {
   /// untouched (`cat`), skipping compaction and whitespace tidying too.
   let rules: [Rule]?
 
-  /// Vocab files the CLI would read for `mode`: `<config>/vocab`, then
-  /// `<config>/modes/<mode>/vocab`, each only if it is a regular file.
-  public static func files(configDir: String, mode: String) -> [String] {
-    var files: [String] = []
-    let global = configDir + "/vocab"
-    if PerlText.isFile(global) { files.append(global) }
-    let modeVocab = configDir + "/modes/" + mode + "/vocab"
-    if !mode.isEmpty && PerlText.isFile(modeVocab) { files.append(modeVocab) }
-    return files
+  /// The vocab file the CLI reads, `<config>/vocab`, if it is a regular file.
+  public static func files(configDir: String) -> [String] {
+    let vocab = configDir + "/vocab"
+    return PerlText.isFile(vocab) ? [vocab] : []
   }
 
-  public init(configDir: String, mode: String) {
-    self.init(files: VocabCorrector.files(configDir: configDir, mode: mode))
+  public init(configDir: String) {
+    self.init(files: VocabCorrector.files(configDir: configDir))
   }
 
   public init(files: [String]) {

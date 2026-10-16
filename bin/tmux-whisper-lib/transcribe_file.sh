@@ -5,7 +5,7 @@
 # Files are decoded by ffmpeg into a private 16 kHz mono WAV and sent to the
 # same warm Parakeet daemon used for dictation. The original file is never
 # handed to the dictation pipeline (which pads/trims its WAV in place), and the
-# output is the raw transcript: no vocab, spelling, filler, mode, or LLM
+# output is the raw transcript: no vocab, spelling, filler, or LLM
 # cleanup. File transcripts are not deliveries, so they never touch history,
 # the usage ledger, sounds, or paste targets.
 

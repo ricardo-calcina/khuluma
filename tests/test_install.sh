@@ -38,7 +38,6 @@ assert_exec "$HOME/.local/bin/dictate-lib.sh"
 assert_file "$HOME/.local/bin/tmux-whisper-lib/history.sh"
 assert_file "$HOME/.local/bin/tmux-whisper-lib/diagnostics.sh"
 assert_file "$HOME/.config/dictate/config.toml"
-assert_file "$HOME/.config/dictate/current-mode"
 assert_file "$HOME/.config/dictate/vocab"
 assert_file "$HOME/.config/dictate/install-receipt.env"
 assert_file "$HOME/.local/share/sounds/dictate/start.wav"
@@ -59,8 +58,12 @@ if ! rg -q '^[[:space:]]*paste_target = "current"$' "$HOME/.config/dictate/confi
   echo "Expected fresh install config to include inline.paste_target" >&2
   exit 1
 fi
-if [[ "$(tr -d '[:space:]' < "$HOME/.config/dictate/current-mode")" != "auto" ]]; then
-  echo "Expected fresh install current-mode to default to auto" >&2
+if [[ -e "$HOME/.config/dictate/modes" || -e "$HOME/.config/dictate/current-mode" ]]; then
+  echo "Expected a fresh install to have no modes/ or current-mode" >&2
+  exit 1
+fi
+if ! rg -q '^at saw slash::@src/$' "$HOME/.config/dictate/vocab"; then
+  echo "Expected the default vocab to include the old base mode's path rules" >&2
   exit 1
 fi
 if [[ "$install_output" != *"Warmup:"* ]]; then
@@ -96,20 +99,53 @@ if ! rg -q '# user-edit' "$HOME/.config/dictate/config.toml"; then
   exit 1
 fi
 
-# Force install should preserve user-edited config and local mode customizations.
-printf '%s\n' "MyCustomEditor" > "$HOME/.config/dictate/modes/code/apps"
-rm -rf "$HOME/.config/dictate/modes/email"
-"$ROOT/install.sh" --force --with-sounds
-if ! rg -q '# user-edit' "$HOME/.config/dictate/config.toml"; then
+# Force install should preserve user-edited config and vocab, and fold an
+# older install's modes/*/vocab into vocab, archiving modes/ and current-mode.
+CFG="$HOME/.config/dictate"
+printf '%s\n' 'my word -> MyWord' >> "$CFG/vocab"
+mkdir -p "$CFG/modes/code" "$CFG/modes/email"
+printf '%s\n' 'Ghostty' > "$CFG/modes/code/apps"
+printf '%s\n' 'tmux' > "$CFG/modes/code/flows"
+printf '%s\n' 'at  saw slash::@src/' 'kuber net ease::Kubernetes' 'my word::Other' > "$CFG/modes/code/vocab"
+printf '%s\n' 'kind regards -> Kind regards,' > "$CFG/modes/email/vocab"
+printf '%s\n' 'auto' > "$CFG/current-mode"
+migrate_output="$("$ROOT/install.sh" --force --with-sounds)"
+if ! rg -q '# user-edit' "$CFG/config.toml"; then
   echo "Expected --force to preserve config.toml" >&2
   exit 1
 fi
-if ! rg -q 'MyCustomEditor' "$HOME/.config/dictate/modes/code/apps"; then
-  echo "Expected --force to preserve local mode apps" >&2
+if [[ -e "$CFG/modes" || -e "$CFG/current-mode" ]]; then
+  echo "Expected install to move modes/ and current-mode out of the config dir" >&2
   exit 1
 fi
-if [[ -e "$HOME/.config/dictate/modes/email" ]]; then
-  echo "Expected --force to preserve local mode set (email should stay removed)" >&2
+archives=("$CFG"/modes-archive/*-modes-removed)
+if [[ "${#archives[@]}" -ne 1 || ! -f "${archives[0]}/modes/code/apps" || ! -f "${archives[0]}/current-mode" ]]; then
+  echo "Expected one archive holding modes/ and current-mode: ${archives[*]}" >&2
+  exit 1
+fi
+if ! rg -q '^my word -> MyWord$' "${archives[0]}/vocab.before-migrate"; then
+  echo "Expected the archive to keep the vocab as it was before the merge" >&2
+  exit 1
+fi
+for rule in 'my word -> MyWord' 'kuber net ease::Kubernetes' 'kind regards -> Kind regards,'; do
+  if [[ "$(rg -cxF "$rule" "$CFG/vocab")" != "1" ]]; then
+    echo "Expected vocab to hold '$rule' once" >&2
+    exit 1
+  fi
+done
+if rg -q 'at  saw slash|my word::Other' "$CFG/vocab"; then
+  echo "Expected duplicate and conflicting mode rules to be skipped" >&2
+  exit 1
+fi
+if [[ "$migrate_output" != *"Added 1 rule(s) from modes/code/vocab (1 already in vocab)"* || "$migrate_output" != *"skipped, vocab already corrects this differently: my word::Other"* ]]; then
+  echo "Expected install to report the merge: $migrate_output" >&2
+  exit 1
+fi
+vocab_before="$(cat "$CFG/vocab")"
+"$ROOT/install.sh" --force --with-sounds >/dev/null
+archives=("$CFG"/modes-archive/*-modes-removed)
+if [[ "${#archives[@]}" -ne 1 || "$(cat "$CFG/vocab")" != "$vocab_before" ]]; then
+  echo "Expected a second install to leave vocab and the archive alone" >&2
   exit 1
 fi
 

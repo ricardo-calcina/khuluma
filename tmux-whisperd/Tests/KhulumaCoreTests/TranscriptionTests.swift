@@ -119,10 +119,10 @@ struct TranscriptionSettingsTests {
     #expect(tooOld.localizedDescription.contains("./install.sh --force"))
 
     let older = try #require(mismatch(AppConfigFixture.json.replacingOccurrences(
-      of: #""app_contract":2"#, with: #""app_contract":1"#)))
-    #expect(older.localizedDescription == "tmux-whisper 0.10.0-dev (contract 1) is older than this Khuluma (contract 2): run ./install.sh --force")
+      of: #""app_contract":3"#, with: #""app_contract":2"#)))
+    #expect(older.localizedDescription == "tmux-whisper 0.10.0-dev (contract 2) is older than this Khuluma (contract 3): run ./install.sh --force")
     let newer = try #require(mismatch(AppConfigFixture.json.replacingOccurrences(
-      of: #""app_contract":2"#, with: #""app_contract":3"#)))
+      of: #""app_contract":3"#, with: #""app_contract":4"#)))
     #expect(newer.localizedDescription.contains("rebuild it with tools/build-khuluma-app.sh"))
     #expect(mismatch(AppConfigFixture.json) == nil)
   }
@@ -428,7 +428,6 @@ struct TakeRecordTests {
     var record = TakeRecord(takeId: "t1", status: "ok", delivered: true)
     record.rawText = "open ai"
     record.text = "OpenAI"
-    record.mode = "code"
     record.recordMs = 3000
     let object = try #require(try JSONSerialization.jsonObject(with: JSONEncoder().encode(record)) as? [String: Any])
     #expect(object["take_id"] as? String == "t1")
@@ -439,6 +438,7 @@ struct TakeRecordTests {
     // Unset optional fields stay out, so older CLIs see the payload unchanged.
     #expect(object["delivered_local_date"] == nil)
     #expect(object["usage_only"] == nil)
+    #expect(object["mode"] == nil)
   }
 
   @Test func encodesTheDeliveryDateAndUsageOnly() throws {

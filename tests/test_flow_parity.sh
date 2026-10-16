@@ -542,16 +542,12 @@ setup_case() {
   local socket_tag
   CASE_DIR="$TMP_ROOT/$name"
   mkdir -p "$CASE_DIR"/{home,tmp,logs,tmux-jobs,swift-model}
-  mkdir -p "$CASE_DIR/config/modes/base" "$CASE_DIR/config/modes/chat" "$CASE_DIR/config/modes/code" "$CASE_DIR/config/modes/long"
+  mkdir -p "$CASE_DIR/config"
 
   # Keep the stub daemon socket short enough for macOS AF_UNIX limits.
   socket_tag="$(printf '%s' "$name" | cksum | cut -d' ' -f1)"
   [[ -n "$socket_tag" ]] || socket_tag="dictatetest"
 
-  printf '%s\n' "code" >"$CASE_DIR/config/current-mode"
-  printf '%s\n' "inline" >"$CASE_DIR/config/modes/base/flows"
-  printf '%s\n' "Messages" >"$CASE_DIR/config/modes/chat/apps"
-  printf '%s\n' "inline" >"$CASE_DIR/config/modes/chat/flows"
   : >"$CASE_DIR/config/vocab"
 
   export HOME="$CASE_DIR/home"
@@ -713,8 +709,7 @@ run_status_model_mode_round() {
   local out
   out="$("$DICTATE_BIN" status)"
   assert_contains "status_backend_swift" "$out" "backend: swift_parakeet"
-  assert_contains "status_mode_inline" "$out" "mode.inline: code (fixed)"
-  [[ "$out" != *"mode.tmux"* && "$out" != *"postprocess"* ]] || fail "status_no_tmux_lines"
+  [[ "$out" != *"mode."* && "$out" != *"postprocess"* ]] || fail "status_no_tmux_lines"
   pass "status_no_tmux_lines"
   assert_contains "status_model_swift_path" "$out" "swift_parakeet.model: $CASE_DIR/swift-model (v3)"
 }
@@ -1295,8 +1290,8 @@ assert c["inline"]["send_mode"] in ("enter", "cmd_enter", "ctrl_j"), c["inline"]
 assert c["inline"]["send_delay_ms"] == 0 and c["inline"]["activate_delay_ms"] == 0, c["inline"]
 cl = c["cleanup"]
 assert cl["config_dir"] and cl["vocab_clean"] == "1" and cl["british_spelling"] == "1", cl
-assert cl["code_paragraph_min_words"] == "70" and cl["long_paragraph_min_words"] == "55", cl
-assert cl["force_mode"] is None and "postprocess" not in cl, cl
+removed = ("force_mode", "code_paragraph_min_words", "long_paragraph_min_words", "postprocess")
+assert not any(key in cl for key in removed), cl
 ' || fail "app_config_json_shape"
   pass "app_config_json_shape"
 
@@ -1313,7 +1308,7 @@ assert cl["force_mode"] is None and "postprocess" not in cl, cl
   assert_contains "app_config_locale_exported_c" "$out" '"locale_ctype": "C", "locale_collate": "C"'
   rm -f "$HOME/.zshenv"
 
-  out="$(printf 'um the the codex [blank audio] color\n\n' | DICTATE_CLEAN=1 "$DICTATE_BIN" inline cleanup --app Safari --json)"
+  out="$(printf 'um the the codex [blank audio] color\n\n' | DICTATE_CLEAN=1 "$DICTATE_BIN" inline cleanup --json)"
   printf '%s' "$out" | python3 -c '
 import json, sys
 r = json.load(sys.stdin)
@@ -1324,7 +1319,7 @@ assert r["cleanup"]["clean"] == "1", r["cleanup"]
 ' || { echo "$out" >&2; fail "app_inline_cleanup_json"; }
   pass "app_inline_cleanup_json"
 
-  out="$(printf '[blank audio]' | "$DICTATE_BIN" inline cleanup --app Safari --json)"
+  out="$(printf '[blank audio]' | "$DICTATE_BIN" inline cleanup --json)"
   assert_contains "app_inline_cleanup_no_speech" "$out" '"status": "no_speech"'
 
   out="$(DICTATE_APP_HOTKEY="cmd+shift+d" "$DICTATE_BIN" app-config --json)"
@@ -1383,12 +1378,12 @@ run_inline_record_usage_retry_round() {
   setup_case "inline-record-usage"
   local cache="$DICTATE_CONFIG_DIR/.cache" ledger="$DICTATE_CONFIG_DIR/usage.json" history_files
 
-  printf '%s' '{"take_id":"t-crash","status":"ok","delivered":true,"raw_text":"a b","text":"a b","mode":"code","record_ms":1000}' \
+  printf '%s' '{"take_id":"t-crash","status":"ok","delivered":true,"raw_text":"a b","text":"a b","record_ms":1000}' \
     | "$DICTATE_BIN" inline record --json >/dev/null
   # Crash after the usage write, before the take was marked recorded.
   : >"$cache/recorded-takes"
   : >"$cache/recorded-takes-history"
-  printf '%s' '{"take_id":"t-crash","status":"ok","delivered":true,"raw_text":"a b","text":"a b","mode":"code","record_ms":1000}' \
+  printf '%s' '{"take_id":"t-crash","status":"ok","delivered":true,"raw_text":"a b","text":"a b","record_ms":1000}' \
     | "$DICTATE_BIN" inline record --json >"$CASE_DIR/replay.json"
   assert_file_contains "inline_record_crash_replay_usage_ok" "$CASE_DIR/replay.json" '"usage_recorded": true'
   assert_equals "inline_record_crash_replay_counted_once" \
@@ -1398,14 +1393,14 @@ run_inline_record_usage_retry_round() {
   # retried on replay once the ledger is readable again.
   cp "$ledger" "$CASE_DIR/ledger.good"
   printf 'not json' >"$ledger"
-  printf '%s' '{"take_id":"t-retry","status":"ok","delivered":true,"raw_text":"c d e","text":"c d e","mode":"code","record_ms":2000}' \
+  printf '%s' '{"take_id":"t-retry","status":"ok","delivered":true,"raw_text":"c d e","text":"c d e","record_ms":2000}' \
     | "$DICTATE_BIN" inline record --json >"$CASE_DIR/retry-1.json" 2>/dev/null
   assert_file_contains "inline_record_usage_failed" "$CASE_DIR/retry-1.json" '"usage_recorded": false'
   assert_file_contains "inline_record_usage_failed_history" "$CASE_DIR/retry-1.json" '"history_saved": true'
   assert_file_contains "inline_record_usage_dedup_flag" "$CASE_DIR/retry-1.json" '"usage_dedup": true'
   history_files="$(ls "$DICTATE_CONFIG_DIR/history"/*.json | wc -l | tr -d ' ')"
   mv -f "$CASE_DIR/ledger.good" "$ledger"
-  printf '%s' '{"take_id":"t-retry","status":"ok","delivered":true,"raw_text":"c d e","text":"c d e","mode":"code","record_ms":2000}' \
+  printf '%s' '{"take_id":"t-retry","status":"ok","delivered":true,"raw_text":"c d e","text":"c d e","record_ms":2000}' \
     | "$DICTATE_BIN" inline record --json >"$CASE_DIR/retry-2.json"
   assert_file_contains "inline_record_usage_retried" "$CASE_DIR/retry-2.json" '"usage_recorded": true'
   assert_equals "inline_record_usage_retry_counted" \
@@ -1421,14 +1416,14 @@ run_inline_record_usage_retry_round() {
   local bench_rows
   bench_rows="$(wc -l <"$DICTATE_CONFIG_DIR/history/bench.tsv" | tr -d ' ')"
   chmod 500 "$DICTATE_CONFIG_DIR/history"
-  printf '%s' '{"take_id":"t-hist","status":"ok","delivered":true,"raw_text":"f g","text":"f g","mode":"code","record_ms":700}' \
+  printf '%s' '{"take_id":"t-hist","status":"ok","delivered":true,"raw_text":"f g","text":"f g","record_ms":700}' \
     | "$DICTATE_BIN" inline record --json >"$CASE_DIR/hist-1.json" 2>/dev/null
   chmod 700 "$DICTATE_CONFIG_DIR/history"
   assert_file_contains "inline_record_history_failed" "$CASE_DIR/hist-1.json" '"history_saved": false'
   if grep -qxF t-hist "$cache/recorded-takes"; then fail "inline_record_history_failed_not_final"; fi
   pass "inline_record_history_failed_not_final"
   history_files="$(ls "$DICTATE_CONFIG_DIR/history"/*.json 2>/dev/null | wc -l | tr -d ' ')"
-  printf '%s' '{"take_id":"t-hist","status":"ok","delivered":true,"raw_text":"f g","text":"f g","mode":"code","record_ms":700}' \
+  printf '%s' '{"take_id":"t-hist","status":"ok","delivered":true,"raw_text":"f g","text":"f g","record_ms":700}' \
     | "$DICTATE_BIN" inline record --json >"$CASE_DIR/hist-2.json"
   assert_file_contains "inline_record_history_retried" "$CASE_DIR/hist-2.json" '"history_saved": true'
   assert_equals "inline_record_history_retry_saved" "$(ls "$DICTATE_CONFIG_DIR/history"/*.json | wc -l | tr -d ' ')" "$((history_files + 1))"
@@ -1602,7 +1597,7 @@ run_cleanup_stage_failure_round() {
     printf '%s\n' 'dictate_lib_sanitize_transcript_artifacts() { cat; return 7; }'
   } >"$failing_lib"
   local out rc=0
-  out="$(printf 'hello there' | DICTATE_LIB_PATH="$failing_lib" "$DICTATE_BIN" inline cleanup --app Safari --json 2>/dev/null)" || rc=$?
+  out="$(printf 'hello there' | DICTATE_LIB_PATH="$failing_lib" "$DICTATE_BIN" inline cleanup --json 2>/dev/null)" || rc=$?
   assert_equals "cleanup_stage_failure_exit_status" "$rc" "7"
 
   out="$(DICTATE_LIB_PATH="$failing_lib" "$DICTATE_BIN" inline process "$CASE_DIR/take.wav" --app Safari --json)"
@@ -1653,7 +1648,7 @@ assert "capabilities" not in c, c
   out="$(env -u LC_ALL -u LC_CTYPE -u LC_COLLATE -u LANG "$DICTATE_BIN" app-config --json)"
   assert_contains "app_config_locale_unset_is_c" "$out" '"locale_ctype": "", "locale_collate": ""'
 
-  printf '%s' '{"take_id":"t-ok","status":"ok","delivered":true,"raw_text":"open ai","text":"OpenAI","mode":"code",
+  printf '%s' '{"take_id":"t-ok","status":"ok","delivered":true,"raw_text":"open ai","text":"OpenAI",
     "app":"Ghostty","record_ms":3000,"transcribe_ms":400,"clean_ms":3,"paste_ms":50,"total_ms":3500,"startup_ms":12,
     "started_at_ms":1000,"delivered_at_ms":4600,"capture_wav_ms":3010,"capture_wav_bytes":96364}' \
     | "$DICTATE_BIN" inline record --json >"$CASE_DIR/record-ok.json"
@@ -1668,22 +1663,22 @@ import glob, json, os, sys
 files = sorted(glob.glob(os.path.join(sys.argv[1], "*.json")))
 assert len(files) == 1, files
 h = json.load(open(files[0]))
-assert h["raw"] == "open ai" and h["processed"] == "OpenAI" and h["mode"] == "code" and h["app"] == "Ghostty", h
+assert h["raw"] == "open ai" and h["processed"] == "OpenAI" and "mode" not in h and h["app"] == "Ghostty", h
 assert h["metrics"]["total_ms"] == 3500 and h["audio"]["capture_gap_to_record_ms"] == 10, h
 PYEOF
   pass "inline_record_history"
 
   # A replayed take (Khuluma's spool after a quit timeout or crash) is
   # recorded once.
-  printf '%s' '{"take_id":"t-ok","status":"ok","delivered":true,"raw_text":"open ai","text":"OpenAI","mode":"code"}' \
+  printf '%s' '{"take_id":"t-ok","status":"ok","delivered":true,"raw_text":"open ai","text":"OpenAI"}' \
     | "$DICTATE_BIN" inline record --json >"$CASE_DIR/record-dup.json"
   assert_file_contains "inline_record_duplicate_detected" "$CASE_DIR/record-dup.json" '"duplicate": true'
   assert_file_contains "inline_record_duplicate_usage_once" "$DICTATE_CONFIG_DIR/usage.json" '"inline": 1'
 
   # A second take in the same second gets its own history file.
-  printf '%s' '{"take_id":"t-ok2","status":"ok","delivered":true,"raw_text":"b","text":"b","mode":"code"}' \
+  printf '%s' '{"take_id":"t-ok2","status":"ok","delivered":true,"raw_text":"b","text":"b"}' \
     | "$DICTATE_BIN" inline record --json >/dev/null
-  printf '%s' '{"take_id":"t-ok3","status":"ok","delivered":true,"raw_text":"c","text":"c","mode":"code"}' \
+  printf '%s' '{"take_id":"t-ok3","status":"ok","delivered":true,"raw_text":"c","text":"c"}' \
     | "$DICTATE_BIN" inline record --json >/dev/null
   python3 - "$DICTATE_CONFIG_DIR/history" <<'PYEOF' || fail "inline_record_history_unique_names"
 import glob, json, os, sys
@@ -1694,7 +1689,7 @@ PYEOF
   pass "inline_record_history_unique_names"
 
   # Failed delivery: a bench row, but no usage and no history.
-  printf '%s' '{"take_id":"t-fail","status":"paste_failed","delivered":false,"raw_text":"x","text":"x","mode":"code"}' \
+  printf '%s' '{"take_id":"t-fail","status":"paste_failed","delivered":false,"raw_text":"x","text":"x"}' \
     | "$DICTATE_BIN" inline record --json >"$CASE_DIR/record-fail.json"
   assert_file_contains "inline_record_failed_no_usage" "$CASE_DIR/record-fail.json" '"usage_recorded": false'
   assert_file_contains "inline_record_failed_usage_unchanged" "$DICTATE_CONFIG_DIR/usage.json" '"inline": 3'
@@ -1707,7 +1702,7 @@ PYEOF
 
   # [debug] keep_logs: the handed-over WAV is archived and removed.
   printf 'RIFF fake wav' >"$CASE_DIR/take-padded.wav"
-  printf '{"take_id":"t-keep","status":"ok","delivered":true,"raw_text":"k","text":"k","mode":"code","wav_path":"%s"}' \
+  printf '{"take_id":"t-keep","status":"ok","delivered":true,"raw_text":"k","text":"k","wav_path":"%s"}' \
     "$CASE_DIR/take-padded.wav" | DICTATE_KEEP_LOGS=1 "$DICTATE_BIN" inline record --json >/dev/null
   assert_path_absent "inline_record_keep_logs_wav_moved" "$CASE_DIR/take-padded.wav"
   ls "$DICTATE_CONFIG_DIR/history/inline-debug/"*t-keep.wav >/dev/null 2>&1 || fail "inline_record_keep_logs_archive_wav"
@@ -1718,7 +1713,7 @@ PYEOF
   # A take recovered at quit (never pasted): history, no usage.
   local usage_before
   usage_before="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["delivered_dictations"]["count"])' "$DICTATE_CONFIG_DIR/usage.json")"
-  printf '%s' '{"take_id":"t-recovered","status":"recovered","delivered":false,"raw_text":"saved at quit","text":"Saved at quit","mode":"code"}' \
+  printf '%s' '{"take_id":"t-recovered","status":"recovered","delivered":false,"raw_text":"saved at quit","text":"Saved at quit"}' \
     | "$DICTATE_BIN" inline record --json >"$CASE_DIR/record-recovered.json"
   assert_file_contains "inline_record_recovered_no_usage" "$CASE_DIR/record-recovered.json" '"usage_recorded": false'
   assert_file_contains "inline_record_recovered_history" "$CASE_DIR/record-recovered.json" '"history_saved": true'
@@ -1737,7 +1732,7 @@ PYEOF
     printf 'old\tinline\tok\tm\tpad%s\n' "$i" >>"$DICTATE_CONFIG_DIR/history/bench.tsv"
   done
   for i in $(seq 1 10); do
-    printf '{"take_id":"c%s","status":"ok","delivered":false,"mode":"conc%s"}' "$i" "$i" \
+    printf '{"take_id":"c%s","status":"ok","delivered":false,"model":"conc%s"}' "$i" "$i" \
       | DICTATE_BENCH_MAX_ROWS=30 "$DICTATE_BIN" inline record --json >/dev/null &
   done
   wait

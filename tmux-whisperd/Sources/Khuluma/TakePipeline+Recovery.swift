@@ -30,11 +30,10 @@ extension TakePipeline {
       record.startedAtMs = startedEpochMs
       record.captureWavMs = AudioPrep.ffprobeDurationMs(sampleCount: samples.count)
       record.captureWavBytes = 44 + 2 * samples.count
-      switch TextPipeline(settings: cleanup).process(transcript: transcribed.transcript, app: app) {
-      case .text(let raw, let text, let mode):
+      switch TextPipeline(settings: cleanup).process(transcript: transcribed.transcript) {
+      case .text(let raw, let text):
         record.rawText = raw
         record.text = text
-        record.mode = mode
         if copy {
           DispatchQueue.main.sync {
             NSPasteboard.general.clearContents()

@@ -13,7 +13,7 @@ Usage: ./install.sh [--force] [--with-sounds|--no-sounds] [--replace-sounds]
 Installs Tmux Whisper into ~/.local/bin while intentionally keeping config and sample-sound paths under ~/.config/dictate and ~/.local/share/sounds/dictate for now.
 
 Options:
-  --force        reinstall binaries/integrations (preserves existing config and modes)
+  --force        reinstall binaries/integrations (preserves existing config and vocab)
   --with-sounds  install bundled sample sounds into ~/.local/share/sounds/dictate
   --no-sounds    skip sample sound installation
   --replace-sounds  overwrite existing sound files with bundled samples
@@ -117,20 +117,15 @@ install_default_config_files() {
     "$BIN_DIR/tmux-whisper" config defaults > "$CONFIG_DIR/config.toml"
   fi
   copy_if_missing "$REPO_ROOT/config/vocab" "$CONFIG_DIR/vocab"
-  copy_if_missing "$REPO_ROOT/config/current-mode" "$CONFIG_DIR/current-mode"
 }
 
-install_default_modes_preserving_local() {
-  local modes_preexisting="0"
-  [[ -d "$CONFIG_DIR/modes" ]] && modes_preexisting="1"
-  mkdir -p "$CONFIG_DIR/modes"
-  if [[ "$modes_preexisting" == "0" ]]; then
-    cp -R "$REPO_ROOT/config/modes/." "$CONFIG_DIR/modes/"
-    return 0
-  fi
-  # Existing installs keep local mode set; only ensure the core modes exist.
-  copy_if_missing "$REPO_ROOT/config/modes/base" "$CONFIG_DIR/modes/base"
-  copy_if_missing "$REPO_ROOT/config/modes/code" "$CONFIG_DIR/modes/code"
+# Modes were removed in v0.11: fold an older install's modes/*/vocab into
+# vocab and archive modes/ and current-mode (never deleted). A no-op once done.
+migrate_legacy_modes() {
+  [[ -d "$CONFIG_DIR/modes" || -f "$CONFIG_DIR/current-mode" ]] || return 0
+  echo "Modes were removed: folding their vocab into $CONFIG_DIR/vocab"
+  DICTATE_CONFIG_DIR="$CONFIG_DIR" DICTATE_CONFIG_FILE="$CONFIG_DIR/config.toml" \
+    "$BIN_DIR/tmux-whisper" migrate-modes || echo "warning: mode migration failed; run: tmux-whisper migrate-modes" >&2
 }
 
 mkdir -p "$BIN_DIR" "$CONFIG_DIR"
@@ -151,10 +146,10 @@ cp -R "$REPO_ROOT/tmux-whisperd/Sources/." "$NATIVE_DIR/tmux-whisperd/Sources/"
 # Package.swift declares the test target, so its directory must exist to build.
 cp -R "$REPO_ROOT/tmux-whisperd/Tests" "$NATIVE_DIR/tmux-whisperd/Tests"
 
-# Preserve user config and local mode edits on every install, including --force.
+# Preserve user config and vocab edits on every install, including --force.
 # `--force` remains a convenience for reinstalling binaries/integrations.
 install_default_config_files
-install_default_modes_preserving_local
+migrate_legacy_modes
 
 # The Finder Quick Action handler lives beside the binary (mirrors Homebrew's
 # pkgshare), so it keeps working after bootstrap deletes its extracted tree.

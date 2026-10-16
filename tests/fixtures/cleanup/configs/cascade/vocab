@@ -30,3 +30,8 @@ zzz → Zz
 # Canonically equivalent, different code points: Perl sorts them by code point.
 q̣́ :: end
 q̣́ :: q̣́
+# Folded in from the old code and email mode vocab files.
+npm::pnpm
+API!::API
+regards::Regards,
+kind regards::Kind regards,
