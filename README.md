@@ -2,7 +2,7 @@
 
 Local dictation for macOS. Press a key, speak, and the text is pasted into the app in front of you, transcribed on your Mac by a warm Parakeet model (Swift/CoreML). Nothing leaves the machine.
 
-The project is being renamed to **Lowkey**, after its menu-bar app ([`docs/plans/LOWKEY_RENAME_ROADMAP.md`](docs/plans/LOWKEY_RENAME_ROADMAP.md)). Until that's done, it has three parts:
+The project is being renamed after its menu-bar app, **Lowkey** ([`docs/plans/LOWKEY_RENAME_ROADMAP.md`](docs/plans/LOWKEY_RENAME_ROADMAP.md)). Lowkey is a working name: the public name is still to be chosen. Until the rename, the project has three parts:
 
 - **Lowkey** (`tmux-whisperd/Sources/Lowkey`): the menu-bar app you dictate with. It owns the hotkey, the microphone, the sounds, delivery (paste, optionally send) and the Stats window. It transcribes over the daemon's socket and cleans the text up in Swift.
 - **`tmux-whisperd`**: the local Parakeet daemon that keeps the model loaded.
@@ -71,7 +71,7 @@ The menu shows:
 It also offers **Stats…**, **Open Log** and **Start at Login**.
 
 - **Timed-out takes:** when the daemon times out on a take, its audio is kept privately for an hour. **Retry** transcribes it again, and **Paste retried dictation** pastes it wherever you are, without sending. A take that times out on the CLI fallback isn't kept.
-- **Quitting:** a take still recording, or waiting to be transcribed, is saved to disk first, then transcribed into history and copied to the clipboard (never pasted). Quit waits up to 30 seconds for that; whatever is left is transcribed into history at the next launch, without touching the clipboard.
+- **Quitting:** a take still recording is saved to disk first, then transcribed into history and copied to the clipboard (never pasted). Quit waits up to 30 seconds for that and for takes already being transcribed. Saved audio and records that haven't reached history by then are finished at the next launch, without touching the clipboard; a take still in memory past the 30 seconds is lost.
 - **Fallback:** if the daemon can't be reached, the take goes through `tmux-whisper inline process` instead. The same happens when the CLI runs in a non-C locale.
 
 **Delivery settings** live in the CLI:

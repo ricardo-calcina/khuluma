@@ -12,7 +12,7 @@ If these files do not exist, proceed silently. Do not flag their absence or sugg
 
 ## Layout
 
-This is a single-context repo. Tmux Whisper is a macOS dictation project being renamed to Lowkey (`docs/plans/LOWKEY_RENAME_ROADMAP.md`). Lowkey, the native menu-bar app in `tmux-whisperd/`, is the only way to dictate. The `tmux-whisper` CLI is its back end (config, modes, vocab, history, usage, the daemon lifecycle) and transcribes audio files. The tmux flow, CLI recording, LLM post-processing, Raycast and SwiftBar were removed in v0.11.
+This is a single-context repo. Tmux Whisper is a macOS dictation project being renamed after its app (`docs/plans/LOWKEY_RENAME_ROADMAP.md`). Lowkey is the app's working name; the public name is still to be chosen. Lowkey, the native menu-bar app in `tmux-whisperd/`, is the only way to dictate. The `tmux-whisper` CLI is its back end (config, modes, vocab, history, usage, the daemon lifecycle) and transcribes audio files. The tmux flow, CLI recording, LLM post-processing, Raycast and SwiftBar were removed in v0.11.
 
 Use the repo's established terms:
 

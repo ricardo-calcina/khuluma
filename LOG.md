@@ -1,7 +1,7 @@
 # Log
 
 ## Now
-Turn tmux-whisper into Lowkey: rename, make the app the main tool, sunset the CLI. Plan: `docs/plans/LOWKEY_RENAME_ROADMAP.md`. Phase 0: P0b tidy-up done (PRs #66–#72), pending a week of daily use with `tools/lowkey-report.sh` gates still met. Next: the name check (P0a).
+Turn tmux-whisper into Lowkey: rename, make the app the main tool, sunset the CLI. Plan: `docs/plans/LOWKEY_RENAME_ROADMAP.md`. Phase 0: P0b tidy-up done (PRs #66–#72), pending a week of daily use with `tools/lowkey-report.sh` gates still met. Next: pick the public name (P0a; Lowkey is a working name, check in PR #67).
 
 ## Next
 - [ ] P0 · Name check: Lowkey vs other spellings or a longer store name (roadmap P0a) · added 2026-10-15

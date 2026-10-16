@@ -24,7 +24,7 @@ On `main`, not yet tagged:
 
 ## Phases
 
-0. **Check the name, then tidy.** The name check (Lowkey vs other spellings or a longer store name) is still open. The tidy-up (P0b) is done apart from a week of daily use with the report's gates still met.
+0. **Check the name, then tidy.** Lowkey is a working name; the public name is still to be chosen. The tidy-up (P0b) is done apart from a week of daily use with the report's gates still met.
 1. **Lowkey stops needing the CLI.** Native writers for usage and history, then config, then the daemon in the bundle, model download, and native or dropped fallbacks. Each piece is proven against the CLI on shared files.
 2. **Ship Lowkey on its own.** Developer ID signing and notarization, a `lowkey` cask, a Settings and History window, Transcribe File, a bundled `lowkey` CLI for the agent skill, and the new `ricardo-nth/lowkey` repo.
 3. **Data moves to Lowkey.** A one-time, repeatable import of `~/.config/dictate` into Lowkey's Application Support folder.

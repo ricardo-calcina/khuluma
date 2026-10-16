@@ -152,7 +152,7 @@ Entries before v0.7.0 are in [`CHANGELOG.archive.md`](CHANGELOG.archive.md).
 
 ### Next queue (core product)
 
-- [ ] Rename to Lowkey, make the app the main tool, sunset the CLI and archive this repo (App Store parked). Staged plan with exit criteria: `docs/plans/LOWKEY_RENAME_ROADMAP.md`. Phase 0 is in progress: the name check is next.
+- [ ] Rename to Lowkey, make the app the main tool, sunset the CLI and archive this repo (App Store parked). Staged plan with exit criteria: `docs/plans/LOWKEY_RENAME_ROADMAP.md`. Phase 0: the tidy-up is done; the public name (Lowkey is a working name) is still to be chosen.
 
 ### Future labs (deferred, separate projects)
 
