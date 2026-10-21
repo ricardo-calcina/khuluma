@@ -27,7 +27,7 @@ enum StatsSnapshot {
   }
 
   private static func render(_ model: StatsModel, appearance: NSAppearance.Name, to file: URL) -> Bool {
-    let hosting = NSHostingView(rootView: StatsView(model: model, scrolls: false).frame(width: 560))
+    let hosting = NSHostingView(rootView: StatsView(model: model).frame(width: 560))
     let window = NSWindow(contentRect: NSRect(x: -10_000, y: -10_000, width: 560, height: 800),
                           styleMask: [.borderless], backing: .buffered, defer: false)
     window.appearance = NSAppearance(named: appearance)

@@ -11,13 +11,15 @@ final class StatsWindowController: NSWindowController, NSWindowDelegate {
     self.model = model
     let window = StatsWindow(
       contentRect: NSRect(x: 0, y: 0, width: 560, height: 640),
-      styleMask: [.titled, .closable, .miniaturizable, .resizable],
+      styleMask: [.titled, .closable, .miniaturizable],
       backing: .buffered, defer: false)
     window.title = "Khuluma Stats"
     window.isReleasedWhenClosed = false
-    window.contentMinSize = NSSize(width: 480, height: 400)
-    window.contentViewController = NSHostingController(rootView: StatsView(model: model))
-    window.setContentSize(NSSize(width: 560, height: 640))
+    // The window takes the content's height, so nothing scrolls.
+    let hosting = NSHostingController(rootView: StatsView(model: model))
+    hosting.sizingOptions = [.preferredContentSize]
+    window.contentViewController = hosting
+    window.setContentSize(NSSize(width: 560, height: 560))
     window.center()
     window.setFrameAutosaveName("LowkeyStats")
     window.appearance = Self.forcedAppearance

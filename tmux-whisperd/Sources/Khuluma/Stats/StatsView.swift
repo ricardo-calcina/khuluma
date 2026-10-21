@@ -4,17 +4,9 @@ import SwiftUI
 /// The stats window. All the maths is in `UsageStats`; this only lays it out.
 struct StatsView: View {
   @ObservedObject var model: StatsModel
-  /// Off for snapshots, which render the whole content at its full height.
-  var scrolls = true
-
   var body: some View {
     Group {
-      if let stats = model.stats, scrolls {
-        ScrollView {
-          StatsContent(stats: stats, model: model)
-            .padding(20)
-        }
-      } else if let stats = model.stats {
+      if let stats = model.stats {
         StatsContent(stats: stats, model: model)
           .padding(20)
       } else if model.refreshFailed {
@@ -25,7 +17,7 @@ struct StatsView: View {
         Placeholder(symbol: nil, text: "Loading stats…") { ProgressView().controlSize(.small) }
       }
     }
-    .frame(minWidth: 480, minHeight: scrolls ? 400 : 0)
+    .frame(width: 560)
     .background(Color(nsColor: .windowBackgroundColor))
   }
 }
@@ -52,7 +44,7 @@ private struct StatsContent: View {
   @ObservedObject var model: StatsModel
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 22) {
+    VStack(alignment: .leading, spacing: 12) {
       if let milestone = model.celebrating {
         Label("You passed \(milestone.formatted()) words", systemImage: "party.popper.fill")
           .font(.headline)
@@ -102,11 +94,12 @@ private struct Hero: View {
 
   var body: some View {
     HStack(alignment: .top, spacing: 20) {
-      figure("Words dictated", value: lifetime.words.formatted(), tracking: Double(lifetime.words))
+      figure("Words dictated", value: lifetime.words.formatted(), tracking: Double(lifetime.words),
+             caption: "all time")
       Divider()
       figure("Words per minute", value: lifetime.wordsPerMinute.map { $0.formatted() } ?? "–",
              tracking: Double(lifetime.wordsPerMinute ?? 0), accent: true,
-             info: "Words per minute of recording, pauses included.")
+             info: "Words per minute of recording, pauses included.", caption: "pauses included")
       Divider()
       timeSaved
     }
@@ -120,14 +113,14 @@ private struct Hero: View {
       figure("Time saved", value: parts.amount, tracking: nil,
              info: "Typing the same words at \(lifetime.typingWPM) words per minute, minus the time from starting "
                + "a recording to its text arriving. An estimate: your typing speed will differ.",
-             caption: parts.caption, detail: "estimate at \(lifetime.typingWPM) wpm")
+             caption: parts.caption)
     } else {
-      figure("Time saved", value: "–", tracking: nil)
+      figure("Time saved", value: "–", tracking: nil, caption: "no dictations yet")
     }
   }
 
   private func figure(_ title: String, value: String, tracking: Double?, accent: Bool = false,
-                      info: String? = nil, caption: String? = nil, detail: String? = nil) -> some View {
+                      info: String? = nil, caption: String? = nil) -> some View {
     VStack(alignment: .leading, spacing: 4) {
       HStack(spacing: 4) {
         Text(title.uppercased())
@@ -139,7 +132,7 @@ private struct Hero: View {
         }
       }
       Text(value)
-        .font(.system(size: 34, weight: .bold, design: .rounded))
+        .font(.system(size: 26, weight: .bold, design: .rounded))
         .monospacedDigit()
         .lineLimit(1)
         .minimumScaleFactor(0.6)
@@ -147,10 +140,7 @@ private struct Hero: View {
         .contentTransition(.numericText(value: tracking ?? 0))
         .animation(reduceMotion ? nil : .default, value: value)
       if let caption {
-        Text(caption).font(.callout)
-      }
-      if let detail {
-        Text(detail).font(.caption).foregroundStyle(.secondary)
+        Text(caption).font(.callout).foregroundStyle(.secondary)
       }
     }
     .frame(maxWidth: .infinity, alignment: .leading)
@@ -195,15 +185,20 @@ private struct Activity: View {
   // Not @State: the Command Line Tools have no SwiftUI macro plugin.
   @StateObject private var hover = Hover()
 
-  /// Up to 30 days the heatmap is narrow, so the chart sits beside it;
-  /// longer ranges run the heatmap across the width with the chart below.
-  private var sideBySide: Bool { rangeDays <= 30 }
+  /// Cells narrow as the range grows, so the heatmap and the chart always
+  /// share one row and the window keeps the same height for every range.
+  /// The window never changes width: the heatmap gets a fixed area and its
+  /// cells shrink to fit the range's weeks.
+  private func cellWidth(weeks: Int) -> CGFloat {
+    let columns = CGFloat(max(weeks, 1))
+    return min(24, ((Heatmap.area - Heatmap.labelColumn) / columns - Heatmap.gap).rounded(.down))
+  }
 
   var body: some View {
     let range = stats.range(days: rangeDays)
     let weeks = stats.heatmap(days: rangeDays)
     let days = weeks.joined().filter { $0.state != .outsideRange && $0.state != .future }
-    VStack(alignment: .leading, spacing: 10) {
+    VStack(alignment: .leading, spacing: 8) {
       HStack(spacing: 12) {
         Text("Activity").font(.headline)
         Spacer()
@@ -222,28 +217,22 @@ private struct Activity: View {
       Text(Format.rangeLine(range, since: stats.dailySince))
         .font(.callout)
         .foregroundStyle(.secondary)
-      if showWords && sideBySide {
-        HStack(alignment: .top, spacing: 24) {
-          Heatmap(weeks: weeks, today: stats.today, coverageComplete: stats.coverageComplete,
-                  fillsWidth: false, hovered: $hover.cell)
+      HStack(alignment: .top, spacing: 24) {
+        Heatmap(weeks: weeks, today: stats.today, coverageComplete: stats.coverageComplete,
+                cellWidth: cellWidth(weeks: weeks.count), hovered: $hover.cell)
+        if showWords {
           WordsPerDay(days: days, height: Heatmap.cellHeight * 7 + Heatmap.gap * 6, hovered: $hover.cell)
         }
-        .padding(.top, 4)
-      } else {
-        VStack(alignment: .leading, spacing: 14) {
-          Heatmap(weeks: weeks, today: stats.today, coverageComplete: stats.coverageComplete,
-                  fillsWidth: !sideBySide, hovered: $hover.cell)
-          if showWords {
-            WordsPerDay(days: days, height: 64, hovered: $hover.cell)
-          }
-        }
-        .padding(.top, 4)
       }
+      .padding(.top, 2)
       HStack(alignment: .center) {
         Text(hover.cell.map { Format.cellLine($0, coverageComplete: stats.coverageComplete) } ?? " ")
           .font(.callout)
           .monospacedDigit()
-        Spacer()
+          .lineLimit(1)
+          .minimumScaleFactor(0.8)
+          .truncationMode(.tail)
+        Spacer(minLength: 8)
         Legend(showUntracked: weeks.joined().contains { $0.state == .untracked })
       }
     }
@@ -259,13 +248,14 @@ private struct Heatmap: View {
   let weeks: [[UsageStats.Cell]]
   let today: CivilDate
   let coverageComplete: Bool
-  /// Columns share the width (a wide, GitHub-style graph) instead of
-  /// keeping a fixed square size.
-  let fillsWidth: Bool
+  let cellWidth: CGFloat
   @Binding var hovered: UsageStats.Cell?
 
-  static let cellHeight: CGFloat = 22
-  static let gap: CGFloat = 4
+  static let cellHeight: CGFloat = 18
+  static let gap: CGFloat = 3
+  /// Width of the weekday labels, and of the area the cells share at most.
+  static let labelColumn: CGFloat = 18
+  static let area: CGFloat = 270
 
   var body: some View {
     HStack(alignment: .top, spacing: Self.gap) {
@@ -275,7 +265,7 @@ private struct Heatmap: View {
           Text(Format.weekdaySymbol(weeks.first?[row].date))
             .font(.caption2)
             .foregroundStyle(.secondary)
-            .frame(height: Self.cellHeight)
+            .frame(width: Self.labelColumn - Self.gap, height: Self.cellHeight, alignment: .trailing)
         }
       }
       ForEach(weeks.indices, id: \.self) { index in
@@ -287,7 +277,7 @@ private struct Heatmap: View {
             .frame(maxWidth: .infinity, alignment: .leading)
           ForEach(weeks[index], id: \.date) { cell in
             HeatCell(cell: cell, isToday: cell.date == today, coverageComplete: coverageComplete,
-                     width: fillsWidth ? nil : Self.cellHeight)
+                     width: cellWidth)
               .onHover { inside in
                 if inside {
                   hovered = cell
@@ -297,7 +287,7 @@ private struct Heatmap: View {
               }
           }
         }
-        .frame(width: fillsWidth ? nil : Self.cellHeight)
+        .frame(width: cellWidth)
       }
     }
   }
@@ -307,8 +297,7 @@ private struct HeatCell: View {
   let cell: UsageStats.Cell
   let isToday: Bool
   let coverageComplete: Bool
-  /// Nil takes whatever width the column gets.
-  let width: CGFloat?
+  let width: CGFloat
 
   var body: some View {
     let shape = RoundedRectangle(cornerRadius: 4, style: .continuous)
@@ -327,7 +316,7 @@ private struct HeatCell: View {
         shape.strokeBorder(Color.primary.opacity(0.7), lineWidth: 1.5)
       }
     }
-    .frame(maxWidth: width ?? .infinity)
+    .frame(width: width)
     .frame(height: Heatmap.cellHeight)
     .accessibilityElement()
     .accessibilityLabel(Format.cellLine(cell, coverageComplete: coverageComplete))
@@ -354,7 +343,7 @@ private struct WordsPerDay: View {
       .font(.caption2)
       .foregroundStyle(.secondary)
       .frame(height: 12)
-      HStack(alignment: .bottom, spacing: 2) {
+      HStack(alignment: .bottom, spacing: days.count > 45 ? 1 : 2) {
         ForEach(days, id: \.date) { cell in
           ZStack(alignment: .bottom) {
             Color.clear
@@ -414,6 +403,7 @@ private struct Legend: View {
     }
     .font(.caption)
     .foregroundStyle(.secondary)
+    .fixedSize()
     .help("A day's colour is how many dictations it had: 1–2, 3–5, 6–9, 10 or more.")
   }
 }
@@ -430,11 +420,12 @@ private struct StreakSection: View {
         .font(.headline)
         .foregroundStyle(streak.current > 0 ? Color.orange : Color.secondary)
       Text("\(streak.current) day\(streak.current == 1 ? "" : "s")")
-        .font(.system(size: 28, weight: .bold, design: .rounded))
+        .font(.system(size: 22, weight: .bold, design: .rounded))
         .monospacedDigit()
       Text(streak.best == 0 ? "None yet"
            : streak.current > 1 && streak.current == streak.best
            ? "Your best streak yet" : "Best \(streak.best) day\(streak.best == 1 ? "" : "s")")
+        .font(.callout)
         .foregroundStyle(.secondary)
       if streak.pendingToday {
         Text("Dictate today to make it \(streak.current + 1)")
@@ -450,9 +441,9 @@ private struct RecordsSection: View {
   let records: UsageStats.Records
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 10) {
+    VStack(alignment: .leading, spacing: 6) {
       Label("Recorded bests", systemImage: "trophy.fill").font(.headline)
-      Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 8) {
+      Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 4) {
         row("Best day", records.bestDay) { "\($0.formatted()) words" }
         row("Longest take", records.longestTake) { Format.duration(ms: $0) }
         row("Longest streak", records.longestStreak) { "\($0) day\($0 == 1 ? "" : "s")" }
@@ -463,10 +454,10 @@ private struct RecordsSection: View {
 
   private func row(_ title: String, _ record: UsageStats.Record?, value: (Int) -> String) -> some View {
     GridRow {
-      Text(title).foregroundStyle(.secondary).fixedSize()
+      Text(title).font(.callout).foregroundStyle(.secondary).fixedSize()
       if let record {
-        Text(value(record.value)).monospacedDigit().fixedSize()
-        Text(Format.shortDate(record.date)).foregroundStyle(.secondary).fixedSize()
+        Text(value(record.value)).font(.callout).monospacedDigit().fixedSize()
+        Text(Format.shortDate(record.date)).font(.callout).foregroundStyle(.secondary).fixedSize()
         if record.isNew {
           Text("New")
             .font(.caption.bold())
@@ -499,13 +490,15 @@ private struct Totals: View {
   }
 
   private func total(_ title: String, value: String, today: String?) -> some View {
-    VStack(alignment: .leading, spacing: 4) {
-      Text(title).foregroundStyle(.secondary)
-      Text(value)
-        .font(.system(size: 22, weight: .semibold, design: .rounded))
-        .monospacedDigit()
-      if let today {
-        Text(today).font(.callout).foregroundStyle(.secondary)
+    VStack(alignment: .leading, spacing: 2) {
+      Text(title).font(.callout).foregroundStyle(.secondary)
+      HStack(alignment: .firstTextBaseline, spacing: 8) {
+        Text(value)
+          .font(.system(size: 17, weight: .semibold, design: .rounded))
+          .monospacedDigit()
+        if let today {
+          Text(today).font(.callout).foregroundStyle(.secondary)
+        }
       }
     }
     .frame(maxWidth: .infinity, alignment: .leading)
@@ -548,12 +541,14 @@ private struct Footer: View {
   @ObservedObject var model: StatsModel
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 4) {
-      Divider().padding(.bottom, 6)
-      Text(Format.coverage(stats)).foregroundStyle(.secondary)
-      Text("Stats keep counts and durations only, never what you said.").foregroundStyle(.secondary)
-      HStack {
-        Text(updatedLine).foregroundStyle(model.refreshFailed ? Color.orange : Color.secondary)
+    VStack(alignment: .leading, spacing: 2) {
+      Divider().padding(.bottom, 4)
+      HStack(alignment: .bottom) {
+        VStack(alignment: .leading, spacing: 2) {
+          Text(Format.coverage(stats)).foregroundStyle(.secondary)
+          Text("Counts and durations only, never what you said.").foregroundStyle(.secondary)
+          Text(updatedLine).foregroundStyle(model.refreshFailed ? Color.orange : Color.secondary)
+        }
         Spacer()
         Button {
           model.reload()
