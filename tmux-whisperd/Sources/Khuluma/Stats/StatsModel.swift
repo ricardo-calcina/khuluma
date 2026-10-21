@@ -14,6 +14,7 @@ final class StatsModel: ObservableObject {
 
   static let ranges = [30, 60, 90]
   private static let rangeKey = "LowkeyStatsRangeDays"
+  private static let wordsKey = "KhulumaStatsWordsPerDay"
   private static let milestoneKey = "LowkeyStatsMilestoneSeen"
 
   @Published private(set) var stats: UsageStats?
@@ -25,6 +26,11 @@ final class StatsModel: ObservableObject {
   @Published private(set) var celebrating: Int?
   @Published var rangeDays: Int {
     didSet { UserDefaults.standard.set(rangeDays, forKey: Self.rangeKey) }
+  }
+
+  /// Whether Activity also charts words per day. On unless turned off.
+  @Published var showWordsPerDay: Bool {
+    didSet { UserDefaults.standard.set(showWordsPerDay, forKey: Self.wordsKey) }
   }
 
   private let source: () -> Source
@@ -41,6 +47,7 @@ final class StatsModel: ObservableObject {
     self.source = source
     let stored = UserDefaults.standard.integer(forKey: Self.rangeKey)
     rangeDays = Self.ranges.contains(stored) ? stored : 30
+    showWordsPerDay = UserDefaults.standard.object(forKey: Self.wordsKey) as? Bool ?? true
   }
 
   /// Fixed content, for snapshots.
@@ -49,6 +56,7 @@ final class StatsModel: ObservableObject {
     self.stats = stats
     self.updatedAt = updatedAt
     self.rangeDays = rangeDays
+    showWordsPerDay = true
     self.celebrating = celebrating
   }
 
