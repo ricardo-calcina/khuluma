@@ -2,7 +2,7 @@
 
 Local dictation for macOS. Press a key, speak, and the text is pasted into the app in front of you, transcribed on your Mac by a warm Parakeet model (Swift/CoreML). Nothing leaves the machine.
 
-**Khuluma** means "speak" in isiNdebele and isiZulu. Current work, installed-state evidence and open gates are in [`LOG.md`](LOG.md). The finite [identity migration checklist](docs/KHULUMA_RENAME_PLAN.md) covers the upgrade from the earlier Tmux Whisper/Lowkey identities. The project has three parts:
+**Khuluma** means "speak" in isiNdebele and isiZulu. Current work, installed-state evidence and open gates are in [`LOG.md`](LOG.md). The [archived identity-rename outcome](docs/plans/archive/KHULUMA_IDENTITY_RENAME.md) records the transition from the earlier Tmux Whisper/Lowkey identities. The project has three parts:
 
 - **Khuluma** (`native/Sources/Khuluma`): the menu-bar app you dictate with. It owns the hotkey, the microphone, the sounds, delivery (paste, optionally send) and the Stats window. It transcribes over the daemon's socket and cleans the text up in Swift.
 - **`khulumad`**: the local Parakeet daemon that keeps the model loaded.
@@ -54,7 +54,7 @@ The new bundle ID is `com.ricardo-nth.khuluma`, signed with a separate `Khuluma 
 
 `install.sh` keeps your config, vocab and sounds, including with `--force`, which only refreshes the scripts and adds missing defaults. Other flags: `--no-sounds`, `--with-sounds`, `--replace-sounds` (overwrite your sound files with the bundled ones). It ends with a daemon warm-up, and writes an install receipt to `~/.config/khuluma/install-receipt.env`.
 
-**CLI only:** the renamed Homebrew formula (`brew install ricardo-nth/tap/khuluma`) and `bootstrap.sh` install the CLI without the app. Publication and the immutable archive checksum must pass the release checklist before the renamed formula is advertised as available. They are for file transcription, or a pinned CLI on another machine:
+**CLI only:** the published Homebrew formula (`brew install ricardo-nth/tap/khuluma`) and `bootstrap.sh` install the CLI without the app. They are for file transcription, or a pinned CLI on another machine:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ricardo-nth/khuluma/main/bootstrap.sh | bash -s -- --ref v0.10.0 --force
@@ -108,7 +108,7 @@ khuluma vocab dedupe                   # backs up first
 khuluma vocab rm "literal text"        # --regex to match a pattern
 ```
 
-Modes were removed in v0.11. If an older install left `modes/` or `current-mode` in `~/.config/khuluma`, `./install.sh` folds each `modes/*/vocab` into `vocab` (skipping rules it already has) and moves the old files to `modes-archive/`. To run it yourself, or preview it first:
+Modes were removed in v0.10.0. If an older install left `modes/` or `current-mode` in `~/.config/khuluma`, `./install.sh` folds each `modes/*/vocab` into `vocab` (skipping rules it already has) and moves the old files to `modes-archive/`. To run it yourself, or preview it first:
 
 ```bash
 khuluma migrate-modes --dry-run
@@ -149,7 +149,7 @@ khuluma bench 20                # stage timings of recent takes
 ```
 
 - **History** keeps transcripts for `history.retention_days` (7 by default).
-- **Usage** is a separate, transcript-free tally of delivered dictations that survives history pruning. It started when the feature was installed and doesn't backfill. Daily buckets started with v0.11.
+- **Usage** is a separate, transcript-free tally of delivered dictations that survives history pruning. It started when the feature was installed and doesn't backfill. Daily buckets started with v0.10.0.
 - **The time-saved figure** is an estimate. It assumes a typing speed (`KHULUMA_HISTORY_TYPING_WPM`, 40 by default), and changing it recalculates the estimate without touching the recorded totals.
 
 Most read commands take `--json`. The stable ones are listed in [`docs/CLI_CONTRACTS.md`](docs/CLI_CONTRACTS.md).

@@ -1,9 +1,10 @@
 # Archived plans
 
-Finished or superseded plans, kept for history. They describe the project as it was when written (tmux-first CLI, SwiftBar, Raycast, whisper.cpp), not as it is now. The active plan is `../../archive/KHULUMA_RENAME_ROADMAP.md`.
+Finished or superseded plans, kept for history. Some describe earlier tmux-first CLI, SwiftBar, Raycast and whisper.cpp designs. Current work and follow-ups belong in [LOG.md](../../../LOG.md). The [earlier Khuluma roadmap](../../archive/KHULUMA_RENAME_ROADMAP.md) is historical; it is not an active plan.
 
 | Plan | Outcome |
 | --- | --- |
+| [KHULUMA_IDENTITY_RENAME.md](KHULUMA_IDENTITY_RENAME.md) | v0.10.0 source, daily app/CLI/daemon and public formula identities verified; scoped acceptance limits and retained follow-ups recorded in the outcome and LOG |
 | `RENAME_PLAN.md` | Done: `dictate` renamed to `tmux-whisper` |
 | `TMUX_WHISPER_CLI_FIRST_V06_SPEC.md` | Done in v0.6.0 (#20) |
 | `MODES_REDESIGN_SPEC.md` | Done: base/code modes, flows, post-processing off by default |
