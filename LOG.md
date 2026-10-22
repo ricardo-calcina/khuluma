@@ -1,7 +1,7 @@
 # Log
 
 ## Now
-Implement the approved complete Khuluma identity migration in the isolated `codex/khuluma-rename` source/tap worktrees. [`docs/KHULUMA_RENAME_PLAN.md`](docs/KHULUMA_RENAME_PLAN.md) owns the finite checklist. Preserve the daily installed app, original dirty checkouts, user data and full history until isolated acceptance and one controlled cutover pass. Native CLI independence stays separate.
+Implement the approved complete Khuluma identity migration in the isolated `codex/khuluma-rename` source/tap worktrees. [`docs/KHULUMA_RENAME_PLAN.md`](docs/KHULUMA_RENAME_PLAN.md) owns the finite checklist. Preserve the daily installed app, user data and full history until isolated acceptance and one controlled cutover pass. Original documentation is preserved in the exact baseline commits before local integration. Native CLI independence stays separate.
 
 Existing documentation was preserved in a separate baseline commit before code changes. The final Swift 6.4 gate passed 22 daemon/kit and 153 Core tests (175 total). Shell flow passed 281 assertions, migration passed 26 cases, the app helper passed 30 mocked cases, and the private controller passed 12 recovery cases. The release daemon passed a synthetic file-transcription canary with the existing offline model and stopped cleanly; final Stats fixtures were rendered and inspected. Actual signing, app/permission/login acceptance, runtime cutover and remote/Homebrew gates remain open. Current daily installation remains legacy `com.ricardo-nth.lowkey`, with its separate installed runtime retained.
 
@@ -37,6 +37,8 @@ Existing documentation was preserved in a separate baseline commit before code c
 - Rename the existing repository in place to preserve all history; retain neutral `ricardo-nth/tap` and rename its formula to `khuluma`. External rename/release/tap publication remains pending actual gates. The app continues to depend on its matching CLI; cask/CLI-independence/deprecation/archive are separate future work.
 
 ## Done
+
+- 2026-10-22 · Preserved original documentation as exact baseline commits; reviewed public migration/controller handoff · bc2bfca; docs/INTEGRATIONS.md#identity-migration
 
 - 2026-10-22 · Implemented canonical identities and lossless migration; isolated native/shell/recovery/real-model gates passed; daily/public rollout pending · docs/KHULUMA_RENAME_PLAN.md
 

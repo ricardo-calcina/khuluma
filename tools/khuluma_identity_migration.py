@@ -5,6 +5,11 @@ The admission controller owns entry-point gates and process shutdown; this tool
 verifies its current proof, refuses live writers, and only changes data paths.
 It never kills a process or deletes a legacy tree. Dry-run creates no files.
 
+Standalone inspection: --dry-run. Apply/resume/rollback require a reviewed,
+active coordinator; no portable automated coordinator ships with this tool.
+Do not fabricate receipts. Operator handoff and recovery procedure:
+docs/INTEGRATIONS.md#identity-migration (in the canonical source checkout).
+
 Admission receipt (owned regular 0600 JSON, lifetime <= 1 hour):
   schema_version=1, migration_version="rename-v1", state="gated",
   scope="fixture"|"live_controller", nonce=UUID, created_at/expires_at=epoch,
@@ -209,7 +214,7 @@ def process_fingerprint(pid):
 
 def admit(path, roots, idle=True):
     if path is None:
-        raise Refusal("apply/resume/rollback require a verified admission receipt; no writers were stopped")
+        raise Refusal("apply/resume/rollback require a verified admission receipt from an active coordinator; no writers were stopped. See docs/INTEGRATIONS.md#identity-migration; do not fabricate a receipt")
     receipt = private_json(checked_path(path))
     try:
         require(type(receipt["schema_version"]) is int and receipt["schema_version"] == 1 and receipt["migration_version"] == VERSION)

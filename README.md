@@ -25,6 +25,8 @@ A checkout is separate from the installed app and daemon. `tools/build-khuluma-a
 
 Khuluma is built from a clone, and it needs the CLI from the same checkout: the two share an app contract number, and Khuluma refuses takes from a CLI with a different one.
 
+For an older Tmux Whisper/Lowkey installation, start with [Identity migration](docs/INTEGRATIONS.md#identity-migration) before running the installation commands below.
+
 ```bash
 git clone https://github.com/ricardo-nth/khuluma.git
 cd khuluma
@@ -36,7 +38,7 @@ open ~/Applications/Khuluma.app
 
 On first launch, allow Microphone and Accessibility (for pasting) in System Settings → Privacy & Security.
 
-After pulling changes, refresh both:
+After pulling changes in an already canonical installation, refresh both. For an older Tmux Whisper/Lowkey installation, use the identity migration procedure below first:
 
 ```bash
 git pull
@@ -46,7 +48,9 @@ tools/build-khuluma-app.sh
 
 `build-khuluma-app.sh` requests a graceful quit before replacement and relaunches an app that was running. Khuluma saves queued takes and drains its work; the helper waits up to 60 seconds and refuses replacement if the app stays open.
 
-**Upgrading an existing installation:** first inspect `tools/migrate-khuluma-identity.sh --help` and its explicit dry-run. Do not replace a working install piecemeal: config/history/usage, daemon/models, app identity and Finder routing switch together through the migration checklist. A legacy default is detected rather than silently replaced with an empty profile. The new bundle ID is `com.ricardo-nth.khuluma`, signed with a separate `Khuluma Local Code Signing` identity. macOS may require Microphone/Accessibility approval and a Start at Login retoggle; permission carryover is verified on the actual Mac, not assumed. Existing Lowkey recovery readers remain so saved takes are preserved.
+**Upgrading an older Tmux Whisper/Lowkey installation:** follow [Identity migration](docs/INTEGRATIONS.md#identity-migration). From the canonical checkout, `tools/migrate-khuluma-identity.sh --help` and `--dry-run` inspect the data transition without changing it. The tool is a data engine; this release does not include a portable automated coordinator for app, CLI, daemon, login and Finder cutover. Its apply/resume/rollback operations require proof from an active, reviewed operator/agent-controlled session. Do not fabricate receipts or use `install.sh --force` to bypass that requirement. Keep the working old runtime until that coordinated handoff is prepared. A legacy default is detected rather than silently replaced with an empty profile.
+
+The new bundle ID is `com.ricardo-nth.khuluma`, signed with a separate `Khuluma Local Code Signing` identity. macOS may require Microphone/Accessibility approval and a Start at Login retoggle; permission carryover is verified on the actual Mac, not assumed. Existing Lowkey recovery readers remain so saved takes are preserved.
 
 `install.sh` keeps your config, vocab and sounds, including with `--force`, which only refreshes the scripts and adds missing defaults. Other flags: `--no-sounds`, `--with-sounds`, `--replace-sounds` (overwrite your sound files with the bundled ones). It ends with a daemon warm-up, and writes an install receipt to `~/.config/khuluma/install-receipt.env`.
 
