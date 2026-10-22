@@ -649,7 +649,7 @@ Paths and line anchors are from the audited working copies; inspect their curren
 - This plan's generated inventory is evidence, not source/runtime health verification. Existing dirty docs are part of its baseline. Source LOG is intentionally updated only to point to this prepared plan. New plan/evidence files are intentional additions; source code, formula and existing runtime remain unchanged.
 - At execution, add concise evidence refs for V1–V14 and actual commit/tag/install identities here or in the owning LOG; avoid a second status file.
 
-**Completion record:** planning only. All implementation checkboxes remain open. Daily app, CLI, daemon, models, configuration, signing, remotes, tags, Homebrew and website unchanged.
+**Planning-baseline record, before implementation:** planning only. All implementation checkboxes remain open. Daily app, CLI, daemon, models, configuration, signing, remotes, tags, Homebrew and website unchanged.
 
 
 ### Execution evidence — 2026-10-22
@@ -671,3 +671,5 @@ Paths and line anchors are from the audited working copies; inspect their curren
 - Real offline model gate passed using generated speech, the prepared canonical daemon/resources and a private profile/socket. Warmup used the existing v3 model (86.8 s), file transcription matched the synthetic canary, and the fixture daemon stopped gracefully. No microphone, clipboard, model download or installed CLI was used.
 
 - Original documentation was adopted as the exact pre-existing baseline commits (`bc2bfca`, `d3c3399`) after byte/mode/status verification; both original checkouts became clean without discarding work. Local rename integration follows; installed runtime remains unchanged.
+
+- Local source main integrated at `64c96e2`, tap preparation at `70d3c9b`; intact folders now `khuluma` and `homebrew-tap`, with worktree links repaired. Signed canonical app build324 passed strict verification and exact dedicated leaf-certificate comparison. First controlled admission was rolled back before data staging when a retained AppKit process object stayed stale after termination; old app and idle daemon were restored and pinged. Configuration/model roots remained at their original locations. A fresh reviewed lifecycle query and new controller session are required for retry.

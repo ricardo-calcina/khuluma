@@ -8,7 +8,7 @@ For implementation, make the smallest complete change and verify the affected be
 
 Keep defaults portable. Config/history remain under `~/.config/khuluma`, sounds under `~/.local/share/sounds/khuluma`, and models under `~/.local/share/khuluma/models`. Do not commit personal config, transcripts or secrets.
 
-The source and sibling `../homebrew-tap` are separate repositories. The formula updater still defaults to `../homebrew-tap`; use its documented `--formula` override here. Source `LOG.md` owns that pending fix. Preserve public usage, CLI contracts, troubleshooting, attribution and release history. Archived plans and dated name research are evidence, not an active workflow.
+The source and sibling `../homebrew-tap` are separate repositories. The formula updater defaults to `../homebrew-tap/Formula/khuluma.rb`. The canonical formula remains staged outside `Formula/` until its actual source archive and release checks pass. Preserve public usage, CLI contracts, troubleshooting, attribution and release history. Archived plans and dated name research are evidence, not an active workflow.
 
 
 The approved identity migration is being implemented in an isolated worktree. `docs/KHULUMA_RENAME_PLAN.md` is the finite execution checklist. Keep installed-state claims in LOG with actual evidence. The old shared Lowkey certificate and original user data remain recovery material; canonical signing uses a distinct identity. Worktree app checks require the explicit private support/log/defaults overrides documented in the code, so another instance cannot touch the daily app's pending/recovered data.

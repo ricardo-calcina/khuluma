@@ -198,6 +198,19 @@ guard atBundle.allSatisfy({ $0.executableURL?.standardizedFileURL == executable 
   fputs("Running app identity mismatch; destination left unchanged\n", stderr)
   exit(1)
 }
+func currentApplicationsAtBundle() -> [NSRunningApplication] {
+  let candidates = NSRunningApplication.runningApplications(withBundleIdentifier: identifier)
+  guard candidates.allSatisfy({ $0.bundleURL != nil }) else {
+    fputs("Cannot establish running app path; destination left unchanged\n", stderr)
+    exit(1)
+  }
+  let matches = candidates.filter { $0.bundleURL?.standardizedFileURL == bundle }
+  guard matches.allSatisfy({ $0.executableURL?.standardizedFileURL == executable && $0.bundleIdentifier == identifier }) else {
+    fputs("Running app identity mismatch; destination left unchanged\n", stderr)
+    exit(1)
+  }
+  return matches
+}
 for application in atBundle {
   guard application.terminate() else {
     fputs("App refused graceful termination; destination left unchanged\n", stderr)
@@ -205,10 +218,10 @@ for application in atBundle {
   }
 }
 let deadline = Date().addingTimeInterval(60)
-while atBundle.contains(where: { !$0.isTerminated }) && Date() < deadline {
+while !currentApplicationsAtBundle().isEmpty && Date() < deadline {
   RunLoop.current.run(until: Date().addingTimeInterval(0.1))
 }
-guard atBundle.allSatisfy({ $0.isTerminated }) else {
+guard currentApplicationsAtBundle().isEmpty else {
   fputs("App did not finish graceful termination; destination left unchanged\n", stderr)
   exit(1)
 }

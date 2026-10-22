@@ -3,7 +3,7 @@
 ## Now
 Implement the approved complete Khuluma identity migration in the isolated `codex/khuluma-rename` source/tap worktrees. [`docs/KHULUMA_RENAME_PLAN.md`](docs/KHULUMA_RENAME_PLAN.md) owns the finite checklist. Preserve the daily installed app, user data and full history until isolated acceptance and one controlled cutover pass. Original documentation is preserved in the exact baseline commits before local integration. Native CLI independence stays separate.
 
-Existing documentation was preserved in a separate baseline commit before code changes. The final Swift 6.4 gate passed 22 daemon/kit and 153 Core tests (175 total). Shell flow passed 281 assertions, migration passed 26 cases, the app helper passed 30 mocked cases, and the private controller passed 12 recovery cases. The release daemon passed a synthetic file-transcription canary with the existing offline model and stopped cleanly; final Stats fixtures were rendered and inspected. Actual signing, app/permission/login acceptance, runtime cutover and remote/Homebrew gates remain open. Current daily installation remains legacy `com.ricardo-nth.lowkey`, with its separate installed runtime retained.
+Existing documentation was preserved in a separate baseline commit before code changes. The final Swift 6.4 gate passed 22 daemon/kit and 153 Core tests (175 total). Shell flow passed 281 assertions, migration passed 26 cases, the app helper passed 30 mocked cases, and the private controller passed 12 recovery cases. The release daemon passed a synthetic file-transcription canary with the existing offline model and stopped cleanly; final Stats fixtures were rendered and inspected. The final app is signed with the dedicated Khuluma certificate and strictly verified. Local source/tap integration and folder moves are complete. App/permission/login acceptance, runtime cutover and remote/Homebrew gates remain open. Current daily installation remains legacy `com.ricardo-nth.lowkey`, with its separate installed runtime retained.
 
 ## Next
 
@@ -17,7 +17,7 @@ Existing documentation was preserved in a separate baseline commit before code c
 - [ ] P1 · Phase 1 step 1: native usage ledger and history writer, proven against the CLI with shared fixtures (removes `inline record`) · added 2026-10-17
 - [ ] P1 · Phase 1 after the native writers: port config, bundle and supervise the daemon, add model download and bundled sounds, then port or drop CLI fallbacks; keep shared files/locks compatible while both writers exist · added 2026-10-22
 - [ ] P1 · Phase 1 delivery: use PostEvent permission gates and a bundled child daemon; verify clean-account dictation/Stats/history without CLI and 14 days without CLI invocations or usage mismatch before calling it independent · added 2026-10-22
-- [ ] P2 · Source maintainer: fix tools/update-homebrew-formula.sh default ../homebrew-tap; local checkout is ../tmux-whsper-brew-tap; use --formula override meanwhile · added 2026-10-22
+- [x] P2 · Align formula updater and intact source/tap siblings at khuluma and homebrew-tap · added 2026-10-22
 - [ ] P2 · Skip auto-send for one take: hold a key (Shift or similar, to decide) so the take pastes without pressing Enter; auto-send stays the default · added 2026-10-17
 - [ ] P2 · Stats stage 3 ideas (not committed): weeks view, wpm trend, longest take, typing_wpm config, streak line, time of day, opt-in per-app · added 2026-10-16
 - [ ] P2 · Lowkey ideas parked from 3c, only with evidence: config file watcher, warm mic/pre-roll · added 2026-10-16
@@ -37,6 +37,8 @@ Existing documentation was preserved in a separate baseline commit before code c
 - Rename the existing repository in place to preserve all history; retain neutral `ricardo-nth/tap` and rename its formula to `khuluma`. External rename/release/tap publication remains pending actual gates. The app continues to depend on its matching CLI; cask/CLI-independence/deprecation/archive are separate future work.
 
 ## Done
+
+- 2026-10-22 · Verified signed build324 and intact local source/tap moves; real pre-data rollback restored old app/serving daemon after lifecycle cache refusal · 64c96e2; docs/KHULUMA_RENAME_PLAN.md
 
 - 2026-10-22 · Preserved original documentation as exact baseline commits; reviewed public migration/controller handoff · bc2bfca; docs/INTEGRATIONS.md#identity-migration
 
