@@ -9,14 +9,8 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 source "$ROOT/bin/khuluma-lib/identity.sh"
-khuluma_normalize_environment
 
 LOG="${KHULUMA_LOG:-$HOME/Library/Logs/Khuluma/app.log}"
-# Before the rename the app logged under Lowkey; its first launch as Khuluma
-# moves the log, so the old path only matters until then.
-if [[ -z "${KHULUMA_LOG:-}" && ! -e "$LOG" && -e "$HOME/Library/Logs/Lowkey/app.log" ]]; then
-  LOG="$HOME/Library/Logs/Lowkey/app.log"
-fi
 SINCE=""
 DAYS=""
 SYSTEM=0
@@ -37,6 +31,7 @@ while [[ $# -gt 0 ]]; do
   esac
   shift
 done
+khuluma_reject_obsolete_environment
 
 [[ -r "$LOG" ]] || { echo "no log at $LOG" >&2; exit 1; }
 command -v python3 >/dev/null 2>&1 || { echo "python3 is required" >&2; exit 1; }
@@ -315,7 +310,7 @@ if [[ "$SYSTEM" == "1" ]]; then
     gsub(/[ .]/, "", $2); printf "  %s: %s\n", $1, $2
   }'
   ps -axo rss=,comm= 2>/dev/null | awk '
-    $2 ~ /khulumad$/ || $2 ~ /tmux-whisperd$/ || $2 ~ /Khuluma$/ || $2 ~ /Lowkey$/ {
+    $2 ~ /khulumad$/ || $2 ~ /Khuluma$/ {
       n = split($2, part, "/"); printf "  %s RSS: %.0f MB\n", part[n], $1 / 1024
     }'
 fi

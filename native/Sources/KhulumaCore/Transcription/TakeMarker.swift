@@ -98,7 +98,7 @@ public final class TakeMarker: @unchecked Sendable {
     let dir = URL(fileURLWithPath: directory, isDirectory: true)
     guard let names = try? FileManager.default.contentsOfDirectory(atPath: dir.path) else { return [] }
     var removedNames: [String] = []
-    for name in names where name.hasPrefix(prefix) || name.hasPrefix(LegacyNames.markerPrefix) {
+    for name in names where name.hasPrefix(prefix) {
       let url = dir.appendingPathComponent(name)
       let firstLine = (try? String(contentsOf: url, encoding: .utf8))?.split(separator: "\n").first ?? ""
       let pid = firstLine.hasPrefix("pid=") ? Int32(firstLine.dropFirst(4)) : nil
@@ -109,12 +109,11 @@ public final class TakeMarker: @unchecked Sendable {
     return removedNames
   }
 
-  /// True when `pid` is a live process whose executable is named Khuluma
-  /// (or Lowkey, from before the rename).
+  /// True when `pid` is a live process whose executable is named Khuluma.
   public static func isRunningKhuluma(_ pid: Int32) -> Bool {
     var buffer = [CChar](repeating: 0, count: 4 * Int(MAXPATHLEN))
     guard proc_pidpath(pid, &buffer, UInt32(buffer.count)) > 0 else { return false }
     let name = URL(fileURLWithPath: String(cString: buffer)).lastPathComponent
-    return name == "Khuluma" || name == LegacyNames.executable
+    return name == "Khuluma"
   }
 }

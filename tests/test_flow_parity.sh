@@ -909,8 +909,7 @@ run_finder_handler_round() {
   setup_case "finder-handler"
   local stub="$CASE_DIR/stub-cli" args_log="$CASE_DIR/logs/cli-args.txt" notify_log="$CASE_DIR/logs/notify.txt"
   local guard="$CASE_DIR/legacy-guard" guard_log="$CASE_DIR/logs/legacy-guard.txt"
-  # A regressed old handler must fail inside the fixture, never try installed
-  # Homebrew binaries, real notifications or the global Finder log.
+  # A refused obsolete override must not invoke any command or write logs.
   printf '#!/usr/bin/env bash\nprintf invoked >"%s"\nexit 97\n' "$guard_log" >"$guard"
   chmod +x "$guard"
   printf '#!/usr/bin/env bash\nprintf "%%s\\n" "$*" >>"%s"\nexit "${STUB_CLI_EXIT:-0}"\n' "$args_log" >"$stub"
@@ -918,7 +917,6 @@ run_finder_handler_round() {
   mkdir -p "$CASE_DIR/memos"
   : >"$CASE_DIR/memos/idea one.m4a"
 
-  DICTATE_BIN="$guard" DICTATE_FINDER_NOTIFY_LOG="$CASE_DIR/logs/legacy-notify.txt" DICTATE_FINDER_TRANSCRIBE_LOG="$CASE_DIR/logs/legacy-finder.log" \
   KHULUMA_BIN="$stub" KHULUMA_FINDER_NOTIFY_LOG="$notify_log" KHULUMA_FINDER_TRANSCRIBE_LOG="$CASE_DIR/logs/finder.log" \
     bash "$ROOT/integrations/finder/khuluma-transcribe.sh" "$CASE_DIR/memos/idea one.m4a"
   assert_file_contains "finder_handler_cli_args" "$args_log" "transcribe --beside --clipboard $CASE_DIR/memos/idea one.m4a"
@@ -928,7 +926,6 @@ run_finder_handler_round() {
 
   local rc=0
   printf 'khuluma: output exists (use --force to overwrite): x.txt\n' >>"$CASE_DIR/logs/finder.log"
-  DICTATE_BIN="$guard" DICTATE_FINDER_NOTIFY_LOG="$CASE_DIR/logs/legacy-notify.txt" DICTATE_FINDER_TRANSCRIBE_LOG="$CASE_DIR/logs/legacy-finder.log" \
   STUB_CLI_EXIT=1 KHULUMA_BIN="$stub" KHULUMA_FINDER_NOTIFY_LOG="$notify_log" KHULUMA_FINDER_TRANSCRIBE_LOG="$CASE_DIR/logs/finder.log" \
     bash "$ROOT/integrations/finder/khuluma-transcribe.sh" "$CASE_DIR/memos/idea one.m4a" || rc=$?
   assert_equals "finder_handler_failure_exit_clean" "$rc" "0"
@@ -936,12 +933,25 @@ run_finder_handler_round() {
 
   local before_args
   before_args="$(wc -l <"$args_log" | tr -d ' ')"
-  DICTATE_BIN="$guard" DICTATE_FINDER_NOTIFY_LOG="$CASE_DIR/logs/legacy-notify.txt" DICTATE_FINDER_TRANSCRIBE_LOG="$CASE_DIR/logs/legacy-finder.log" \
   KHULUMA_BIN="$CASE_DIR/does-not-exist" KHULUMA_FINDER_NOTIFY_LOG="$notify_log" KHULUMA_FINDER_TRANSCRIBE_LOG="$CASE_DIR/logs/finder.log" \
     bash "$ROOT/integrations/finder/khuluma-transcribe.sh" "$CASE_DIR/memos/idea one.m4a"
   assert_file_contains "finder_handler_invalid_override_refused" "$notify_log" "Configured Khuluma CLI is not executable: $CASE_DIR/does-not-exist"
   assert_equals "finder_handler_invalid_override_no_cli" "$(wc -l <"$args_log" | tr -d ' ')" "$before_args"
   assert_path_absent "finder_handler_invalid_override_no_legacy" "$guard_log"
+
+  local notify_before
+  notify_before="$(cksum <"$notify_log")"
+  rc=0
+  DICTATE_BIN="$guard" KHULUMA_BIN="$stub" KHULUMA_FINDER_NOTIFY_LOG="$notify_log" \
+  KHULUMA_FINDER_TRANSCRIBE_LOG="$CASE_DIR/logs/refused-finder.log" \
+    bash "$ROOT/integrations/finder/khuluma-transcribe.sh" "$CASE_DIR/memos/idea one.m4a" 2>"$CASE_DIR/logs/obsolete-finder.err" || rc=$?
+  assert_equals "finder_handler_obsolete_override_exit" "$rc" "2"
+  assert_file_contains "finder_handler_obsolete_override_error" "$CASE_DIR/logs/obsolete-finder.err" "obsolete environment input DICTATE_BIN"
+  assert_file_not_contains "finder_handler_obsolete_override_no_value" "$CASE_DIR/logs/obsolete-finder.err" "$guard"
+  assert_equals "finder_handler_obsolete_override_no_cli" "$(wc -l <"$args_log" | tr -d ' ')" "$before_args"
+  assert_equals "finder_handler_obsolete_override_no_notify" "$(cksum <"$notify_log")" "$notify_before"
+  assert_path_absent "finder_handler_obsolete_override_no_log" "$CASE_DIR/logs/refused-finder.log"
+  assert_path_absent "finder_handler_obsolete_override_no_legacy" "$guard_log"
 }
 
 

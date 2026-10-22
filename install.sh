@@ -2,10 +2,9 @@
 set -Eeuo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
-# Every entry point normalizes before it reads its supported environment.
+# Identity helpers are pure; validate inputs before any installation writes.
 source "$REPO_ROOT/bin/khuluma-lib/identity.sh"
 source "$REPO_ROOT/bin/khuluma-lib/migration.sh"
-khuluma_normalize_environment
 
 FORCE=0
 INSTALL_SOUNDS="${KHULUMA_INSTALL_SAMPLE_SOUNDS:-1}"
@@ -39,10 +38,34 @@ while [[ $# -gt 0 ]]; do
   esac
   shift
 done
+khuluma_reject_obsolete_environment
 
 command -v python3 >/dev/null 2>&1 || { echo "python3 is required" >&2; exit 2; }
 absolute_path() { python3 -c 'import os,sys; print(os.path.abspath(os.path.expanduser(sys.argv[1])))' "$1"; }
 BIN_DIR="$(absolute_path "${KHULUMA_BIN_DIR:-$HOME/.local/bin}")"
+# Only the exact released v0.10.0 forwarding shim may be retired automatically.
+# Its tag peels to f8af27e95c6763b30b52da107da3120c4d96f190. Unknown commands
+# belong to the user and must be inspected before this installer writes anything.
+verified_legacy_shim_token() {
+  python3 - "${1:-$BIN_DIR/tmux-whisper}" <<'PYSHIM'
+import hashlib, os, stat, sys
+path = sys.argv[1]
+if not os.path.lexists(path):
+    raise SystemExit(0)
+info = os.lstat(path)
+if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o022 or info.st_size != 591:
+    raise SystemExit(f"Refusing unknown, symlink or unowned old command before installation: {path}")
+with os.fdopen(os.open(path, os.O_RDONLY | os.O_NOFOLLOW), "rb") as source:
+    opened = os.fstat(source.fileno())
+    digest = hashlib.sha256(source.read()).hexdigest()
+    finished = os.fstat(source.fileno())
+identity = lambda value: (value.st_dev, value.st_ino, value.st_mode, value.st_uid)
+if identity(info) != identity(opened) or identity(opened) != identity(finished) or finished.st_size != 591 or digest != "ab5f0067c075c177c2f56e99fe065a04662cde3636ca8f820957a9daf7e9fab6":
+    raise SystemExit(f"Refusing unknown or changed old command before installation: {path}")
+print(":".join(str(value) for value in identity(finished)))
+PYSHIM
+}
+legacy_shim_token="$(verified_legacy_shim_token)"
 # Pure preflight resolves explicit settings and matching receipts, and refuses
 # to fork legacy data into empty canonical defaults. It creates nothing.
 khuluma_identity_preflight "$BIN_DIR/khuluma"
@@ -117,7 +140,7 @@ rollback() {
     transaction="${transaction_roots[$i]}"
     target="${transaction_targets[$i]}"
     current_token="$(path_token "$target" 2>/dev/null || true)"
-    if [[ ! -e "$transaction/replacement" && "$current_token" == "${transaction_tokens[$i]}" ]]; then
+    if [[ -n "${transaction_tokens[$i]}" && ! -e "$transaction/replacement" && "$current_token" == "${transaction_tokens[$i]}" ]]; then
       exclusive_rename "$target" "$transaction/failed" "$current_token" || { echo "Restore requires attention: $transaction -> $target" >&2; continue; }
     fi
     if [[ -e "$transaction/previous" ]]; then
@@ -149,10 +172,30 @@ replace_item() {
   exclusive_rename "$transaction/replacement" "$target" "$replacement_token"
 }
 
+retire_legacy_shim() {
+  local target="$BIN_DIR/tmux-whisper" current_token inode_token retired_token transaction
+  current_token="$(verified_legacy_shim_token)" || return
+  [[ "$current_token" == "$legacy_shim_token" ]] || { echo "Old command changed during installation: $target" >&2; return 2; }
+  [[ -n "$current_token" ]] || return 0
+  transaction="$(mktemp -d "$BIN_DIR/.khuluma-install.XXXXXX")"
+  chmod 700 "$transaction"
+  transaction_roots+=("$transaction")
+  transaction_targets+=("$target")
+  transaction_tokens+=("")
+  inode_token="${current_token%:*}"
+  inode_token="${inode_token%:*}"
+  exclusive_rename "$target" "$transaction/previous" "$inode_token"
+  # A writer may change this inode without replacing the directory entry.
+  # Recheck the retained object; failure restores those changed bytes/mode via
+  # the same exclusive rollback instead of silently retiring an unknown file.
+  retired_token="$(verified_legacy_shim_token "$transaction/previous")" || return
+  [[ "$retired_token" == "$current_token" ]] || { echo "Old command changed during retirement: $target" >&2; return 2; }
+}
+
 stage="$(mktemp -d "${KHULUMA_TMPDIR:-${TMPDIR:-/tmp}}/khuluma-install.XXXXXX")"
 chmod 700 "$stage"
 mkdir -p "$stage/bin" "$stage/native" "$stage/integrations/finder" "$stage/tools"
-for entry in khuluma khuluma-lib.sh tmux-whisper; do
+for entry in khuluma khuluma-lib.sh; do
   install -m 0755 "$REPO_ROOT/bin/$entry" "$stage/bin/$entry"
 done
 cp -R "$REPO_ROOT/bin/khuluma-lib" "$stage/bin/khuluma-lib"
@@ -168,7 +211,8 @@ install -m 0755 "$REPO_ROOT/integrations/finder/khuluma-transcribe.sh" "$stage/i
 if [[ ! -e "$CONFIG_FILE" ]]; then
   "$stage/bin/khuluma" config defaults > "$stage/config.toml"
 fi
-for entry in khuluma khuluma-lib.sh khuluma-lib tmux-whisper; do
+retire_legacy_shim
+for entry in khuluma khuluma-lib.sh khuluma-lib; do
   replace_item "$stage/bin/$entry" "$BIN_DIR/$entry"
 done
 for entry in Package.swift Package.resolved Sources Tests; do
@@ -232,7 +276,7 @@ echo "Installation staging retained: $stage"
 for transaction in "${transaction_roots[@]}"; do
   [[ ! -e "$transaction/previous" ]] || echo "Recoverable previous entry: $transaction/previous"
 done
-# Explicit model/daemon/sound settings survive normalization and child launch.
+# Explicit model/daemon/sound settings survive child launch.
 if [[ "$INSTALL_WARMUP" == 1 ]]; then
   KHULUMA_CONFIG_DIR="$CONFIG_DIR" KHULUMA_CONFIG_FILE="$CONFIG_FILE" \
     "$BIN_DIR/khuluma" warmup --best-effort --refresh-in-background || true

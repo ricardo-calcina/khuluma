@@ -148,11 +148,33 @@ struct CLIEnvironmentTests {
     #expect(env["PATH"]?.hasPrefix("/Users/x/.local/bin:/opt/homebrew/bin:") == true)
   }
 
-  @Test func fallbackConfigRootUsesCanonicalThenLegacyThenXDG() {
+  @Test func fallbackConfigRootUsesCanonicalThenXDG() {
     #expect(CLIEnvironment.configDirectory(base: [:], home: "/Users/x") == "/Users/x/.config/khuluma")
     #expect(CLIEnvironment.configDirectory(base: ["XDG_CONFIG_HOME": "/fixture/config"], home: "/Users/x") == "/fixture/config/khuluma")
-    #expect(CLIEnvironment.configDirectory(base: ["DICTATE_CONFIG_DIR": "/legacy/custom"], home: "/Users/x") == "/legacy/custom")
+    #expect(CLIEnvironment.configDirectory(base: ["KHULUMA_CONFIG_DIR": "~/custom"], home: "/Users/x") == "/Users/x/custom")
+    #expect(CLIEnvironment.configDirectory(base: ["KHULUMA_CONFIG_DIR": "", "XDG_CONFIG_HOME": "/fixture/config"], home: "/Users/x") == "/fixture/config/khuluma")
+    #expect(CLIEnvironment.configDirectory(base: ["DICTATE_CONFIG_DIR": "/legacy/custom"], home: "/Users/x") == "/Users/x/.config/khuluma")
     #expect(CLIEnvironment.configDirectory(base: ["KHULUMA_CONFIG_DIR": "/canonical", "DICTATE_CONFIG_DIR": "/legacy"], home: "/Users/x") == "/canonical")
-    #expect(CLIEnvironment.configDirectory(base: ["KHULUMA_CONFIG_DIR": "", "DICTATE_CONFIG_DIR": "~/custom"], home: "/Users/x") == "/Users/x/custom")
+  }
+
+  @Test(arguments: ["DICTATE_CONFIG_DIR", "DICTATE_FUTURE_OVERRIDE", "LOWKEY_KEYCHAIN", "LOWKEY_SIGNING_IDENTITY"])
+  func obsoleteOverridePresenceIsReportedForBridgeRefusal(_ name: String) {
+    for value in ["", "/private/fixture/obsolete"] {
+      let base = [name: value, "KHULUMA_CONFIG_DIR": "/canonical"]
+      // Presence is rejected before a candidate can translate it or write a
+      // profile, even when the obsolete input is empty or canonical is set.
+      #expect(CLIEnvironment.obsoleteOverrideNames(base: base) == [name])
+      // The environment builder must not silently strip the offending input
+      // and bypass the CLI's own post-zshenv refusal.
+      #expect(CLIEnvironment.forCLI(base: base, home: "/Users/x")[name] == value)
+    }
+  }
+
+  @Test func obsoleteOverrideDiagnosticsContainOnlySortedNames() {
+    let base = ["DICTATE_CONFIG_DIR": "/private/fixture/old", "DICTATE_BIN": "secret-value",
+                "LOWKEY_KEYCHAIN": "", "LOWKEY_OTHER_APP": "unchanged",
+                "KHULUMA_CONFIG_DIR": "/canonical", "KHULUMA_CLI": "/canonical/bin/khuluma"]
+    #expect(CLIEnvironment.obsoleteOverrideNames(base: base) == ["DICTATE_BIN", "DICTATE_CONFIG_DIR", "LOWKEY_KEYCHAIN"])
+    #expect(CLIEnvironment.obsoleteOverrideNames(base: ["KHULUMA_CONFIG_DIR": "/canonical", "LOWKEY_OTHER_APP": "unchanged"]).isEmpty)
   }
 }

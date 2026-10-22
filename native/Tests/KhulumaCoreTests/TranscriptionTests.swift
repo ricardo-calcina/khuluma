@@ -643,13 +643,13 @@ struct TakeRecordTests {
     #expect(TakeMarker.isRunningKhuluma(getpid()) == false)
   }
 
-  @Test func markersFromLowkeyBuildsAreSweptToo() throws {
+  @Test func obsoleteMarkerFilesAreLeftUntouched() throws {
     let dir = NSTemporaryDirectory() + "khuluma-markers-\(UUID().uuidString)"
     try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
     try "pid=111\nkind=inline\n".write(toFile: dir + "/inline-lowkey-dead", atomically: true, encoding: .utf8)
     try "pid=222\nkind=inline\n".write(toFile: dir + "/inline-lowkey-alive", atomically: true, encoding: .utf8)
     let removed = TakeMarker.removeStale(directory: dir, ownPid: 444, isKhuluma: { $0 == 222 })
-    #expect(removed == ["inline-lowkey-dead"])
-    #expect(try FileManager.default.contentsOfDirectory(atPath: dir) == ["inline-lowkey-alive"])
+    #expect(removed.isEmpty)
+    #expect(Set(try FileManager.default.contentsOfDirectory(atPath: dir)) == ["inline-lowkey-dead", "inline-lowkey-alive"])
   }
 }

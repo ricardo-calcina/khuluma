@@ -31,8 +31,7 @@ struct CLIBridge {
       let bridge = CLIBridge(binary: URL(fileURLWithPath: candidate))
       let version = try bridge.run(["version", "--json"], timeout: 10)
       let identity = try CLIIdentity.decodeVersion(version, isExecutable: executable)
-      // Select the resolved implementation, including when the candidate was
-      // a forwarding shim. Both probes must choose one authoritative profile.
+      // Both probes must choose one authoritative implementation and profile.
       let canonical = CLIBridge(binary: URL(fileURLWithPath: identity.canonicalBinary))
       try identity.validateConfigRoot(canonical.appConfig().cleanup.configDir)
       return identity
@@ -105,11 +104,16 @@ struct CLIBridge {
   }
 
   private func run(_ arguments: [String], timeout: Double, input: Data? = nil) throws -> Data {
+    let environment = ProcessInfo.processInfo.environment
+    let obsolete = CLIEnvironment.obsoleteOverrideNames(base: environment)
+    guard obsolete.isEmpty else {
+      throw BridgeError.failed("Obsolete environment overrides: \(obsolete.joined(separator: ", ")). Remove them and use KHULUMA_* variables.")
+    }
     let process = Process()
     process.executableURL = URL(fileURLWithPath: "/bin/bash")
     process.arguments = [binary.path] + arguments
     process.environment = CLIEnvironment.forCLI(
-      base: ProcessInfo.processInfo.environment, home: FileManager.default.homeDirectoryForCurrentUser.path)
+      base: environment, home: FileManager.default.homeDirectoryForCurrentUser.path)
     if AppRuntimePaths.isolated {
       process.environment?["TMPDIR"] = AppRuntimePaths.temporary.path
       process.environment?["KHULUMA_TMPDIR"] = AppRuntimePaths.temporary.path

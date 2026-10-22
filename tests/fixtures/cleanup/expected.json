@@ -7587,7 +7587,7 @@
    "id": "pipeline-009",
    "config": "repo",
    "env": {
-    "DICTATE_CLEAN": "1"
+    "KHULUMA_CLEAN": "1"
    },
    "input": "um so the color of the the api is open ai and get hub [blank audio] ok",
    "settings": {
@@ -7607,7 +7607,7 @@
    "id": "pipeline-010",
    "config": "repo",
    "env": {
-    "DICTATE_CLEAN": "true"
+    "KHULUMA_CLEAN": "true"
    },
    "input": "um so the color of the the api is open ai and get hub [blank audio] ok",
    "settings": {
@@ -7627,8 +7627,8 @@
    "id": "pipeline-011",
    "config": "repo",
    "env": {
-    "DICTATE_CLEAN": "1",
-    "DICTATE_REPEATS_LEVEL": "0"
+    "KHULUMA_CLEAN": "1",
+    "KHULUMA_REPEATS_LEVEL": "0"
    },
    "input": "um so the color of the the api is open ai and get hub [blank audio] ok",
    "settings": {
@@ -7648,8 +7648,8 @@
    "id": "pipeline-012",
    "config": "repo",
    "env": {
-    "DICTATE_CLEAN": "1",
-    "DICTATE_REPEATS_LEVEL": "2"
+    "KHULUMA_CLEAN": "1",
+    "KHULUMA_REPEATS_LEVEL": "2"
    },
    "input": "go to go to the store the the end",
    "settings": {
@@ -7669,7 +7669,7 @@
    "id": "pipeline-013",
    "config": "cascade",
    "env": {
-    "DICTATE_CLEAN": "1"
+    "KHULUMA_CLEAN": "1"
    },
    "input": "go to go to the store the the end",
    "settings": {
@@ -7689,7 +7689,7 @@
    "id": "pipeline-014",
    "config": "repo",
    "env": {
-    "DICTATE_BRITISH_SPELLING": "off"
+    "KHULUMA_BRITISH_SPELLING": "off"
    },
    "input": "um so the color of the the api is open ai and get hub [blank audio] ok",
    "settings": {
@@ -7709,7 +7709,7 @@
    "id": "pipeline-015",
    "config": "repo",
    "env": {
-    "DICTATE_VOCAB_CLEAN": "no"
+    "KHULUMA_VOCAB_CLEAN": "no"
    },
    "input": "um so the color of the the api is open ai and get hub [blank audio] ok",
    "settings": {
@@ -7729,7 +7729,7 @@
    "id": "pipeline-016",
    "config": "repo",
    "env": {
-    "DICTATE_VOCAB_CLEAN": "YES"
+    "KHULUMA_VOCAB_CLEAN": "YES"
    },
    "input": "um so the color of the the api is open ai and get hub [blank audio] ok",
    "settings": {
@@ -7767,7 +7767,7 @@
    "id": "pipeline-022",
    "config": "repo",
    "env": {
-    "DICTATE_CLEAN": "1"
+    "KHULUMA_CLEAN": "1"
    },
    "input": "  um uh  ",
    "settings": {
@@ -7841,7 +7841,7 @@
    "id": "pipeline-026",
    "config": "repo",
    "env": {
-    "DICTATE_CLEAN": "1"
+    "KHULUMA_CLEAN": "1"
    },
    "input": "two\nlines um here\n",
    "settings": {
@@ -8013,8 +8013,8 @@
    "id": "fuzz-pipeline-001",
    "config": "repo",
    "env": {
-    "DICTATE_CLEAN": "1",
-    "DICTATE_REPEATS_LEVEL": "2"
+    "KHULUMA_CLEAN": "1",
+    "KHULUMA_REPEATS_LEVEL": "2"
    },
    "input": "go to, um. café, 　 STRASSE. g-p-t. \t open ai ]. teh. ",
    "settings": {
@@ -8034,7 +8034,7 @@
    "id": "fuzz-pipeline-002",
    "config": "cascade",
    "env": {
-    "DICTATE_BRITISH_SPELLING": "0"
+    "KHULUMA_BRITISH_SPELLING": "0"
    },
    "input": "wez termuh, open\tai ",
    "settings": {
@@ -8054,8 +8054,8 @@
    "id": "fuzz-pipeline-003",
    "config": "repo",
    "env": {
-    "DICTATE_CLEAN": "1",
-    "DICTATE_REPEATS_LEVEL": "2"
+    "KHULUMA_CLEAN": "1",
+    "KHULUMA_REPEATS_LEVEL": "2"
    },
    "input": "cOlOr basically, ( go to er cOlOr um so yeah here the the.  Colors THE word.  it's um it's [blank] like.  like, [blank audio]!  anyways COLOR [ cOlOr ] the it's [blank audio].  Behavior the the realized so yeah ( [blank audio] actually Colors like,?  I mean, anyways COLOR color...",
    "settings": {
@@ -8075,8 +8075,8 @@
    "id": "fuzz-pipeline-004",
    "config": "repo",
    "env": {
-    "DICTATE_CLEAN": "1",
-    "DICTATE_REPEATS_LEVEL": "2"
+    "KHULUMA_CLEAN": "1",
+    "KHULUMA_REPEATS_LEVEL": "2"
    },
    "input": "c++   . Jason's. npm like, foo_bar . teh1.5. [, ",
    "settings": {
@@ -8096,7 +8096,7 @@
    "id": "fuzz-pipeline-005",
    "config": "repo",
    "env": {
-    "DICTATE_VOCAB_CLEAN": "0"
+    "KHULUMA_VOCAB_CLEAN": "0"
    },
    "input": "actuallyish the basically, cOlOr {BLANK - AUDIO} Colors it's go to... I mean, THE Behavior analyze word COLOR (! THE ) like, ) to be honest basically, centering to be honest {BLANK - AUDIO} hmm realized? Colors THE [ ] actually the color analyze go to go to. er actuallyish go to go to. analyze to be honest. word the the {BLANK - AUDIO} centering color I mean,. Behavior the the Behavior don't don't... the ( Behavior ( blank_audio ) ( blank_audio ) don't don't to be honest well-known cOlOr ( blank_audio )... [ text [blank] hmm actuallyish well-known {BLANK - AUDIO} um! [ Colors! the um well-known THE anyways like, color it's. Behavior realized Colors like go to.",
    "settings": {
@@ -8134,8 +8134,8 @@
    "id": "fuzz-pipeline-007",
    "config": "repo",
    "env": {
-    "DICTATE_CLEAN": "1",
-    "DICTATE_REPEATS_LEVEL": "2"
+    "KHULUMA_CLEAN": "1",
+    "KHULUMA_REPEATS_LEVEL": "2"
    },
    "input": "at saw slash, x x x foo_bar Jason's ( blank_audio ) cOlOr like. anyways ,. the. Colors 😀, 　 iTerm2 .... zzz analyze ",
    "settings": {
@@ -8155,7 +8155,7 @@
    "id": "fuzz-pipeline-008",
    "config": "repo",
    "env": {
-    "DICTATE_BRITISH_SPELLING": "0"
+    "KHULUMA_BRITISH_SPELLING": "0"
    },
    "input": "   node.js Behavior, the thea p i, to be honest. OPEN  AI a p i node.js ",
    "settings": {
@@ -8175,8 +8175,8 @@
    "id": "fuzz-pipeline-009",
    "config": "repo",
    "env": {
-    "DICTATE_CLEAN": "1",
-    "DICTATE_REPEATS_LEVEL": "2"
+    "KHULUMA_CLEAN": "1",
+    "KHULUMA_REPEATS_LEVEL": "2"
    },
    "input": "( k8s... ), it's    , ",
    "settings": {
@@ -8196,7 +8196,7 @@
    "id": "fuzz-pipeline-010",
    "config": "cascade",
    "env": {
-    "DICTATE_VOCAB_CLEAN": "0"
+    "KHULUMA_VOCAB_CLEAN": "0"
    },
    "input": "teamux.   1.5 ],  K8sSTRASSE, actually I mean,, kind regardsBehavior ], node.jskind regards 日本語gpt-4 kind regards",
    "settings": {
@@ -8216,7 +8216,7 @@
    "id": "fuzz-pipeline-011",
    "config": "repo",
    "env": {
-    "DICTATE_BRITISH_SPELLING": "0"
+    "KHULUMA_BRITISH_SPELLING": "0"
    },
    "input": "Behavior another ] analyze centering I mean, you know realized color [blank audio] color.  so yeah THE analyze word ( blank_audio ) Colors.  it's so yeah like realized here color anyways analyze favorite don't don't actually!  Behavior actually analyze ( ]?  The you know er the the centering [blank] you know analyze it's basically,...  er realized The basically,.  so yeah [ analyze ( blank_audio ) centering it's ] ]!  uh, so yeah so yeah um?  Behavior like Colors ] well-known.  analyze um ( blank_audio ) favorite well-known text...  ] centering well-known (.  you know the the you know!  Behavior The here ) so yeah The COLOR like, like!",
    "settings": {
@@ -8236,8 +8236,8 @@
    "id": "fuzz-pipeline-012",
    "config": "repo",
    "env": {
-    "DICTATE_CLEAN": "1",
-    "DICTATE_REPEATS_LEVEL": "2"
+    "KHULUMA_CLEAN": "1",
+    "KHULUMA_REPEATS_LEVEL": "2"
    },
    "input": "text it's so yeah ( [blank]? \tto be honest [blank] The? \tlike, like color analyze actuallyish like, THE don't don't actuallyish. \tcOlOr COLOR the uh, text cOlOr hmm [blank]... \twell-known COLOR I mean, Umm. [ [blank] analyze another analyze hmm... \tgo to go to you know hmm... \tum to be honest ( word so yeah hmm actually {BLANK - AUDIO} the the basically,. \tTHE it's well-known don't don't... \tso yeah [blank audio] word favorite actually um? \there like um you know to be honest basically, color Colors uh,. \tactuallyish actuallyish realized it's er! \tfavorite hmm COLOR text THE {BLANK - AUDIO} it's! \thmm you know the ] actuallyish go to go to THE like, [blank] hmm! \tit's go to basically, er {BLANK - AUDIO} um cOlOr ( [blank] ) color the the!",
    "settings": {
@@ -8257,7 +8257,7 @@
    "id": "fuzz-pipeline-013",
    "config": "repo",
    "env": {
-    "DICTATE_VOCAB_CLEAN": "0"
+    "KHULUMA_VOCAB_CLEAN": "0"
    },
    "input": "Straße g-p-t realized, favorite ( blank_audio ). c++ coloryou know node.js {BLANK - AUDIO}, 1.5 actually ",
    "settings": {
@@ -8277,7 +8277,7 @@
    "id": "fuzz-pipeline-014",
    "config": "cascade",
    "env": {
-    "DICTATE_CLEAN": "1"
+    "KHULUMA_CLEAN": "1"
    },
    "input": "[ [blank audio] hmm um Colors The Umm. it's Umm. well-known centering!  Behavior it's ) actuallyish like it's Umm. ) Behavior text analyze!  here word [blank] {BLANK - AUDIO} go to go to THE it's?  ( the the {BLANK - AUDIO} word another The ) analyze [ go to go to favorite it's...  word text analyze favorite er text ].",
    "settings": {
@@ -8297,8 +8297,8 @@
    "id": "fuzz-pipeline-015",
    "config": "cascade",
    "env": {
-    "DICTATE_CLEAN": "1",
-    "DICTATE_REPEATS_LEVEL": "2"
+    "KHULUMA_CLEAN": "1",
+    "KHULUMA_REPEATS_LEVEL": "2"
    },
    "input": "OPEN  AI I mean, realized, ?naïve color. a p i. at saw slash 日本語, ( blank_audio ) ſo yeahwez term. source slash . ",
    "settings": {
@@ -8318,8 +8318,8 @@
    "id": "fuzz-pipeline-016",
    "config": "repo",
    "env": {
-    "DICTATE_CLEAN": "1",
-    "DICTATE_REPEATS_LEVEL": "2"
+    "KHULUMA_CLEAN": "1",
+    "KHULUMA_REPEATS_LEVEL": "2"
    },
    "input": ") THE color realized er.  Behavior THE go to you know [blank audio] ( blank_audio ) uh,.  cOlOr centering Behavior Umm..",
    "settings": {
@@ -8339,7 +8339,7 @@
    "id": "fuzz-pipeline-017",
    "config": "repo",
    "env": {
-    "DICTATE_CLEAN": "1"
+    "KHULUMA_CLEAN": "1"
    },
    "input": "to be honest I mean, I mean, the the well-known color well-known it's?  THE don't don't [blank audio] uh, THE basically, [ ( {BLANK - AUDIO} it's {BLANK - AUDIO} Colors.  so yeah realized I mean, centering here the the to be honest [blank audio] COLOR [ ] Behavior.  [blank audio] er the the {BLANK - AUDIO}.  go to go to like, favorite Umm. like, to be honest the THE the the to be honest.  {BLANK - AUDIO} don't don't another go to go to go to I mean, cOlOr [blank audio]?  go to THE?  favorite it's {BLANK - AUDIO} ) COLOR another COLOR Umm. um COLOR!  COLOR I mean, actuallyish realized analyze it's [ it's anyways The hmm.  like Umm. here analyze ) basically, like,.",
    "settings": {
@@ -8359,8 +8359,8 @@
    "id": "fuzz-pipeline-018",
    "config": "cascade",
    "env": {
-    "DICTATE_CLEAN": "1",
-    "DICTATE_REPEATS_LEVEL": "2"
+    "KHULUMA_CLEAN": "1",
+    "KHULUMA_REPEATS_LEVEL": "2"
    },
    "input": "{BLANK - AUDIO} actually ( blank_audio ) it's anyways! ( blank_audio ) uh, COLOR The another here actually Colors go to! you know ( Umm. go to go to ( blank_audio ) like, so yeah cOlOr The. ( blank_audio ) favorite ) it's Behavior ) hmm {BLANK - AUDIO}. color Umm.... [blank audio] [ so yeah like, it's basically,... it's the the. hmm I mean, Umm. um you know ) basically, ) don't don't Umm. basically,? hmm {BLANK - AUDIO} to be honest go to! the ( blank_audio ) ( blank_audio ) go to go to actually it's so yeah Behavior THE the the!",
    "settings": {
@@ -8380,7 +8380,7 @@
    "id": "fuzz-pipeline-019",
    "config": "repo",
    "env": {
-    "DICTATE_BRITISH_SPELLING": "0"
+    "KHULUMA_BRITISH_SPELLING": "0"
    },
    "input": "well-known another actuallyish Behavior... \tdon't don't ( blank_audio ) you know COLOR I mean, color realized color it's Colors... \tdon't don't like? \t{BLANK - AUDIO} realized Colors go to go to like, color text? \tum actually you know [blank audio] THE uh, analyze. \tBehavior [ ( blank_audio ) the the I mean, er another. \twell-known [blank audio] like you know [blank] The go to go to Umm. The [ hmm color. \tCOLOR ] the Umm. realized word well-known favorite another? \tanyways the cOlOr The [. \tanyways [ analyze so yeah cOlOr it's. \tanyways it's actuallyish color. \twell-known ] The to be honest...",
    "settings": {
@@ -8418,7 +8418,7 @@
    "id": "fuzz-pipeline-021",
    "config": "repo",
    "env": {
-    "DICTATE_CLEAN": "1"
+    "KHULUMA_CLEAN": "1"
    },
    "input": "another like, go to you know [ go to go to go to you know realized er [ actuallyish. it's word it's actuallyish er ). basically, um Behavior [blank audio] [blank] to be honest. centering THE actually anyways you know actuallyish color go to Colors like analyze. I mean, Umm. text I mean, COLOR. er cOlOr um color it's THE I mean, anyways? Umm. realized go to The word color color word another actuallyish well-known actuallyish. [blank] COLOR ) uh, like, another Behavior go to go to. uh, so yeah actually! here analyze [ ( cOlOr?",
    "settings": {
@@ -8438,7 +8438,7 @@
    "id": "fuzz-pipeline-022",
    "config": "cascade",
    "env": {
-    "DICTATE_CLEAN": "1"
+    "KHULUMA_CLEAN": "1"
    },
    "input": "( text you know realized [blank] uh, text The actually text word text. well-known ( blank_audio ) actuallyish you know The Colors ( blank_audio )... centering uh, favorite to be honest {BLANK - AUDIO} it's go to?",
    "settings": {
@@ -8458,7 +8458,7 @@
    "id": "fuzz-pipeline-023",
    "config": "cascade",
    "env": {
-    "DICTATE_BRITISH_SPELLING": "0"
+    "KHULUMA_BRITISH_SPELLING": "0"
    },
    "input": "um actually? centering ( blank_audio ) realized centering. another er so yeah COLOR? basically, analyze Colors Umm. The Behavior color basically, favorite favorite... ) analyze er The you know it's so yeah COLOR it's. THE analyze actuallyish er word analyze like I mean, cOlOr... analyze centering actuallyish [blank audio] ( the the er? er ) Behavior you know The analyze cOlOr. Umm. centering ] here... {BLANK - AUDIO} text um THE to be honest Colors it's?",
    "settings": {
@@ -8478,7 +8478,7 @@
    "id": "fuzz-pipeline-024",
    "config": "repo",
    "env": {
-    "DICTATE_VOCAB_CLEAN": "0"
+    "KHULUMA_VOCAB_CLEAN": "0"
    },
    "input": "the the favorite. a p i analyze. 　, open ai   日本語, 😀 color\n 日本語. g-p-t k8s regards favorite to be honest. Umm.",
    "settings": {
@@ -8498,8 +8498,8 @@
    "id": "fuzz-pipeline-025",
    "config": "cascade",
    "env": {
-    "DICTATE_CLEAN": "1",
-    "DICTATE_REPEATS_LEVEL": "2"
+    "KHULUMA_CLEAN": "1",
+    "KHULUMA_REPEATS_LEVEL": "2"
    },
    "input": "{BLANK - AUDIO} I mean, hmm like, it's ( blank_audio ) like, Behavior Umm. hmm? \tit's word [blank] realized the the favorite [blank audio] another [blank] so yeah. \ter go to go to actuallyish {BLANK - AUDIO}. \tcOlOr it's basically, so yeah The anyways I mean, anyways text ( The uh,? \tcentering Colors ( blank_audio ) centering [ ) the the uh, I mean, the the er! \tcolor anyways ] THE uh, COLOR COLOR er text it's another I mean,. \tthe ( COLOR uh, [blank] COLOR the the actuallyish ] it's go to centering! \tBehavior it's here well-known er well-known text er COLOR... \ttext Behavior The Umm. it's? \ttext centering the the um COLOR ) actuallyish. \tuh, basically, word well-known um.",
    "settings": {
@@ -8519,8 +8519,8 @@
    "id": "fuzz-pipeline-026",
    "config": "cascade",
    "env": {
-    "DICTATE_CLEAN": "1",
-    "DICTATE_REPEATS_LEVEL": "2"
+    "KHULUMA_CLEAN": "1",
+    "KHULUMA_REPEATS_LEVEL": "2"
    },
    "input": "tmux whisper. 1.5 c++, :, it's, color. to be honestx x x Straße, so yeahanyways ",
    "settings": {
@@ -8558,8 +8558,8 @@
    "id": "fuzz-pipeline-028",
    "config": "repo",
    "env": {
-    "DICTATE_CLEAN": "1",
-    "DICTATE_REPEATS_LEVEL": "2"
+    "KHULUMA_CLEAN": "1",
+    "KHULUMA_REPEATS_LEVEL": "2"
    },
    "input": "zzz). kind regards \t. [blank] [blank audio],   ",
    "settings": {
@@ -8597,7 +8597,7 @@
    "id": "fuzz-pipeline-030",
    "config": "repo",
    "env": {
-    "DICTATE_VOCAB_CLEAN": "0"
+    "KHULUMA_VOCAB_CLEAN": "0"
    },
    "input": "café, :, Straßeregards:, Behavior color gpt-4, source slash, color, 1.5.  . \u000b \t.   naïve. a b c d e f g h i npm. go to go to OPEN  AI",
    "settings": {

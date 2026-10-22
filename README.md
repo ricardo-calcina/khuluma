@@ -50,15 +50,17 @@ tools/build-khuluma-app.sh
 
 **Upgrading an older Tmux Whisper/Lowkey installation:** follow [Identity migration](docs/INTEGRATIONS.md#identity-migration). From the canonical checkout, `tools/migrate-khuluma-identity.sh --help` and `--dry-run` inspect the data transition without changing it. The tool is a data engine; this release does not include a portable automated coordinator for app, CLI, daemon, login and Finder cutover. Its apply/resume/rollback operations require proof from an active, reviewed operator/agent-controlled session. Do not fabricate receipts or use `install.sh --force` to bypass that requirement. Keep the working old runtime until that coordinated handoff is prepared. A legacy default is detected rather than silently replaced with an empty profile.
 
-The new bundle ID is `com.ricardo-nth.khuluma`, signed with a separate `Khuluma Local Code Signing` identity. macOS may require Microphone/Accessibility approval and a Start at Login retoggle; permission carryover is verified on the actual Mac, not assumed. Existing Lowkey recovery readers remain so saved takes are preserved.
+The new bundle ID is `com.ricardo-nth.khuluma`, signed with a separate `Khuluma Local Code Signing` identity. macOS may require Microphone/Accessibility approval and a Start at Login retoggle; permission carryover is verified on the actual Mac, not assumed. Starting with v0.11.0, normal startup no longer imports Lowkey folders or preference keys. Complete the v0.10.0 coordinated transition first when coming from those older identities; keep all original folders and preference domains until verified.
 
 `install.sh` keeps your config, vocab and sounds, including with `--force`, which only refreshes the scripts and adds missing defaults. Other flags: `--no-sounds`, `--with-sounds`, `--replace-sounds` (overwrite your sound files with the bundled ones). It ends with a daemon warm-up, and writes an install receipt to `~/.config/khuluma/install-receipt.env`.
 
 **CLI only:** the published Homebrew formula (`brew install ricardo-nth/tap/khuluma`) and `bootstrap.sh` install the CLI without the app. They are for file transcription, or a pinned CLI on another machine:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ricardo-nth/khuluma/main/bootstrap.sh | bash -s -- --ref v0.10.0 --force
+curl -fsSL https://raw.githubusercontent.com/ricardo-nth/khuluma/main/bootstrap.sh | bash -s -- --ref v0.11.0 --force
 ```
+
+v0.11.0 exposes the `khuluma` command and `KHULUMA_*` application overrides; standard XDG roots and existing generic overrides such as `SOUNDS_DIR` remain supported. The `tmux-whisper` forwarding command and its older doctor JSON adapter are removed. Rename old environment overrides before updating; obsolete names are rejected before writes, including empty assignments. `khuluma doctor --json` remains schema 2. The local installer retires only the verified v0.10.0 owned shim recoverably and refuses an unknown file at that path.
 
 Canonical config and sounds live at: `~/.config/khuluma` and `~/.local/share/sounds/khuluma`.
 

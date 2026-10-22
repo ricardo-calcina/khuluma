@@ -2606,7 +2606,7 @@
    "id": "pipeline-009",
    "config": "repo",
    "env": {
-    "DICTATE_CLEAN": "1"
+    "KHULUMA_CLEAN": "1"
    },
    "input": "um so the color of the the api is open ai and get hub [blank audio] ok"
   },
@@ -2614,7 +2614,7 @@
    "id": "pipeline-010",
    "config": "repo",
    "env": {
-    "DICTATE_CLEAN": "true"
+    "KHULUMA_CLEAN": "true"
    },
    "input": "um so the color of the the api is open ai and get hub [blank audio] ok"
   },
@@ -2622,8 +2622,8 @@
    "id": "pipeline-011",
    "config": "repo",
    "env": {
-    "DICTATE_CLEAN": "1",
-    "DICTATE_REPEATS_LEVEL": "0"
+    "KHULUMA_CLEAN": "1",
+    "KHULUMA_REPEATS_LEVEL": "0"
    },
    "input": "um so the color of the the api is open ai and get hub [blank audio] ok"
   },
@@ -2631,8 +2631,8 @@
    "id": "pipeline-012",
    "config": "repo",
    "env": {
-    "DICTATE_CLEAN": "1",
-    "DICTATE_REPEATS_LEVEL": "2"
+    "KHULUMA_CLEAN": "1",
+    "KHULUMA_REPEATS_LEVEL": "2"
    },
    "input": "go to go to the store the the end"
   },
@@ -2640,7 +2640,7 @@
    "id": "pipeline-013",
    "config": "cascade",
    "env": {
-    "DICTATE_CLEAN": "1"
+    "KHULUMA_CLEAN": "1"
    },
    "input": "go to go to the store the the end"
   },
@@ -2648,7 +2648,7 @@
    "id": "pipeline-014",
    "config": "repo",
    "env": {
-    "DICTATE_BRITISH_SPELLING": "off"
+    "KHULUMA_BRITISH_SPELLING": "off"
    },
    "input": "um so the color of the the api is open ai and get hub [blank audio] ok"
   },
@@ -2656,7 +2656,7 @@
    "id": "pipeline-015",
    "config": "repo",
    "env": {
-    "DICTATE_VOCAB_CLEAN": "no"
+    "KHULUMA_VOCAB_CLEAN": "no"
    },
    "input": "um so the color of the the api is open ai and get hub [blank audio] ok"
   },
@@ -2664,7 +2664,7 @@
    "id": "pipeline-016",
    "config": "repo",
    "env": {
-    "DICTATE_VOCAB_CLEAN": "YES"
+    "KHULUMA_VOCAB_CLEAN": "YES"
    },
    "input": "um so the color of the the api is open ai and get hub [blank audio] ok"
   },
@@ -2678,7 +2678,7 @@
    "id": "pipeline-022",
    "config": "repo",
    "env": {
-    "DICTATE_CLEAN": "1"
+    "KHULUMA_CLEAN": "1"
    },
    "input": "  um uh  "
   },
@@ -2704,7 +2704,7 @@
    "id": "pipeline-026",
    "config": "repo",
    "env": {
-    "DICTATE_CLEAN": "1"
+    "KHULUMA_CLEAN": "1"
    },
    "input": "two\nlines um here\n"
   },

@@ -3,7 +3,6 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 source "$ROOT/bin/khuluma-lib/identity.sh"
-khuluma_normalize_environment
 
 usage() {
   cat <<'EOF'
@@ -77,6 +76,7 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+khuluma_reject_obsolete_environment
 
 if [[ -z "$tag" ]]; then
   usage >&2
