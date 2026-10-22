@@ -41,6 +41,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          clean: false
 
       - name: Cache SwiftPM build
         uses: actions/cache@v4

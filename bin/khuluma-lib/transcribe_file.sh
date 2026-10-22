@@ -482,6 +482,12 @@ finder_enable_service() {
 
 finder_refresh_services() {
   [[ -z "${KHULUMA_SERVICES_DIR:-}" ]] || return 0
+  # Refresh through AppKit: flushing pbs alone can leave Finder's menu stale.
+  # JXA's bridge uses the system framework without Swift or UI scripting.
+  if [[ -x /usr/bin/osascript ]] && /usr/bin/osascript -l JavaScript \
+    -e 'ObjC.import("AppKit"); $.NSUpdateDynamicServices();' >/dev/null 2>&1; then
+    return 0
+  fi
   [[ -x /System/Library/CoreServices/pbs ]] || return 0
   /System/Library/CoreServices/pbs -flush >/dev/null 2>&1
 }

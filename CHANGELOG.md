@@ -1,13 +1,19 @@
-# Tmux Whisper changelog
+# Khuluma changelog
 
-## Unreleased — Khuluma identity migration
+## v0.10.0 — 2026-10-22
+
+This section consolidates all unreleased work since v0.9.0 for v0.10.0. The earlier v0.10.0 and v0.11.0 headings were unreleased development milestones. Earlier notes retain their intermediate names and behavior as development history.
+
+### Khuluma identity migration
 
 - Rename the CLI, native daemon and shared modules to Khuluma identities while preserving dictation, file transcription and app contracts.
 - Add recoverable migration tooling for legacy settings, history, usage, models and sounds, with isolated upgrade/rollback checks.
-- Prepare canonical signing, preferences, Finder and Homebrew upgrade paths; release and installed-runtime validation are tracked separately in LOG.md.
+- The app uses `com.ricardo-nth.khuluma`, separate Khuluma signing and migrated preferences. macOS may require Microphone/Accessibility permission and Start at Login to be enabled again.
+- Rename the Finder action to **Transcribe with Khuluma** and refresh its Services registration through AppKit. The temporary `tmux-whisper` command forwards to Khuluma.
+- Keep app contract 3, usage schema 1 and the existing model pins. Legacy profiles require the reviewed coordinated migration described in `docs/INTEGRATIONS.md`; installing CLI code alone does not migrate user data.
 
 
-## v0.11.0 — Unreleased
+### Earlier development notes (formerly planned as v0.11.0)
 
 - **Removed before the Lowkey rename** (phase 0 of `docs/archive/KHULUMA_RENAME_ROADMAP.md`; Lowkey owns the dictation key and the menu-bar item):
   - **The Raycast scripts** (`integrations/raycast/tmux-whisper-{inline,toggle,cancel}.sh`) are no longer shipped or installed. `install.sh` doesn't delete old copies in `~/.config/dictate/integrations/raycast`; move them to the Trash.
@@ -95,7 +101,7 @@
   - Delivery logs which app was frontmost when the paste was posted (`target=` on the take's log line), and warns if macOS reports no permission to post key events.
 - **Lowkey: autosend no longer sometimes pastes without sending in the Claude desktop app**: Lowkey posted Return 35 ms after Cmd+V (`send_delay_ms`). The CLI's two `osascript` runs had added ~80 ms of launch time on top of that. Back to back, Electron apps sometimes handle Return before the paste (Cmd+V goes through their Edit menu), so the text was pasted but not sent. The gap is now at least 150 ms; longer `send_delay_ms` values are kept.
 
-## v0.10.0 — Unreleased
+### Earlier development notes (v0.10.0 app milestones)
 
 - **Lowkey (experimental native app, phase 2 of #30)**: a signed menu-bar app that runs beside the CLI/Raycast setup. It owns the latency-critical path natively: a Carbon global hotkey (toggle, default `ctrl+option+space`, set with `[app] hotkey` in config.toml), AVAudioEngine capture at 16 kHz, preloaded AVAudioPlayer sounds (the start chime no longer waits on an `afplay` process), and paste/send via CGEvent with the same paste-target and send-mode settings as inline dictation. Transcription, cleanup, history, and usage stay in the CLI, so output is identical to today's inline dictation. Timings (hotkey→chime, engine start, hotkey→first audio, processing, delivery) are logged to `~/Library/Logs/Lowkey/app.log`.
   - Build with `tools/make-signing-identity.sh` (once: a local self-signed code-signing identity so microphone and Accessibility grants survive rebuilds) and `tools/build-lowkey-app.sh` (Command Line Tools only; installs `~/Applications/Lowkey.app`).

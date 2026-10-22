@@ -1,9 +1,9 @@
 # Log
 
 ## Now
-Implement the approved complete Khuluma identity migration in the isolated `codex/khuluma-rename` source/tap worktrees. [`docs/KHULUMA_RENAME_PLAN.md`](docs/KHULUMA_RENAME_PLAN.md) owns the finite checklist. Preserve the daily installed app, user data and full history until isolated acceptance and one controlled cutover pass. Original documentation is preserved in the exact baseline commits before local integration. Native CLI independence stays separate.
+Finish the approved Khuluma rename: publish the verified source/release and Homebrew transition, then audit the final identities. [`docs/KHULUMA_RENAME_PLAN.md`](docs/KHULUMA_RENAME_PLAN.md) owns the finite checklist. The daily app now uses `com.ricardo-nth.khuluma`, the dedicated Khuluma signer and canonical config/runtime/model/sound paths. The user verified dictation, paste, Stats, normal relaunch, restored Start at Login and the actual Finder action. Keep every prior app/runtime/data/certificate recovery copy; daily-use observation remains open.
 
-Existing documentation was preserved in a separate baseline commit before code changes. The final Swift 6.4 gate passed 22 daemon/kit and 153 Core tests (175 total). Shell flow passed 281 assertions, migration passed 26 cases, the app helper passed 30 mocked cases, and the private controller passed 12 recovery cases. The release daemon passed a synthetic file-transcription canary with the existing offline model and stopped cleanly; final Stats fixtures were rendered and inspected. The final app is signed with the dedicated Khuluma certificate and strictly verified. Local source/tap integration and folder moves are complete. App/permission/login acceptance, runtime cutover and remote/Homebrew gates remain open. Current daily installation remains legacy `com.ricardo-nth.lowkey`, with its separate installed runtime retained.
+Original work/history is preserved in exact baseline commits. Swift passed 175 tests; shell flow passed 281 assertions, migration 26 cases, app helper 30 cases and controller 12 recovery cases. The committed handoff checked one daemon and shared alias/usage routing. Finder required a supported macOS Services refresh after installation. KwikCut source and discovery tests are updated; its existing installed app still uses the compatibility shim. The VPS website is a verified private preview. Public repository/tag/formula work remains pending.
 
 ## Next
 
@@ -12,7 +12,7 @@ Existing documentation was preserved in a separate baseline commit before code c
 
 - [ ] P1 · Before phase 2: search UKIPO and EUIPO by hand for KHULUMA; register khuluma.app · added 2026-10-17
 - [ ] P1 · Khuluma app icon: the bundle has none yet (Dock, Finder, Login Items, System Settings show a blank icon); a menu-bar glyph to match · added 2026-10-17
-- [ ] P1 · Confirm new repo vs rename in place; join the Apple Developer Program before phase 2 · added 2026-10-15
+- [ ] P1 · Join the Apple Developer Program before phase 2 · added 2026-10-15
 - [ ] P1 · Phase 0 gate: a week of daily use, then `tools/khuluma-report.sh` gates still met · added 2026-10-17
 - [ ] P1 · Phase 1 step 1: native usage ledger and history writer, proven against the CLI with shared fixtures (removes `inline record`) · added 2026-10-17
 - [ ] P1 · Phase 1 after the native writers: port config, bundle and supervise the daemon, add model download and bundled sounds, then port or drop CLI fallbacks; keep shared files/locks compatible while both writers exist · added 2026-10-22
@@ -22,7 +22,7 @@ Existing documentation was preserved in a separate baseline commit before code c
 - [ ] P2 · Stats stage 3 ideas (not committed): weeks view, wpm trend, longest take, typing_wpm config, streak line, time of day, opt-in per-app · added 2026-10-16
 - [ ] P2 · Lowkey ideas parked from 3c, only with evidence: config file watcher, warm mic/pre-roll · added 2026-10-16
 - [ ] P2 · Phase 2 after CLI independence: Developer ID signing/notarization, versioned app distribution and khuluma cask; Settings, History, Transcribe File and bundled agent CLI; verify fresh-Mac permissions and file transcription · added 2026-10-22
-- [ ] P2 · Decide Khuluma versioning (1.0 or continued 0.x), repository move versus rename, and cask/update approach before distribution; paid membership/domain/publication require separate authorization · added 2026-10-22
+- [ ] P2 · Decide the future signed-app cask/update approach before phase 2 distribution; paid membership/domain require separate authorization · added 2026-10-22
 - [ ] P2 · Phase 3: repeatable import of legacy config/vocab/history/usage into Khuluma Application Support; preserve old data and totals/streak, keep ledger export shape, redirect or stop old CLI writes · added 2026-10-22
 - [ ] P2 · Phase 4 after replacement is usable: interactive CLI deprecation notice, formula and Finder notices; preserve JSON contracts; check remaining integrations over a 30-day notice period · added 2026-10-22
 - [ ] P2 · Phase 5 after deprecation: final supported CLI release and replacement links, then formula disable/repository archive with explicit release authorization; retain public history · added 2026-10-22
@@ -37,6 +37,8 @@ Existing documentation was preserved in a separate baseline commit before code c
 - Rename the existing repository in place to preserve all history; retain neutral `ricardo-nth/tap` and rename its formula to `khuluma`. External rename/release/tap publication remains pending actual gates. The app continues to depend on its matching CLI; cask/CLI-independence/deprecation/archive are separate future work.
 
 ## Done
+
+- 2026-10-22 · Committed canonical daily handoff; user verified dictation/paste/Stats, normal relaunch/login and Finder after Services refresh; recovery retained · docs/KHULUMA_RENAME_PLAN.md
 
 - 2026-10-22 · Verified signed build324 and intact local source/tap moves; real pre-data rollback restored old app/serving daemon after lifecycle cache refusal · 64c96e2; docs/KHULUMA_RENAME_PLAN.md
 
