@@ -2,7 +2,7 @@
 
 ## v0.11.0 — Unreleased
 
-- **Removed before the Lowkey rename** (phase 0 of `docs/plans/KHULUMA_RENAME_ROADMAP.md`; Lowkey owns the dictation key and the menu-bar item):
+- **Removed before the Lowkey rename** (phase 0 of `docs/archive/KHULUMA_RENAME_ROADMAP.md`; Lowkey owns the dictation key and the menu-bar item):
   - **The Raycast scripts** (`integrations/raycast/tmux-whisper-{inline,toggle,cancel}.sh`) are no longer shipped or installed. `install.sh` doesn't delete old copies in `~/.config/dictate/integrations/raycast`; move them to the Trash.
   - **`tmux-whisper integrations` (status, `--json`, `doctor`, `repair`)** is gone with them: it only existed to check and refresh the Raycast scripts. The Finder Quick Action handler is still installed beside the binary.
   - **`tmux-whisper swiftbar`**, the notice left when the plugin was retired, is gone; the command is now unknown. `install.sh` no longer looks for a leftover plugin.
@@ -162,14 +162,3 @@
 - **Native app direction**: the shell-out menu-bar companion prototype (#33) was closed. The revised plan in #30 is a native app that owns capture, Parakeet transcription, and paste, and serves the existing daemon socket so the CLI and tmux flow keep working.
 
 Entries before v0.7.0 are in [`CHANGELOG.archive.md`](CHANGELOG.archive.md).
-
-## TODO
-
-### Next queue (core product)
-
-- [ ] Rename to Khuluma, make the app the main tool, sunset the CLI and archive this repo (App Store parked). Staged plan with exit criteria: `docs/plans/KHULUMA_RENAME_ROADMAP.md`. Phase 0: the name is Khuluma and the tidy-up is done; the app carries the name from v0.11, the bundle id from phase 2.
-
-### Future labs (deferred, separate projects)
-
-- [ ] `voxtral-inline` exploration (API/realtime-first inline dictation tool), after core Dictate UX/reliability is stable.
-- [ ] `faster-whisper-tool` exploration (batch/subtitle/offline utility), separate from tmux-first Dictate.

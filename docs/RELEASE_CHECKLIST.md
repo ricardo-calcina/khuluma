@@ -12,7 +12,7 @@
   - [ ] `test -f ~/.config/dictate/install-receipt.env`
   - [ ] `tmux-whisper doctor`
 - [ ] Confirm changelog is updated (`CHANGELOG.md`).
-- [ ] Confirm roadmap alignment (`ROADMAP.md`) if scope changed.
+- [ ] Confirm `LOG.md` reflects current tasks and decisions if scope changed.
 - [ ] Verify delivered-usage accounting:
   - [ ] Deliver one dictation with Khuluma.
   - [ ] Confirm `tmux-whisper usage --json` advances the delivery and word totals without exposing transcript text, and reports its coverage start and typing-time assumption.
@@ -37,18 +37,20 @@ Complete the pre-release checks before this section. Tagging and publication are
 
 ## Homebrew Update
 
-- [ ] Update `homebrew-tap/Formula/tmux-whisper.rb` from the tagged tarball:
-  - [ ] `tools/update-homebrew-formula.sh vX.Y.Z --write`
-  - [ ] Review diff in `../homebrew-tap/Formula/tmux-whisper.rb`
+The local tap checkout is `../tmux-whsper-brew-tap`. The updater still defaults to `../homebrew-tap`; pass its existing `--formula` override explicitly. These are release actions, not documentation-validation steps.
+
+- [ ] Update `../tmux-whsper-brew-tap/Formula/tmux-whisper.rb` from the tagged tarball:
+  - [ ] `tools/update-homebrew-formula.sh vX.Y.Z --write --formula ../tmux-whsper-brew-tap/Formula/tmux-whisper.rb`
+  - [ ] Review diff in `../tmux-whsper-brew-tap/Formula/tmux-whisper.rb`
 - [ ] Run:
-  - [ ] `git -C ../homebrew-tap status --short`
+  - [ ] `git -C ../tmux-whsper-brew-tap status --short`
   - [ ] `brew update`
   - [ ] `brew audit --new --strict --online ricardo-nth/tap/tmux-whisper`
   - [ ] `brew install/upgrade ricardo-nth/tap/tmux-whisper`
 - [ ] Validate command:
   - [ ] `tmux-whisper --help`
   - [ ] `tmux-whisper doctor`
-- [ ] Commit/push tap repo update (`../homebrew-tap`) after formula validation passes.
+- [ ] Commit/push tap repo update (`../tmux-whsper-brew-tap`) after formula validation passes.
 
 ## Post-release
 

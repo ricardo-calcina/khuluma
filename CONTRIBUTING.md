@@ -5,7 +5,7 @@ Thanks for contributing to Tmux Whisper, which is becoming Khuluma ([`ROADMAP.md
 ## Scope and Direction
 
 - Khuluma, the menu-bar app, is the product. The CLI is its back end and is being retired step by step, so new user-facing features belong in Khuluma.
-- CLI changes should serve Khuluma, file transcription, or the phase 1 ports (`docs/plans/KHULUMA_RENAME_ROADMAP.md`). Changes to the JSON contracts in `docs/CLI_CONTRACTS.md` are additive only, unless Khuluma changes with them and the app contract number goes up on both sides.
+- CLI changes should serve Khuluma, file transcription, or the phase 1 ports (`LOG.md`). Changes to the JSON contracts in `docs/CLI_CONTRACTS.md` are additive only, unless Khuluma changes with them and the app contract number goes up on both sides.
 - Keep changes minimal and production-oriented. Pure logic goes in `KhulumaCore` (no AppKit) with tests; the `Khuluma` target stays a thin shell.
 
 ## Development Setup
@@ -19,6 +19,10 @@ tools/make-signing-identity.sh   # once
 tools/build-khuluma-app.sh
 ```
 
+## Work tracking
+
+Keep current tasks, priorities and decisions in `LOG.md`; completed public release notes belong in `CHANGELOG.md`. Routine work does not require a separate spec, PRD or issue. The old rename roadmap is retained as historical context in `docs/archive/KHULUMA_RENAME_ROADMAP.md`.
+
 ## Branching and PRs
 
 - Create feature branches from `main`.
@@ -29,7 +33,7 @@ tools/build-khuluma-app.sh
 
 ## Validation Requirements
 
-Before opening or merging a PR:
+Choose validation for the behavior changed; these are the available CLI and Swift checks:
 
 ```bash
 ./tests/ci.sh
@@ -40,7 +44,7 @@ If `swift test` reports "TestingMacros not found", run `swift build --build-test
 
 **Cleanup changes** must keep the bash and Swift pipelines in step. Regenerate the fixtures with `tests/gen-cleanup-fixtures.sh`, and check that `CleanupParityTests` passes.
 
-**Runtime changes** also need a real-use check:
+**Runtime changes** need a real-use check when installing or restarting the daily app is authorized. The commands below change the installed runtime; they are not required for every task or documentation edit:
 
 ```bash
 ./install.sh --force

@@ -1,0 +1,41 @@
+{
+  "date": "2026-10-22",
+  "status": "planning_only",
+  "scope": "Full Khuluma identity rename; existing CLI architecture preserved",
+  "scan": {
+    "matching_lines": 2773,
+    "matching_files": 113,
+    "production_prefixed_tokens": 81,
+    "native_package_file_moves": 74,
+    "source_wav_moves": 5,
+    "existing_screenshots_inspected": 3
+  },
+  "independent_reviews": [
+    {
+      "area": "verification and external consumers",
+      "resolved": [
+        "single live cutover",
+        "enforceable old-entrypoint admission barrier",
+        "no held-lock snapshot",
+        "doctor schema and shim exception",
+        "correct path anchors",
+        "runtime lock release before controlled startup"
+      ]
+    },
+    {
+      "area": "CLI and daemon",
+      "resolved": [
+        "per-entrypoint env normalization",
+        "five source sound assets",
+        "canonical library validation",
+        "read-only startup guards",
+        "old CLI identity/root proof beyond contract3",
+        "preferences startup hook",
+        "durable custom native/model/sound routing"
+      ]
+    }
+  ],
+  "runtime_actions": "None; metadata/read-only file hashes only",
+  "implementation_checkboxes": "All open",
+  "evidence_boundary": "Frozen dirty working tree before plan/log additions; recheck drift before implementation"
+}

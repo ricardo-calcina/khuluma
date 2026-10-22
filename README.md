@@ -2,7 +2,7 @@
 
 Local dictation for macOS. Press a key, speak, and the text is pasted into the app in front of you, transcribed on your Mac by a warm Parakeet model (Swift/CoreML). Nothing leaves the machine.
 
-The project is being renamed after its menu-bar app, **Khuluma** (isiNdebele and isiZulu for "speak"; it was called Lowkey until v0.11). The plan is [`docs/plans/KHULUMA_RENAME_ROADMAP.md`](docs/plans/KHULUMA_RENAME_ROADMAP.md). Until the rename is done, the project has three parts:
+The project is being renamed after its menu-bar app, **Khuluma** (isiNdebele and isiZulu for "speak"; it was called Lowkey until v0.11). Current work and decisions are in [`LOG.md`](LOG.md); the previous detailed plan is [archived](docs/archive/KHULUMA_RENAME_ROADMAP.md). Until the rename is done, the project has three parts:
 
 - **Khuluma** (`tmux-whisperd/Sources/Khuluma`): the menu-bar app you dictate with. It owns the hotkey, the microphone, the sounds, delivery (paste, optionally send) and the Stats window. It transcribes over the daemon's socket and cleans the text up in Swift.
 - **`tmux-whisperd`**: the local Parakeet daemon that keeps the model loaded.
@@ -16,6 +16,10 @@ The tmux pane flow, CLI recording, LLM post-processing, the Raycast scripts and 
 - `python3` 3.11+ (for `tomllib`) and `ffmpeg`
 - Xcode or the Command Line Tools (`swift`), to build the daemon and Khuluma
 - A Parakeet CoreML model on disk, at `~/.local/share/tmux-whisper/models/parakeet-tdt-0.6b-v3-coreml` (or `-v2-coreml`), or anywhere `swift_parakeet.model_path` in the config points. Install doesn't download it; FluidInference publishes these CoreML conversions on Hugging Face.
+
+## Source and installed runtime
+
+A checkout is separate from the installed app and daemon. `tools/build-khuluma-app.sh` builds from `tmux-whisperd/.build/` and installs `~/Applications/Khuluma.app`; the CLI's default installed daemon is `~/.local/share/tmux-whisper/native/tmux-whisperd/.build/release/tmux-whisperd`. Config or environment overrides may change daemon paths. Preserve build trees, models and caches during documentation housekeeping. The install and build commands below change the runtime; they are not documentation checks.
 
 ## Install
 
@@ -177,9 +181,9 @@ Khuluma and Finder run the CLI with a minimal environment. Put custom `PATH` ent
 - The CLI builds the daemon on demand into `~/.local/share/tmux-whisper/native/` and rebuilds it when the sources change.
 - `config/` holds the defaults that `install.sh` seeds: config and vocab.
 - `tools/` holds the Khuluma build and report scripts and the Homebrew formula updater.
-- `docs/plans/` holds the active plan. Finished plans move to `docs/plans/archive/`.
+- `LOG.md` holds current tasks and decisions. Historical plans remain under `docs/archive/` and `docs/plans/archive/`; the dated name check remains under `docs/plans/`.
 
-Run the checks before a PR:
+For changes affecting the CLI or Swift behavior, use the applicable checks:
 
 ```bash
 ./tests/ci.sh                          # shell syntax, CLI, regression, flow parity, install and bootstrap tests
