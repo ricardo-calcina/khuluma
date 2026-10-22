@@ -25,7 +25,7 @@ struct CLIIdentityTests {
     #expect(throws: CLIIdentity.Invalid.self) { try probe.validateConfigRoot("/different/config") }
   }
 
-  @Test func canonicalCandidatesPrecedeVerifiedLegacyShims() throws {
+  @Test func canonicalLocalInstallationIsSelectedFirst() throws {
     var inspected: [String] = []
     let selected = try CLISelection.locate(explicit: nil, home: "/fixture", isExecutable: { _ in true }) { path in
       inspected.append(path)
@@ -46,11 +46,19 @@ struct CLIIdentityTests {
     #expect(inspected == ["/fixture/.local/bin/khuluma", "/opt/homebrew/bin/khuluma"])
   }
 
-  @Test func oldNameIsAcceptedOnlyWhenProbeResolvesToCanonicalImplementation() throws {
-    let selected = try CLISelection.locate(explicit: nil, home: "/fixture", isExecutable: { $0.hasSuffix("tmux-whisper") }) { _ in
-      try identity(binary: "/fixture/.local/bin/khuluma")
+  @Test func oldNameOnlyInstallationIsNeverProbedOrSelected() throws {
+    var checked: [String] = []
+    var inspected: [String] = []
+    let selected = try CLISelection.locate(explicit: nil, home: "/fixture", isExecutable: { path in
+      checked.append(path)
+      return path.hasSuffix("tmux-whisper")
+    }) { path in
+      inspected.append(path)
+      return try identity(binary: "/fixture/.local/bin/khuluma")
     }
-    #expect(selected?.canonicalBinary == "/fixture/.local/bin/khuluma")
+    #expect(selected == nil)
+    #expect(checked == ["/fixture/.local/bin/khuluma", "/opt/homebrew/bin/khuluma", "/usr/local/bin/khuluma"])
+    #expect(inspected.isEmpty)
   }
 
   @Test func explicitIncompatibleOverrideFailsWithoutTryingOtherInstallations() {

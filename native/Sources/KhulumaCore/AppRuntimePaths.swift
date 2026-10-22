@@ -46,7 +46,7 @@ public enum AppRuntimePaths {
         return "Isolated state cannot use home, system or daily application data trees: \(directory.path)"
       }
     }
-    guard environment["KHULUMA_DEFAULTS_SUITE"]!.hasPrefix(LegacyPreferences.canonicalDomain + ".") else {
+    guard environment["KHULUMA_DEFAULTS_SUITE"]!.hasPrefix("com.ricardo-nth.khuluma.") else {
       return "Isolated launch requires a separate Khuluma defaults suite"
     }
     guard privateDirectory(parent, owner: expectedOwner) else {

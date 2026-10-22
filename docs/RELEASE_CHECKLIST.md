@@ -4,7 +4,7 @@
 
 - [ ] Confirm `main` CI is green.
 - [ ] Set `KHULUMA_CLI_VERSION` in `bin/khuluma` to the release tag
-  version (for example, `0.7.0`), then confirm `khuluma version --json`
+  version (for example, `0.11.0`), then confirm `khuluma version --json`
   reports that value before tagging.
 - [ ] Run local validation:
   - [ ] `./tests/ci.sh`
@@ -37,16 +37,13 @@ Complete the pre-release checks before this section. Tagging and publication are
 
 ## Homebrew Update
 
-The local tap checkout is `../homebrew-tap`. The updater still defaults to `../homebrew-tap`; pass its existing `--formula` override explicitly. These are release actions, not documentation-validation steps.
+The local tap checkout is `../homebrew-tap`; the updater defaults to its canonical formula. In worktrees, pass the exact tap path with `--formula`. These are release actions, not documentation-validation steps.
 
 - [ ] Update `../homebrew-tap/Formula/khuluma.rb` from the tagged tarball:
   - [ ] `tools/update-homebrew-formula.sh vX.Y.Z --write --formula ../homebrew-tap/Formula/khuluma.rb`
   - [ ] Review diff in `../homebrew-tap/Formula/khuluma.rb`
-- [ ] Run:
-  - [ ] `git -C ../homebrew-tap status --short`
-  - [ ] `brew update`
-  - [ ] `brew audit --new --strict --online ricardo-nth/tap/khuluma`
-  - [ ] `brew install/upgrade ricardo-nth/tap/khuluma`
+- [ ] Run the tap's existing disposable macOS Homebrew QA workflow: fresh install, v0.9 upgrade and v0.10 upgrade. Require strict audit, formula tests, one package owner and unchanged profile checks.
+- [ ] After published QA passes, review a targeted local install/upgrade dry-run with automatic updates and cleanup disabled; retain prior kegs and recovery material. Do not update unrelated taps or dependencies for this check.
 - [ ] Validate command:
   - [ ] `khuluma --help`
   - [ ] `khuluma doctor`
@@ -54,5 +51,5 @@ The local tap checkout is `../homebrew-tap`. The updater still defaults to `../h
 
 ## Post-release
 
-- [ ] Announce release notes summary.
+- [ ] Record the immutable release and verification results. Public announcements require separate authorization.
 - [ ] Track regressions/issues under next milestone.

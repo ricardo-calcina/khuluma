@@ -12,10 +12,9 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 KHULUMA_RUNNING_BINARY="${BASH_SOURCE[0]:-$0}"
-# Always bootstrap normalization from this runtime, never an old override dir.
+# Always load identity helpers from this runtime, never an override directory.
 [[ -r "$SCRIPT_DIR/khuluma-lib/identity.sh" ]] || { printf '%s\n' 'khuluma: missing identity helpers; reinstall the matching runtime' >&2; exit 2; }
 source "$SCRIPT_DIR/khuluma-lib/identity.sh"
-khuluma_normalize_environment
 
 TMPDIR="${KHULUMA_TMPDIR:-/tmp}"
 TRANSCRIBE_LOG="${KHULUMA_TRANSCRIBE_LOG:-$TMPDIR/khuluma.transcribe.log}"
@@ -23,7 +22,7 @@ TRANSCRIBE_LOG="${KHULUMA_TRANSCRIBE_LOG:-$TMPDIR/khuluma.transcribe.log}"
 XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
 DEFAULT_SWIFT_PARAKEET_MODELS_DIR="$XDG_DATA_HOME/khuluma/models"
 KHULUMA_CONFIG_SCHEMA_VERSION=1
-KHULUMA_CLI_VERSION="0.10.0"
+KHULUMA_CLI_VERSION="0.11.0"
 # What `app-config --json` and the commands Khuluma runs promise the app.
 # Khuluma refuses takes unless its own contract number (AppContract.version
 # in native/Sources/KhulumaCore/CLIModels.swift) is the same: bump
@@ -160,8 +159,7 @@ fi
 
 KHULUMA_LIB_PATH="${KHULUMA_LIB_PATH:-$SCRIPT_DIR/khuluma-lib.sh}"
 KHULUMA_INTERNAL_LIB_DIR="${KHULUMA_INTERNAL_LIB_DIR:-$SCRIPT_DIR/khuluma-lib}"
-# Override names remain compatible; their contents must be the matching
-# canonical API. Never silently substitute a custom readable old library.
+# Explicit library overrides must provide the matching canonical API.
 [[ -r "$KHULUMA_LIB_PATH" ]] || die "missing shared library: $KHULUMA_LIB_PATH"
 grep -Fxq '# khuluma-shell-library-api: 1' "$KHULUMA_LIB_PATH" || die "incompatible shared library; reinstall the matching Khuluma runtime or update KHULUMA_LIB_PATH"
 [[ -r "$KHULUMA_INTERNAL_LIB_DIR/api-version" && "$(cat "$KHULUMA_INTERNAL_LIB_DIR/api-version")" == "1" ]] || die "incompatible internal modules; reinstall the matching Khuluma runtime or update KHULUMA_INTERNAL_LIB_DIR"
@@ -193,6 +191,11 @@ if [[ "$cmd" == "transcribe" ]]; then
     fi
   done
 fi
+case "$cmd" in
+  version|--version) ;;
+  config) [[ "${2:-}" == "defaults" ]] || khuluma_reject_obsolete_environment || exit $? ;;
+  *) khuluma_reject_obsolete_environment || exit $? ;;
+esac
 export KHULUMA_READ_ONLY_STARTUP
 if [[ "$KHULUMA_READ_ONLY_STARTUP" != "1" ]]; then
   khuluma_identity_preflight "$KHULUMA_RUNNING_BINARY" || exit $?
@@ -1779,7 +1782,7 @@ khulumad_running_pid() {
   fi
   # Daemons started before meta files existed.
   ps -axo pid=,command= 2>/dev/null | while read -r pid command; do
-    if [[ "$command" == *"khulumad serve --socket $socket_path" || "$command" == *"tmux-whisperd serve --socket $socket_path" ]]; then
+    if [[ "$command" == *"khulumad serve --socket $socket_path" ]]; then
       printf "%s\n" "$pid"
       break
     fi

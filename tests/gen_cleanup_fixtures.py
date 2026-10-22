@@ -115,9 +115,9 @@ def fuzz_cases(rng):
             tail_text = rng.choice(["", "  ", "\n", "\u00a0", tail_text + "\n" + tail_text])
         add("merge", full, tail_text)
 
-    # Keep recorded fuzz metadata as legacy-environment compatibility cases.
-    envs = [{}, {"DICTATE_CLEAN": "1"}, {"DICTATE_CLEAN": "1", "DICTATE_REPEATS_LEVEL": "2"},
-            {"DICTATE_BRITISH_SPELLING": "0"}, {"DICTATE_VOCAB_CLEAN": "0"}]
+    # Exercise only supported canonical environment controls.
+    envs = [{}, {"KHULUMA_CLEAN": "1"}, {"KHULUMA_CLEAN": "1", "KHULUMA_REPEATS_LEVEL": "2"},
+            {"KHULUMA_BRITISH_SPELLING": "0"}, {"KHULUMA_VOCAB_CLEAN": "0"}]
     for i in range(30):
         text = long_soup(rng) if rng.random() < 0.3 else soup(rng)
         pipeline.append({"id": f"fuzz-pipeline-{i + 1:03d}", "config": rng.choice(["repo", "cascade"]),

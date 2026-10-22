@@ -11,14 +11,6 @@ do {
   FileHandle.standardError.write(Data((error.localizedDescription + "\n").utf8))
   exit(2)
 }
-// Before anything reads or writes them: the Lowkey-era folders move to
-// their Khuluma names (log, Application Support, timed-out takes).
-if !AppRuntimePaths.isolated {
-  LegacyPreferences.migrate()
-  for line in LegacyNames.migrate() {
-    Log.write("launch: " + line)
-  }
-}
 let controller = AppController()
 app.delegate = controller
 // Menu-bar only (the bundle also sets LSUIElement).

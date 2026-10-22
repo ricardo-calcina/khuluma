@@ -2,12 +2,18 @@ import Foundation
 
 /// The environment Khuluma gives the `khuluma` CLI.
 public enum CLIEnvironment {
+  /// Checked by the bridge before creating files or launching any candidate.
+  /// A stale canonical CLI may still translate these obsolete inputs.
+  public static func obsoleteOverrideNames(base: [String: String]) -> [String] {
+    base.keys.filter {
+      $0.hasPrefix("DICTATE_") || $0 == "LOWKEY_KEYCHAIN" || $0 == "LOWKEY_SIGNING_IDENTITY"
+    }.sorted()
+  }
+
   /// A GUI fallback until app-config reports the authoritative effective root.
-  /// Forward legacy overrides unchanged to the CLI: it normalizes aliases only
-  /// after loading zshenv, so a GUI must not preempt that precedence decision.
   public static func configDirectory(base: [String: String], home: String) -> String {
     func nonempty(_ key: String) -> String? { base[key].flatMap { $0.isEmpty ? nil : $0 } }
-    let directory = nonempty("KHULUMA_CONFIG_DIR") ?? nonempty("DICTATE_CONFIG_DIR")
+    let directory = nonempty("KHULUMA_CONFIG_DIR")
       ?? ((nonempty("XDG_CONFIG_HOME") ?? "\(home)/.config") + "/khuluma")
     return directory.hasPrefix("~/") ? home + directory.dropFirst() : directory
   }

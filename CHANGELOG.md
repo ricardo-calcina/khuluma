@@ -1,5 +1,13 @@
 # Khuluma changelog
 
+## v0.11.0 — 2026-10-23
+
+- Remove the `tmux-whisper` command and legacy doctor JSON adapter. Use `khuluma` and doctor schema 2.
+- Remove `DICTATE_*` and old Lowkey signing environment aliases; obsolete names now fail before writes rather than being translated into another profile.
+- Make app command discovery canonical-only and remove automatic Lowkey folder/preferences import and obsolete marker handling. Existing data, preference domains and recovery material are preserved.
+- Retire only the verified owned v0.10.0 local shim recoverably during installation; unknown files are refused.
+- Keep app contract 3, usage/config schemas, model pins, canonical profile guards and explicit operator migration/recovery. Homebrew package rename metadata remains without a runtime shim.
+
 ## v0.10.0 — 2026-10-22
 
 This section consolidates all unreleased work since v0.9.0 for v0.10.0. The earlier v0.10.0 and v0.11.0 headings were unreleased development milestones. Earlier notes retain their intermediate names and behavior as development history.

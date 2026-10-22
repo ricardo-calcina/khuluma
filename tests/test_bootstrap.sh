@@ -60,6 +60,19 @@ if [[ "$bootstrap_help" != *"ricardo-nth/khuluma/main/bootstrap.sh"* ]]; then
   exit 1
 fi
 
+rc=0
+DICTATE_BOOTSTRAP_ARCHIVE_URL=private-obsolete-value KHULUMA_TMPDIR="$TMP_ROOT/uncreated-bootstrap-tmp" \
+  "$ROOT/bootstrap.sh" --no-sounds >"$TMP_ROOT/obsolete.out" 2>"$TMP_ROOT/obsolete.err" || rc=$?
+[[ "$rc" == 2 && ! -e "$TMP_ROOT/uncreated-bootstrap-tmp" && ! -e "$HOME/.local" ]] || {
+  echo "Obsolete bootstrap input was not refused before writes" >&2; exit 1;
+}
+grep -q 'obsolete environment input DICTATE_BOOTSTRAP_ARCHIVE_URL' "$TMP_ROOT/obsolete.err"
+if grep -q 'private-obsolete-value' "$TMP_ROOT/obsolete.err"; then
+  echo "Obsolete bootstrap value was exposed" >&2; exit 1
+fi
+DICTATE_BOOTSTRAP_ARCHIVE_URL=private-obsolete-value "$ROOT/bootstrap.sh" --help >"$TMP_ROOT/obsolete-help.out"
+cmp "$TMP_ROOT/obsolete-help.out" <(printf '%s\n' "$bootstrap_help")
+
 # Pass-through args should reach install.sh.
 bootstrap_output="$(KHULUMA_BOOTSTRAP_ARCHIVE_URL="$ARCHIVE_URL" "$ROOT/bootstrap.sh" --no-sounds)"
 if [[ "$bootstrap_output" != *"Bootstrap source: ricardo-nth/khuluma@main"* ]]; then
@@ -72,6 +85,7 @@ if [[ "$bootstrap_output" != *"Bootstrap archive: $ARCHIVE_URL"* ]]; then
 fi
 
 assert_file "$HOME/.local/bin/khuluma"
+[[ ! -e "$HOME/.local/bin/tmux-whisper" && ! -L "$HOME/.local/bin/tmux-whisper" ]] || { echo "Unexpected old command installed" >&2; exit 1; }
 assert_file "$HOME/.config/khuluma/config.toml"
 assert_file "$HOME/.config/khuluma/install-receipt.env"
 assert_not_file "$HOME/.local/share/sounds/khuluma/start.wav"

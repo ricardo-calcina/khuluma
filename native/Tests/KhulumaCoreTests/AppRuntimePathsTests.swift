@@ -57,7 +57,7 @@ struct AppRuntimePathsTests {
       #expect(AppRuntimePaths.isolationIssue(environment: environment(URL(fileURLWithPath: path)), home: home) != nil)
     }
     var unsafe = environment(root)
-    unsafe["KHULUMA_DEFAULTS_SUITE"] = LegacyPreferences.canonicalDomain
+    unsafe["KHULUMA_DEFAULTS_SUITE"] = "com.ricardo-nth.khuluma"
     #expect(AppRuntimePaths.isolationIssue(environment: unsafe, home: home) != nil)
   }
 

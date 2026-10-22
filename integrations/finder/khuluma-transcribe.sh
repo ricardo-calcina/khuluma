@@ -11,15 +11,12 @@
 
 set -uo pipefail
 
-# This installed handler can run without a source checkout or an imported CLI
-# library. Normalize its bounded public inputs before the first read; canonical
-# nonempty values win, then explicit legacy aliases, then defaults.
-for suffix in BIN FINDER_TRANSCRIBE_LOG FINDER_NOTIFY_LOG TMPDIR; do
-  canonical="KHULUMA_$suffix"
-  legacy="DICTATE_$suffix"
-  if [[ -z "${!canonical:-}" && -n "${!legacy:-}" ]]; then
-    printf -v "$canonical" '%s' "${!legacy}"
-    export "$canonical"
+# This installed handler has no imported CLI library. Refuse obsolete inputs
+# before writing logs, notifying or invoking a transcription command.
+for variable in "${!DICTATE_@}" LOWKEY_KEYCHAIN LOWKEY_SIGNING_IDENTITY; do
+  if declare -p "$variable" >/dev/null 2>&1; then
+    printf 'khuluma: obsolete environment input %s; remove it and use supported KHULUMA_* settings\n' "$variable" >&2
+    exit 2
   fi
 done
 LOG="${KHULUMA_FINDER_TRANSCRIBE_LOG:-${KHULUMA_TMPDIR:-/tmp}/khuluma-finder.log}"
@@ -47,8 +44,7 @@ resolve_bin() {
     printf '%s\n' "$EXPLICIT_BIN"
     return 0
   fi
-  # An old real CLI must never become an implicit fallback writer. Supported
-  # legacy overrides are explicit above; the installed shim forwards to Khuluma.
+  # Resolve only canonical commands; an old real CLI is never a fallback writer.
   for candidate in \
     "$HOME/.local/bin/khuluma" \
     /opt/homebrew/bin/khuluma \

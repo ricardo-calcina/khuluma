@@ -1,22 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Standalone curl|bash cannot load the source module yet. Normalize only inputs
-# consumed before that module is available; the installer normalizes the rest.
-for suffix in BOOTSTRAP_REPO BOOTSTRAP_REF BOOTSTRAP_ARCHIVE_URL INSTALL_SOURCE INSTALL_ARCHIVE_URL TMPDIR; do
-  canonical="KHULUMA_$suffix"; legacy="DICTATE_$suffix"
-  if [[ -z "${!canonical:-}" && -n "${!legacy:-}" ]]; then
-    printf -v "$canonical" '%s' "${!legacy}"
-    export "$canonical"
-  fi
-done
 usage() {
   cat <<'USAGE'
 Usage: curl -fsSL <bootstrap-url> | bash -s -- [bootstrap options] [install options]
 
 Installs Khuluma from a GitHub source archive.
 Environment: KHULUMA_BOOTSTRAP_REPO, KHULUMA_BOOTSTRAP_REF,
-             KHULUMA_BOOTSTRAP_ARCHIVE_URL (legacy DICTATE aliases accepted).
+             KHULUMA_BOOTSTRAP_ARCHIVE_URL.
 Options:
   --repo OWNER/REPO  source repository (default: ricardo-nth/khuluma)
   --ref REF          source branch/tag/commit (default: main)
@@ -45,6 +36,14 @@ while [[ $# -gt 0 ]]; do
     *) INSTALL_ARGS+=("$1") ;;
   esac
   shift
+done
+# Standalone curl|bash cannot load identity.sh until the archive is available.
+# Refuse obsolete inputs before creating a workspace or fetching anything.
+for variable in "${!DICTATE_@}" LOWKEY_KEYCHAIN LOWKEY_SIGNING_IDENTITY; do
+  if declare -p "$variable" >/dev/null 2>&1; then
+    printf 'bootstrap: obsolete environment input %s; remove it and use supported KHULUMA_* settings\n' "$variable" >&2
+    exit 2
+  fi
 done
 [[ "$REPO" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ && -n "$REF" ]] || { echo "Invalid repository or ref" >&2; exit 2; }
 for command in bash curl python3 mktemp; do

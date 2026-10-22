@@ -5,7 +5,6 @@ set -Eeuo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 source "$ROOT/bin/khuluma-lib/identity.sh"
 source "$ROOT/bin/khuluma-lib/migration.sh"
-khuluma_normalize_environment
 PKG="$ROOT/native"
 APP_NAME=Khuluma
 BUNDLE_ID=com.ricardo-nth.khuluma
@@ -28,6 +27,7 @@ while [[ $# -gt 0 ]]; do
   esac
   shift
 done
+khuluma_reject_obsolete_environment
 command -v python3 >/dev/null 2>&1 || { echo "python3 is required" >&2; exit 2; }
 OUT="$(python3 -c 'import os,sys; print(os.path.abspath(os.path.expanduser(sys.argv[1])))' "$OUT")"
 [[ "$OUT" == *.app && ! -L "$OUT" ]] || { echo "Refusing non-app or symlink output: $OUT" >&2; exit 2; }
@@ -128,8 +128,7 @@ verify_existing_bundle() {
   [[ -d "$bundle" && ! -L "$bundle" ]] || return 1
   existing_id="$(plutil -extract CFBundleIdentifier raw -o - "$bundle/Contents/Info.plist" 2>/dev/null || true)"
   executable="$(bundle_executable "$bundle" 2>/dev/null || true)"
-  [[ "$existing_id" == "$BUNDLE_ID" || "$existing_id" == "$LEGACY_BUNDLE_ID" ]] || return 1
-  [[ "$executable" == Khuluma || ( "$existing_id" == "$LEGACY_BUNDLE_ID" && "$executable" == Lowkey ) ]] || return 1
+  [[ "$existing_id" == "$BUNDLE_ID" && "$executable" == Khuluma ]] || return 1
   [[ -x "$bundle/Contents/MacOS/$executable" ]] || return 1
   codesign --verify --strict "$bundle"
 }
@@ -140,7 +139,6 @@ legacy_app="$HOME/Applications/Lowkey.app"
 if [[ "$INSTALL" == 1 && "$OUT" != "$legacy_app" && -e "$legacy_app" ]]; then
   legacy_id="$(plutil -extract CFBundleIdentifier raw -o - "$legacy_app/Contents/Info.plist" 2>/dev/null || true)"
   if [[ "$legacy_id" == "$LEGACY_BUNDLE_ID" ]]; then
-    verify_existing_bundle "$legacy_app" || { echo "Legacy app requires manual inspection: $legacy_app" >&2; exit 2; }
     echo "Controlled identity migration must drain and retain $legacy_app and its login route before installing Khuluma. Legacy app left unchanged." >&2
     exit 2
   fi

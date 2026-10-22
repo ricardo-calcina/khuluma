@@ -1,12 +1,12 @@
 # Contributing
 
-Thanks for contributing to Khuluma, which is becoming Khuluma ([`ROADMAP.md`](ROADMAP.md)).
+Thanks for contributing to Khuluma. Current product work is in [`LOG.md`](LOG.md).
 
 ## Scope and Direction
 
 - Khuluma, the menu-bar app, is the product. The CLI is its back end and is being retired step by step, so new user-facing features belong in Khuluma.
 - CLI changes should serve Khuluma, file transcription, or the phase 1 ports (`LOG.md`). Changes to the JSON contracts in `docs/CLI_CONTRACTS.md` are additive only, unless Khuluma changes with them and the app contract number goes up on both sides.
-- `khuluma doctor --json` uses diagnostic schema 2 with neutral identity keys. The temporary old-name command adapts this diagnostic object to the former layout; app contract 3 and other JSON/data shapes remain unchanged. This is the explicit rename exception to the additive app-contract rule.
+- `khuluma doctor --json` uses diagnostic schema 2 with neutral identity keys. v0.11.0 removes the old command/schema adapter and legacy environment aliases; app contract 3 and durable data formats remain unchanged. Use canonical interfaces in new callers and keep wrong-profile refusal and explicit recovery intact.
 - Keep changes minimal and production-oriented. Pure logic goes in `KhulumaCore` (no AppKit) with tests; the `Khuluma` target stays a thin shell.
 
 ## Development Setup

@@ -4,7 +4,7 @@
 
 Khuluma v0.10.0 is the installed daily app and CLI. Build 327 uses `com.ricardo-nth.khuluma` and its dedicated local signer; config, runtime, model and sound paths are canonical. The user verified dictation, paste, cancel, Stats, normal relaunch, Start at Login and Finder transcription. Source release `v0.10.0` and the canonical Homebrew formula are published. The completed [identity migration record](docs/plans/archive/KHULUMA_IDENTITY_RENAME.md) preserves the reviewed plan and actual evidence.
 
-Continue the existing daily-use observation before phase 1. Keep all prior app/runtime/data/certificate recovery material. KwikCut is a CLI; no installed old executable was found in the bounded standard locations checked. Its canonical discovery source and retained private candidate are updated, but the actual invoked artifact must be checked before compatibility removal. The user approved the local VPS page preview on 2026-10-23; website publication remains pending the broader relaunch. No fresh-account, forced permission-denial/regrant, logout/reboot or package-uninstall trial is claimed.
+Canonical-only compatibility removal is in progress in isolated source/tap worktrees under the approved goal. Caller and macOS preference API checks passed; implementation review and serialized checks precede any daily switch. Continue the existing daily-use observation before phase 1. Keep all prior app/runtime/data/certificate recovery material. KwikCut is a CLI; no installed old executable was found in the bounded standard locations checked. Its canonical discovery source and retained private candidate are updated, and no actual installed old caller was found. Recheck any future installed artifact before use. The user approved the local VPS page preview on 2026-10-23; website publication remains pending the broader relaunch. No fresh-account, forced permission-denial/regrant, logout/reboot or package-uninstall trial is claimed.
 
 ## Next
 
@@ -32,7 +32,7 @@ Continue the existing daily-use observation before phase 1. Keep all prior app/r
 
 ## Decisions
 
-- Prefer canonical-only interfaces. The 2026-10-23 direction supersedes the former 30-day identity-compatibility wait: remove old aliases and adapters once concrete caller/workflow checks pass. This is a removal plan, not authorization to change the daily runtime yet. Preserve data, recovery, historical releases and wrong-profile/competing-writer refusals.
+- Prefer canonical-only interfaces. The 2026-10-23 direction supersedes the former 30-day identity-compatibility wait: remove old aliases and adapters once concrete caller/workflow checks pass. The user authorized implementation and a controlled verified rollout in isolated worktrees. Preserve the daily runtime until checks and recoverable code refresh are ready. Preserve data, recovery, historical releases and wrong-profile/competing-writer refusals.
 - Recovery on this Mac remains under `/Users/admin/Documents/Codex/2026-10-22/all-right-next-i-want-to/work/`: `khuluma-live-cutover/` and `khuluma-implementation-evidence/local-brew-recovery-3kf3c92v/`. The committed data manifest is `~/.config/khuluma/.migration/rename-v1/manifest.json`. Closed controller journals are historical: never replay them or restore an old snapshot over newer user work.
 
 - Khuluma is the product; local, fast dictation and never losing a take remain the priorities. The CLI is its back end until native replacements are proven. Keep shared-file and locking contracts while the app and CLI share those files.
@@ -43,14 +43,14 @@ Continue the existing daily-use observation before phase 1. Keep all prior app/r
 
 ## Compatibility removal plan
 
-Planning only, 2026-10-23; anchors refer to source `5a9e525` and tap `9f56a01` and must be rechecked before edits. Target: only `khuluma`, `KHULUMA_*`, the canonical app identity and doctor schema 2 in ordinary operation. No fixed waiting period and no new forwarding layers. The separate native-CLI-independence roadmap remains unchanged.
+Implementation authorized, 2026-10-23; planning anchors refer to source `5a9e525` and tap `9f56a01` and must be rechecked before edits. Target: only `khuluma`, `KHULUMA_*`, the canonical app identity and doctor schema 2 in ordinary operation. No fixed waiting period and no new forwarding layers. The separate native-CLI-independence roadmap remains unchanged.
 
 ### Readiness
 
-- [ ] Confirm the actual external executables/explicit overrides in use. Scoped shell, both agent skills and installed Finder routes are already canonical; no inherited legacy environment names were found.
-- [ ] Correct the earlier installed-KwikCut assumption: it has an executable target, not an app bundle. No standard installed command/app/source build output or shell alias was found. Its retained private `kwikcut` candidate and three discovery tests are canonical; only Notes/tests/package inputs were compared, not its entire source provenance. Test the executable actually invoked, or rebuild private KwikCut/KwikCore copies if one is needed; preserve both projects' dirty work.
+- [x] Confirm the actual external executables/explicit overrides in use. Scoped shell, both agent skills and installed Finder routes are already canonical; no inherited legacy environment names were found.
+- [x] Correct the earlier installed-KwikCut assumption: it has an executable target, not an app bundle. No standard installed command/app/source build output or shell alias was found. Its retained private `kwikcut` candidate and three discovery tests are canonical; only Notes/tests/package inputs were compared, not its entire source provenance. Test the executable actually invoked, or rebuild private KwikCut/KwikCore copies if one is needed; preserve both projects' dirty work.
 - [ ] Stage canonical-only source and package candidates in isolated worktrees/fixtures with every old command unavailable. Prove file transcription, skills, Finder and any actual KwikCut invocation use canonical paths. Do not hide the daily installed shim to run this test.
-- [ ] Before deleting app imports, verify the four canonical preference keys through UserDefaults, not cached-plist inference. Confirm no old process or active take marker remains; the checked default Lowkey Support/Logs/timed-out folders are absent. Preserve both preference domains and all recovery data.
+- [x] Before deleting app imports, verify the four canonical preference keys through UserDefaults, not cached-plist inference. Confirm no old process or active take marker remains; the checked default Lowkey Support/Logs/timed-out folders are absent. Preserve both preference domains and all recovery data.
 
 ### Ordered changes
 
@@ -61,7 +61,7 @@ Planning only, 2026-10-23; anchors refer to source `5a9e525` and tap `9f56a01` a
 | 3 · App/convenience | `native/Sources/KhulumaCore/CLIIdentity.swift:65–89`: canonical candidates only; remove shim wording:36. Remove launch imports at `native/Sources/Khuluma/main.swift:14–21`, `native/Sources/KhulumaCore/LegacyPreferences.swift` and `native/Sources/KhulumaCore/LegacyNames.swift` once readiness passes. Decouple `native/Sources/KhulumaCore/AppRuntimePaths.swift:49` and `native/Tests/KhulumaCoreTests/AppRuntimePathsTests.swift:60` from the deleted preference helper. Remove obsolete marker recognition at `native/Sources/KhulumaCore/Transcription/TakeMarker.swift:101,113–118`, daemon-name fallback at `bin/khuluma:1782`, Lowkey report-log/process fallback at `tools/khuluma-report.sh:17–19,318`, and deliberate old-bundle acceptance in `tools/build-khuluma-app.sh:126–134`. | Preserve canonical identity/root checks, preview isolation, lifecycle locks, unrelated-bundle refusal, competing-writer and wrong-signer rejection. Update focused discovery/environment/marker/preferences tests and remove obsolete alias/import expectations. |
 | 4 · Package | Tap `Formula/khuluma.rb:15,22,56,74–78`: stop installing/wrapping/documenting/testing the old command. Update `release/homebrew-qa.py:198,270,278–279,308,316–317` to require canonical behavior and current-shim absence. | Fresh install, v0.9→next and v0.10→next upgrades retain one owner and unchanged profiles. Keep the tiny `formula_renames.json` package-ownership mapping independently of executable compatibility; retain the frozen v0.9 formula fixture. |
 | 5 · Controlled rollout | Run current project checks, build matching source/app only where changed, use the existing dedicated signer and controlled idle switch. Recoverably retire only inspected owned active local shims; let the tested package upgrade manage Brew links, retain old kegs and backups. Repeat representative canonical caller/app checks. | Dictation, paste, cancel, Stats/settings, Finder and file transcription work with one canonical profile/model/daemon. Preserve app contract 3, config schema 1, wire 0.3.0 and unrelated installed apps. No app independence refactor. |
-| 6 · Release/docs | Prepare a new immutable release, naturally v0.11.0 if still unused, with explicit breaking-interface notes and a measured archive checksum; update the matching formula and current README/AGENTS/integration guidance. | Never alter v0.9/v0.10 tags, archives or historical changelogs. Publishing the new release/package remains a separate implementation-stage action. |
+| 6 · Release/docs | Prepare a new immutable release, naturally v0.11.0 if still unused, with explicit breaking-interface notes and a measured archive checksum; update the matching formula and current README/AGENTS/integration guidance. | Never alter v0.9/v0.10 tags, archives or historical changelogs. Publish only after the immutable source/archive and matching package checks pass in this authorized implementation. |
 
 ### Keep and prove
 
@@ -71,6 +71,8 @@ Planning only, 2026-10-23; anchors refer to source `5a9e525` and tap `9f56a01` a
 - Final acceptance uses the real daily app and representative synthetic file/caller checks after safe preparation. A failure restores retained code while preserving the latest authoritative data; never replay a closed migration journal or overwrite newer records with an old snapshot.
 
 ## Done
+
+- 2026-10-23 · Verified canonical callers and preference APIs; staged compatibility removal in isolated worktrees, daily v0.10 untouched · caller-readiness-c8324fbf21
 
 - 2026-10-23 · Planned canonical-only compatibility removal; replaced calendar wait with caller/runtime gates and corrected unsupported installed-KwikCut claim · Compatibility removal plan
 

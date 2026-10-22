@@ -117,8 +117,8 @@ These are useful but not yet promised as stable contracts:
 
 ## Identity migration and diagnostic schema
 
-The canonical executable is `khuluma`; a temporary `tmux-whisper` command forwards to the same implementation, config root, daemon and ledger. App contract 3 alone is not canonical identity proof: the app also checks the nonmutating version identity probe and effective config root.
+The executable is `khuluma`. v0.11.0 removes the `tmux-whisper` command and legacy doctor JSON adapter; doctor schema 2 is the supported diagnostic object. Normal execution rejects obsolete `DICTATE_*` and Lowkey signing overrides before writes; use `KHULUMA_*` names. Help/version/default probes remain nonmutating. App contract 3 alone is not canonical identity proof: the app also checks the nonmutating version identity probe and effective config root.
 
-`khuluma doctor --json` has `schema_version: 2` and neutral `install_sanity` keys `cli_binary`, `daemon_source`, `daemon_binary` and `daemon_socket`. The legacy command's doctor-JSON adapter alone emits the previous key layout without that marker. Other command JSON/wire/data formats stay unchanged. Historical receipts are parsed as data and retain their actual original source URLs/commits.
+`khuluma doctor --json` has `schema_version: 2` and neutral `install_sanity` keys `cli_binary`, `daemon_source`, `daemon_binary` and `daemon_socket`. Other command JSON/wire/data formats stay unchanged. Historical receipts are parsed as data and retain their actual original source URLs/commits.
 
 Explicit migration is never triggered by help/version/config-defaults probes. A mutable command encountering only the legacy default profile directs the operator to the tested migration tool instead of making a second profile.

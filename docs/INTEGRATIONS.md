@@ -1,4 +1,4 @@
-# Integration Compatibility
+# Integrations
 
 Khuluma, the native menu-bar app in `native/`, is the main way to dictate. The installed `khuluma` CLI still owns config, history, usage and the daemon lifecycle that Khuluma reads through it. The Finder Quick Action and the agent skill wrap `khuluma transcribe`.
 
@@ -9,16 +9,16 @@ Khuluma, the native menu-bar app in `native/`, is the main way to dictate. The i
 - Supported runtime source of truth: the CLI, config under `~/.config/khuluma`, install receipt, processing markers, and CLI status/diagnostic commands.
 - Unsupported as production surfaces: alternate backend experiments and direct parsing of private files when a CLI read contract exists.
 
-## Compatibility Matrix
+## Supported surfaces
 
 | Surface | Status | Install/update path | Notes |
 | --- | --- | --- | --- |
 | Khuluma (native menu-bar app) | Daily driver | `tools/build-khuluma-app.sh` (see the README) | Owns the hotkey, capture, sounds, paste and the Stats window. Transcribes over the daemon socket and cleans text natively; uses the installed CLI for settings, history, usage and the daemon lifecycle (`docs/CLI_CONTRACTS.md`). |
 | `khuluma` CLI | Supported (Khuluma's back end) | Local `./install.sh --force` for Khuluma; Homebrew or bootstrap for the CLI alone | Source of truth for config, vocab, history, usage, status and doctor. Khuluma needs the CLI from its own checkout (app contract). |
-| CLI inline and tmux dictation | Retired (v0.11) | None | Khuluma replaces both. `inline process`, `inline record` and `inline cleanup` stay as Khuluma's back end. |
+| CLI inline and tmux dictation | Retired (v0.10.0) | None | Khuluma replaces both. `inline process`, `inline record` and `inline cleanup` stay as Khuluma's back end. |
 | Finder Quick Action (transcribe files) | Supported | `khuluma finder install` | Runs `integrations/finder/khuluma-transcribe.sh`, which calls `khuluma transcribe --beside --clipboard`. The handler is installed beside the binary (Homebrew's `share/khuluma`, or `~/.local/share/khuluma/integrations`). |
 | Agent skill (`integrations/agents/transcribe-audio/`) | Supported | Copy into your agent's skills folder | Tells Claude Code and Codex to use `khuluma transcribe` for audio files. |
-| Raycast scripts, SwiftBar plugin | Retired (v0.11) | None | Khuluma owns the dictation key and the menu-bar item. Old copies under `~/.config/khuluma/integrations/raycast` or SwiftBar's plugin folder can go to the Trash. |
+| Raycast scripts, SwiftBar plugin | Retired (v0.10.0) | None | Khuluma owns the dictation key and the menu-bar item. Old copies under `~/.config/khuluma/integrations/raycast` or SwiftBar's plugin folder can go to the Trash. |
 
 ## Environment Expectations
 
@@ -26,6 +26,7 @@ GUI launchers (Khuluma, Finder) run the CLI with a smaller environment than an i
 
 - Keep custom PATH dependencies and env-based overrides in `~/.zshenv`, which the CLI loads; don't rely on `.zshrc`.
 - Use `khuluma status` and `khuluma doctor` to compare the installed runtime against what you see.
+- v0.11.0 uses only `khuluma`/`KHULUMA_*`: old command discovery, environment translation and the former doctor JSON adapter are removed. Obsolete variables, including empty assignments, are refused before writes; update launcher environments rather than relying on a fallback.
 
 ## Channel Differences
 
@@ -36,6 +37,8 @@ Bootstrap is for pinned installs or testing a GitHub ref without keeping a clone
 Local clone installs are for active development. Run `./install.sh --force` after local code changes before judging installed CLI or Khuluma behaviour.
 
 ## Identity migration
+
+For pre-Khuluma installations, complete the v0.10.0 coordinated app/preferences/folder transition before using v0.11.0. The immutable v0.10.0 source retains that transition implementation. Normal v0.11.0 startup no longer imports Lowkey domains/folders or selects old command names. Explicit data inspection/recovery and fail-closed root admission remain.
 
 An existing Tmux Whisper/Lowkey installation needs one coordinated transition of its data, executable routes, daemon, app identity, login intent and Finder action. The procedure is operator/agent-controlled. This release supplies the data engine and refusal guards; it does not ship a portable automated coordinator. A completed migration on one Mac and a successful Homebrew package installation are separate evidence from an upgrade of another legacy installation, including v0.9.0.
 
@@ -89,6 +92,6 @@ When adding integration behavior, prefer one of these shapes:
 
 ## Isolated app validation
 
-A staged native instance requires `KHULUMA_SUPPORT_DIR`, `KHULUMA_LOG_DIR` and `KHULUMA_DEFAULTS_SUITE` together, with explicit private fixture roots and a distinct defaults suite. Give it a fixture-routed canonical CLI/config/socket/model reference too. Isolated mode skips real-home legacy import, disables frame autosave and prevents login-item changes. The synthetic `-KhulumaStatsSnapshot <directory>` path runs before ordinary app startup and uses fixed data rather than a personal ledger.
+A staged native instance requires `KHULUMA_SUPPORT_DIR`, `KHULUMA_LOG_DIR` and `KHULUMA_DEFAULTS_SUITE` together, with explicit private fixture roots and a distinct defaults suite. Give it a fixture-routed canonical CLI/config/socket/model reference too. Isolated mode disables frame autosave and prevents login-item changes. Normal startup has no automatic legacy import either. The synthetic `-KhulumaStatsSnapshot <directory>` path runs before ordinary app startup and uses fixed data rather than a personal ledger.
 
-Installed agent skills, shell shortcuts, KwikCut and Finder are switched only after the matching new CLI and migration are verified. The temporary `tmux-whisper` command forwards to that same runtime; it is not a second writer.
+Installed agent skills, shell shortcuts, any actual KwikCut executable and Finder must resolve the canonical CLI. Verify them with old commands unavailable in an owned fixture before retiring inspected active shims. The Homebrew old-package rename map remains ownership metadata; it does not install a forwarding command. Retained data, preference domains, certificates and prior release artifacts are recovery material, not active callers.

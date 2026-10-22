@@ -1,8 +1,7 @@
 import Foundation
 
-/// The additive identity envelope on `khuluma version --json`. An old real CLI
-/// may speak app contract 3 too; the contract number alone cannot route an app
-/// safely through the identity/data-root cutover.
+/// The identity envelope on `khuluma version --json`. The contract number
+/// alone cannot establish the executable identity and authoritative data root.
 public struct CLIIdentity: Decodable, Equatable, Sendable {
   public let product: String
   public let identityVersion: Int
@@ -33,8 +32,8 @@ public struct CLIIdentity: Decodable, Equatable, Sendable {
 
     public var errorDescription: String? {
       switch self {
-      case .legacy: return "the CLI does not identify itself as canonical khuluma; install the renamed CLI or its supported forwarding shim"
-      case .binary: return "the CLI identity does not resolve to an executable canonical khuluma binary; repair the renamed installation"
+      case .legacy: return "the CLI does not identify itself as canonical khuluma; select or install the khuluma command"
+      case .binary: return "the CLI identity does not resolve to an executable canonical khuluma binary; repair the installation"
       case .migration: return "Khuluma data migration is required; run tools/migrate-khuluma-identity.sh before launching the app"
       case .root: return "khuluma version and app-config selected different config roots; repair the CLI environment before dictating"
       }
@@ -62,9 +61,9 @@ public struct CLIIdentity: Decodable, Equatable, Sendable {
   }
 }
 
-/// Canonical local/Homebrew candidates precede old-name shims. The probe must
-/// verify identity, root and app contract before returning a candidate. An
-/// explicit override never silently falls back to a different installation.
+/// The probe must verify identity, root and app contract before returning a
+/// canonical local/Homebrew candidate. An explicit override never silently
+/// falls back to a different installation.
 public enum CLISelection {
   public struct Rejected: Error, LocalizedError {
     public let path: String
@@ -84,9 +83,7 @@ public enum CLISelection {
       catch { throw Rejected(path: explicit, reason: error.localizedDescription) }
     }
     let roots = ["\(home)/.local/bin", "/opt/homebrew/bin", "/usr/local/bin"]
-    // Old names are read-only routing candidates, never accepted on contract
-    // equality alone. Only a shim reporting the canonical implementation wins.
-    let candidates = roots.map { "\($0)/khuluma" } + roots.map { "\($0)/tmux-whisper" }
+    let candidates = roots.map { "\($0)/khuluma" }
     var rejection: Rejected?
     for candidate in candidates where isExecutable(candidate) {
       do { return try inspect(candidate) }
