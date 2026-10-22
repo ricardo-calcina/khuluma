@@ -12,7 +12,7 @@ If these files do not exist, proceed silently. Do not flag their absence or sugg
 
 ## Layout
 
-This is a single-context repo. Khuluma is a macOS dictation project being renamed after its app (current work: `LOG.md`; historical roadmap: `docs/archive/KHULUMA_RENAME_ROADMAP.md`). The app was previously called Lowkey. Khuluma, the native menu-bar app in `native/`, is the only way to dictate. The `khuluma` CLI is its back end (config, vocab, history, usage, the daemon lifecycle) and transcribes audio files. The tmux flow, CLI recording, LLM post-processing, Raycast and SwiftBar are absent from the current product.
+This is a single-context repo. Khuluma is the macOS dictation product: app, CLI and daemon (current work: `LOG.md`; [identity-rename outcome](../plans/archive/KHULUMA_IDENTITY_RENAME.md); historical roadmap: `docs/archive/KHULUMA_RENAME_ROADMAP.md`). The app was previously called Lowkey. Khuluma, the native menu-bar app in `native/`, is the only way to dictate. The `khuluma` CLI is its back end (config, vocab, history, usage, the daemon lifecycle) and transcribes audio files. The tmux flow, CLI recording, LLM post-processing, Raycast and SwiftBar are absent from the current product.
 
 Use the repo's established terms:
 
