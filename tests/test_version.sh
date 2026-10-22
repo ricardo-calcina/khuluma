@@ -2,30 +2,32 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-TMP_ROOT="$(mktemp -d)"
+TMP_ROOT="$(cd "$(mktemp -d)" && pwd -P)"
+KHULUMA_TEST_FIXTURE_ROOT="$TMP_ROOT"
+source "$ROOT/tests/fixture_helpers.sh"
 # Never read or write the real user's ~/.local/share (daemon build, models).
 export XDG_DATA_HOME="$TMP_ROOT/xdg-data"
-export DICTATE_DAEMON_BACKGROUND_REFRESH=0
-trap 'rm -rf "$TMP_ROOT"' EXIT
+export KHULUMA_DAEMON_BACKGROUND_REFRESH=0
+trap report_fixture_root EXIT
 
 BIN_DIR="$TMP_ROOT/bin"
 HOME_DIR="$TMP_ROOT/home"
-CONFIG_DIR="$HOME_DIR/.config/dictate"
+CONFIG_DIR="$HOME_DIR/.config/khuluma"
 mkdir -p "$BIN_DIR" "$HOME_DIR" "$CONFIG_DIR"
-BIN_REAL="$(cd "$BIN_DIR" && pwd -P)/tmux-whisper"
+BIN_REAL="$(cd "$BIN_DIR" && pwd -P)/khuluma"
 
-cp "$ROOT/bin/tmux-whisper" "$BIN_DIR/tmux-whisper"
-cp "$ROOT/bin/dictate-lib.sh" "$BIN_DIR/dictate-lib.sh"
-cp -R "$ROOT/bin/tmux-whisper-lib" "$BIN_DIR/tmux-whisper-lib"
-chmod +x "$BIN_DIR/tmux-whisper" "$BIN_DIR/dictate-lib.sh"
+cp "$ROOT/bin/khuluma" "$BIN_DIR/khuluma"
+cp "$ROOT/bin/khuluma-lib.sh" "$BIN_DIR/khuluma-lib.sh"
+cp -R "$ROOT/bin/khuluma-lib" "$BIN_DIR/khuluma-lib"
+chmod +x "$BIN_DIR/khuluma" "$BIN_DIR/khuluma-lib.sh"
 
 run_version() {
   HOME="$HOME_DIR" \
   PATH="$BIN_DIR:/usr/bin:/bin" \
-  DICTATE_LIB_PATH= \
-  DICTATE_CONFIG_DIR="$CONFIG_DIR" \
-  DICTATE_CONFIG_FILE="$CONFIG_DIR/config.toml" \
-  "$BIN_DIR/tmux-whisper" "$@"
+  KHULUMA_LIB_PATH= \
+  KHULUMA_CONFIG_DIR="$CONFIG_DIR" \
+  KHULUMA_CONFIG_FILE="$CONFIG_DIR/config.toml" \
+  "$BIN_DIR/khuluma" "$@"
 }
 
 assert_contains() {
@@ -41,8 +43,8 @@ assert_contains() {
 }
 
 # Derive the expected version from source so release bumps touch one line.
-EXPECTED_CLI_VERSION="$(sed -n 's/^TMUX_WHISPER_CLI_VERSION="\(.*\)"$/\1/p' "$ROOT/bin/tmux-whisper")"
-[[ -n "$EXPECTED_CLI_VERSION" ]] || { echo "Could not read TMUX_WHISPER_CLI_VERSION" >&2; exit 1; }
+EXPECTED_CLI_VERSION="$(sed -n 's/^KHULUMA_CLI_VERSION="\(.*\)"$/\1/p' "$ROOT/bin/khuluma")"
+[[ -n "$EXPECTED_CLI_VERSION" ]] || { echo "Could not read KHULUMA_CLI_VERSION" >&2; exit 1; }
 
 missing_text="$(run_version version)"
 assert_contains "missing_cli_version" "$missing_text" "CLI version: $EXPECTED_CLI_VERSION"
@@ -52,9 +54,9 @@ assert_contains "missing_receipt" "$missing_text" "Install receipt: missing ($CO
 
 # A source checkout must fall back as a complete runtime when an older local
 # library directory exists but cannot provide this newly added module.
-mkdir -p "$HOME_DIR/.local/bin/tmux-whisper-lib"
-source_text="$(HOME="$HOME_DIR" PATH="/usr/bin:/bin" DICTATE_CONFIG_DIR="$CONFIG_DIR" DICTATE_CONFIG_FILE="$CONFIG_DIR/config.toml" "$ROOT/bin/tmux-whisper" version)"
-assert_contains "source_checkout_stale_lib_fallback" "$source_text" "Running binary: $ROOT/bin/tmux-whisper"
+mkdir -p "$HOME_DIR/.local/bin/khuluma-lib"
+source_text="$(HOME="$HOME_DIR" PATH="/usr/bin:/bin" KHULUMA_CONFIG_DIR="$CONFIG_DIR" KHULUMA_CONFIG_FILE="$CONFIG_DIR/config.toml" "$ROOT/bin/khuluma" version)"
+assert_contains "source_checkout_stale_lib_fallback" "$source_text" "Running binary: $ROOT/bin/khuluma"
 
 missing_json="$(run_version version --json)"
 VERSION_JSON="$missing_json" EXPECTED_CLI_VERSION="$EXPECTED_CLI_VERSION" python3 - <<'PYEOF'
@@ -66,7 +68,7 @@ assert payload["command"] == "version"
 assert payload["schema_version"] == 1
 assert payload["cli_version"] == os.environ["EXPECTED_CLI_VERSION"]
 assert payload["config_schema_version"] == 1
-assert payload["running_binary"]["path"].endswith("/bin/tmux-whisper")
+assert payload["running_binary"]["path"].endswith("/bin/khuluma")
 assert payload["receipt"]["present"] is False
 assert payload["receipt"]["installed_at"] is None
 assert payload["receipt"]["source"] is None

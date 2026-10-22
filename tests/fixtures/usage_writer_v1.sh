@@ -103,6 +103,6 @@ with open(lock_path, "a+", encoding="utf-8") as lock:
             pass
     finally:
         if os.path.exists(tmp_path):
-            os.unlink(tmp_path)
+            pass  # Retain a failed fixture write for inspection.
 ' "$(usage_summary_file)" "$flow" "$record_ms" "$full_elapsed_ms" <<<"$processed"
 }

@@ -1,0 +1,1046 @@
+[
+  {
+    "repo": "tmux-whisper",
+    "file": ".DS_Store",
+    "sha256": "50ef7c103dd776997060b20446281854d7758fdf20641266198a621b9387de99",
+    "size": 8196
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "LICENSE",
+    "sha256": "5a19beea0c4506a5735fa4ef146dc0c3a24729b24a8b36fb8d61dce127adde43",
+    "size": 1062
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "CHANGELOG.md",
+    "sha256": "3a57c6ea99fea2ac7bca48ae6fa977d92934f48b50a429db793671c24480d28f",
+    "size": 46796
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "install.sh",
+    "sha256": "eed44f860458dae351f2d217b52cbcc265ac0344f03717a65910e25037a04e1a",
+    "size": 6859
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "CHANGELOG.archive.md",
+    "sha256": "f4828b831898b7252509414599a37296899c43e5c372bc31a1b508b67c27027f",
+    "size": 38415
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "README.md",
+    "sha256": "5265198d392a9d568af7b60845f75435caa5be27edd0d761c79147e50b9df570",
+    "size": 13365
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "LOG.md",
+    "sha256": "21c0dfe58da7ea6861849077e0cefbfcfef542e8140ccc15d08591d5df69decc",
+    "size": 8042
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "bootstrap.sh",
+    "sha256": "2c4f1d8b92f5eb629ecce4d63b3ffd7078be0c13c9d38c11bdba202055286443",
+    "size": 3443
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "ROADMAP.md",
+    "sha256": "4dbe6b49268197b1bbf70692169909669bdca5608c78aca4d93107adf6e32540",
+    "size": 514
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": ".gitignore",
+    "sha256": "a83a1dc5c7d0cb5ac1d73cad57c155f6c95306f9b0c74b909f865a9544070844",
+    "size": 309
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "CONTRIBUTING.md",
+    "sha256": "38bb8331fa123386f7c65580d3395ea9456cfb18c8d69c464f02ffc9a4e0173c",
+    "size": 2883
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": ".gitattributes",
+    "sha256": "acb3a6fbfcaa1e63646766f95677b1d121bcc0683a3bc493a1810f28a010d4ef",
+    "size": 32
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "AGENTS.md",
+    "sha256": "006ab0c4e21809eebec78975ac5d5ee83cb6c76b0a155d0fa68891c19c0db370",
+    "size": 1737
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "CLAUDE.md",
+    "sha256": "f58f0f403fda62520c78fb0e10abf7582d78888956dfb93f9d57a10014cd3388",
+    "size": 130
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tools/build-khuluma-app.sh",
+    "sha256": "b843026accfabc08a889a924721ca4828e79bc20e7de8389b51870fa06a7a686",
+    "size": 8672
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tools/update-homebrew-formula.sh",
+    "sha256": "6253e8b32c4acb6105944cedecdbf65f80e35b33fcc584ebc68826504b3a4f31",
+    "size": 3021
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tools/make-signing-identity.sh",
+    "sha256": "c29eb40e0db94c4721a515295d88de7451221fb4ef85b57d07ffc2845da36dff",
+    "size": 1966
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tools/khuluma-report.sh",
+    "sha256": "51cb6315a1865218aa1e9986fc5eddaae8520ff49fc39c8b7a5b9223d639d435",
+    "size": 12776
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Package.resolved",
+    "sha256": "e952a2438db1c2a1a75a101eb12d5ec2ffc545a2686e2063bf89f793a1c30aa2",
+    "size": 3382
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Package.swift",
+    "sha256": "b112668564445106f009af91e1250c386b198d696f56c3e3358922300580adfa",
+    "size": 2337
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/App/Khuluma.entitlements",
+    "sha256": "c941afaac2b251e90fe1fdab19cf1824be84b2aeac3888a0bfd764a4b4df8f65",
+    "size": 324
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Tests/KhulumaCoreTests/StatsTests.swift",
+    "sha256": "c9ebb95e599ae971e59b0551d77c351044cc89cd9842bcb2dadc1c8582675d52",
+    "size": 14069
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Tests/KhulumaCoreTests/AppConfigFixture.swift",
+    "sha256": "5a6de6b6abf7ba9029cc239b41be7960bf5662bad09512b9991c293e0b56f3a2",
+    "size": 1254
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Tests/KhulumaCoreTests/KhulumaCoreTests.swift",
+    "sha256": "bf645fc2a7fb8bef224661145b3db3aeeb6d94665324d4171420a81544ad5f04",
+    "size": 6604
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Tests/KhulumaCoreTests/LegacyNamesTests.swift",
+    "sha256": "dd14bf5b6c032ad36bc112c6d3953a304e8fd1c6bd9cfbced7cbce1e45d5e611",
+    "size": 6399
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Tests/KhulumaCoreTests/TranscriptionTests.swift",
+    "sha256": "15b93245db548f0dd00e7f6e2f7d2d52b5bf34014b01cb846e1ec9cd8b201879",
+    "size": 31293
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Tests/KhulumaCoreTests/LiveParityTests.swift",
+    "sha256": "24b2670b5c622e8b1576877dc30c13bd950a542bfb5af107e29db19abf03cb66",
+    "size": 3118
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Tests/KhulumaCoreTests/CleanupParityTests.swift",
+    "sha256": "b0e9e4a7bb2eb08e3161d9c199c3cb107b20a4c9fb5daebe4c33c6485021792a",
+    "size": 8477
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Tests/KhulumaCoreTests/DeliveryTargetTests.swift",
+    "sha256": "f4fb0eb1d139656f65a220c6196c1da54e79ae431b8da04fce8893141720a4b9",
+    "size": 4686
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Tests/KhulumaCoreTests/SupervisorTests.swift",
+    "sha256": "8c246715865eaf3d4e7594332b9a630b0c146ac558d055007006571ce8525b9f",
+    "size": 12342
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Tests/KhulumaCoreTests/ShadowCompare.swift",
+    "sha256": "9ba6b1f86622b866975db3634fae9f3452d4757695f7e625b3d3143627dec664",
+    "size": 1774
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Tests/KhulumaCoreTests/TakeStarterTests.swift",
+    "sha256": "4f1bafb00da1f919a5236bbbe4825edeb01f7d219502d4027161ba4fa9ac84db",
+    "size": 6585
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Tests/KhulumaCoreTests/InstrumentationTests.swift",
+    "sha256": "e2d08a5acde9f953e1f3e31bf19e496059ae4cd27d6069e8770bede64f13a458",
+    "size": 5203
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Tests/KhulumaCoreTests/ActivityStatusTests.swift",
+    "sha256": "4b85539c6b53830ba6fb12d0044369fcaa56f063a62767366fbd67f188ea8722",
+    "size": 3558
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Tests/TmuxWhisperKitTests/UnixSocketServerTests.swift",
+    "sha256": "e11e07601edb88078586e55ec613c465544cc1cccd8a83c9ca98bbd7001f91b5",
+    "size": 11450
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Tests/TmuxWhisperKitTests/ProtocolTests.swift",
+    "sha256": "477d713e4b6aa52f74408caf18527eff7c0205ade5e02bfb735bcd7598bfe99d",
+    "size": 4946
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/tmux-whisperd/CLI.swift",
+    "sha256": "031e1a86559a669abb9820c2dda1882efd2845571a0b324c95a9d9b2e2bc5c7c",
+    "size": 2620
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/KhulumaCore/DeliveryPlan.swift",
+    "sha256": "e427c44372207d421fb82e8a82b5092067b29161ff00946f7b2d7e452693efdd",
+    "size": 4254
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/KhulumaCore/CLIModels.swift",
+    "sha256": "3e5ca5717e0483d4e8465f21ab9ed6ebe971184268b2cbb5b7f1173a78dee72d",
+    "size": 9811
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/KhulumaCore/TakeStarter.swift",
+    "sha256": "a0d5e8f8906707349f27b6fbc0a05fff66d24ecc229d7a5381f67b2c9549567b",
+    "size": 3771
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/KhulumaCore/LegacyNames.swift",
+    "sha256": "8924a562866ca2ab33923f802dfeb97814617f1c347b45a7864c8130f05ffc6b",
+    "size": 5656
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/KhulumaCore/WAVEncoder.swift",
+    "sha256": "ac654cd268d7282377113be79ff829fab37bc4b4cbb2d20dd3585ada78af111e",
+    "size": 2027
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/KhulumaCore/CLIEnvironment.swift",
+    "sha256": "7278b7d4c5e203a8290af0179733992009e4504078dc2a058cf3379056108d16",
+    "size": 1018
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/KhulumaCore/Hotkey.swift",
+    "sha256": "f872e1d2072b5e8967d0f36cc287a5c4fed4894cb1179b49911675e16f433d11",
+    "size": 4833
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/KhulumaCore/ActivityStatus.swift",
+    "sha256": "bc901bbe4c4f0cbd36c999f0b7878589aa1a363270b2371fcc6ed2bdbb7262f9",
+    "size": 2318
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/KhulumaCore/Transcription/TakeRecord.swift",
+    "sha256": "af5b750ecab60360fd2adfca02df35ac827c5ac9ad0a7ed6f68945374ac47c71",
+    "size": 2662
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/KhulumaCore/Transcription/TranscriptMerge.swift",
+    "sha256": "49d6bd8c16f1ab48d030e8f93eaa471f0f6b3529bbce8ced6b319f92207b9a20",
+    "size": 6158
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/KhulumaCore/Transcription/AudioPrep.swift",
+    "sha256": "016a027f52568c93c85557e3dc1f20005b2e8bafef75083c613a65bfacf6fc62",
+    "size": 2159
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/KhulumaCore/Transcription/InFlightTakes.swift",
+    "sha256": "d0ffd25f71af810de509b52e6aeedc6b1ec9cdfb15c64ef38778aca1c3caca1b",
+    "size": 5186
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/KhulumaCore/Transcription/PendingRecords.swift",
+    "sha256": "b5c1461f77067619d32675601472af9115dad7ae6c50310f1d0f52b1cdd46182",
+    "size": 2965
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/KhulumaCore/Transcription/TakeMarker.swift",
+    "sha256": "5a7b8d41c21aa4a34d47442bcdef61df77ef6700130fc25f0aea635d965e9ff8",
+    "size": 5041
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/KhulumaCore/Transcription/TimedOutTakes.swift",
+    "sha256": "ad31353242efddeff1c4fbfbc275d9972f8f57e06442bd4be99e7d5b148b2897",
+    "size": 4965
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/KhulumaCore/Transcription/TranscriptionSettings.swift",
+    "sha256": "9d582e4144f9e80a40f04247db5fa1b006cab4a653417ff4aead8374e8522fc8",
+    "size": 3872
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/KhulumaCore/Transcription/TakeLog.swift",
+    "sha256": "f558f3562c01a3373eb9264f9622ff69b201165bc0a1ab0534232ef7cd033a8c",
+    "size": 4432
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/KhulumaCore/Transcription/DaemonSupervisor.swift",
+    "sha256": "ba7b73796fc346076b7052809a1c105677c019c02737ffc6e72a23d549c69f9a",
+    "size": 9583
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/KhulumaCore/Transcription/TakeResult.swift",
+    "sha256": "27963ae1891fa5022f285f36c61781317eb10dad39c68a6df4cfa6414e0f486c",
+    "size": 846
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/KhulumaCore/Transcription/DaemonClient.swift",
+    "sha256": "3ef636bb02f3c3b353009bf2e4cabd5f1690782fd4682a062883390699c5092f",
+    "size": 9983
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/KhulumaCore/Transcription/RecoveredTakes.swift",
+    "sha256": "5cc8058908c95b2cb46ccf300d3380081e9d656e03fede846a6b9f9ac65d7eaa",
+    "size": 2485
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/KhulumaCore/Transcription/NativeTranscriber.swift",
+    "sha256": "df392da6535810d8dcfb94fa8fcdd95c891ac5aa0a1d93cbc6e8e9c848143bb7",
+    "size": 6273
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/KhulumaCore/Cleanup/ICURegex.swift",
+    "sha256": "f41b116f47775555e229f7fe030ca326bf1b16d064835db43e118337e309779c",
+    "size": 3456
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/KhulumaCore/Cleanup/TextPipeline.swift",
+    "sha256": "0c2d01a8447180fa87912888436090c8bac0fab6dbb972f06e449458380ba730",
+    "size": 4365
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/KhulumaCore/Cleanup/VocabCorrector.swift",
+    "sha256": "b1d7a935db27519caed54e6b51de60065daa8602af23cb54cf9ae0cddeb87e75",
+    "size": 6380
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/KhulumaCore/Cleanup/TextCleanup.swift",
+    "sha256": "dd4fd25b5237e948d5be17da1d8ac888248676eb6bbf395dd593c21efa3d052b",
+    "size": 7944
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/KhulumaCore/Cleanup/PerlText.swift",
+    "sha256": "aa8912b8ea92ea570d87bb1ee34b31b3996b4ac3d270982809c784ddac967bef",
+    "size": 6852
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/KhulumaCore/Stats/UsageStats.swift",
+    "sha256": "b999e8dac2af542fef7d95fdc5524819a33deec80ee45c712662bbcfe12d462a",
+    "size": 9849
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/KhulumaCore/Stats/UsageReport.swift",
+    "sha256": "2f4db4bc700d167f9c3d5647eae79790ef5a6cfe0aa6b75f693360fbefed30b2",
+    "size": 9596
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/KhulumaCore/Stats/StatsRefresh.swift",
+    "sha256": "2a9cc37d47b4d23c1de22f86c08a027474167d7adb25dc2316b8c0579935a092",
+    "size": 2145
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/Khuluma/LoginItem.swift",
+    "sha256": "719667109891e2d0908a5c9fe4684bd489d390eea919cc979a8a2d26e4bbd93f",
+    "size": 1273
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/Khuluma/SoundPlayer.swift",
+    "sha256": "e91ff148655c0041d3210f2f36d1f038a86d196d20610481d150edb8801f4ff7",
+    "size": 1584
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/Khuluma/Log.swift",
+    "sha256": "a426030bc4ccf77eed6d16f6eedbb96a53f2b5b493f0a4da09c86b2c7ea44201",
+    "size": 1204
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/Khuluma/Take.swift",
+    "sha256": "49bfaeef1c77a335170836e876756ad2b3857a372e94106c45e247e2fd43b8a6",
+    "size": 2509
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/Khuluma/TakePersister.swift",
+    "sha256": "290af3460ac6a797895d7c352fd164922078b7a41af08b128ad0c0ad4046b75b",
+    "size": 2924
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/Khuluma/StatusMenu.swift",
+    "sha256": "dda2e7ab080d5408189ebd2a293093c467c41d1e634dc8b7098a8b106ca53f03",
+    "size": 6092
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/Khuluma/CLIBridge.swift",
+    "sha256": "d0ac5ff42610ef03f62e52620a2ba026e26b81930e0f2438a9fa1da6f55b6731",
+    "size": 6600
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/Khuluma/AppController.swift",
+    "sha256": "5ed8c83f457c26adcf6823d76b34ab32cb09aa36447c73eece3a8f7b332c8bfa",
+    "size": 40079
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/Khuluma/TakePipeline+Recovery.swift",
+    "sha256": "bbf9bb4f2c07b0ec598f68a651eab214a26f13da0dd6c02b3e5182c8c5382e68",
+    "size": 2789
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/Khuluma/main.swift",
+    "sha256": "4700548a0e9349dc3505c085537d52b73d28d665808ea573b9c9f563c202f4c4",
+    "size": 588
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/Khuluma/AudioRecorder.swift",
+    "sha256": "9b4cc302942430aafd3538a8c821f88e16e32b638a629f21118b57cac8a9c79f",
+    "size": 8431
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/Khuluma/TakePipeline+Retry.swift",
+    "sha256": "5d7ffcde55d87acc74aec5bf9ffc3db4e514f2a2c2329321133438135a76e41e",
+    "size": 4387
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/Khuluma/TakePipeline.swift",
+    "sha256": "5e2117393262f4cb284590f8cf79ab8e3b097c0473ff213165d282aa9841076b",
+    "size": 14764
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/Khuluma/Deliverer.swift",
+    "sha256": "9eee3ecb111d9d77d27feddc63a216b97b41830e00bbe9db75eb42a60bcd4f50",
+    "size": 5724
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/Khuluma/HotkeyMonitor.swift",
+    "sha256": "46b8918beea3e1129c8da4aeeac4721a7fe6e7cfca3627ec88cd26bd37833d3e",
+    "size": 3616
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/Khuluma/Stats/StatsSnapshot.swift",
+    "sha256": "630db04c8fb18936a3b131473457739d08587517cb464de1a5d41cacf280ab35",
+    "size": 5723
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/Khuluma/Stats/StatsWindowController.swift",
+    "sha256": "aac38275c5bd7b52f2fc29a10bf3671b95327cdbc02f6238bd017474f3179340",
+    "size": 2456
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/Khuluma/Stats/StatsView.swift",
+    "sha256": "971953654415b3f9e551af160d2a30280f46e7a3fc73571a7d525922d9f7ac30",
+    "size": 23321
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/Khuluma/Stats/StatsModel.swift",
+    "sha256": "e5ee662af4320494ba1b0f5c75530a45031d7839d4a709db8c8a2b923d11f48d",
+    "size": 8467
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/KhulumaObjC/KhulumaObjC.m",
+    "sha256": "326c261269cd23cb74aef3a23f4baea4a34294fb7ebc1107c0d522fa8327f342",
+    "size": 828
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/KhulumaObjC/include/KhulumaObjC.h",
+    "sha256": "5724f60fd0484ea38df68fcce3900c5d32e6ccf2476d98e48b25188bea2cff09",
+    "size": 906
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/TmuxWhisperKit/UnixSocketServer.swift",
+    "sha256": "1e3f532e16d46c6ceb030b229313b37a028a705bb79289222b0284f398e51e25",
+    "size": 14256
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/TmuxWhisperKit/DaemonProtocol.swift",
+    "sha256": "e1573c0f7d7e02e639b2d67d51b6e5603488645de3b81d0523006e6e955a2c56",
+    "size": 5184
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/TmuxWhisperKit/ASREngine.swift",
+    "sha256": "49a25f3609018550ea9105d9c684273b46bb05ed4594d4016245d2d7cf55a644",
+    "size": 5721
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tmux-whisperd/Sources/TmuxWhisperKit/TranscriptionService.swift",
+    "sha256": "3ffd6220a00aaf66654a2b26bcbd7af9c57f7f5cf1f5d4d1a14dc4f4bff11255",
+    "size": 3509
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "bin/dictate-lib.sh",
+    "sha256": "a1999833bfd17697cf88599f3e8e02b900e5ef620203b182da92048de7bdad51",
+    "size": 7849
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "bin/tmux-whisper",
+    "sha256": "0e923e56554c834adf9ebc982c17207e6a8d5f12cf70b4b5cbe566ce94866ff9",
+    "size": 139564
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "bin/tmux-whisper-lib/app.sh",
+    "sha256": "2fcf76ecd317785a477b2189db103b7320fd30609402c88d360da51a8a369861",
+    "size": 22719
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "bin/tmux-whisper-lib/history.sh",
+    "sha256": "7cdb412dc367b0d798c6001a5414b3084d7ff40e319c1fcebef27b7b14c6c2ab",
+    "size": 55962
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "bin/tmux-whisper-lib/integrations.sh",
+    "sha256": "214c5223198ad8465ac02577a9d79b7519737e16ab4f1fbd09ddaa3fafaa2f84",
+    "size": 2349
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "bin/tmux-whisper-lib/migrate.sh",
+    "sha256": "cce3ff249b4a3eae93d7f57f76d765fc3e45fab4b0b2c649be45f6da594ea3f0",
+    "size": 7968
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "bin/tmux-whisper-lib/transcribe_file.sh",
+    "sha256": "2a75f0a189f60cd93ef3a14a86b5dbf86b03d25d0812e0607327e22d20df18af",
+    "size": 20890
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "bin/tmux-whisper-lib/config.sh",
+    "sha256": "6843968cab308c50a61ff33fd82bf22c0da32044746e4e14c13062b5e6c759ea",
+    "size": 7896
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "bin/tmux-whisper-lib/version.sh",
+    "sha256": "9313fcf61428a38678ae00be2a62d950760162d47c66c042406e3b5ef34e7b32",
+    "size": 5095
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "bin/tmux-whisper-lib/diagnostics.sh",
+    "sha256": "281447c6581e2010e732aa6fdff6f286c2ee792793d8b9c95228eba515fd2d4a",
+    "size": 33890
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "config/vocab",
+    "sha256": "6ae6250cd766373141d920ebe388e3bd8879735c542a0399dc88e7c55b0fc0fc",
+    "size": 407
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "config/config.toml",
+    "sha256": "c2e9bd847e8ed7e58b0fb4915c5e95d9c212d81958be9656fa3b290ced976bb5",
+    "size": 814
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tests/test_bootstrap.sh",
+    "sha256": "afcdfceb081328497e9864e4d0af2f1243cfbe4aecea1f4fe158c89daf4edfa1",
+    "size": 2888
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tests/test_cli.sh",
+    "sha256": "ec416c3092152090d2b0aa9a9e95a187262f69d9211903f46be24ea699a3b0ca",
+    "size": 10572
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tests/gen_cleanup_fixtures.py",
+    "sha256": "7ab681786a0257fba81d4235edd60a98dffb4cd351a3cbf09926e8a08c5b3df8",
+    "size": 11909
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tests/test_regression.sh",
+    "sha256": "97a0bf0529ce9856f90f99c49aae6df7dbd42f2563afd65f9cc73451df46d246",
+    "size": 61672
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tests/test_install.sh",
+    "sha256": "0879600e743d5c7cec9aab2d164570ebf9a22a8dc8233ce6e9936f16bfe5bd1e",
+    "size": 9806
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tests/test_version.sh",
+    "sha256": "11c68a75489aa82656846ba9c1d365023ac85055a11a1ad72e5533b47d1ea0f3",
+    "size": 4718
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tests/test_flow_parity.sh",
+    "sha256": "3ec692981798a14f043b70428c3a1f8dfd119ee7b98e6e6206ee307e5d448b13",
+    "size": 88799
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tests/gen-cleanup-fixtures.sh",
+    "sha256": "18005b95d6c97bf8154fd0c959786ed425924931e5f0723df0efbca071c22f20",
+    "size": 471
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tests/ci.sh",
+    "sha256": "500596751c70bd3d39ac7b8548fc411f7a16bf3880b540a7f490115ec4619642",
+    "size": 551
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tests/test_lib.sh",
+    "sha256": "d5b4a2db467ee43c932eb2ea82a7e7713737826936e1094049e2444f7cfff5b8",
+    "size": 3641
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tests/fixtures/usage_writer_v1.sh",
+    "sha256": "0fee1e216120d0298c1cab0ec8a81c6d615c408d8f9e278645a3bfea2f5ab89b",
+    "size": 4649
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tests/fixtures/cleanup/expected.json",
+    "sha256": "25f31e8e3bdcadfcadfe95f42e3d47f7970b41baa681eb0557d767218d4fe034",
+    "size": 270452
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tests/fixtures/cleanup/cases.json",
+    "sha256": "ffcdb5b48ac19efcd2134f08c272620f387f78a4246e45e8b00b620e744753bf",
+    "size": 42798
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tests/fixtures/cleanup/configs/empty/config.toml",
+    "sha256": "e4d2c82b7fe8f07bf0a2e5a0b457bc19da000d8b6c58bfa88eed81d249f6df01",
+    "size": 26
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tests/fixtures/cleanup/configs/cascade/vocab",
+    "sha256": "b0ce3b04d5311d0e79adc1026c13b36d08733cf03fd0397bfea8b9646fb7c177",
+    "size": 766
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "tests/fixtures/cleanup/configs/cascade/config.toml",
+    "sha256": "7a4029ca85f16101aadb7460eece6020dce79825fd2433f6b62c0407be9b11c8",
+    "size": 53
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": ".agents/setup",
+    "sha256": "36788a7759f07bae711c818ccbc9559c20a30ab3ce6ad2a250c51cfea1e636ec",
+    "size": 1770
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "docs/CLI_CONTRACTS.md",
+    "sha256": "1536a1922a9f2ac7818dbe685cc2e4dfebe8378a10e2df49664e5ab634f629eb",
+    "size": 8797
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "docs/TROUBLESHOOTING.md",
+    "sha256": "68c93399cc92bb58f5b63f5b05e22cded83c3ad86d23ab0514d026139871e43c",
+    "size": 7163
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "docs/INTEGRATIONS.md",
+    "sha256": "84f57c96c118cd7cc5236ea58f803a1871a1fdea25f01d4bdc191594a796cdfc",
+    "size": 3716
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "docs/RELEASE_CHECKLIST.md",
+    "sha256": "d0c61cc07eed3de1d5e5c7b216374798330b4aead19fd24307d430bdd32b1a68",
+    "size": 3148
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "docs/archive/KHULUMA_RENAME_ROADMAP.md",
+    "sha256": "a5123df4076061abc414423d665c0334b74de97edfda42d526e7dc266798427a",
+    "size": 39264
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "docs/archive/CHANGELOG-2026-10-22-before-tidy.md",
+    "sha256": "34432c0beb1a16cabe844b1ab2f7d57c5a89bc2f22313db9fe74b64159df51bb",
+    "size": 47416
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "docs/archive/README.md",
+    "sha256": "922fe42ec90a25da082978ea83ecc02b64dfa1accfadd167a75a38a557123999",
+    "size": 1931
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "docs/archive/entry-points/README-before-2026-10-22.md",
+    "sha256": "b61e130034004d129e62f1fbfbaefc5122759d5c0f366961b2e870066628aa52",
+    "size": 12646
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "docs/archive/entry-points/LOG-before-2026-10-22.md",
+    "sha256": "6db06b57f38229e813aa4ae2a9fd33fae73c8c94fced65027f7f097868d46afa",
+    "size": 4117
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "docs/archive/entry-points/CONTRIBUTING-before-2026-10-22.md",
+    "sha256": "a6c7f539055d1dbd807548ef588d1db93f1e498e84c061d5f8e7bd4edb64b295",
+    "size": 2396
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "docs/archive/entry-points/ROADMAP-before-2026-10-22.md",
+    "sha256": "0e4e0da5d505a4acff3cb0435f57528dc72110679d72f4590a6a25d684f53e54",
+    "size": 3301
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "docs/archive/entry-points/AGENTS-before-2026-10-22.md",
+    "sha256": "fe2e2b347dab65fef2378a8793cc13856a95c49ca00316da81b3293eeade89f3",
+    "size": 2194
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "docs/archive/entry-points/docs/RELEASE_CHECKLIST-before-2026-10-22.md",
+    "sha256": "ea902ea010e5e23164bc563d357a73feebd70c4baea1b7f8ffa6123b220c4bf2",
+    "size": 2825
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "docs/archive/entry-points/docs/agents/issue-tracker-before-2026-10-22.md",
+    "sha256": "57454f80488abdc78cd54edd01123e40167acc8ddedd3e2dcc2f61e343c500ae",
+    "size": 823
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "docs/archive/entry-points/docs/agents/triage-labels-before-2026-10-22.md",
+    "sha256": "ad4259d1e483896240884cec450a7ff73056ec042ec42244305b48f81170ba89",
+    "size": 749
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "docs/archive/entry-points/docs/agents/domain-before-2026-10-22.md",
+    "sha256": "094937eca122a39bbd97d91adf0e7202479a5b452b366d866ac3f6a18eaee619",
+    "size": 2059
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "docs/plans/KHULUMA_NAME_CHECK.md",
+    "sha256": "ade9bc6b3a8f4cb9862acf79b024239af160f896c8728ed518bab38669c8d410",
+    "size": 6056
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "docs/plans/archive/MODES_REDESIGN_SPEC.md",
+    "sha256": "1989dae5d8bb23297cdfa0399263df80c6b324d6a600a0b3a4b1d100d2e30182",
+    "size": 9964
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "docs/plans/archive/WHISPER_CPP_REMOVAL_PLAN.md",
+    "sha256": "7e7a93ff9db71ce2743b44287180b9779a9e68bc00003dbe9b631443a1bb71c5",
+    "size": 6120
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "docs/plans/archive/LOWKEY_PHASE3_PLAN.md",
+    "sha256": "46eccc55a2cff1319b78a554af5adef473a2b3417f0e43b77ba9cf756880e3bf",
+    "size": 16462
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "docs/plans/archive/RENAME_PLAN.md",
+    "sha256": "e47fe34261edf7d346ebc110f437b1927d959b7624f0116fdd67e1368f8e89c1",
+    "size": 13088
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "docs/plans/archive/V07_SWIFTBAR_STATE_RELIABILITY_PRD.md",
+    "sha256": "724e881ad7efd3da80297e8d37aff208130d131ae882cc38e2bf8c9bc1b81eff",
+    "size": 9631
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "docs/plans/archive/README.md",
+    "sha256": "b0e51bdcdc2087578331dcc4906cc74851b5a461f0130c9d7bee392ddf34ee82",
+    "size": 1020
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "docs/plans/archive/LOWKEY_STATS_PLAN.md",
+    "sha256": "b18e9c91b24c1176ebd2a1d7f6465459ea480840a0efe0eb8b0efb6a8a65cef0",
+    "size": 20919
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "docs/plans/archive/TMUX_WHISPER_CLI_FIRST_V06_SPEC.md",
+    "sha256": "75414e7f259748fec6c9c747acad85f8ac436a214cf2a546eb19b7e7d71bd6ae",
+    "size": 6704
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "docs/plans/archive/TMUX_WHISPER_SCRIPT_REFACTOR_SPEC.md",
+    "sha256": "508fa54c2591e813a63e2f3d428c4e022cedd902dae1aff0bcc874703b9e441a",
+    "size": 19442
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "docs/plans/archive/LOWKEY_PHASE3C_PLAN.md",
+    "sha256": "c1036acaed16f116f297e57d8e516480f0b34e419376fa898175abb668bb9b97",
+    "size": 12627
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "docs/images/lowkey-stats/90-days-dark.png",
+    "sha256": "d96d0bc61012748816ab8635cfb474a142380553d686849a61d3ad38fd1433ad",
+    "size": 183267
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "docs/images/lowkey-stats/incomplete-light.png",
+    "sha256": "e385a23cdabec682ce64c6f596daef00e534ea20b7b1ee517a4dcdaaeb86f104",
+    "size": 166627
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "docs/images/lowkey-stats/90-days-light.png",
+    "sha256": "24e0b63f914127150ef01bc6d22b55643712a63d43489fa8b7ec30780457498f",
+    "size": 183622
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "docs/agents/domain.md",
+    "sha256": "d4f399fe10011bf0a8a47c838f3184a8e46b5fa026908bf81d2668882394216b",
+    "size": 2105
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "docs/agents/triage-labels.md",
+    "sha256": "ef5ed5728792eeadb3c19951c9d80553c5d1642976f3ebc4fe50ee69e2ec8a46",
+    "size": 338
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "docs/agents/issue-tracker.md",
+    "sha256": "b928ddaeaa69ecbb8ddfbeafa84d395cb1c8d6fb57dc12a70e0e7e871dd88776",
+    "size": 380
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "integrations/agents/transcribe-audio/SKILL.md",
+    "sha256": "53589264be72575789ee0f9c2f9083662d09b03099af3df74950f8f6d859b64f",
+    "size": 2690
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "integrations/finder/tmux-whisper-transcribe.sh",
+    "sha256": "a15d8f9291fe7f233f163298baf06e5a42e8caae57ff7922fbd363fbec9abd19",
+    "size": 2242
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": ".github/workflows/swift.yml",
+    "sha256": "da237e657a4fd02136f92343cf0285aee9b5d334bf0b31ec1b80a2875c650bc4",
+    "size": 1868
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": ".github/workflows/ci.yml",
+    "sha256": "662803fede1bf64efad58ac1757168d68b87c353d910da2941717c9f18c573b4",
+    "size": 363
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": ".github/ISSUE_TEMPLATE/feature_request.yml",
+    "sha256": "5b9d6b0465a001e1794fd8a2f6ece094095cbf80005581b449a5358f91bfe90f",
+    "size": 870
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": ".github/ISSUE_TEMPLATE/bug_report.yml",
+    "sha256": "9d63d8746deda3b18e5916ca411ef01e5db85431855bed957e4fcf278b5274b6",
+    "size": 1151
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": ".github/ISSUE_TEMPLATE/config.yml",
+    "sha256": "eff0e5846b6ef7095aafe2cb93d85fb5237099a6fab6e9404d25cade7fcc6a2b",
+    "size": 209
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "assets/sounds/README.md",
+    "sha256": "54e7937a3d188ba0668856b229548dc0243981f3bb430055872e66a8f5316b88",
+    "size": 411
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "assets/sounds/dictate/cancel.wav",
+    "sha256": "71df478794a4fbcf49525d81484128e3148a7b3741a2ae19eb2e8bfc0655d4d0",
+    "size": 26538
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "assets/sounds/dictate/stop.wav",
+    "sha256": "db5ca2d31a6af8cd40162bc9e3329e27b5941f3fbdf22f25bdb72e915937495f",
+    "size": 31830
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "assets/sounds/dictate/process.wav",
+    "sha256": "2716eb5be5b9791c08219d15100308a144109af8a31dc149f3ed62fea445a752",
+    "size": 21246
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "assets/sounds/dictate/start.wav",
+    "sha256": "6fc3c103033d61ab80508754dbb2d2f21585456dbc6d35ea9a429764e378832e",
+    "size": 30066
+  },
+  {
+    "repo": "tmux-whisper",
+    "file": "assets/sounds/dictate/error.wav",
+    "sha256": "1b2cc32576bdb455611dfe643349f8662f0ebc53e0f8ce2ecd8236d7c448a548",
+    "size": 35358
+  },
+  {
+    "repo": "tmux-whsper-brew-tap",
+    "file": "README.md",
+    "sha256": "1b9a3546158f7c30a193b3a57fe8e2ae6f0178541160612a24d8519078fe43e4",
+    "size": 1359
+  },
+  {
+    "repo": "tmux-whsper-brew-tap",
+    "file": "LOG.md",
+    "sha256": "7597ce00f4bf63f477ab8be06ef5b0619d1492cf558aeb62b9513edc6dc6b1ce",
+    "size": 760
+  },
+  {
+    "repo": "tmux-whsper-brew-tap",
+    "file": "AGENTS.md",
+    "sha256": "c240dc7d2710f2e0568eff00ff94a00b3eda9254fdea3cfb4d724455f739993c",
+    "size": 478
+  },
+  {
+    "repo": "tmux-whsper-brew-tap",
+    "file": "CLAUDE.md",
+    "sha256": "fa76e03e547918d597c09888f3c462ed80bc0a5b3072995799dd62306cd247b6",
+    "size": 72
+  },
+  {
+    "repo": "tmux-whsper-brew-tap",
+    "file": "docs/archive/README.md",
+    "sha256": "b2842c305e616704ed9c2204b4fab33884df106134ef3ce19710d27179c68368",
+    "size": 643
+  },
+  {
+    "repo": "tmux-whsper-brew-tap",
+    "file": "docs/archive/entry-points/README-before-2026-10-22.md",
+    "sha256": "a8a1689d7158d9985cf669c93f379444bd36d1e858c21889a1ae35fce0fdea83",
+    "size": 530
+  },
+  {
+    "repo": "tmux-whsper-brew-tap",
+    "file": "Formula/tmux-whisper.rb",
+    "sha256": "3b609395f1b31ec8c029116aa8708e3f5f52d463311964aa2a7cf3406662ba60",
+    "size": 1515
+  }
+]

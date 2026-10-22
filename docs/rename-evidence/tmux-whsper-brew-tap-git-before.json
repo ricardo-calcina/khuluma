@@ -1,0 +1,6 @@
+{
+  "head": "2fe15ebe2fe40b2a24d97f7d48fa5f64037314d7",
+  "branch": "main",
+  "status": " M README.md\n?? AGENTS.md\n?? CLAUDE.md\n?? LOG.md\n?? docs/archive/README.md\n?? docs/archive/entry-points/README-before-2026-10-22.md\n",
+  "remotes": "origin\thttps://github.com/ricardo-nth/homebrew-tap.git (fetch)\norigin\thttps://github.com/ricardo-nth/homebrew-tap.git (push)\n"
+}

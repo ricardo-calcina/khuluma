@@ -1,5 +1,5 @@
 name: Bug report
-description: Report a reproducible issue in Tmux Whisper
+description: Report a reproducible issue in Khuluma
 title: "bug: "
 labels: [bug]
 body:
@@ -40,7 +40,7 @@ body:
     id: diagnostics
     attributes:
       label: Diagnostics
-      description: Paste key output from `tmux-whisper doctor` and `tmux-whisper status`.
+      description: Paste key output from `khuluma doctor` and `khuluma status`.
       render: shell
 
   - type: textarea

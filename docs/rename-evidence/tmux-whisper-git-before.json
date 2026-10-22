@@ -1,0 +1,6 @@
+{
+  "head": "a4b2d6200ba96ce4f18320055ec57fda8fffc617",
+  "branch": "stats-window-redesign",
+  "status": " M AGENTS.md\n M CHANGELOG.md\n M CONTRIBUTING.md\n M LOG.md\n M README.md\n M ROADMAP.md\n M docs/RELEASE_CHECKLIST.md\n M docs/agents/domain.md\n M docs/agents/issue-tracker.md\n M docs/agents/triage-labels.md\n D docs/plans/KHULUMA_RENAME_ROADMAP.md\n?? CLAUDE.md\n",
+  "remotes": "origin\thttps://github.com/ricardo-nth/tmux-whisper.git (fetch)\norigin\thttps://github.com/ricardo-nth/tmux-whisper.git (push)\n"
+}

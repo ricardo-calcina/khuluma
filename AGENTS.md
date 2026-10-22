@@ -1,69 +1,14 @@
-# Tmux Whisper CLI - Project Working Agreement
+# Khuluma working agreement
 
-This project is now the single source of truth for Tmux Whisper development.
+Read `README.md` for operation and `LOG.md` for current work, priorities and decisions. Use `LOG.md` as the internal work list; public completed changes belong in `CHANGELOG.md`. A separate specification, PRD, issue or implementation slice is not required for routine work. GitHub issues can provide external context when relevant.
 
-## Agent skills
+Khuluma is the daily required app. Documentation work must preserve source `.build/`, model files and caches, the installed daemon tree under `~/.local/share/khuluma/native/`, and `~/Applications/Khuluma.app`. Do not install, build, warm, restart or release anything to validate prose. Source inspection does not establish installed-version or live health.
 
-### Issue tracker
+For implementation, make the smallest complete change and verify the affected behavior. Pure app logic belongs in `KhulumaCore`; contract changes must keep the matching CLI and app compatible. Use `CONTRIBUTING.md` for applicable validation and the release checklist only when preparing an authorized release. Installation and publication are separate actions, not steps required after every task.
 
-Issues and PRDs are tracked in GitHub Issues for `ricardo-nth/tmux-whisper`. See `docs/agents/issue-tracker.md`.
+Keep defaults portable. Config/history remain under `~/.config/khuluma`, sounds under `~/.local/share/sounds/khuluma`, and models under `~/.local/share/khuluma/models`. Do not commit personal config, transcripts or secrets.
 
-### Triage labels
+The source and sibling `../homebrew-tap` are separate repositories. The formula updater defaults to `../homebrew-tap/Formula/khuluma.rb`. The canonical formula remains staged outside `Formula/` until its actual source archive and release checks pass. Preserve public usage, CLI contracts, troubleshooting, attribution and release history. Archived plans and dated name research are evidence, not an active workflow.
 
-Use the default triage label vocabulary, including `ready-for-agent` for AFK-ready implementation work. See `docs/agents/triage-labels.md`.
 
-### Domain docs
-
-This is a single-context repo. Read root domain docs and ADRs if present, and otherwise proceed silently. See `docs/agents/domain.md`.
-
-## Source of Truth
-
-- Primary development repo: `tmux-whisper` (project workspace)
-- Homebrew tap repo: `homebrew-tap` (separate repo for formula updates)
-- Legacy bare repo (`~/.dictate.git`) is retired and archived; do not use it for active development.
-
-## Development Workflow
-
-1. Create a feature branch in `tmux-whisper`.
-2. Implement changes in this repo only.
-3. Run validation:
-   - `./tests/ci.sh`
-4. Install to local runtime for real usage testing:
-   - `./install.sh --force`
-5. Merge to `main` only when stable.
-
-## Install Channels
-
-- Daily/personal testing: `./install.sh --force` (or bootstrap installer).
-- Public stable installs: Homebrew (`ricardo-nth/tap/tmux-whisper`).
-
-Do not require Homebrew for every development iteration.
-
-## Release Workflow
-
-1. Merge stable changes to `main`.
-2. Update `CHANGELOG.md` with release-ready notes.
-3. Tag release in `tmux-whisper` (`vX.Y.Z`).
-4. Update Homebrew formula in `homebrew-tap`:
-   - `url` to new tag archive
-   - `sha256` to matching archive checksum
-5. Validate with:
-   - `brew update`
-   - `brew install/upgrade ricardo-nth/tap/tmux-whisper`
-
-## Config and Privacy Boundaries
-
-- Keep repo defaults portable (`config/config.toml`, `config/vocab`).
-- Do not commit personal machine-specific preferences or secrets.
-- User-local config/runtime stays in:
-  - `~/.config/dictate`
-  - `~/.local/share/sounds/dictate`
-  - `~/.local/share/whisper/models`
-
-## Changelog Policy
-
-- `CHANGELOG.md` should track:
-  - current stable version,
-  - notable completed changes,
-  - upcoming queue/TODO.
-- Keep it aligned with actual shipped behavior.
+The approved identity migration is being implemented in an isolated worktree. `docs/KHULUMA_RENAME_PLAN.md` is the finite execution checklist. Keep installed-state claims in LOG with actual evidence. The old shared Lowkey certificate and original user data remain recovery material; canonical signing uses a distinct identity. Worktree app checks require the explicit private support/log/defaults overrides documented in the code, so another instance cannot touch the daily app's pending/recovered data.

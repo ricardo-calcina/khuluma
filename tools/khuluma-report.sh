@@ -7,6 +7,9 @@
 #   tools/khuluma-report.sh --days 2         # today and yesterday
 #   tools/khuluma-report.sh --since 2026-10-12 --system
 set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+source "$ROOT/bin/khuluma-lib/identity.sh"
+khuluma_normalize_environment
 
 LOG="${KHULUMA_LOG:-$HOME/Library/Logs/Khuluma/app.log}"
 # Before the rename the app logged under Lowkey; its first launch as Khuluma
@@ -312,7 +315,7 @@ if [[ "$SYSTEM" == "1" ]]; then
     gsub(/[ .]/, "", $2); printf "  %s: %s\n", $1, $2
   }'
   ps -axo rss=,comm= 2>/dev/null | awk '
-    $2 ~ /tmux-whisperd$/ || $2 ~ /Khuluma$/ || $2 ~ /Lowkey$/ {
+    $2 ~ /khulumad$/ || $2 ~ /tmux-whisperd$/ || $2 ~ /Khuluma$/ || $2 ~ /Lowkey$/ {
       n = split($2, part, "/"); printf "  %s RSS: %.0f MB\n", part[n], $1 / 1024
     }'
 fi

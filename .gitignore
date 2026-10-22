@@ -9,15 +9,17 @@ history/
 .cache/
 archive/
 !docs/plans/archive/
-tmux-whisperd/.build/
 
 # Editor/OS
 .vscode/
 .idea/
 
-# tmux-whisper keeps a last valid config copy beside config.toml
+# Khuluma keeps a last valid config copy beside config.toml
 .config.toml.last-good
 .config.toml.last-good.lock
 
 # Amp orb portals
 .amp/portals/*
+
+# Canonical Khuluma SwiftPM development output
+native/.build/

@@ -1,0 +1,686 @@
+[
+  {
+    "old": "DICTATE_APP_HOTKEY",
+    "new": "KHULUMA_APP_HOTKEY",
+    "anchors": [
+      "bin/tmux-whisper-lib/app.sh:132"
+    ]
+  },
+  {
+    "old": "DICTATE_APP_SUPERVISE_DAEMON",
+    "new": "KHULUMA_APP_SUPERVISE_DAEMON",
+    "anchors": [
+      "bin/tmux-whisper-lib/app.sh:143"
+    ]
+  },
+  {
+    "old": "DICTATE_AUTOSEND",
+    "new": "KHULUMA_AUTOSEND",
+    "anchors": [
+      "bin/tmux-whisper-lib/app.sh:9",
+      "bin/tmux-whisper-lib/diagnostics.sh:612",
+      "bin/tmux-whisper-lib/diagnostics.sh:714"
+    ]
+  },
+  {
+    "old": "DICTATE_BENCH_MAX_ROWS",
+    "new": "KHULUMA_BENCH_MAX_ROWS",
+    "anchors": [
+      "bin/tmux-whisper:125",
+      "bin/tmux-whisper:2776"
+    ]
+  },
+  {
+    "old": "DICTATE_BIN",
+    "new": "KHULUMA_BIN",
+    "anchors": [
+      "bin/tmux-whisper-lib/diagnostics.sh:19",
+      "integrations/finder/tmux-whisper-transcribe.sh:32"
+    ]
+  },
+  {
+    "old": "DICTATE_BIN_DIR",
+    "new": "KHULUMA_BIN_DIR",
+    "anchors": [
+      "install.sh:52"
+    ]
+  },
+  {
+    "old": "DICTATE_BOOTSTRAP_ARCHIVE_URL",
+    "new": "KHULUMA_BOOTSTRAP_ARCHIVE_URL",
+    "anchors": [
+      "bootstrap.sh:14",
+      "bootstrap.sh:33"
+    ]
+  },
+  {
+    "old": "DICTATE_BOOTSTRAP_REF",
+    "new": "KHULUMA_BOOTSTRAP_REF",
+    "anchors": [
+      "bootstrap.sh:13",
+      "bootstrap.sh:32"
+    ]
+  },
+  {
+    "old": "DICTATE_BOOTSTRAP_REPO",
+    "new": "KHULUMA_BOOTSTRAP_REPO",
+    "anchors": [
+      "bootstrap.sh:12",
+      "bootstrap.sh:31"
+    ]
+  },
+  {
+    "old": "DICTATE_BRITISH_SPELLING",
+    "new": "KHULUMA_BRITISH_SPELLING",
+    "anchors": [
+      "tmux-whisperd/Sources/KhulumaCore/Cleanup/TextPipeline.swift:16",
+      "bin/dictate-lib.sh:78",
+      "bin/tmux-whisper:118",
+      "bin/tmux-whisper:205"
+    ]
+  },
+  {
+    "old": "DICTATE_CLEAN",
+    "new": "KHULUMA_CLEAN",
+    "anchors": [
+      "tmux-whisperd/Sources/KhulumaCore/Cleanup/TextPipeline.swift:10",
+      "bin/tmux-whisper:111",
+      "bin/tmux-whisper:214",
+      "bin/tmux-whisper:223"
+    ]
+  },
+  {
+    "old": "DICTATE_CONFIG_DIR",
+    "new": "KHULUMA_CONFIG_DIR",
+    "anchors": [
+      "install.sh:53",
+      "install.sh:108",
+      "install.sh:126",
+      "bin/dictate-lib.sh:123"
+    ]
+  },
+  {
+    "old": "DICTATE_CONFIG_FILE",
+    "new": "KHULUMA_CONFIG_FILE",
+    "anchors": [
+      "install.sh:109",
+      "install.sh:126",
+      "bin/tmux-whisper:247",
+      "bin/tmux-whisper:487"
+    ]
+  },
+  {
+    "old": "DICTATE_CONFIG_SCHEMA_VERSION",
+    "new": "KHULUMA_CONFIG_SCHEMA_VERSION",
+    "anchors": [
+      "bin/tmux-whisper:18",
+      "bin/tmux-whisper:665",
+      "bin/tmux-whisper:784",
+      "bin/tmux-whisper:807"
+    ]
+  },
+  {
+    "old": "DICTATE_DAEMON_BACKGROUND_REFRESH",
+    "new": "KHULUMA_DAEMON_BACKGROUND_REFRESH",
+    "anchors": [
+      "bin/tmux-whisper:1712",
+      "bin/tmux-whisper:2528"
+    ]
+  },
+  {
+    "old": "DICTATE_DAEMON_LIFECYCLE_WAIT_SECONDS",
+    "new": "KHULUMA_DAEMON_LIFECYCLE_WAIT_SECONDS",
+    "anchors": [
+      "bin/tmux-whisper:1824",
+      "bin/tmux-whisper:2062"
+    ]
+  },
+  {
+    "old": "DICTATE_DAEMON_RESTART_WAIT_SECONDS",
+    "new": "KHULUMA_DAEMON_RESTART_WAIT_SECONDS",
+    "anchors": [
+      "bin/tmux-whisper:1798",
+      "bin/tmux-whisper:1805"
+    ]
+  },
+  {
+    "old": "DICTATE_DAEMON_START_WAIT_SECONDS",
+    "new": "KHULUMA_DAEMON_START_WAIT_SECONDS",
+    "anchors": [
+      "bin/tmux-whisper:2078"
+    ]
+  },
+  {
+    "old": "DICTATE_FINDER_NOTIFY_LOG",
+    "new": "KHULUMA_FINDER_NOTIFY_LOG",
+    "anchors": [
+      "integrations/finder/tmux-whisper-transcribe.sh:20",
+      "integrations/finder/tmux-whisper-transcribe.sh:21"
+    ]
+  },
+  {
+    "old": "DICTATE_FINDER_TRANSCRIBE_LOG",
+    "new": "KHULUMA_FINDER_TRANSCRIBE_LOG",
+    "anchors": [
+      "bin/tmux-whisper-lib/transcribe_file.sh:500",
+      "integrations/finder/tmux-whisper-transcribe.sh:14"
+    ]
+  },
+  {
+    "old": "DICTATE_HISTORY_AUDIO_RETENTION_DAYS",
+    "new": "KHULUMA_HISTORY_AUDIO_RETENTION_DAYS",
+    "anchors": [
+      "bin/tmux-whisper:123",
+      "bin/tmux-whisper-lib/history.sh:130"
+    ]
+  },
+  {
+    "old": "DICTATE_HISTORY_RETENTION_DAYS",
+    "new": "KHULUMA_HISTORY_RETENTION_DAYS",
+    "anchors": [
+      "bin/tmux-whisper:122",
+      "bin/tmux-whisper-lib/history.sh:21"
+    ]
+  },
+  {
+    "old": "DICTATE_HISTORY_STATS_NOW",
+    "new": "KHULUMA_HISTORY_STATS_NOW",
+    "anchors": [
+      "bin/tmux-whisper-lib/history.sh:1340"
+    ]
+  },
+  {
+    "old": "DICTATE_HISTORY_TYPING_WPM",
+    "new": "KHULUMA_HISTORY_TYPING_WPM",
+    "anchors": [
+      "bin/tmux-whisper:124",
+      "bin/tmux-whisper-lib/history.sh:192",
+      "bin/tmux-whisper-lib/history.sh:1350"
+    ]
+  },
+  {
+    "old": "DICTATE_INLINE_ACTIVATE_DELAY_MS",
+    "new": "KHULUMA_INLINE_ACTIVATE_DELAY_MS",
+    "anchors": [
+      "bin/tmux-whisper:115",
+      "bin/tmux-whisper-lib/app.sh:13",
+      "bin/tmux-whisper-lib/diagnostics.sh:716"
+    ]
+  },
+  {
+    "old": "DICTATE_INLINE_PASTE_TARGET",
+    "new": "KHULUMA_INLINE_PASTE_TARGET",
+    "anchors": [
+      "bin/tmux-whisper:114",
+      "bin/tmux-whisper:3493",
+      "bin/tmux-whisper-lib/app.sh:12",
+      "bin/tmux-whisper-lib/diagnostics.sh:614"
+    ]
+  },
+  {
+    "old": "DICTATE_INLINE_PROCESS_SOUND",
+    "new": "KHULUMA_INLINE_PROCESS_SOUND",
+    "anchors": [
+      "bin/tmux-whisper:113",
+      "bin/tmux-whisper-lib/app.sh:138",
+      "bin/tmux-whisper-lib/diagnostics.sh:613"
+    ]
+  },
+  {
+    "old": "DICTATE_INLINE_SEND_DELAY_MS",
+    "new": "KHULUMA_INLINE_SEND_DELAY_MS",
+    "anchors": [
+      "bin/tmux-whisper:116",
+      "bin/tmux-whisper-lib/app.sh:14",
+      "bin/tmux-whisper-lib/diagnostics.sh:716"
+    ]
+  },
+  {
+    "old": "DICTATE_INLINE_SEND_MODE",
+    "new": "KHULUMA_INLINE_SEND_MODE",
+    "anchors": [
+      "bin/tmux-whisper:117",
+      "bin/tmux-whisper:3525",
+      "bin/tmux-whisper-lib/app.sh:11",
+      "bin/tmux-whisper-lib/diagnostics.sh:615"
+    ]
+  },
+  {
+    "old": "DICTATE_INSTALL_ARCHIVE_URL",
+    "new": "KHULUMA_INSTALL_ARCHIVE_URL",
+    "anchors": [
+      "install.sh:70",
+      "bootstrap.sh:120"
+    ]
+  },
+  {
+    "old": "DICTATE_INSTALL_SAMPLE_SOUNDS",
+    "new": "KHULUMA_INSTALL_SAMPLE_SOUNDS",
+    "anchors": [
+      "install.sh:5"
+    ]
+  },
+  {
+    "old": "DICTATE_INSTALL_SOURCE",
+    "new": "KHULUMA_INSTALL_SOURCE",
+    "anchors": [
+      "install.sh:69",
+      "bootstrap.sh:119"
+    ]
+  },
+  {
+    "old": "DICTATE_INSTALL_WARMUP",
+    "new": "KHULUMA_INSTALL_WARMUP",
+    "anchors": [
+      "install.sh:7",
+      "install.sh:98"
+    ]
+  },
+  {
+    "old": "DICTATE_INTERNAL_LIB_DIR",
+    "new": "KHULUMA_INTERNAL_LIB_DIR",
+    "anchors": [
+      "bin/tmux-whisper:161",
+      "bin/tmux-whisper:162",
+      "bin/tmux-whisper:165",
+      "bin/tmux-whisper:169"
+    ]
+  },
+  {
+    "old": "DICTATE_KEEP_LOGS",
+    "new": "KHULUMA_KEEP_LOGS",
+    "anchors": [
+      "bin/tmux-whisper:121",
+      "bin/tmux-whisper:370",
+      "bin/tmux-whisper:3369",
+      "bin/tmux-whisper-lib/diagnostics.sh:617"
+    ]
+  },
+  {
+    "old": "DICTATE_LANGUAGE",
+    "new": "KHULUMA_LANGUAGE",
+    "anchors": [
+      "bin/tmux-whisper:3274",
+      "bin/tmux-whisper-lib/app.sh:82",
+      "bin/tmux-whisper-lib/transcribe_file.sh:308",
+      "bin/tmux-whisper-lib/diagnostics.sh:718"
+    ]
+  },
+  {
+    "old": "DICTATE_LAST_BACKEND_AT",
+    "new": "KHULUMA_LAST_BACKEND_AT",
+    "anchors": [
+      "bin/tmux-whisper:312"
+    ]
+  },
+  {
+    "old": "DICTATE_LAST_BACKEND_ENGINE",
+    "new": "KHULUMA_LAST_BACKEND_ENGINE",
+    "anchors": [
+      "bin/tmux-whisper:258",
+      "bin/tmux-whisper:310",
+      "bin/tmux-whisper:2247",
+      "bin/tmux-whisper:2283"
+    ]
+  },
+  {
+    "old": "DICTATE_LAST_BACKEND_FALLBACK_REASON",
+    "new": "KHULUMA_LAST_BACKEND_FALLBACK_REASON",
+    "anchors": [
+      "bin/tmux-whisper:257",
+      "bin/tmux-whisper:309"
+    ]
+  },
+  {
+    "old": "DICTATE_LAST_BACKEND_MODEL",
+    "new": "KHULUMA_LAST_BACKEND_MODEL",
+    "anchors": [
+      "bin/tmux-whisper:259",
+      "bin/tmux-whisper:311",
+      "bin/tmux-whisper:2248",
+      "bin/tmux-whisper:2284"
+    ]
+  },
+  {
+    "old": "DICTATE_LAST_BACKEND_REQUESTED",
+    "new": "KHULUMA_LAST_BACKEND_REQUESTED",
+    "anchors": [
+      "bin/tmux-whisper:255",
+      "bin/tmux-whisper:307"
+    ]
+  },
+  {
+    "old": "DICTATE_LAST_BACKEND_USED",
+    "new": "KHULUMA_LAST_BACKEND_USED",
+    "anchors": [
+      "bin/tmux-whisper:256",
+      "bin/tmux-whisper:308"
+    ]
+  },
+  {
+    "old": "DICTATE_LIB_PATH",
+    "new": "KHULUMA_LIB_PATH",
+    "anchors": [
+      "bin/tmux-whisper:150",
+      "bin/tmux-whisper:151",
+      "bin/tmux-whisper:154",
+      "bin/tmux-whisper:157"
+    ]
+  },
+  {
+    "old": "DICTATE_NATIVE_DIR",
+    "new": "KHULUMA_NATIVE_DIR",
+    "anchors": [
+      "install.sh:56"
+    ]
+  },
+  {
+    "old": "DICTATE_PARAKEET_MODELS_DIR",
+    "new": "KHULUMA_PARAKEET_MODELS_DIR",
+    "anchors": [
+      "install.sh:57"
+    ]
+  },
+  {
+    "old": "DICTATE_PROCESSING_DIR",
+    "new": "KHULUMA_PROCESSING_DIR",
+    "anchors": [
+      "tools/build-khuluma-app.sh:120",
+      "tools/build-khuluma-app.sh:121",
+      "tmux-whisperd/Sources/KhulumaCore/Transcription/TakeMarker.swift:23",
+      "bin/tmux-whisper:253"
+    ]
+  },
+  {
+    "old": "DICTATE_REPEATS_LEVEL",
+    "new": "KHULUMA_REPEATS_LEVEL",
+    "anchors": [
+      "tmux-whisperd/Sources/KhulumaCore/Cleanup/TextPipeline.swift:12",
+      "bin/dictate-lib.sh:47",
+      "bin/dictate-lib.sh:48",
+      "bin/tmux-whisper:225"
+    ]
+  },
+  {
+    "old": "DICTATE_REPLACE_SOUNDS",
+    "new": "KHULUMA_REPLACE_SOUNDS",
+    "anchors": [
+      "install.sh:6"
+    ]
+  },
+  {
+    "old": "DICTATE_SERVICES_DIR",
+    "new": "KHULUMA_SERVICES_DIR",
+    "anchors": [
+      "bin/tmux-whisper-lib/transcribe_file.sh:364",
+      "bin/tmux-whisper-lib/transcribe_file.sh:474",
+      "bin/tmux-whisper-lib/transcribe_file.sh:476"
+    ]
+  },
+  {
+    "old": "DICTATE_SOUNDS_DIR",
+    "new": "KHULUMA_SOUNDS_DIR",
+    "anchors": [
+      "install.sh:54"
+    ]
+  },
+  {
+    "old": "DICTATE_SWIFT_PARAKEET_MODEL_PATH",
+    "new": "KHULUMA_SWIFT_PARAKEET_MODEL_PATH",
+    "anchors": [
+      "install.sh:103",
+      "bin/tmux-whisper:1387",
+      "bin/tmux-whisper-lib/diagnostics.sh:712"
+    ]
+  },
+  {
+    "old": "DICTATE_SWIFT_PARAKEET_MODEL_VERSION",
+    "new": "KHULUMA_SWIFT_PARAKEET_MODEL_VERSION",
+    "anchors": [
+      "install.sh:104",
+      "bin/tmux-whisper:1408",
+      "bin/tmux-whisper-lib/diagnostics.sh:712"
+    ]
+  },
+  {
+    "old": "DICTATE_SWIFT_PARAKEET_PING_TIMEOUT_SECONDS",
+    "new": "KHULUMA_SWIFT_PARAKEET_PING_TIMEOUT_SECONDS",
+    "anchors": [
+      "bin/tmux-whisper:1917",
+      "bin/tmux-whisper:2109"
+    ]
+  },
+  {
+    "old": "DICTATE_SWIFT_PARAKEET_SOCKET_PATH",
+    "new": "KHULUMA_SWIFT_PARAKEET_SOCKET_PATH",
+    "anchors": [
+      "install.sh:105",
+      "bin/tmux-whisper:1382",
+      "bin/tmux-whisper-lib/diagnostics.sh:712"
+    ]
+  },
+  {
+    "old": "DICTATE_SWIFT_PARAKEET_TAIL_RESCUE",
+    "new": "KHULUMA_SWIFT_PARAKEET_TAIL_RESCUE",
+    "anchors": [
+      "bin/tmux-whisper:120",
+      "bin/tmux-whisper:2392",
+      "bin/tmux-whisper-lib/app.sh:76",
+      "bin/tmux-whisper-lib/transcribe_file.sh:149"
+    ]
+  },
+  {
+    "old": "DICTATE_SWIFT_PARAKEET_TAIL_RESCUE_MIN_MS",
+    "new": "KHULUMA_SWIFT_PARAKEET_TAIL_RESCUE_MIN_MS",
+    "anchors": [
+      "tmux-whisperd/Sources/KhulumaCore/Transcription/TranscriptionSettings.swift:18",
+      "bin/tmux-whisper:2399",
+      "bin/tmux-whisper-lib/app.sh:86"
+    ]
+  },
+  {
+    "old": "DICTATE_SWIFT_PARAKEET_TAIL_RESCUE_MS",
+    "new": "KHULUMA_SWIFT_PARAKEET_TAIL_RESCUE_MS",
+    "anchors": [
+      "tmux-whisperd/Sources/KhulumaCore/Transcription/TranscriptionSettings.swift:16",
+      "bin/tmux-whisper:2398",
+      "bin/tmux-whisper-lib/app.sh:85"
+    ]
+  },
+  {
+    "old": "DICTATE_SWIFT_PARAKEET_TIMEOUT_SECONDS",
+    "new": "KHULUMA_SWIFT_PARAKEET_TIMEOUT_SECONDS",
+    "anchors": [
+      "bin/tmux-whisper:1913",
+      "bin/tmux-whisper-lib/app.sh:89",
+      "bin/tmux-whisper-lib/transcribe_file.sh:241",
+      "bin/tmux-whisper-lib/transcribe_file.sh:306"
+    ]
+  },
+  {
+    "old": "DICTATE_TMPDIR",
+    "new": "KHULUMA_TMPDIR",
+    "anchors": [
+      "bin/tmux-whisper:13"
+    ]
+  },
+  {
+    "old": "DICTATE_TMUX_WHISPERD_BIN",
+    "new": "KHULUMA_DAEMON_BIN",
+    "anchors": [
+      "install.sh:106",
+      "bin/tmux-whisper:1674",
+      "bin/tmux-whisper:1713",
+      "bin/tmux-whisper:1726"
+    ]
+  },
+  {
+    "old": "DICTATE_TMUX_WHISPERD_BUILD_ROOT",
+    "new": "KHULUMA_DAEMON_BUILD_ROOT",
+    "anchors": [
+      "bin/tmux-whisper:1471"
+    ]
+  },
+  {
+    "old": "DICTATE_TMUX_WHISPERD_ROOT",
+    "new": "KHULUMA_DAEMON_SOURCE_ROOT",
+    "anchors": [
+      "install.sh:107",
+      "bin/tmux-whisper:1453"
+    ]
+  },
+  {
+    "old": "DICTATE_TRANSCRIBE_FILE_LOG",
+    "new": "KHULUMA_TRANSCRIBE_FILE_LOG",
+    "anchors": [
+      "bin/tmux-whisper-lib/transcribe_file.sh:224"
+    ]
+  },
+  {
+    "old": "DICTATE_TRANSCRIBE_LOG",
+    "new": "KHULUMA_TRANSCRIBE_LOG",
+    "anchors": [
+      "bin/tmux-whisper:14"
+    ]
+  },
+  {
+    "old": "DICTATE_TRANSCRIBE_TAIL_PAD_MS",
+    "new": "KHULUMA_TRANSCRIBE_TAIL_PAD_MS",
+    "anchors": [
+      "tmux-whisperd/Sources/KhulumaCore/Transcription/TranscriptionSettings.swift:13",
+      "bin/tmux-whisper:119",
+      "bin/tmux-whisper:2673",
+      "bin/tmux-whisper-lib/app.sh:83"
+    ]
+  },
+  {
+    "old": "DICTATE_USAGE_NOW",
+    "new": "KHULUMA_USAGE_NOW",
+    "anchors": [
+      "bin/tmux-whisper-lib/history.sh:314",
+      "bin/tmux-whisper-lib/history.sh:524"
+    ]
+  },
+  {
+    "old": "DICTATE_USAGE_SUMMARY_FILE",
+    "new": "KHULUMA_USAGE_SUMMARY_FILE",
+    "anchors": [
+      "bin/tmux-whisper-lib/history.sh:261"
+    ]
+  },
+  {
+    "old": "DICTATE_VOCAB_CLEAN",
+    "new": "KHULUMA_VOCAB_CLEAN",
+    "anchors": [
+      "tmux-whisperd/Sources/KhulumaCore/Cleanup/TextPipeline.swift:14",
+      "bin/tmux-whisper:112",
+      "bin/tmux-whisper:238",
+      "bin/tmux-whisper-lib/app.sh:28"
+    ]
+  },
+  {
+    "old": "DICTATE_VOCAB_FILES",
+    "new": "KHULUMA_VOCAB_FILES",
+    "anchors": [
+      "bin/dictate-lib.sh:144",
+      "bin/dictate-lib.sh:146"
+    ]
+  },
+  {
+    "old": "DICTATE_WARMUP_PRIME_MS",
+    "new": "KHULUMA_WARMUP_PRIME_MS",
+    "anchors": [
+      "bin/tmux-whisper:2209"
+    ]
+  },
+  {
+    "old": "DICTATE_WARMUP_PRIME_TRANSCRIBE",
+    "new": "KHULUMA_WARMUP_PRIME_TRANSCRIBE",
+    "anchors": [
+      "bin/tmux-whisper:2253"
+    ]
+  },
+  {
+    "old": "KHULUMA_CLI",
+    "new": "KHULUMA_CLI",
+    "anchors": [
+      "tmux-whisperd/Sources/Khuluma/CLIBridge.swift:28"
+    ]
+  },
+  {
+    "old": "KHULUMA_KEYCHAIN",
+    "new": "KHULUMA_KEYCHAIN",
+    "anchors": [
+      "tools/make-signing-identity.sh:14"
+    ]
+  },
+  {
+    "old": "KHULUMA_LOG",
+    "new": "KHULUMA_LOG",
+    "anchors": [
+      "tools/khuluma-report.sh:11",
+      "tools/khuluma-report.sh:14"
+    ]
+  },
+  {
+    "old": "KHULUMA_SIGNING_IDENTITY",
+    "new": "KHULUMA_SIGNING_IDENTITY",
+    "anchors": [
+      "tools/build-khuluma-app.sh:16",
+      "tools/make-signing-identity.sh:13"
+    ]
+  },
+  {
+    "old": "LOWKEY_KEYCHAIN",
+    "new": "KHULUMA_KEYCHAIN",
+    "anchors": [
+      "tools/make-signing-identity.sh:14"
+    ]
+  },
+  {
+    "old": "LOWKEY_SIGNING_IDENTITY",
+    "new": "KHULUMA_SIGNING_IDENTITY",
+    "anchors": [
+      "tools/build-khuluma-app.sh:16",
+      "tools/make-signing-identity.sh:13"
+    ]
+  },
+  {
+    "old": "TMUX_WHISPERD_LOCK_OWNER",
+    "new": "KHULUMAD_LOCK_OWNER",
+    "anchors": [
+      "bin/tmux-whisper:1549",
+      "bin/tmux-whisper:1573",
+      "bin/tmux-whisper:1574",
+      "bin/tmux-whisper:1595"
+    ]
+  },
+  {
+    "old": "TMUX_WHISPER_APP_CONTRACT",
+    "new": "KHULUMA_APP_CONTRACT",
+    "anchors": [
+      "tmux-whisperd/Sources/KhulumaCore/CLIModels.swift:6",
+      "bin/tmux-whisper:24",
+      "bin/tmux-whisper-lib/app.sh:131"
+    ]
+  },
+  {
+    "old": "TMUX_WHISPER_CLI_VERSION",
+    "new": "KHULUMA_CLI_VERSION",
+    "anchors": [
+      "tools/build-khuluma-app.sh:43",
+      "bin/tmux-whisper:19",
+      "bin/tmux-whisper-lib/app.sh:130",
+      "bin/tmux-whisper-lib/version.sh:96"
+    ]
+  },
+  {
+    "old": "TMUX_WHISPER_RUNNING_BINARY",
+    "new": "KHULUMA_RUNNING_BINARY",
+    "anchors": [
+      "bin/tmux-whisper:148",
+      "bin/tmux-whisper:1714",
+      "bin/tmux-whisper-lib/version.sh:8"
+    ]
+  }
+]

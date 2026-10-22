@@ -1,19 +1,59 @@
 # Log
 
 ## Now
-Turn tmux-whisper into Khuluma: rename, make the app the main tool, sunset the CLI. Plan: `docs/plans/KHULUMA_RENAME_ROADMAP.md`. Phase 0 is done (name chosen: Khuluma; tidy-up #65–#72, #78; app renamed #74–#76) apart from a week of daily use with the `tools/khuluma-report.sh` gates still met. Next: phase 1, Khuluma stops needing the CLI (native usage and history writers first). Bundle id, signing identity and CLI names change in phase 2.
+Finish the approved Khuluma rename: publish the verified source/release and Homebrew transition, then audit the final identities. [`docs/KHULUMA_RENAME_PLAN.md`](docs/KHULUMA_RENAME_PLAN.md) owns the finite checklist. The daily app now uses `com.ricardo-nth.khuluma`, the dedicated Khuluma signer and canonical config/runtime/model/sound paths. The user verified dictation, paste, Stats, normal relaunch, restored Start at Login and the actual Finder action. Keep every prior app/runtime/data/certificate recovery copy; daily-use observation remains open.
+
+Original work/history is preserved in exact baseline commits. Swift passed 175 tests; shell flow passed 281 assertions, migration 26 cases, app helper 30 cases and controller 12 recovery cases. The committed handoff checked one daemon and shared alias/usage routing. Finder required a supported macOS Services refresh after installation. KwikCut source and discovery tests are updated; its existing installed app still uses the compatibility shim. The VPS website is a verified private preview. Public repository/tag/formula work remains pending.
 
 ## Next
+
+- [x] P1 · Review the full identity rename plan · added 2026-10-22
+- [ ] P1 · Complete isolated rename/migration/recovery acceptance, controlled daily cutover and source/tap integration · added 2026-10-22
+
 - [ ] P1 · Before phase 2: search UKIPO and EUIPO by hand for KHULUMA; register khuluma.app · added 2026-10-17
 - [ ] P1 · Khuluma app icon: the bundle has none yet (Dock, Finder, Login Items, System Settings show a blank icon); a menu-bar glyph to match · added 2026-10-17
-- [ ] P1 · Confirm new repo vs rename in place; join the Apple Developer Program before phase 2 · added 2026-10-15
+- [ ] P1 · Join the Apple Developer Program before phase 2 · added 2026-10-15
 - [ ] P1 · Phase 0 gate: a week of daily use, then `tools/khuluma-report.sh` gates still met · added 2026-10-17
 - [ ] P1 · Phase 1 step 1: native usage ledger and history writer, proven against the CLI with shared fixtures (removes `inline record`) · added 2026-10-17
+- [ ] P1 · Phase 1 after the native writers: port config, bundle and supervise the daemon, add model download and bundled sounds, then port or drop CLI fallbacks; keep shared files/locks compatible while both writers exist · added 2026-10-22
+- [ ] P1 · Phase 1 delivery: use PostEvent permission gates and a bundled child daemon; verify clean-account dictation/Stats/history without CLI and 14 days without CLI invocations or usage mismatch before calling it independent · added 2026-10-22
+- [x] P2 · Align formula updater and intact source/tap siblings at khuluma and homebrew-tap · added 2026-10-22
 - [ ] P2 · Skip auto-send for one take: hold a key (Shift or similar, to decide) so the take pastes without pressing Enter; auto-send stays the default · added 2026-10-17
 - [ ] P2 · Stats stage 3 ideas (not committed): weeks view, wpm trend, longest take, typing_wpm config, streak line, time of day, opt-in per-app · added 2026-10-16
 - [ ] P2 · Lowkey ideas parked from 3c, only with evidence: config file watcher, warm mic/pre-roll · added 2026-10-16
+- [ ] P2 · Phase 2 after CLI independence: Developer ID signing/notarization, versioned app distribution and khuluma cask; Settings, History, Transcribe File and bundled agent CLI; verify fresh-Mac permissions and file transcription · added 2026-10-22
+- [ ] P2 · Decide the future signed-app cask/update approach before phase 2 distribution; paid membership/domain require separate authorization · added 2026-10-22
+- [ ] P2 · Phase 3: repeatable import of legacy config/vocab/history/usage into Khuluma Application Support; preserve old data and totals/streak, keep ledger export shape, redirect or stop old CLI writes · added 2026-10-22
+- [ ] P2 · Phase 4 after replacement is usable: interactive CLI deprecation notice, formula and Finder notices; preserve JSON contracts; check remaining integrations over a 30-day notice period · added 2026-10-22
+- [ ] P2 · Phase 5 after deprecation: final supported CLI release and replacement links, then formula disable/repository archive with explicit release authorization; retain public history · added 2026-10-22
+- [ ] P3 · Deferred separate labs: voxtral-inline API/realtime dictation and faster-whisper-tool batch/subtitle/offline exploration; only after core reliability is stable · added 2026-10-22
+
+## Decisions
+
+- Khuluma is the product; local, fast dictation and never losing a take remain the priorities. The CLI is its back end until native replacements are proven. Keep compatibility while both own the same files.
+- Name chosen: Khuluma. Approved rename target is bundle `com.ricardo-nth.khuluma` with a separate `Khuluma Local Code Signing` identity; preserve the existing Lowkey identity and data for other apps/rollback. Daily identity changes only at the tested cutover. Name research is dated in `docs/plans/KHULUMA_NAME_CHECK.md`; official UK/EU checks remain open above.
+- Direct distribution is the planned channel. Mac App Store phase 6 is parked; the old roadmap keeps the sandbox research. Free/paid store distribution is undecided.
+- Tmux capture, CLI recording, LLM rewriting, silence trim, bash chunking, Raycast and SwiftBar were dropped; reintroduce none without evidence. Usage, Stats and logs keep counts/timings, not transcript text; history and pending recovery are the intentional text stores.
+- Rename the existing repository in place to preserve all history; retain neutral `ricardo-nth/tap` and rename its formula to `khuluma`. External rename/release/tap publication remains pending actual gates. The app continues to depend on its matching CLI; cask/CLI-independence/deprecation/archive are separate future work.
 
 ## Done
+
+- 2026-10-22 · Committed canonical daily handoff; user verified dictation/paste/Stats, normal relaunch/login and Finder after Services refresh; recovery retained · docs/KHULUMA_RENAME_PLAN.md
+
+- 2026-10-22 · Verified signed build324 and intact local source/tap moves; real pre-data rollback restored old app/serving daemon after lifecycle cache refusal · 64c96e2; docs/KHULUMA_RENAME_PLAN.md
+
+- 2026-10-22 · Preserved original documentation as exact baseline commits; reviewed public migration/controller handoff · bc2bfca; docs/INTEGRATIONS.md#identity-migration
+
+- 2026-10-22 · Implemented canonical identities and lossless migration; isolated native/shell/recovery/real-model gates passed; daily/public rollout pending · docs/KHULUMA_RENAME_PLAN.md
+
+- 2026-10-22 · Started approved rename in isolated source/tap worktrees; preserved existing docs baseline; cold Swift gate 170 tests passed · docs/KHULUMA_RENAME_PLAN.md
+
+- 2026-10-22 · Prepared reviewed identity migration plan with exact files/lines, state/rollback and release gates; runtime untouched · docs/KHULUMA_RENAME_PLAN.md
+
+- 2026-10-22 · Source collection is now VPS/Apps/Khuluma; nested repo, CLI/runtime identities and installed app preserved · README.md
+- 2026-10-22 · Moved with the complete collection under VPS/Apps/tmux-whspr; source identity and installed Khuluma remain separate · ../README.md
+- 2026-10-22 · Moved source tmux-whisperd/.build to Trash; pinned source retained and installed Khuluma/daemon hashes unchanged · README.md; tmux-whisperd/Package.resolved
+- 2026-10-22 · Consolidated current tasks/decisions in LOG, archived rename roadmap, separated public changelog from queue and clarified runtime/tap paths; source-only checks · LOG.md; docs/archive/KHULUMA_RENAME_ROADMAP.md
 - 2026-10-17 · `inline process` saves history before returning and reports `history_saved`; Khuluma's CLI path settles a take's Quit copy only when it is true · #80
 - 2026-10-17 · Modes removed: one global vocab (default keeps the base path rules, code spellings dropped), `migrate-modes [--skip]` archives old modes, auto-paragraphs gone; app contract 3; this Mac migrated with --skip code · #78
 - 2026-10-17 · Khuluma rename step 3: roadmap, name check and CHANGELOG TODO describe Khuluma; phase 0 kept as decided · #76

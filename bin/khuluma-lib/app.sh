@@ -1,0 +1,505 @@
+#!/usr/bin/env bash
+
+# Back-end commands for the native menu-bar app. The app owns the hotkey,
+# capture, sounds and paste/send; these commands give it settings and run the
+# exact inline processing pipeline (transcription, cleanup, history, usage)
+# without delivering the text.
+
+app_delivery_settings_env() {
+  local autosend="${KHULUMA_AUTOSEND:-${CFG_INLINE_AUTOSEND:-1}}"
+  local send_mode paste_target activate_delay_ms send_delay_ms
+  send_mode="$(normalize_inline_send_mode "${KHULUMA_INLINE_SEND_MODE:-${CFG_INLINE_SEND_MODE:-enter}}")"
+  paste_target="$(normalize_inline_paste_target "${KHULUMA_INLINE_PASTE_TARGET:-${CFG_INLINE_PASTE_TARGET:-restore}}")"
+  activate_delay_ms="${KHULUMA_INLINE_ACTIVATE_DELAY_MS:-90}"
+  send_delay_ms="${KHULUMA_INLINE_SEND_DELAY_MS:-35}"
+  [[ "$activate_delay_ms" =~ ^[0-9]+$ ]] || activate_delay_ms=90
+  [[ "$send_delay_ms" =~ ^[0-9]+$ ]] || send_delay_ms=35
+  printf 'APP_AUTOSEND=%q\nAPP_SEND_MODE=%q\nAPP_PASTE_TARGET=%q\nAPP_ACTIVATE_DELAY_MS=%q\nAPP_SEND_DELAY_MS=%q\n' \
+    "$autosend" "$send_mode" "$paste_target" "$activate_delay_ms" "$send_delay_ms"
+}
+
+# Cleanup settings exactly as the CLI resolves them (env, ~/.zshenv, config),
+# kept as raw strings so the app can interpret them with the CLI's own rules.
+# Prints one JSON object (the "cleanup" section of app-config).
+app_cleanup_settings_json() {
+  APPCLEAN_CONFIG_DIR="$KHULUMA_CONFIG_DIR" \
+  APPCLEAN_CLEAN="${KHULUMA_CLEAN:-0}" \
+  APPCLEAN_REPEATS_LEVEL="${KHULUMA_REPEATS_LEVEL:-${CFG_CLEAN_REPEATS_LEVEL:-1}}" \
+  APPCLEAN_VOCAB_CLEAN="${KHULUMA_VOCAB_CLEAN:-1}" \
+  APPCLEAN_BRITISH_SPELLING="${KHULUMA_BRITISH_SPELLING:-1}" \
+  APPCLEAN_LOCALE_CTYPE="${LC_ALL:-${LC_CTYPE:-${LANG:-}}}" \
+  APPCLEAN_LOCALE_COLLATE="${LC_ALL:-${LC_COLLATE:-${LANG:-}}}" \
+  APPCLEAN_CHILD_LC_ALL="$(printenv LC_ALL || true)" \
+  APPCLEAN_CHILD_LC_CTYPE="$(printenv LC_CTYPE || true)" \
+  APPCLEAN_CHILD_LC_COLLATE="$(printenv LC_COLLATE || true)" \
+  APPCLEAN_CHILD_LANG="$(printenv LANG || true)" \
+  python3 - <<'PYEOF'
+import json, os
+e = os.environ
+
+C_LOCALES = ("", "C", "POSIX")
+
+def effective_locale(category):
+    # The shell's own view (APPCLEAN_LOCALE_*, which includes unexported
+    # variables from ~/.zshenv) and the exported environment that grep/sed/sort
+    # inherit (APPCLEAN_CHILD_*, read with printenv) can disagree; report a
+    # non-C value if either side has one. Not os.environ: Python coerces a C
+    # locale to LC_CTYPE=C.UTF-8 in its own environment (PEP 538).
+    shell = e["APPCLEAN_LOCALE_" + category]
+    child = (e["APPCLEAN_CHILD_LC_ALL"] or e["APPCLEAN_CHILD_LC_" + category]
+             or e["APPCLEAN_CHILD_LANG"] or "")
+    return shell if shell not in C_LOCALES else child
+
+print(json.dumps({
+    "config_dir": e["APPCLEAN_CONFIG_DIR"],
+    "clean": e["APPCLEAN_CLEAN"],
+    "repeats_level": e["APPCLEAN_REPEATS_LEVEL"],
+    "vocab_clean": e["APPCLEAN_VOCAB_CLEAN"],
+    "british_spelling": e["APPCLEAN_BRITISH_SPELLING"],
+    # The blank check and the text filters' character classes depend on
+    # these; the native pipeline only reproduces the C locale.
+    "locale_ctype": effective_locale("CTYPE"),
+    "locale_collate": effective_locale("COLLATE"),
+}))
+PYEOF
+}
+
+# Transcription settings for Khuluma's native path, resolved as the CLI's
+# inline transcription would use them. Numeric env overrides stay raw strings
+# so the app can apply the CLI's exact parsing (and fall back when unsure).
+app_transcription_settings_json() {
+  local model_path model_version="" ffmpeg_ok="0" keep_logs="0" tail_rescue="0"
+  model_path="$(resolve_swift_parakeet_model_path 2>/dev/null || true)"
+  [[ -n "$model_path" ]] && model_version="$(resolve_swift_parakeet_model_version "$model_path")"
+  command -v ffmpeg >/dev/null 2>&1 && command -v ffprobe >/dev/null 2>&1 && ffmpeg_ok="1"
+  keep_logs_enabled && keep_logs="1"
+  bool_is_on "${KHULUMA_SWIFT_PARAKEET_TAIL_RESCUE:-1}" && tail_rescue="1"
+
+  APPTR_SOCKET="$(resolve_swift_parakeet_socket_path)" \
+  APPTR_MODEL_PATH="$model_path" \
+  APPTR_MODEL_VERSION="$model_version" \
+  APPTR_MODEL_LABEL="$(current_transcribe_model_label)" \
+  APPTR_LANGUAGE="${KHULUMA_LANGUAGE:-en}" \
+  APPTR_TAIL_PAD_MS="${KHULUMA_TRANSCRIBE_TAIL_PAD_MS:-500}" \
+  APPTR_TAIL_RESCUE="$tail_rescue" \
+  APPTR_TAIL_RESCUE_MS="${KHULUMA_SWIFT_PARAKEET_TAIL_RESCUE_MS:-}" \
+  APPTR_TAIL_RESCUE_MIN_MS="${KHULUMA_SWIFT_PARAKEET_TAIL_RESCUE_MIN_MS:-}" \
+  APPTR_KEEP_LOGS="$keep_logs" \
+  APPTR_FFMPEG="$ffmpeg_ok" \
+  APPTR_TIMEOUT="${KHULUMA_SWIFT_PARAKEET_TIMEOUT_SECONDS:-600}" \
+  APPTR_PROCESSING_DIR="$PROCESSING_DIR" \
+  python3 - <<'PYEOF'
+import json, os
+e = os.environ
+flag = lambda name: e[name] == "1"
+print(json.dumps({
+    "socket_path": e["APPTR_SOCKET"],
+    "model_path": e["APPTR_MODEL_PATH"] or None,
+    "model_version": e["APPTR_MODEL_VERSION"] or None,
+    "model_label": e["APPTR_MODEL_LABEL"],
+    "language": e["APPTR_LANGUAGE"],
+    "tail_pad_ms": e["APPTR_TAIL_PAD_MS"],
+    "tail_rescue": flag("APPTR_TAIL_RESCUE"),
+    "tail_rescue_ms": e["APPTR_TAIL_RESCUE_MS"],
+    "tail_rescue_min_ms": e["APPTR_TAIL_RESCUE_MIN_MS"],
+    "keep_logs": flag("APPTR_KEEP_LOGS"),
+    "ffmpeg": flag("APPTR_FFMPEG"),
+    "timeout_seconds": e["APPTR_TIMEOUT"],
+    "processing_dir": e["APPTR_PROCESSING_DIR"],
+}))
+PYEOF
+}
+
+# khuluma app-config --json
+app_config_json() {
+  [[ "${1:-}" == "--json" || -z "${1:-}" ]] || die "usage: khuluma app-config --json"
+  need python3
+  eval "$(app_delivery_settings_env)"
+  local event
+  local -a sound_env=()
+  for event in start stop process error cancel; do
+    sound_env+=("APPCFG_SOUND_${event}_PATH=$(khuluma_sound_path "$event" 2>/dev/null || true)")
+    if sound_enabled "$event"; then
+      sound_env+=("APPCFG_SOUND_${event}_ENABLED=1")
+    else
+      sound_env+=("APPCFG_SOUND_${event}_ENABLED=0")
+    fi
+  done
+
+  env "${sound_env[@]}" \
+    APPCFG_CLI_VERSION="$KHULUMA_CLI_VERSION" \
+    APPCFG_APP_CONTRACT="$KHULUMA_APP_CONTRACT" \
+    APPCFG_HOTKEY="${KHULUMA_APP_HOTKEY:-${CFG_APP_HOTKEY:-ctrl+option+space}}" \
+    APPCFG_AUTOSEND="$APP_AUTOSEND" \
+    APPCFG_SEND_MODE="$APP_SEND_MODE" \
+    APPCFG_PASTE_TARGET="$APP_PASTE_TARGET" \
+    APPCFG_ACTIVATE_DELAY_MS="$APP_ACTIVATE_DELAY_MS" \
+    APPCFG_SEND_DELAY_MS="$APP_SEND_DELAY_MS" \
+    APPCFG_PROCESS_SOUND="${KHULUMA_INLINE_PROCESS_SOUND:-${CFG_INLINE_PROCESS_SOUND:-1}}" \
+    APPCFG_CLEANUP_JSON="$(app_cleanup_settings_json)" \
+    APPCFG_TRANSCRIPTION_JSON="$(app_transcription_settings_json)" \
+    APPCFG_CONFIG_ERROR="${CFG_CONFIG_PARSE_ERROR:-}" \
+    APPCFG_CONFIG_SOURCE="${CFG_CONFIG_SOURCE:-file}" \
+    APPCFG_SUPERVISE_DAEMON="${KHULUMA_APP_SUPERVISE_DAEMON:-${CFG_APP_SUPERVISE_DAEMON:-1}}" \
+    APPCFG_USAGE_PATH="$(usage_summary_file)" \
+    python3 - <<'PYEOF'
+import json, os
+e = os.environ
+def flag(name):
+    return e.get(name, "0") == "1"
+sounds = {}
+for event in ("start", "stop", "process", "error", "cancel"):
+    path = e.get(f"APPCFG_SOUND_{event}_PATH", "")
+    sounds[event] = {"enabled": flag(f"APPCFG_SOUND_{event}_ENABLED") and bool(path), "path": path or None}
+print(json.dumps({
+    "schema_version": 1,
+    "cli_version": e["APPCFG_CLI_VERSION"],
+    "app_contract": int(e["APPCFG_APP_CONTRACT"]),
+    "hotkey": e["APPCFG_HOTKEY"],
+    "sounds": sounds,
+    "inline": {
+        "autosend": flag("APPCFG_AUTOSEND"),
+        "send_mode": e["APPCFG_SEND_MODE"],
+        "paste_target": e["APPCFG_PASTE_TARGET"],
+        "process_sound": flag("APPCFG_PROCESS_SOUND"),
+        "activate_delay_ms": int(e["APPCFG_ACTIVATE_DELAY_MS"]),
+        "send_delay_ms": int(e["APPCFG_SEND_DELAY_MS"]),
+    },
+    "cleanup": json.loads(e["APPCFG_CLEANUP_JSON"]),
+    "transcription": json.loads(e["APPCFG_TRANSCRIPTION_JSON"]),
+    # config.toml failed to parse: settings come from the last valid copy
+    # ("last_good") or, if there is none, the defaults.
+    "config": {"error": e["APPCFG_CONFIG_ERROR"] or None, "source": e["APPCFG_CONFIG_SOURCE"]},
+    "pipeline": {
+        # Khuluma keeps the daemon warm (it still never launches one itself).
+        "supervise": e["APPCFG_SUPERVISE_DAEMON"].lower() in ("1", "true", "yes", "on"),
+    },
+    "usage": {"summary_path": e["APPCFG_USAGE_PATH"]},
+}))
+PYEOF
+}
+
+# khuluma inline process <wav> [--app NAME] [--record-ms N]
+#   [--startup-ms N] [--started-at-ms EPOCH_MS] [--defer-usage] --json
+# --defer-usage (what Khuluma always passes): don't count the take in the
+# usage ledger; the caller records it with `inline record` (usage_only) once
+# it has actually delivered the text.
+# Prints one JSON object: {ok, status, text, raw_text, message,
+# delivery: {...}, timings: {...}, usage_deferred, history_saved}. Human
+# progress goes to the log, never stdout. The caller owns the WAV file.
+# history_saved is true only when the take's history entry is on disk.
+inline_process_json() {
+  local wav="" app="" record_ms="0" startup_ms="0" started_at_ms="" defer_usage="0"
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --json) ;;
+      --app) [[ $# -ge 2 ]] || die "inline process: --app requires a value"; app="$2"; shift ;;
+      --record-ms) [[ $# -ge 2 ]] || die "inline process: --record-ms requires a value"; record_ms="$2"; shift ;;
+      --startup-ms) [[ $# -ge 2 ]] || die "inline process: --startup-ms requires a value"; startup_ms="$2"; shift ;;
+      --started-at-ms) [[ $# -ge 2 ]] || die "inline process: --started-at-ms requires a value"; started_at_ms="$2"; shift ;;
+      --defer-usage) defer_usage="1" ;;
+      -*) die "inline process: unknown option: $1" ;;
+      *) [[ -z "$wav" ]] || die "inline process: only one WAV file"; wav="$1" ;;
+    esac
+    shift
+  done
+  [[ -n "$wav" ]] || die "usage: khuluma inline process <wav> [--app NAME] [--record-ms N] --json"
+  [[ -f "$wav" ]] || die "inline process: not a file: $wav"
+  [[ "$record_ms" =~ ^[0-9]+$ ]] || record_ms=0
+  [[ "$startup_ms" =~ ^[0-9]+$ ]] || startup_ms=0
+  [[ "$started_at_ms" =~ ^[0-9]+$ ]] || started_at_ms=""
+  need python3
+
+  local log work_wav rc=0
+  log="$(mktemp "${TMPDIR:-/tmp}/khuluma-app-process.XXXXXX")" || die "inline process: cannot create a temporary file"
+  # The pipeline pads/trims its WAV in place and removes it afterwards; work
+  # on a private copy so the caller's file is left alone.
+  work_wav="$(mktemp "${TMPDIR:-/tmp}/khuluma-app-take.XXXXXX")" || die "inline process: cannot create a temporary file"
+  # This runs as its own CLI process, so an EXIT trap also covers early exits.
+  KHULUMA_APP_PROCESS_LOG="$log"
+  KHULUMA_APP_PROCESS_WAV="$work_wav"
+  trap 'khuluma_trash_owned "${KHULUMA_APP_PROCESS_LOG:-}" "${KHULUMA_APP_PROCESS_WAV:-}"' EXIT
+  cp "$wav" "$work_wav" || die "inline process: cannot read $wav"
+  INLINE_DEFER_USAGE="$defer_usage"
+  INLINE_EXTERNAL_TEXT=""
+  INLINE_EXTERNAL_RAW_TEXT=""
+  INLINE_EXTERNAL_TIMINGS=""
+  INLINE_HISTORY_SAVED="0"
+  process_inline_recording "$work_wav" "$app" "$(current_transcribe_model_label)" "$record_ms" \
+    "$startup_ms" "app:avaudioengine" "$started_at_ms" >"$log" 2>&1 || rc=$?
+
+  eval "$(app_delivery_settings_env)"
+  APPPROC_RC="$rc" \
+  APPPROC_TEXT="$INLINE_EXTERNAL_TEXT" \
+  APPPROC_RAW="$INLINE_EXTERNAL_RAW_TEXT" \
+  APPPROC_TIMINGS="$INLINE_EXTERNAL_TIMINGS" \
+  APPPROC_LOG="$log" \
+  APPPROC_AUTOSEND="$APP_AUTOSEND" \
+  APPPROC_SEND_MODE="$APP_SEND_MODE" \
+  APPPROC_PASTE_TARGET="$APP_PASTE_TARGET" \
+  APPPROC_ACTIVATE_DELAY_MS="$APP_ACTIVATE_DELAY_MS" \
+  APPPROC_SEND_DELAY_MS="$APP_SEND_DELAY_MS" \
+  APPPROC_DEFER_USAGE="$defer_usage" \
+  APPPROC_HISTORY_SAVED="$INLINE_HISTORY_SAVED" \
+  python3 - <<'PYEOF'
+import json, os
+e = os.environ
+lines = [l.strip() for l in open(e["APPPROC_LOG"], encoding="utf-8", errors="replace") if l.strip()]
+text = e.get("APPPROC_TEXT", "")
+ok = e.get("APPPROC_RC") == "0" and bool(text.strip())
+if ok:
+    status = "ok"
+elif any("No speech detected" in l for l in lines):
+    status = "no_speech"
+else:
+    status = "failed"
+timings = {}
+for part in e.get("APPPROC_TIMINGS", "").split():
+    key, _, value = part.partition("=")
+    if value.isdigit():
+        timings[key] = int(value)
+message = None if ok else (next((l for l in reversed(lines) if not l.startswith("⏳")), None) or "processing failed")
+print(json.dumps({
+    "ok": ok,
+    "status": status,
+    "text": text if ok else "",
+    "raw_text": e.get("APPPROC_RAW", "") if ok else "",
+    "message": message,
+    "delivery": {
+        "autosend": e.get("APPPROC_AUTOSEND") == "1",
+        "send_mode": e["APPPROC_SEND_MODE"],
+        "paste_target": e["APPPROC_PASTE_TARGET"],
+        "activate_delay_ms": int(e["APPPROC_ACTIVATE_DELAY_MS"]),
+        "send_delay_ms": int(e["APPPROC_SEND_DELAY_MS"]),
+    },
+    "timings": timings,
+    "usage_deferred": e.get("APPPROC_DEFER_USAGE") == "1",
+    "history_saved": ok and e.get("APPPROC_HISTORY_SAVED") == "1",
+}, ensure_ascii=False))
+PYEOF
+  khuluma_trash_owned "$log" "$work_wav" 2>/dev/null || true
+  return 0
+}
+
+# khuluma inline cleanup --json   (transcript on stdin)
+# Runs only the deterministic text cleanup of an inline take (artefacts,
+# fillers/repeats, vocab, British spelling).
+# Used to generate Khuluma's TextPipeline parity fixtures
+# (tests/gen-cleanup-fixtures.sh). Prints {ok, status, raw_text, text, cleanup}.
+inline_cleanup_json() {
+  [[ "${1:-}" == "--json" && $# -eq 1 ]] || die "usage: khuluma inline cleanup --json < transcript"
+  need python3
+
+  local raw txt="" final="" status="no_speech"
+  # $(...) drops trailing newlines, like the transcription capture does.
+  raw="$(cat)"
+  cleanup_raw_transcript "$raw"
+  txt="$CLEANUP_TEXT"
+  if [[ -n "${txt//[[:space:]]/}" ]]; then
+    status="ok"
+    finish_transcript_text "$txt"
+    final="$CLEANUP_TEXT"
+  fi
+
+  APPCLEANUP_STATUS="$status" \
+  APPCLEANUP_RAW="$txt" \
+  APPCLEANUP_TEXT="$final" \
+  APPCLEANUP_SETTINGS="$(app_cleanup_settings_json)" \
+  python3 - <<'PYEOF'
+import json, os
+e = os.environ
+ok = e["APPCLEANUP_STATUS"] == "ok"
+print(json.dumps({
+    "ok": ok,
+    "status": e["APPCLEANUP_STATUS"],
+    "raw_text": e["APPCLEANUP_RAW"] if ok else "",
+    "text": e["APPCLEANUP_TEXT"] if ok else "",
+    "cleanup": json.loads(e["APPCLEANUP_SETTINGS"]),
+}))
+PYEOF
+}
+
+# khuluma inline record --json   (one take as JSON on stdin)
+# Persistence for Khuluma's native path, run after delivery: the same bench
+# row, usage ledger entry and history file `inline process` writes, from the
+# CLI's own writers so formats and locking stay single-sourced. Usage is only
+# counted for a delivered take; status "recovered" (a take saved at quit and
+# transcribed without pasting) gets history but no usage. Payload: take_id, status, delivered,
+# raw_text, text, app, record_ms, transcribe_ms, clean_ms, paste_ms,
+# total_ms, startup_ms, started_at_ms, delivered_at_ms, capture_wav_ms,
+# capture_wav_bytes, startup_source, and wav_path (the padded WAV, only with
+# [debug] keep_logs; this command takes ownership and removes it).
+# delivered_local_date (YYYY-MM-DD, the local date at delivery) puts a
+# replayed take in the right day. usage_only: true records only the usage of
+# a take `inline process --defer-usage` already saved to history and bench.
+# History/bench and usage are deduplicated separately (the take-id files
+# below, and take ids in the usage ledger), so a replay retries only the part
+# that failed and never counts usage twice.
+inline_record_json() {
+  [[ "${1:-}" == "--json" && $# -eq 1 ]] || die "usage: khuluma inline record --json < take.json"
+  need python3
+  local payload shell_vars
+  payload="$(cat)"
+  shell_vars="$(APPREC_PAYLOAD="$payload" python3 - <<'PYEOF'
+import json, os, re, shlex, sys
+try:
+    p = json.loads(os.environ["APPREC_PAYLOAD"])
+    if not isinstance(p, dict):
+        raise ValueError("payload must be an object")
+except Exception as exc:
+    sys.exit(f"inline record: invalid payload: {exc}")
+
+def text(key):
+    value = p.get(key)
+    return "" if value is None else str(value)
+
+def ms(key):
+    value = p.get(key)
+    return str(value) if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else ""
+
+status = text("status")
+if not re.fullmatch(r"[a-z_]+", status):
+    sys.exit("inline record: status must be a lowercase word")
+out = {
+    "REC_TAKE_ID": text("take_id"),
+    "REC_STATUS": status,
+    "REC_DELIVERED": "1" if p.get("delivered") is True else "0",
+    "REC_RAW": text("raw_text"),
+    "REC_TEXT": text("text"),
+    "REC_APP": text("app"),
+    "REC_STARTUP_SOURCE": text("startup_source") or "app:native",
+    "REC_WAV_PATH": text("wav_path"),
+    "REC_MODEL": text("model"),
+    "REC_LOCAL_DATE": text("delivered_local_date") if re.fullmatch(r"\d{4}-\d{2}-\d{2}", text("delivered_local_date")) else "",
+    "REC_USAGE_ONLY": "1" if p.get("usage_only") is True else "0",
+}
+for key in ("record_ms", "transcribe_ms", "clean_ms", "paste_ms", "total_ms", "startup_ms",
+            "started_at_ms", "delivered_at_ms", "capture_wav_ms", "capture_wav_bytes"):
+    out["REC_" + key.upper()] = ms(key)
+for key, value in out.items():
+    print(f"{key}={shlex.quote(value)}")
+PYEOF
+)" || die "inline record: invalid payload"
+  eval "$shell_vars"
+
+  # Khuluma spools each take and replays leftovers at launch (after a quit
+  # timeout or crash), so the same take can arrive twice: record it once.
+  # `recorded-takes` lists takes fully handled (its meaning before usage was
+  # deduplicated in the ledger, so older entries stay final);
+  # `recorded-takes-bench` and `recorded-takes-history` list takes whose bench
+  # row and history are saved.
+  local ledger="$AUDIO_CACHE_DIR/recorded-takes"
+  local history_ledger="$AUDIO_CACHE_DIR/recorded-takes-history"
+  local bench_ledger="$AUDIO_CACHE_DIR/recorded-takes-bench"
+  if [[ -n "$REC_TAKE_ID" && -f "$ledger" ]] && grep -qxF -- "$REC_TAKE_ID" "$ledger" 2>/dev/null; then
+    APPREC_TAKE_ID="$REC_TAKE_ID" python3 -c '
+import json, os
+print(json.dumps({"ok": True, "take_id": os.environ["APPREC_TAKE_ID"], "duplicate": True,
+                  "usage_recorded": True, "history_saved": True, "usage_dedup": True}))'
+    return 0
+  fi
+
+  local model_id record_ms transcribe_ms clean_ms paste_ms total_ms usage_recorded="0" history_saved="0"
+  # The app's snapshot of the model label; resolve it now only for older apps.
+  model_id="${REC_MODEL:-$(current_transcribe_model_label)}"
+  record_ms="${REC_RECORD_MS:-0}"
+  transcribe_ms="${REC_TRANSCRIBE_MS:-0}"
+  clean_ms="${REC_CLEAN_MS:-0}"
+  paste_ms="${REC_PASTE_MS:-0}"
+  total_ms="${REC_TOTAL_MS:-0}"
+
+  # Three parts, each done once: bench row (+ debug archive), history, usage.
+  # A replay redoes only the parts that are not marked done.
+  local wants_usage="0" needs_history="0" bench_done="0" history_done="0"
+  [[ "$REC_STATUS" == "ok" && "$REC_DELIVERED" == "1" ]] && wants_usage="1"
+  # A take recovered at quit was never pasted: history, but no usage.
+  if [[ "$REC_USAGE_ONLY" != "1" && ( "$wants_usage" == "1" || "$REC_STATUS" == "recovered" ) ]]; then
+    needs_history="1"
+  fi
+  inline_record_marked() {
+    [[ -n "$REC_TAKE_ID" && -f "$1" ]] && grep -qxF -- "$REC_TAKE_ID" "$1" 2>/dev/null
+  }
+  inline_record_mark() {
+    [[ -n "$REC_TAKE_ID" ]] || return 0
+    mkdir -p "$AUDIO_CACHE_DIR" 2>/dev/null || true
+    printf '%s\n' "$REC_TAKE_ID" >>"$1" 2>/dev/null || true
+    if [[ "$(wc -l <"$1" 2>/dev/null | tr -d ' ')" -gt 1000 ]]; then
+      tail -n 500 "$1" >"${1}.tmp.$$" 2>/dev/null && mv -f "${1}.tmp.$$" "$1" 2>/dev/null || true
+    fi
+  }
+  # `inline process --defer-usage` already wrote this take's bench row and
+  # history.
+  if [[ "$REC_USAGE_ONLY" == "1" ]] || inline_record_marked "$bench_ledger"; then
+    bench_done="1"
+  fi
+  if [[ "$needs_history" != "1" ]] || inline_record_marked "$history_ledger"; then
+    history_done="1"
+  fi
+
+  if [[ "$wants_usage" == "1" ]]; then
+    local usage_full_elapsed_ms="$total_ms"
+    if [[ "$REC_STARTED_AT_MS" =~ ^[0-9]+$ && "$REC_DELIVERED_AT_MS" =~ ^[0-9]+$ ]]; then
+      usage_full_elapsed_ms=$(( REC_DELIVERED_AT_MS - REC_STARTED_AT_MS ))
+      (( usage_full_elapsed_ms < 0 )) && usage_full_elapsed_ms=0
+    fi
+    # Not an array: an empty one is "unbound" under set -u in bash 3.2.
+    if usage_record_delivery "inline" "$REC_TEXT" "$record_ms" "$usage_full_elapsed_ms" \
+        ${REC_TAKE_ID:+--take-id "$REC_TAKE_ID"} ${REC_LOCAL_DATE:+--local-date "$REC_LOCAL_DATE"}; then
+      usage_recorded="1"
+    else
+      echo "[usage] unable to record delivered dictation summary" >&2
+    fi
+  fi
+
+  if [[ "$bench_done" != "1" ]]; then
+    append_bench_entry "inline" "$REC_STATUS" "$model_id" "0" "${#REC_RAW}" "${#REC_TEXT}" \
+      "$record_ms" "$transcribe_ms" "$clean_ms" "0" "$paste_ms" "$total_ms" \
+      "${REC_STARTUP_MS:-0}" "0" "0" "0" "$REC_STARTUP_SOURCE"
+
+    # Debug archive ([debug] keep_logs), as inline process writes it: the
+    # padded WAV the app transcribed plus a .meta file. The app hands the WAV
+    # over; archiving removes it.
+    INLINE_CAPTURE_WAV_MS="$REC_CAPTURE_WAV_MS"
+    INLINE_CAPTURE_WAV_BYTES="$REC_CAPTURE_WAV_BYTES"
+    INLINE_CAPTURE_GAP_TO_RECORD_MS=""
+    if [[ "$REC_CAPTURE_WAV_MS" =~ ^[0-9]+$ && "$record_ms" =~ ^[0-9]+$ ]]; then
+      INLINE_CAPTURE_GAP_TO_RECORD_MS=$(( REC_CAPTURE_WAV_MS - record_ms ))
+    fi
+    if [[ -n "$REC_WAV_PATH" ]]; then
+      local archive_prefix=""
+      archive_prefix="$(inline_archive_prefix "${REC_TAKE_ID:-khuluma}" 2>/dev/null || true)"
+      archive_inline_debug_artifacts "$archive_prefix" "$REC_WAV_PATH" "" "$REC_STATUS" \
+        "$record_ms" "$transcribe_ms" "$clean_ms" "$paste_ms" "$total_ms" "$REC_TAKE_ID"
+    fi
+    inline_record_mark "$bench_ledger"
+  fi
+
+  if [[ "$history_done" == "1" ]]; then
+    [[ "$needs_history" == "1" ]] && history_saved="1"
+  else
+    local history_app="${REC_APP:-current}"
+    if save_history "$REC_RAW" "$REC_TEXT" "$history_app" "$record_ms" "$transcribe_ms" "$clean_ms" "$paste_ms" "$total_ms"; then
+      history_saved="1"
+      history_done="1"
+      inline_record_mark "$history_ledger"
+    fi
+  fi
+
+  # Fully handled: a replay is then a plain duplicate. Otherwise the app keeps
+  # the take and a replay retries the history or usage that failed.
+  if [[ "$history_done" == "1" && ( "$wants_usage" != "1" || "$usage_recorded" == "1" ) ]]; then
+    inline_record_mark "$ledger"
+  fi
+
+  inline_record_result "$REC_TAKE_ID" "$usage_recorded" "$history_saved"
+}
+
+inline_record_result() {
+  APPREC_TAKE_ID="$1" APPREC_USAGE="$2" APPREC_HISTORY="$3" python3 -c '
+import json, os
+e = os.environ
+# usage_dedup: the ledger deduplicates take ids, so retrying a take whose
+# usage was not recorded cannot count it twice.
+print(json.dumps({"ok": True, "take_id": e["APPREC_TAKE_ID"], "duplicate": False, "usage_recorded": e["APPREC_USAGE"] == "1",
+                  "history_saved": e["APPREC_HISTORY"] == "1", "usage_dedup": True}))'
+}

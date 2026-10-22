@@ -2,11 +2,13 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-TMP_ROOT="$(mktemp -d)"
+TMP_ROOT="$(cd "$(mktemp -d)" && pwd -P)"
+KHULUMA_TEST_FIXTURE_ROOT="$TMP_ROOT"
+source "$ROOT/tests/fixture_helpers.sh"
 # Never read or write the real user's ~/.local/share (daemon build, models).
 export XDG_DATA_HOME="$TMP_ROOT/xdg-data"
-export DICTATE_DAEMON_BACKGROUND_REFRESH=0
-trap 'rm -rf "$TMP_ROOT"' EXIT
+export KHULUMA_DAEMON_BACKGROUND_REFRESH=0
+trap report_fixture_root EXIT
 
 BIN_DIR="$TMP_ROOT/bin"
 HOME_DIR="$TMP_ROOT/home"
@@ -16,136 +18,136 @@ OPLOG="$TMP_ROOT/daemon-ops.log"
 install_test_runtime() {
   local dest_bin="$1"
   mkdir -p "$dest_bin"
-  cp "$ROOT/bin/tmux-whisper" "$dest_bin/tmux-whisper"
-  cp "$ROOT/bin/dictate-lib.sh" "$dest_bin/dictate-lib.sh"
-  rm -rf "$dest_bin/tmux-whisper-lib"
-  mkdir -p "$dest_bin/tmux-whisper-lib"
-  cp -R "$ROOT/bin/tmux-whisper-lib/." "$dest_bin/tmux-whisper-lib/"
-  chmod +x "$dest_bin/tmux-whisper" "$dest_bin/dictate-lib.sh"
+  cp "$ROOT/bin/khuluma" "$dest_bin/khuluma"
+  cp "$ROOT/bin/khuluma-lib.sh" "$dest_bin/khuluma-lib.sh"
+  preserve_fixture "$dest_bin/khuluma-lib"
+  mkdir -p "$dest_bin/khuluma-lib"
+  cp -R "$ROOT/bin/khuluma-lib/." "$dest_bin/khuluma-lib/"
+  chmod +x "$dest_bin/khuluma" "$dest_bin/khuluma-lib.sh"
 }
 
 install_test_runtime "$BIN_DIR"
 
 # Ensure the default ~/.local/bin path is unavailable and fallback-to-sibling works.
-output="$(HOME="$HOME_DIR" PATH="$BIN_DIR:/usr/bin:/bin" DICTATE_LIB_PATH= "$BIN_DIR/tmux-whisper" --help)"
+output="$(HOME="$HOME_DIR" PATH="$BIN_DIR:/usr/bin:/bin" KHULUMA_LIB_PATH= "$BIN_DIR/khuluma" --help)"
 
-if [[ "$output" != *"tmux-whisper: the back end for Khuluma (the menu-bar dictation app) and file transcription"* ]]; then
-  echo "Expected help output from tmux-whisper command" >&2
+if [[ "$output" != *"khuluma: the back end for Khuluma (the menu-bar dictation app) and file transcription"* ]]; then
+  echo "Expected help output from khuluma command" >&2
   exit 1
 fi
-if [[ "$output" != *"DICTATE_TRANSCRIBE_TAIL_PAD_MS=500"* ]]; then
+if [[ "$output" != *"KHULUMA_TRANSCRIBE_TAIL_PAD_MS=500"* ]]; then
   echo "Expected help output to document transcription tail padding" >&2
   exit 1
 fi
-if [[ "$output" != *"DICTATE_SWIFT_PARAKEET_TAIL_RESCUE=0|1"* ]]; then
+if [[ "$output" != *"KHULUMA_SWIFT_PARAKEET_TAIL_RESCUE=0|1"* ]]; then
   echo "Expected help output to document Swift tail rescue tuning" >&2
   exit 1
 fi
-if [[ "$output" != *"tmux-whisper last [--json]"* ]]; then
+if [[ "$output" != *"khuluma last [--json]"* ]]; then
   echo "Expected help output to document the last command" >&2
   exit 1
 fi
-if [[ "$output" != *"tmux-whisper status [--json] [--preset compact]"* ]]; then
+if [[ "$output" != *"khuluma status [--json] [--preset compact]"* ]]; then
   echo "Expected help output to document compact status preset" >&2
   exit 1
 fi
-if [[ "$output" != *"tmux-whisper history list [N] [--json]"* ]]; then
+if [[ "$output" != *"khuluma history list [N] [--json]"* ]]; then
   echo "Expected help output to document history list JSON output" >&2
   exit 1
 fi
-if [[ "$output" != *"tmux-whisper history search <query> [N] [--json]"* ]]; then
+if [[ "$output" != *"khuluma history search <query> [N] [--json]"* ]]; then
   echo "Expected help output to document history search" >&2
   exit 1
 fi
-if [[ "$output" != *"tmux-whisper history export [N|all] [--json]"* ]]; then
+if [[ "$output" != *"khuluma history export [N|all] [--json]"* ]]; then
   echo "Expected help output to document history export" >&2
   exit 1
 fi
-if [[ "$output" != *"tmux-whisper history sessions [N] [--json]"* ]]; then
+if [[ "$output" != *"khuluma history sessions [N] [--json]"* ]]; then
   echo "Expected help output to document history sessions" >&2
   exit 1
 fi
-if [[ "$output" != *"tmux-whisper transcribe <file>..."* ]]; then
+if [[ "$output" != *"khuluma transcribe <file>..."* ]]; then
   echo "Expected help output to document file transcription" >&2
   exit 1
 fi
-transcribe_help="$(HOME="$HOME_DIR" PATH="$BIN_DIR:/usr/bin:/bin" DICTATE_LIB_PATH= "$BIN_DIR/tmux-whisper" transcribe --help)"
-if [[ "$transcribe_help" != *"usage: tmux-whisper transcribe <file|->..."* || "$transcribe_help" != *"--beside"* ]]; then
+transcribe_help="$(HOME="$HOME_DIR" PATH="$BIN_DIR:/usr/bin:/bin" KHULUMA_LIB_PATH= "$BIN_DIR/khuluma" transcribe --help)"
+if [[ "$transcribe_help" != *"usage: khuluma transcribe <file|->..."* || "$transcribe_help" != *"--beside"* ]]; then
   echo "Expected transcribe --help to describe inputs and output options" >&2
   exit 1
 fi
 transcribe_rc=0
-HOME="$HOME_DIR" PATH="$BIN_DIR:/usr/bin:/bin" DICTATE_LIB_PATH= "$BIN_DIR/tmux-whisper" transcribe >/dev/null 2>&1 || transcribe_rc=$?
+HOME="$HOME_DIR" PATH="$BIN_DIR:/usr/bin:/bin" KHULUMA_LIB_PATH= "$BIN_DIR/khuluma" transcribe >/dev/null 2>&1 || transcribe_rc=$?
 if [[ "$transcribe_rc" != "2" ]]; then
   echo "Expected transcribe without inputs to exit 2 (got $transcribe_rc)" >&2
   exit 1
 fi
-if [[ "$output" != *"tmux-whisper usage [--json]"* ]]; then
+if [[ "$output" != *"khuluma usage [--json]"* ]]; then
   echo "Expected help output to document durable usage summary" >&2
   exit 1
 fi
-if [[ "$output" != *"DICTATE_HISTORY_RETENTION_DAYS=7"* ]]; then
+if [[ "$output" != *"KHULUMA_HISTORY_RETENTION_DAYS=7"* ]]; then
   echo "Expected help output to document history JSON retention" >&2
   exit 1
 fi
-if [[ "$output" != *"DICTATE_HISTORY_AUDIO_RETENTION_DAYS=2"* ]]; then
+if [[ "$output" != *"KHULUMA_HISTORY_AUDIO_RETENTION_DAYS=2"* ]]; then
   echo "Expected help output to document history audio retention" >&2
   exit 1
 fi
-if [[ "$output" != *"tmux-whisper config defaults"* ]]; then
+if [[ "$output" != *"khuluma config defaults"* ]]; then
   echo "Expected help output to document config defaults" >&2
   exit 1
 fi
-if [[ "$output" != *"tmux-whisper config [--json]"* ]]; then
+if [[ "$output" != *"khuluma config [--json]"* ]]; then
   echo "Expected help output to document config JSON output" >&2
   exit 1
 fi
-if [[ "$output" != *"tmux-whisper config path [--json]"* ]]; then
+if [[ "$output" != *"khuluma config path [--json]"* ]]; then
   echo "Expected help output to document config path JSON output" >&2
   exit 1
 fi
-if [[ "$output" != *"tmux-whisper config get <path> [--json]"* ]]; then
+if [[ "$output" != *"khuluma config get <path> [--json]"* ]]; then
   echo "Expected help output to document config get" >&2
   exit 1
 fi
-if [[ "$output" != *"tmux-whisper config repair [--dry-run]"* ]]; then
+if [[ "$output" != *"khuluma config repair [--dry-run]"* ]]; then
   echo "Expected help output to document config repair" >&2
   exit 1
 fi
-if [[ "$output" != *"tmux-whisper bench [N|all] [--json]"* ]]; then
+if [[ "$output" != *"khuluma bench [N|all] [--json]"* ]]; then
   echo "Expected help output to document bench JSON output" >&2
   exit 1
 fi
-if [[ "$output" != *"tmux-whisper bench export [N|all] [--json]"* ]]; then
+if [[ "$output" != *"khuluma bench export [N|all] [--json]"* ]]; then
   echo "Expected help output to document bench export" >&2
   exit 1
 fi
-if [[ "$output" != *"tmux-whisper vocab import [--dry-run] <file>"* ]]; then
+if [[ "$output" != *"khuluma vocab import [--dry-run] <file>"* ]]; then
   echo "Expected help output to document vocab import dry-run" >&2
   exit 1
 fi
-if [[ "$output" != *"tmux-whisper vocab rm [--dry-run] [--regex] \"pattern\""* ]]; then
+if [[ "$output" != *"khuluma vocab rm [--dry-run] [--regex] \"pattern\""* ]]; then
   echo "Expected help output to document safer vocab removal" >&2
   exit 1
 fi
-if [[ "$output" != *"CONFIG FILES (kept under ~/.config/dictate/ for now):"* ]]; then
-  echo "Expected help output to explain the intentional dictate config path" >&2
+if [[ "$output" != *"CONFIG FILES (under ~/.config/khuluma/ by default):"* ]]; then
+  echo "Expected help output to explain the canonical Khuluma config path" >&2
   exit 1
 fi
 
-default_output="$(HOME="$HOME_DIR" PATH="$BIN_DIR:/usr/bin:/bin" DICTATE_LIB_PATH= "$BIN_DIR/tmux-whisper" config defaults)"
+default_output="$(HOME="$HOME_DIR" PATH="$BIN_DIR:/usr/bin:/bin" KHULUMA_LIB_PATH= "$BIN_DIR/khuluma" config defaults)"
 repo_default="$(cat "$ROOT/config/config.toml")"
 if [[ "$default_output" != "$repo_default" ]]; then
   echo "Expected config defaults output to match repo default config" >&2
   exit 1
 fi
-if [[ -e "$HOME_DIR/.config/dictate/config.toml" ]]; then
+if [[ -e "$HOME_DIR/.config/khuluma/config.toml" ]]; then
   echo "Expected config defaults to avoid creating a live config file" >&2
   exit 1
 fi
 
 MODEL_DIR="$TMP_ROOT/parakeet-tdt-0.6b-v3-coreml"
-CONFIG_DIR="$HOME_DIR/.config/dictate"
+CONFIG_DIR="$HOME_DIR/.config/khuluma"
 mkdir -p "$MODEL_DIR" "$CONFIG_DIR"
 cat >"$CONFIG_DIR/config.toml" <<EOF
 [meta]
@@ -156,14 +158,14 @@ source = "auto"
 
 [swift_parakeet]
 model_path = "$MODEL_DIR"
-socket_path = "$TMP_ROOT/tmux-whisperd.sock"
+socket_path = "$TMP_ROOT/khulumad.sock"
 EOF
 
-cat >"$BIN_DIR/tmux-whisperd" <<'EOF'
+cat >"$BIN_DIR/khulumad" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 if [[ "${1:-}" != "serve" || "${2:-}" != "--socket" || -z "${3:-}" ]]; then
-  echo "usage: tmux-whisperd serve --socket <path>" >&2
+  echo "usage: khulumad serve --socket <path>" >&2
   exit 2
 fi
 socket_path="$3"
@@ -175,14 +177,14 @@ import sys
 
 socket_path = sys.argv[1]
 try:
-    os.unlink(socket_path)
+    os.rename(socket_path, socket_path + ".retained." + __import__("uuid").uuid4().hex)
 except FileNotFoundError:
     pass
 
 server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 server.bind(socket_path)
 server.listen(8)
-log_path = os.environ.get("DICTATE_TEST_CLI_OPLOG", "")
+log_path = os.environ.get("KHULUMA_TEST_CLI_OPLOG", "")
 
 while True:
     conn, _ = server.accept()
@@ -254,17 +256,17 @@ while True:
 
 server.close()
 try:
-    os.unlink(socket_path)
+    os.rename(socket_path, socket_path + ".retained." + __import__("uuid").uuid4().hex)
 except FileNotFoundError:
     pass
 PYEOF
 EOF
-chmod +x "$BIN_DIR/tmux-whisperd"
+chmod +x "$BIN_DIR/khulumad"
 
-warmup_output="$(HOME="$HOME_DIR" PATH="$BIN_DIR:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$CONFIG_DIR" DICTATE_CONFIG_FILE="$CONFIG_DIR/config.toml" DICTATE_TMUX_WHISPERD_BIN="$BIN_DIR/tmux-whisperd" DICTATE_TEST_CLI_OPLOG="$OPLOG" "$BIN_DIR/tmux-whisper" warmup)"
+warmup_output="$(HOME="$HOME_DIR" PATH="$BIN_DIR:/usr/bin:/bin" KHULUMA_LIB_PATH= KHULUMA_CONFIG_DIR="$CONFIG_DIR" KHULUMA_CONFIG_FILE="$CONFIG_DIR/config.toml" KHULUMA_DAEMON_BIN="$BIN_DIR/khulumad" KHULUMA_TEST_CLI_OPLOG="$OPLOG" "$BIN_DIR/khuluma" warmup)"
 
 if [[ "$warmup_output" != *"Warmup: ready (model=parakeet-tdt-0.6b-v3-coreml, duration=12ms)"* ]]; then
-  echo "Expected warmup output from tmux-whisper command" >&2
+  echo "Expected warmup output from khuluma command" >&2
   echo "$warmup_output" >&2
   exit 1
 fi
@@ -275,9 +277,9 @@ if ! grep -Fxq "warmup" "$OPLOG" || ! grep -Fxq "transcribe" "$OPLOG"; then
   exit 1
 fi
 
-rm -f "$OPLOG"
+preserve_fixture "$OPLOG"
 
-warmup_output="$(HOME="$HOME_DIR" PATH="$BIN_DIR:/usr/bin:/bin" DICTATE_LIB_PATH= DICTATE_CONFIG_DIR="$CONFIG_DIR" DICTATE_CONFIG_FILE="$CONFIG_DIR/config.toml" DICTATE_TMUX_WHISPERD_BIN="$BIN_DIR/tmux-whisperd" DICTATE_TEST_CLI_OPLOG="$OPLOG" DICTATE_WARMUP_PRIME_MS=0800 "$BIN_DIR/tmux-whisper" warmup)"
+warmup_output="$(HOME="$HOME_DIR" PATH="$BIN_DIR:/usr/bin:/bin" KHULUMA_LIB_PATH= KHULUMA_CONFIG_DIR="$CONFIG_DIR" KHULUMA_CONFIG_FILE="$CONFIG_DIR/config.toml" KHULUMA_DAEMON_BIN="$BIN_DIR/khulumad" KHULUMA_TEST_CLI_OPLOG="$OPLOG" KHULUMA_WARMUP_PRIME_MS=0800 "$BIN_DIR/khuluma" warmup)"
 
 if [[ "$warmup_output" != *"Warmup: ready (model=parakeet-tdt-0.6b-v3-coreml, duration=12ms)"* ]]; then
   echo "Expected warmup output with leading-zero prime duration override" >&2

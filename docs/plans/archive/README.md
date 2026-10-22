@@ -1,6 +1,6 @@
 # Archived plans
 
-Finished or superseded plans, kept for history. They describe the project as it was when written (tmux-first CLI, SwiftBar, Raycast, whisper.cpp), not as it is now. The active plan is `../KHULUMA_RENAME_ROADMAP.md`.
+Finished or superseded plans, kept for history. They describe the project as it was when written (tmux-first CLI, SwiftBar, Raycast, whisper.cpp), not as it is now. The active plan is `../../archive/KHULUMA_RENAME_ROADMAP.md`.
 
 | Plan | Outcome |
 | --- | --- |
