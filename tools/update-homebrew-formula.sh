@@ -1,15 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+source "$ROOT/bin/khuluma-lib/identity.sh"
+khuluma_normalize_environment
+
 usage() {
   cat <<'EOF'
 Usage:
-  tools/update-homebrew-formula.sh vX.Y.Z [--write] [--formula /path/to/tmux-whisper.rb] [--repo owner/name]
+  tools/update-homebrew-formula.sh vX.Y.Z [--write] [--formula /path/to/khuluma.rb] [--repo owner/name]
 
 Examples:
   tools/update-homebrew-formula.sh v0.5.1
   tools/update-homebrew-formula.sh v0.5.1 --write
-  tools/update-homebrew-formula.sh v0.5.1 --write --formula ../homebrew-tap/Formula/tmux-whisper.rb
+  tools/update-homebrew-formula.sh v0.5.1 --write --formula ../homebrew-tap/Formula/khuluma.rb
 
 Behavior:
   - Downloads the GitHub tag tarball for the requested version.
@@ -26,9 +30,8 @@ need() {
   }
 }
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-repo_slug="ricardo-nth/tmux-whisper"
-formula_path="$ROOT/../homebrew-tap/Formula/tmux-whisper.rb"
+repo_slug="ricardo-nth/khuluma"
+formula_path="$ROOT/../homebrew-tap/Formula/khuluma.rb"
 write_mode="0"
 tag=""
 
@@ -85,13 +88,15 @@ if [[ ! "$tag" =~ ^v[0-9]+(\.[0-9]+)*([-.][A-Za-z0-9]+)?$ ]]; then
   exit 2
 fi
 
+[[ "$repo_slug" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || { echo "Invalid repo slug" >&2; exit 2; }
+
 need curl
 need shasum
 need python3
 
 url="https://github.com/${repo_slug}/archive/refs/tags/${tag}.tar.gz"
-tmpdir="$(mktemp -d "${TMPDIR:-/tmp}/tmux-whisper-formula.XXXXXX")"
-trap 'rm -rf "$tmpdir"' EXIT
+tmpdir="$(mktemp -d "${KHULUMA_TMPDIR:-${TMPDIR:-/tmp}}/khuluma-formula.XXXXXX")"
+trap 'printf "Formula workspace retained: %s\n" "$tmpdir" >&2' EXIT
 archive="$tmpdir/${tag}.tar.gz"
 
 curl -fsSL "$url" -o "$archive"

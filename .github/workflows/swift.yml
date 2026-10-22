@@ -5,35 +5,39 @@ on:
     branches:
       - main
     paths:
-      - "tmux-whisperd/**"
+      - "native/**"
       - ".github/workflows/swift.yml"
+      - "tools/build-khuluma-app.sh"
+      - "tools/make-signing-identity.sh"
       # Khuluma's TextPipeline must match the CLI cleanup byte for byte.
-      - "bin/dictate-lib.sh"
-      - "bin/tmux-whisper"
-      - "bin/tmux-whisper-lib/**"
+      - "bin/khuluma-lib.sh"
+      - "bin/khuluma"
+      - "bin/khuluma-lib/**"
       - "config/**"
       - "tests/fixtures/cleanup/**"
       - "tests/gen-cleanup-fixtures.sh"
       - "tests/gen_cleanup_fixtures.py"
   pull_request:
     paths:
-      - "tmux-whisperd/**"
+      - "native/**"
       - ".github/workflows/swift.yml"
+      - "tools/build-khuluma-app.sh"
+      - "tools/make-signing-identity.sh"
       # Khuluma's TextPipeline must match the CLI cleanup byte for byte.
-      - "bin/dictate-lib.sh"
-      - "bin/tmux-whisper"
-      - "bin/tmux-whisper-lib/**"
+      - "bin/khuluma-lib.sh"
+      - "bin/khuluma"
+      - "bin/khuluma-lib/**"
       - "config/**"
       - "tests/fixtures/cleanup/**"
       - "tests/gen-cleanup-fixtures.sh"
       - "tests/gen_cleanup_fixtures.py"
 
 jobs:
-  tmux-whisper-kit:
+  khuluma-native:
     runs-on: macos-latest
     defaults:
       run:
-        working-directory: tmux-whisperd
+        working-directory: native
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -41,9 +45,9 @@ jobs:
       - name: Cache SwiftPM build
         uses: actions/cache@v4
         with:
-          path: tmux-whisperd/.build
-          key: swiftpm-${{ runner.os }}-${{ hashFiles('tmux-whisperd/Package.resolved') }}
-          restore-keys: swiftpm-${{ runner.os }}-
+          path: native/.build
+          key: swiftpm-khuluma-native-${{ runner.os }}-${{ hashFiles('native/Package.resolved') }}
+          restore-keys: swiftpm-khuluma-native-${{ runner.os }}-
 
       - name: Toolchain
         run: swift --version
@@ -53,11 +57,11 @@ jobs:
         # committed tests/fixtures/cleanup/expected.json is stale.
         run: ../tests/gen-cleanup-fixtures.sh --check
 
-      - name: Test TmuxWhisperKit and KhulumaCore
+      - name: Test KhulumaDaemonKit and KhulumaCore
         run: swift test
 
       - name: Build release daemon
-        run: swift build -c release --product tmux-whisperd && .build/release/tmux-whisperd version
+        run: swift build -c release --product khulumad && .build/release/khulumad version
 
       - name: Build Khuluma app binary
         run: swift build -c release --product Khuluma

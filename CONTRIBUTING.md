@@ -1,18 +1,19 @@
 # Contributing
 
-Thanks for contributing to Tmux Whisper, which is becoming Khuluma ([`ROADMAP.md`](ROADMAP.md)).
+Thanks for contributing to Khuluma, which is becoming Khuluma ([`ROADMAP.md`](ROADMAP.md)).
 
 ## Scope and Direction
 
 - Khuluma, the menu-bar app, is the product. The CLI is its back end and is being retired step by step, so new user-facing features belong in Khuluma.
 - CLI changes should serve Khuluma, file transcription, or the phase 1 ports (`LOG.md`). Changes to the JSON contracts in `docs/CLI_CONTRACTS.md` are additive only, unless Khuluma changes with them and the app contract number goes up on both sides.
+- `khuluma doctor --json` uses diagnostic schema 2 with neutral identity keys. The temporary old-name command adapts this diagnostic object to the former layout; app contract 3 and other JSON/data shapes remain unchanged. This is the explicit rename exception to the additive app-contract rule.
 - Keep changes minimal and production-oriented. Pure logic goes in `KhulumaCore` (no AppKit) with tests; the `Khuluma` target stays a thin shell.
 
 ## Development Setup
 
 ```bash
-git clone https://github.com/ricardo-nth/tmux-whisper.git
-cd tmux-whisper
+git clone https://github.com/ricardo-nth/khuluma.git
+cd khuluma
 ./tests/ci.sh
 ./install.sh --force
 tools/make-signing-identity.sh   # once
@@ -37,7 +38,7 @@ Choose validation for the behavior changed; these are the available CLI and Swif
 
 ```bash
 ./tests/ci.sh
-cd tmux-whisperd && swift test
+cd native && swift test
 ```
 
 If `swift test` reports "TestingMacros not found", run `swift build --build-tests` until it says "Build complete", then `swift test --skip-build`.
@@ -49,7 +50,7 @@ If `swift test` reports "TestingMacros not found", run `swift build --build-test
 ```bash
 ./install.sh --force
 tools/build-khuluma-app.sh      # waits for a take in progress, then relaunches Khuluma
-tmux-whisper doctor
+khuluma doctor
 tools/khuluma-report.sh         # after a few real takes
 ```
 

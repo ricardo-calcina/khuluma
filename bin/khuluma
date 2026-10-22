@@ -1,0 +1,4122 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# GUI launchers (Khuluma, the Finder Quick Action) often run with a minimal PATH.
+# Prefer Homebrew for python3 (tomllib) and ffmpeg.
+export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:${PATH:-/usr/bin:/bin}"
+
+if [[ -f "$HOME/.zshenv" ]]; then
+  # Load XDG vars + SOUNDS_DIR for non-interactive invocations (Khuluma, Finder, etc.)
+  source "$HOME/.zshenv"
+fi
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+KHULUMA_RUNNING_BINARY="${BASH_SOURCE[0]:-$0}"
+# Always bootstrap normalization from this runtime, never an old override dir.
+[[ -r "$SCRIPT_DIR/khuluma-lib/identity.sh" ]] || { printf '%s\n' 'khuluma: missing identity helpers; reinstall the matching runtime' >&2; exit 2; }
+source "$SCRIPT_DIR/khuluma-lib/identity.sh"
+khuluma_normalize_environment
+
+TMPDIR="${KHULUMA_TMPDIR:-/tmp}"
+TRANSCRIBE_LOG="${KHULUMA_TRANSCRIBE_LOG:-$TMPDIR/khuluma.transcribe.log}"
+
+XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+DEFAULT_SWIFT_PARAKEET_MODELS_DIR="$XDG_DATA_HOME/khuluma/models"
+KHULUMA_CONFIG_SCHEMA_VERSION=1
+KHULUMA_CLI_VERSION="0.10.0-dev"
+# What `app-config --json` and the commands Khuluma runs promise the app.
+# Khuluma refuses takes unless its own contract number (AppContract.version
+# in native/Sources/KhulumaCore/CLIModels.swift) is the same: bump
+# both together whenever either side needs the other to change.
+KHULUMA_APP_CONTRACT=3
+
+usage() {
+  cat <<'EOF'
+khuluma: the back end for Khuluma (the menu-bar dictation app) and file transcription, with a warm Swift/CoreML Parakeet backend and vocab-based cleanup.
+
+STATUS:
+  khuluma status [--json] [--preset compact]    # show runtime + effective settings snapshot
+  khuluma version [--json]   # show CLI, schema, running binary, and install provenance
+  khuluma --version          # text alias for version
+
+FILES:
+  khuluma transcribe <file>...        # print raw transcript of audio files (m4a, mp3, wav, ogg, ...)
+  khuluma transcribe <file> -o out.txt # write to a file (or --beside / --out-dir DIR)
+  khuluma transcribe <file> -c        # also copy to clipboard
+  khuluma transcribe <file> --format json # JSON per file (text, durations, model)
+  khuluma transcribe --help           # all options
+  khuluma finder install|remove|status # Finder right-click Quick Action for audio files
+
+NATIVE APP BACK-END (used by the menu-bar app):
+  khuluma app-config --json           # hotkey, sounds, delivery settings
+  khuluma inline process <wav> --json # inline pipeline without paste (app delivers)
+
+DIAGNOSTICS:
+  khuluma doctor [--json]    # quick health summary (install, config, vocab, daemon)
+  khuluma config [--json]    # show config path + schema health + key values
+  khuluma config path [--json] # print active config path
+  khuluma config get <path> [--json] # inspect one config value (file/default)
+  khuluma config defaults    # print canonical default config TOML
+  khuluma config repair [--dry-run] # fill missing defaults + bump schema safely
+  khuluma warmup            # preload the Swift Parakeet daemon/model
+  khuluma keep-logs          # show persistent log retention setting
+  khuluma keep-logs on|off   # persist log retention in config
+  khuluma bench [N|all] [--json] [--status STATUS] [--slow-total-ms N] # summarize recent stage timings
+  khuluma bench export [N|all] [--json] [filters] # export raw bench rows (default: 30 recent)
+  khuluma changelog          # show recent Khuluma changes
+
+TEXT CLEANUP:
+  khuluma repeats            # show repeat cleanup level
+  khuluma repeats 0|1|2      # set repeat cleanup level
+
+SOUNDS:
+  khuluma sound              # show sound settings
+  khuluma sound on|off       # master mute toggle
+  khuluma sound mute|unmute  # alias for off/on
+  khuluma sound start on|off # toggle start sound
+  khuluma sound stop on|off  # toggle stop sound
+  khuluma sound process on|off # toggle process sound
+  khuluma sound error on|off # toggle error sound
+
+VOCABULARY:
+  khuluma vocab              # show custom word corrections
+  khuluma vocab add "X::Y" ["A::B"...] # add one or more corrections
+  khuluma vocab import [--dry-run] <file> # import corrections from file (one per line)
+  khuluma vocab export <file> # export normalized/deduped corrections to file
+  khuluma vocab clipboard [--dry-run] # import corrections from clipboard lines
+  khuluma vocab dedupe       # normalize + remove duplicate entries
+  khuluma vocab edit         # open the vocab file in $EDITOR
+  khuluma vocab rm [--dry-run] [--regex] "pattern" # remove entries by literal match (regex opt-in)
+  khuluma migrate-modes [--dry-run] [--skip <mode>]... # fold old modes/*/vocab into vocab, archive modes/ (install.sh runs this)
+
+DELIVERY (how Khuluma pastes and sends):
+  khuluma autosend           # show auto-send setting
+  khuluma autosend on        # paste + Enter (default)
+  khuluma autosend off       # paste only, no Enter
+  khuluma inline process-sound on|off # play the processing sound after recording stops
+  khuluma send-mode          # show the autosend key
+  khuluma send-mode enter    # autosend uses Enter
+  khuluma send-mode ctrl_j   # autosend uses Ctrl+J (Claude-friendly)
+  khuluma send-mode cmd_enter # autosend uses Cmd+Enter
+  khuluma target             # show paste target setting
+  khuluma target origin      # paste to app from recording start (default; alias: restore)
+  khuluma target current     # paste to whatever app is frontmost now
+
+HISTORY (saved transcripts, auto-cleanup after 7 days):
+  khuluma history            # list recent dictations (last 20)
+  khuluma history list [N] [--json] # list recent dictations (default: 20)
+  khuluma history search <query> [N] [--json] # find matching dictations
+  khuluma history export [N|all] [--json] # export full recent/history entries
+  khuluma history N [--json] # show entry N (1 = most recent)
+  khuluma history stats [--json] # summarize saved dictations + operator timings
+  khuluma history sessions [N] [--json] # compact per-dictation session summaries
+  khuluma usage [--json] [--days N|all]  # durable, transcript-free usage summary (--days: per-day buckets)
+  khuluma last [--json]      # concise summary of the most recent dictation
+  khuluma history clear      # delete all history
+
+ENV OPTIONS:
+  KHULUMA_CLEAN=1            # regex filler removal
+  KHULUMA_VOCAB_CLEAN=1      # apply vocab corrections
+  KHULUMA_INLINE_PROCESS_SOUND=1 # processing sound override
+  KHULUMA_INLINE_PASTE_TARGET=origin|current # paste target override
+  KHULUMA_INLINE_ACTIVATE_DELAY_MS=90 # focus settle delay before paste (restore/origin only)
+  KHULUMA_INLINE_SEND_DELAY_MS=35 # delay between Cmd+V and the send key when autosend=on
+  KHULUMA_INLINE_SEND_MODE=enter|ctrl_j|cmd_enter # autosend key (default: enter)
+  KHULUMA_BRITISH_SPELLING=1 # enforce UK spellings (default on; set 0 to disable)
+  KHULUMA_TRANSCRIBE_TAIL_PAD_MS=500 # append a little silence before ASR to preserve final words
+  KHULUMA_SWIFT_PARAKEET_TAIL_RESCUE=0|1 # re-transcribe final seconds and merge when full-file ASR drops the tail
+  KHULUMA_KEEP_LOGS=1        # keep /tmp logs even on success
+  KHULUMA_HISTORY_RETENTION_DAYS=7 # keep transcript JSON history for stats/search
+  KHULUMA_HISTORY_AUDIO_RETENTION_DAYS=2 # keep archived inline debug WAVs; metadata/logs remain
+  KHULUMA_HISTORY_TYPING_WPM=40 # assumed typing pace used by history and usage estimates
+  KHULUMA_BENCH_MAX_ROWS=800 # cap retained bench samples in history/bench.tsv
+
+CONFIG FILES (under ~/.config/khuluma/ by default):
+  config.toml                # main settings (Parakeet backend, autosend, Khuluma's hotkey)
+  vocab                      # corrections for every take (one per line: wrong -> right, or wrong::right)
+  history/                   # saved transcripts + stats metadata (JSON auto-cleaned after history.retention_days)
+  history/inline-debug/      # keep_logs artifacts; WAVs auto-pruned after history.audio_retention_days
+  sounds/                    # sample sounds install under ~/.local/share/sounds/khuluma by default
+EOF
+}
+
+die() {
+  local msg="khuluma: $*"
+  echo "$msg" >&2
+  exit 2
+}
+need() { command -v "$1" >/dev/null 2>&1 || die "missing dependency: $1"; }
+
+now_ms() {
+  perl -MTime::HiRes=time -e 'printf "%.0f\n", time()*1000'
+}
+
+cmd="${1:-}"
+# No profile resolution, library imports, directories or migration on help.
+if [[ "$cmd" == "-h" || "$cmd" == "--help" || "$cmd" == "help" || -z "$cmd" ]]; then
+  usage
+  exit 0
+fi
+
+KHULUMA_LIB_PATH="${KHULUMA_LIB_PATH:-$SCRIPT_DIR/khuluma-lib.sh}"
+KHULUMA_INTERNAL_LIB_DIR="${KHULUMA_INTERNAL_LIB_DIR:-$SCRIPT_DIR/khuluma-lib}"
+# Override names remain compatible; their contents must be the matching
+# canonical API. Never silently substitute a custom readable old library.
+[[ -r "$KHULUMA_LIB_PATH" ]] || die "missing shared library: $KHULUMA_LIB_PATH"
+grep -Fxq '# khuluma-shell-library-api: 1' "$KHULUMA_LIB_PATH" || die "incompatible shared library; reinstall the matching Khuluma runtime or update KHULUMA_LIB_PATH"
+[[ -r "$KHULUMA_INTERNAL_LIB_DIR/api-version" && "$(cat "$KHULUMA_INTERNAL_LIB_DIR/api-version")" == "1" ]] || die "incompatible internal modules; reinstall the matching Khuluma runtime or update KHULUMA_INTERNAL_LIB_DIR"
+source "$KHULUMA_LIB_PATH"
+KHULUMA_RECOVERY_HELPER="$KHULUMA_INTERNAL_LIB_DIR/recovery.py"
+export KHULUMA_RECOVERY_HELPER
+for internal_runtime_module in config.sh migrate.sh integrations.sh history.sh diagnostics.sh version.sh transcribe_file.sh app.sh; do
+  [[ -r "$KHULUMA_INTERNAL_LIB_DIR/$internal_runtime_module" ]] || die "missing internal runtime module: $KHULUMA_INTERNAL_LIB_DIR/$internal_runtime_module"
+  source "$KHULUMA_INTERNAL_LIB_DIR/$internal_runtime_module"
+done
+# The migration worker owns this pure marker helper module.
+[[ ! -r "$KHULUMA_INTERNAL_LIB_DIR/migration.sh" ]] || source "$KHULUMA_INTERNAL_LIB_DIR/migration.sh"
+khuluma_resolve_identity_paths "$KHULUMA_RUNNING_BINARY"
+DEFAULT_SWIFT_PARAKEET_MODELS_DIR="$KHULUMA_PARAKEET_MODELS_DIR"
+SKIP_INITIAL_CONFIG_LOAD=0
+KHULUMA_READ_ONLY_STARTUP=0
+case "$cmd" in
+  version|--version|config) SKIP_INITIAL_CONFIG_LOAD=1; KHULUMA_READ_ONLY_STARTUP=1 ;;
+  doctor|status|changelog) KHULUMA_READ_ONLY_STARTUP=1 ;;
+esac
+if [[ "$cmd" == "config" && ( "${2:-}" == "repair" || "${3:-}" == "repair" ) ]]; then KHULUMA_READ_ONLY_STARTUP=0; fi
+if [[ "$cmd" == "transcribe" ]]; then
+  [[ $# -gt 1 ]] || die "usage: khuluma transcribe <file|->... [options]"
+  for khuluma_help_argument in "${@:2}"; do
+    [[ "$khuluma_help_argument" != "--" ]] || break
+    if [[ "$khuluma_help_argument" == "--help" || "$khuluma_help_argument" == "-h" ]]; then
+      transcribe_file_usage
+      exit 0
+    fi
+  done
+fi
+export KHULUMA_READ_ONLY_STARTUP
+if [[ "$KHULUMA_READ_ONLY_STARTUP" != "1" ]]; then
+  khuluma_identity_preflight "$KHULUMA_RUNNING_BINARY" || exit $?
+fi
+
+# Clean filler words from text (uses perl for case-insensitive)
+clean_fillers() {
+  khuluma_lib_clean_fillers
+}
+
+# Clean stutters/repeats (configurable; avoids code-ish tokens like iTerm2, foo_bar, gpt-4, paths)
+# Level 0: off
+# Level 1: repeated word ("the the" -> "the")
+# Level 2: repeated short phrase (2–3 words) ("go ahead and go ahead and" -> "go ahead and")
+clean_repeats() {
+  local level="${1:-1}"
+  khuluma_lib_clean_repeats "$level"
+}
+
+# Remove known whisper placeholder artefacts (e.g. "[blank audio]") from transcript text.
+sanitize_transcript_artifacts() {
+  khuluma_lib_sanitize_transcript_artifacts
+}
+
+normalize_british_spelling() {
+  local enabled="${KHULUMA_BRITISH_SPELLING:-1}"
+  khuluma_lib_normalize_british_spelling "$enabled"
+}
+
+apply_vocab_corrections() {
+  khuluma_lib_apply_vocab_corrections "$KHULUMA_CONFIG_DIR"
+}
+
+# First cleanup pass on a fresh transcript: artefacts, then fillers/repeats
+# when KHULUMA_CLEAN=1. Each stage goes through $(...), so trailing newlines
+# are dropped between stages; Khuluma's TextPipeline mirrors this exactly.
+# Sets CLEANUP_TEXT rather than printing, so callers run the stages in their
+# own shell: a failing stage aborts under set -e with its own status, and
+# keeps going (as the code did before extraction) where errexit is off.
+# Usage: cleanup_raw_transcript <text>; txt="$CLEANUP_TEXT"
+cleanup_raw_transcript() {
+  local txt="$1"
+  txt="$(printf "%s" "$txt" | sanitize_transcript_artifacts)"
+  if [[ "${KHULUMA_CLEAN:-0}" == "1" ]]; then
+    txt="$(printf "%s" "$txt" | clean_fillers)"
+    local repeats_level="${KHULUMA_REPEATS_LEVEL:-${CFG_CLEAN_REPEATS_LEVEL:-1}}"
+    if [[ "$repeats_level" != "0" ]]; then
+      txt="$(printf "%s" "$txt" | clean_repeats "$repeats_level")"
+    fi
+  fi
+  CLEANUP_TEXT="$txt"
+}
+
+# Final deterministic pass: vocab corrections, then British spelling. Sets
+# CLEANUP_TEXT (see cleanup_raw_transcript).
+# Usage: finish_transcript_text <text>; txt="$CLEANUP_TEXT"
+finish_transcript_text() {
+  local txt="$1"
+  if bool_is_on "${KHULUMA_VOCAB_CLEAN:-1}"; then
+    txt="$(printf "%s" "$txt" | apply_vocab_corrections)"
+  fi
+  txt="$(printf "%s" "$txt" | normalize_british_spelling)"
+  CLEANUP_TEXT="$txt"
+}
+
+XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+KHULUMA_CONFIG_DIR="${KHULUMA_CONFIG_DIR:-$XDG_CONFIG_HOME/khuluma}"
+KHULUMA_CONFIG_FILE="${KHULUMA_CONFIG_FILE:-$KHULUMA_CONFIG_DIR/config.toml}"
+
+if [[ "$KHULUMA_READ_ONLY_STARTUP" != "1" ]]; then mkdir -p "$KHULUMA_CONFIG_DIR"; fi
+
+AUDIO_CACHE_DIR="$KHULUMA_CONFIG_DIR/.cache"
+BACKEND_RUNTIME_CACHE="$AUDIO_CACHE_DIR/backend-state.sh"
+PROCESSING_DIR="${KHULUMA_PROCESSING_DIR:-/tmp/khuluma-processing}"
+PROCESSING_MARKER_FILE=""
+KHULUMA_LAST_BACKEND_REQUESTED=""
+KHULUMA_LAST_BACKEND_USED=""
+KHULUMA_LAST_BACKEND_FALLBACK_REASON=""
+KHULUMA_LAST_BACKEND_ENGINE=""
+KHULUMA_LAST_BACKEND_MODEL=""
+
+processing_marker_start() {
+  local kind="${1:-inline}"
+  local session_id="${2:-}"
+  local pid_override="${3:-}"
+  PROCESSING_MARKER_FILE=""
+  mkdir -p "$PROCESSING_DIR" 2>/dev/null || return 0
+
+  local marker_pid f
+  marker_pid="$pid_override"
+  [[ -n "$marker_pid" ]] || marker_pid="${BASHPID:-$$}"
+  f="$PROCESSING_DIR/${kind}-${marker_pid}"
+  {
+    printf 'pid=%s\n' "$marker_pid"
+    printf 'kind=%s\n' "$kind"
+    [[ -n "$session_id" ]] && printf 'session_id=%s\n' "$session_id"
+    printf 'started_at=%s\n' "$(date +%s)"
+  } >"$f" 2>/dev/null || return 0
+  PROCESSING_MARKER_FILE="$f"
+}
+
+processing_marker_stop() {
+  local f="${1:-}"
+  [[ -n "$f" ]] && khuluma_trash_owned "$f" 2>/dev/null || true
+}
+
+load_backend_runtime_cache() {
+  [[ -f "$BACKEND_RUNTIME_CACHE" ]] || return 1
+  # shellcheck disable=SC1090
+  source "$BACKEND_RUNTIME_CACHE" 2>/dev/null || return 1
+  return 0
+}
+
+write_backend_runtime_cache() {
+  local requested="${1:-swift_parakeet}"
+  local used="${2:-swift_parakeet}"
+  local fallback_reason="${3:-}"
+  local engine="${4:-}"
+  local model="${5:-}"
+
+  mkdir -p "$AUDIO_CACHE_DIR" 2>/dev/null || return 0
+  local tmp
+  tmp="$(mktemp "$AUDIO_CACHE_DIR/.backend-state.XXXXXX" 2>/dev/null || true)"
+  [[ -n "$tmp" ]] || return 0
+
+  umask 077
+  {
+    printf 'KHULUMA_LAST_BACKEND_REQUESTED=%q\n' "$requested"
+    printf 'KHULUMA_LAST_BACKEND_USED=%q\n' "$used"
+    printf 'KHULUMA_LAST_BACKEND_FALLBACK_REASON=%q\n' "$fallback_reason"
+    printf 'KHULUMA_LAST_BACKEND_ENGINE=%q\n' "$engine"
+    printf 'KHULUMA_LAST_BACKEND_MODEL=%q\n' "$model"
+    printf 'KHULUMA_LAST_BACKEND_AT=%q\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+  } >"$tmp" 2>/dev/null || {
+    khuluma_trash_owned "$tmp" 2>/dev/null || true
+    return 0
+  }
+  mv -f "$tmp" "$BACKEND_RUNTIME_CACHE" 2>/dev/null || true
+}
+
+# --- Config (TOML) -----------------------------------------------------------
+
+expand_path() {
+  khuluma_lib_expand_path "${1:-}"
+}
+
+expand_sound_path() {
+  khuluma_lib_expand_sound_path "${1:-}"
+}
+
+		sound_enabled() {
+		  local event="${1:-}"
+
+		  [[ "${CFG_AUDIO_SOUNDS_ENABLED:-1}" == "1" ]] || return 1
+
+		  case "$event" in
+		    start) [[ "${CFG_AUDIO_SOUNDS_START_ENABLED:-1}" == "1" ]] || return 1 ;;
+		    stop) [[ "${CFG_AUDIO_SOUNDS_STOP_ENABLED:-1}" == "1" ]] || return 1 ;;
+		    process) [[ "${CFG_AUDIO_SOUNDS_PROCESS_ENABLED:-1}" == "1" ]] || return 1 ;;
+		    error) [[ "${CFG_AUDIO_SOUNDS_ERROR_ENABLED:-1}" == "1" ]] || return 1 ;;
+		    cancel) [[ "${CFG_AUDIO_SOUNDS_CANCEL_ENABLED:-1}" == "1" ]] || return 1 ;;
+		  esac
+
+		  return 0
+		}
+
+		khuluma_sound_path() {
+		  local event="${1:-}"
+		  local cfg=""
+
+	  case "$event" in
+	    start) cfg="${CFG_AUDIO_SOUNDS_START:-}" ;;
+	    stop) cfg="${CFG_AUDIO_SOUNDS_STOP:-}" ;;
+	    process) cfg="${CFG_AUDIO_SOUNDS_PROCESS:-}" ;;
+	    error) cfg="${CFG_AUDIO_SOUNDS_ERROR:-}" ;;
+	    cancel) cfg="${CFG_AUDIO_SOUNDS_CANCEL:-}" ;;
+	    *) return 0 ;;
+	  esac
+
+	  if [[ -z "$cfg" ]]; then
+	    [[ -n "${KHULUMA_SOUNDS_DIR:-}" ]] || return 0
+	    cfg="$KHULUMA_SOUNDS_DIR/$event.wav"
+	  else
+	    cfg="$(expand_sound_path "$cfg")"
+	  fi
+
+	  [[ -f "$cfg" ]] && printf "%s" "$cfg"
+	}
+
+keep_logs_enabled() {
+  [[ "${KHULUMA_KEEP_LOGS:-${CFG_DEBUG_KEEP_LOGS:-0}}" == "1" ]]
+}
+
+file_size_bytes() {
+  local path="${1:-}"
+  [[ -n "$path" && -f "$path" ]] || return 0
+  stat -f '%z' "$path" 2>/dev/null || stat -c '%s' "$path" 2>/dev/null || true
+}
+
+audio_duration_ms() {
+  local path="${1:-}"
+  [[ -n "$path" && -f "$path" ]] || return 0
+  command -v ffprobe >/dev/null 2>&1 || return 0
+
+  local duration
+  duration="$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$path" 2>/dev/null || true)"
+  [[ "$duration" =~ ^[0-9]+([.][0-9]+)?$ ]] || return 0
+  awk -v duration="$duration" 'BEGIN { printf "%.0f\n", duration * 1000 }'
+}
+
+inline_debug_archive_dir() {
+  printf "%s\n" "$HISTORY_DIR/inline-debug"
+}
+
+inline_archive_prefix() {
+  local session_id="${1:-inline}"
+  keep_logs_enabled || return 1
+
+  local dir
+  dir="$(inline_debug_archive_dir)"
+  mkdir -p "$dir" 2>/dev/null || return 1
+
+  local safe_session ts
+  safe_session="$(printf '%s' "$session_id" | tr -c '[:alnum:]._-' '_')"
+  ts="$(date '+%Y-%m-%dT%H-%M-%S')"
+  printf "%s/%s-%s\n" "$dir" "$ts" "$safe_session"
+}
+
+archive_inline_debug_artifacts() {
+  local prefix="${1:-}"
+  local wav="${2:-}"
+  local transcribe_log="${3:-}"
+  local status="${4:-unknown}"
+  local record_ms="${5:-0}"
+  local transcribe_ms="${6:-0}"
+  local clean_ms="${7:-0}"
+  local paste_ms="${8:-0}"
+  local total_ms="${9:-0}"
+  local take_id="${10:-}"
+
+  if [[ -n "$prefix" ]]; then
+    local archive_wav_ms archive_wav_bytes
+    archive_wav_ms="$(audio_duration_ms "$wav" 2>/dev/null || true)"
+    archive_wav_bytes="$(file_size_bytes "$wav" 2>/dev/null || true)"
+    INLINE_ARCHIVE_WAV_MS="$archive_wav_ms"
+    INLINE_ARCHIVE_WAV_BYTES="$archive_wav_bytes"
+    INLINE_DEBUG_ARCHIVE_PREFIX="$prefix"
+    INLINE_DEBUG_WAV_RETENTION_DAYS="$(history_audio_retention_days)"
+    INLINE_DEBUG_AUDIO_RETENTION_NOTE="WAV retained for ${INLINE_DEBUG_WAV_RETENTION_DAYS} day(s); JSON history and .meta/.log artifacts remain for stats/roundups."
+
+    [[ -f "$wav" ]] && cp -f "$wav" "${prefix}.wav" 2>/dev/null || true
+    [[ -f "$transcribe_log" ]] && cp -f "$transcribe_log" "${prefix}.transcribe.log" 2>/dev/null || true
+    {
+      printf 'session_id=%q\n' "$take_id"
+      printf 'status=%q\n' "$status"
+      printf 'record_ms=%q\n' "$record_ms"
+      printf 'capture_wav_ms=%q\n' "${INLINE_CAPTURE_WAV_MS:-}"
+      printf 'capture_wav_bytes=%q\n' "${INLINE_CAPTURE_WAV_BYTES:-}"
+      printf 'capture_gap_to_record_ms=%q\n' "${INLINE_CAPTURE_GAP_TO_RECORD_MS:-}"
+      printf 'archive_wav_ms=%q\n' "$archive_wav_ms"
+      printf 'archive_wav_bytes=%q\n' "$archive_wav_bytes"
+      printf 'wav_retention_days=%q\n' "$INLINE_DEBUG_WAV_RETENTION_DAYS"
+      printf 'retention_note=%q\n' "$INLINE_DEBUG_AUDIO_RETENTION_NOTE"
+      printf 'transcribe_ms=%q\n' "$transcribe_ms"
+      printf 'clean_ms=%q\n' "$clean_ms"
+      printf 'paste_ms=%q\n' "$paste_ms"
+      printf 'total_ms=%q\n' "$total_ms"
+      printf 'archived_at=%q\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+    } >"${prefix}.meta" 2>/dev/null || true
+    cleanup_inline_debug_audio "$INLINE_DEBUG_WAV_RETENTION_DAYS"
+  fi
+
+  khuluma_trash_owned "$wav" 2>/dev/null || true
+}
+
+resolve_ms_setting() {
+  local requested_ms="${1:-}"
+  local default_ms="${2:-0}"
+  if [[ "$requested_ms" =~ ^[0-9]+$ ]]; then
+    printf "%s\n" "$requested_ms"
+  else
+    printf "%s\n" "$default_ms"
+  fi
+}
+
+changelog() {
+  local f="$KHULUMA_CONFIG_DIR/CHANGELOG.md"
+  if [[ -f "$f" ]]; then
+    cat "$f"
+  else
+    echo "No changelog yet at: $f"
+  fi
+}
+
+config_set() {
+  # Usage: config_set <path.like.this> <type:bool|int|string> <value>
+  need python3
+  config_ensure
+
+  local key="${1:-}"
+  local type="${2:-}"
+  local value="${3:-}"
+  local py_output rc parse_error
+  [[ -n "$key" && -n "$type" ]] || die "config_set requires: <key> <type> <value>"
+
+  set +e
+  py_output="$(
+    python3 - "$KHULUMA_CONFIG_FILE" "$key" "$type" "$value" <<'PYEOF'
+import os, sys, tomllib
+
+path = os.path.expanduser(sys.argv[1])
+key = sys.argv[2]
+typ = sys.argv[3]
+raw = sys.argv[4] if len(sys.argv) > 4 else ""
+
+try:
+  with open(path, "rb") as f:
+    cfg = tomllib.load(f) or {}
+except tomllib.TOMLDecodeError as exc:
+  print("CONFIG_PARSE_ERROR\t" + str(exc).replace("\n", " "))
+  raise SystemExit(2)
+
+def ensure(obj, parts):
+  cur = obj
+  for p in parts[:-1]:
+    nxt = cur.get(p)
+    if not isinstance(nxt, dict):
+      nxt = {}
+      cur[p] = nxt
+    cur = nxt
+  return cur, parts[-1]
+
+def parse_value(typ, raw):
+  if typ == "bool":
+    return raw.strip().lower() in ("1", "true", "yes", "on")
+  if typ == "int":
+    raw = raw.strip()
+    return int(raw) if raw else None
+  if typ == "string":
+    return raw
+  raise SystemExit(f"unknown type: {typ}")
+
+parent, leaf = ensure(cfg, key.split("."))
+val = parse_value(typ, raw)
+if val is None:
+  parent.pop(leaf, None)
+else:
+  parent[leaf] = val
+
+def esc(s: str) -> str:
+  return (
+    s.replace("\\", "\\\\")
+     .replace('"', '\\"')
+     .replace("\n", "\\n")
+     .replace("\r", "\\r")
+     .replace("\t", "\\t")
+  )
+
+def fmt(v):
+  if isinstance(v, bool):
+    return "true" if v else "false"
+  if isinstance(v, int):
+    return str(v)
+  if isinstance(v, float):
+    return str(v)
+  if isinstance(v, str):
+    return f"\"{esc(v)}\""
+  if isinstance(v, list):
+    return "[" + ", ".join(fmt(x) for x in v) + "]"
+  raise TypeError(type(v))
+
+preferred_table_order = [
+  "meta",
+  "audio",
+  "audio.sounds",
+  "clean",
+  "history",
+  "whisper",
+  "swift_parakeet",
+  "inline",
+  "debug",
+]
+
+preferred_key_order = {
+  "meta": ["config_version"],
+  "audio": [],
+  "audio.sounds": ["cancel", "cancel_enabled", "enabled", "error", "error_enabled", "process", "process_enabled", "start", "start_enabled", "stop", "stop_enabled"],
+  "clean": ["repeats_level"],
+  "history": ["retention_days", "audio_retention_days"],
+  "whisper": ["models_dir", "backend", "model", "threads", "beam_size", "best_of", "vad", "vad_model", "vad_threshold", "vad_min_speech_ms", "vad_min_silence_ms", "vad_speech_pad_ms"],
+  "swift_parakeet": ["model_path", "model_version", "socket_path"],
+  "inline": ["autosend", "process_sound", "paste_target", "send_mode"],
+  "debug": ["keep_logs"],
+}
+
+def split_tables(obj, prefix=""):
+  if not isinstance(obj, dict):
+    return
+  scalars = {}
+  tables = {}
+  for k, v in obj.items():
+    if isinstance(v, dict):
+      tables[k] = v
+    else:
+      scalars[k] = v
+  yield prefix, scalars
+  for k in sorted(tables.keys()):
+    nxt = f"{prefix}.{k}" if prefix else k
+    yield from split_tables(tables[k], nxt)
+
+tables = {}
+for section, scalars in split_tables(cfg, ""):
+  if scalars:
+    tables[section] = scalars
+
+def ordered_keys(section, scalars):
+  pref = preferred_key_order.get(section, [])
+  remaining = sorted([k for k in scalars.keys() if k not in pref])
+  return [k for k in pref if k in scalars] + remaining
+
+parts = [
+  "# Khuluma configuration (TOML)",
+  "# Generated by `khuluma`; safe to edit.",
+  "",
+]
+
+# Root-level scalars (rare; include if present).
+if "" in tables:
+  for k in ordered_keys("", tables[""]):
+    parts.append(f"{k} = {fmt(tables[''][k])}")
+  parts.append("")
+
+sections = [s for s in tables.keys() if s]
+ordered_sections = []
+for s in preferred_table_order:
+  if s in sections:
+    ordered_sections.append(s)
+    sections.remove(s)
+ordered_sections.extend(sorted(sections))
+
+for s in ordered_sections:
+  parts.append(f"[{s}]")
+  for k in ordered_keys(s, tables[s]):
+    parts.append(f"{k} = {fmt(tables[s][k])}")
+  parts.append("")
+
+# Write atomically next to the real file (keeps a symlinked config intact),
+# so no reader ever sees a half-written or empty config.
+target = os.path.realpath(path)
+os.makedirs(os.path.dirname(target), exist_ok=True)
+tmp = f"{target}.{os.getpid()}.{os.urandom(4).hex()}.tmp"
+fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+try:
+  with os.fdopen(fd, "w", encoding="utf-8") as f:
+    f.write("\n".join(parts))
+  try:
+    os.chmod(tmp, os.stat(target).st_mode & 0o7777)
+  except OSError:
+    pass
+  os.replace(tmp, target)
+except BaseException:
+  try:
+    __import__("subprocess").run(["python3", os.environ["KHULUMA_RECOVERY_HELPER"], os.path.abspath(tmp)], check=True)
+  except OSError:
+    pass
+  raise
+PYEOF
+  )"
+  rc=$?
+  set -e
+
+  if [[ "$rc" -ne 0 ]]; then
+    if [[ "$py_output" == CONFIG_PARSE_ERROR$'\t'* ]]; then
+      parse_error="${py_output#*$'\t'}"
+      die "config TOML is invalid. Preview repair with khuluma config repair --dry-run, then apply with khuluma config repair. Parse error: $parse_error"
+    fi
+    [[ -n "$py_output" ]] && printf '%s\n' "$py_output" >&2
+    return "$rc"
+  fi
+}
+
+config_snapshot_rows() {
+  need python3
+  local default_cfg_text
+  default_cfg_text="$(default_config_toml)"
+  DEFAULT_CONFIG_TOML="$default_cfg_text" python3 - "$KHULUMA_CONFIG_FILE" "$KHULUMA_CONFIG_SCHEMA_VERSION" <<'PYEOF'
+import os
+import sys
+import tomllib
+
+path = os.path.expanduser(sys.argv[1])
+expected = int(sys.argv[2])
+default_cfg = tomllib.loads(os.environ["DEFAULT_CONFIG_TOML"])
+exists = os.path.isfile(path)
+cfg = {}
+parse_error = ""
+MISSING = object()
+
+if exists:
+    try:
+        with open(path, "rb") as f:
+            cfg = tomllib.load(f) or {}
+    except tomllib.TOMLDecodeError as exc:
+        parse_error = str(exc).replace("\n", " ")
+
+def get(tree, dotted_path, default=MISSING):
+    cur = tree
+    for part in dotted_path.split("."):
+        if not isinstance(cur, dict) or part not in cur:
+            return default
+        cur = cur[part]
+    return cur
+
+def get_effective(dotted_path):
+    value = get(cfg, dotted_path, MISSING)
+    if value is not MISSING:
+        return value
+    value = get(default_cfg, dotted_path, MISSING)
+    if value is not MISSING:
+        return value
+    return None
+
+raw_version = get(cfg, "meta.config_version", MISSING)
+if parse_error:
+    label = "invalid"
+    status = "invalid"
+elif exists:
+    if isinstance(raw_version, int):
+        label = f"v{raw_version}"
+        status = "ok" if raw_version == expected else "mismatch"
+    else:
+        label = "unset"
+        status = "mismatch"
+else:
+    label = "missing"
+    status = "missing"
+
+def fmt(value):
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "1" if value else "0"
+    return str(value)
+
+rows = [
+    ("path", path),
+    ("exists", "1" if exists else "0"),
+    ("schema_label", label),
+    ("schema_status", status),
+    ("parse_error", parse_error),
+    ("swift_parakeet_model_path", get_effective("swift_parakeet.model_path")),
+    ("swift_parakeet_socket_path", get_effective("swift_parakeet.socket_path")),
+    ("history_retention_days", get_effective("history.retention_days")),
+    ("history_audio_retention_days", get_effective("history.audio_retention_days")),
+    ("inline_autosend", get_effective("inline.autosend")),
+    ("inline_process_sound", get_effective("inline.process_sound")),
+    ("debug_keep_logs", get_effective("debug.keep_logs")),
+]
+
+for key, value in rows:
+    print(f"{key}\t{fmt(value)}")
+PYEOF
+}
+
+config_show_text() {
+  local rows_input path exists label status parse_error
+  local model_path socket_path history_retention_days history_audio_retention_days inline_autosend inline_process_sound debug_keep_logs
+  rows_input="$(config_snapshot_rows)"
+
+  while IFS=$'\t' read -r key value; do
+    case "$key" in
+      path) path="$value" ;;
+      exists) exists="$value" ;;
+      schema_label) label="$value" ;;
+      schema_status) status="$value" ;;
+      parse_error) parse_error="$value" ;;
+      swift_parakeet_model_path) model_path="$value" ;;
+      swift_parakeet_socket_path) socket_path="$value" ;;
+      history_retention_days) history_retention_days="$value" ;;
+      history_audio_retention_days) history_audio_retention_days="$value" ;;
+      inline_autosend) inline_autosend="$value" ;;
+      inline_process_sound) inline_process_sound="$value" ;;
+      debug_keep_logs) debug_keep_logs="$value" ;;
+    esac
+  done <<<"$rows_input"
+
+  config_show_text_value() {
+    local value="${1:-}"
+    if [[ -z "$value" ]]; then
+      printf '%s\n' "<unset>"
+    else
+      printf '%s\n' "$value"
+    fi
+  }
+
+  config_show_text_bool() {
+    if bool_is_on "${1:-0}"; then
+      printf '%s\n' "on"
+    else
+      printf '%s\n' "off"
+    fi
+  }
+
+  echo "Config path: $path $([[ "$exists" == "1" ]] && echo '(present)' || echo '(missing)')"
+  echo "Config schema: $label (expected v${KHULUMA_CONFIG_SCHEMA_VERSION}, status=$status)"
+  [[ -n "$parse_error" ]] && echo "Parse error: $parse_error"
+  echo ""
+  echo "Current values:"
+  echo "  swift_parakeet.model_path: $(config_show_text_value "$model_path")"
+  echo "  swift_parakeet.socket_path: $(config_show_text_value "$socket_path")"
+  echo "  history.retention_days: $(config_show_text_value "$history_retention_days")"
+  echo "  history.audio_retention_days: $(config_show_text_value "$history_audio_retention_days")"
+  echo "  inline.autosend: $(config_show_text_bool "$inline_autosend")"
+  echo "  inline.process_sound: $(config_show_text_bool "$inline_process_sound")"
+  echo "  debug.keep_logs: $(config_show_text_bool "$debug_keep_logs")"
+  echo ""
+  echo "Commands:"
+  echo "  khuluma config path"
+  echo "  khuluma config get inline.autosend"
+  echo "  khuluma config defaults"
+  echo "  khuluma config repair --dry-run"
+  echo "  khuluma config repair"
+}
+
+config_show_json() {
+  local rows_input
+  rows_input="$(config_snapshot_rows)"
+  CONFIG_SNAPSHOT_ROWS="$rows_input" python3 - "$KHULUMA_CONFIG_SCHEMA_VERSION" <<'PYEOF'
+import json
+import os
+import sys
+
+rows = {}
+for raw_line in os.environ.get("CONFIG_SNAPSHOT_ROWS", "").splitlines():
+    if not raw_line:
+        continue
+    key, value = raw_line.split("\t", 1)
+    rows[key] = value
+
+def bool_value(key):
+    return rows.get(key, "0") == "1"
+
+def nullable(key):
+    value = rows.get(key, "")
+    return value if value != "" else None
+
+print(json.dumps({
+    "command": "config",
+    "subcommand": "show",
+    "config_path": rows.get("path", ""),
+    "config_exists": bool_value("exists"),
+    "schema": {
+        "expected": f"v{sys.argv[1]}",
+        "label": rows.get("schema_label", "missing"),
+        "status": rows.get("schema_status", "missing"),
+    },
+    "parse_error": rows.get("parse_error", ""),
+    "effective": {
+        "swift_parakeet": {
+            "model_path": nullable("swift_parakeet_model_path"),
+            "socket_path": nullable("swift_parakeet_socket_path"),
+        },
+        "history": {
+            "retention_days": int(rows["history_retention_days"]) if rows.get("history_retention_days", "") else None,
+            "audio_retention_days": int(rows["history_audio_retention_days"]) if rows.get("history_audio_retention_days", "") else None,
+        },
+        "inline": {
+            "autosend": bool_value("inline_autosend"),
+            "process_sound": bool_value("inline_process_sound"),
+        },
+        "debug": {
+            "keep_logs": bool_value("debug_keep_logs"),
+        },
+    },
+}, indent=2, sort_keys=True))
+PYEOF
+}
+
+config_path_json() {
+  local rows_input
+  rows_input="$(config_snapshot_rows)"
+  CONFIG_SNAPSHOT_ROWS="$rows_input" python3 - <<'PYEOF'
+import json
+import os
+
+rows = {}
+for raw_line in os.environ.get("CONFIG_SNAPSHOT_ROWS", "").splitlines():
+    if not raw_line:
+        continue
+    key, value = raw_line.split("\t", 1)
+    rows[key] = value
+
+print(json.dumps({
+    "command": "config",
+    "subcommand": "path",
+    "config_path": rows.get("path", ""),
+    "config_exists": rows.get("exists", "0") == "1",
+}, indent=2, sort_keys=True))
+PYEOF
+}
+
+config_get_emit() {
+  local query_path="${1:-}"
+  local render="${2:-text}"
+  [[ -n "$query_path" ]] || die "usage: khuluma config get <path> [--json]"
+  need python3
+
+  local default_cfg_text
+  default_cfg_text="$(default_config_toml)"
+  DEFAULT_CONFIG_TOML="$default_cfg_text" python3 - "$KHULUMA_CONFIG_FILE" "$KHULUMA_CONFIG_SCHEMA_VERSION" "$query_path" "$render" <<'PYEOF'
+import json
+import os
+import sys
+import tomllib
+
+path = os.path.expanduser(sys.argv[1])
+expected = int(sys.argv[2])
+query_path = sys.argv[3]
+render = sys.argv[4]
+default_cfg = tomllib.loads(os.environ["DEFAULT_CONFIG_TOML"])
+exists = os.path.isfile(path)
+cfg = {}
+parse_error = ""
+MISSING = object()
+
+if exists:
+    try:
+        with open(path, "rb") as f:
+            cfg = tomllib.load(f) or {}
+    except tomllib.TOMLDecodeError as exc:
+        parse_error = str(exc).replace("\n", " ")
+
+def get(tree, dotted_path, default=MISSING):
+    cur = tree
+    for part in dotted_path.split("."):
+        if not isinstance(cur, dict) or part not in cur:
+            return default
+        cur = cur[part]
+    return cur
+
+raw_version = get(cfg, "meta.config_version", MISSING)
+if parse_error:
+    label = "invalid"
+    status = "invalid"
+elif exists:
+    if isinstance(raw_version, int):
+        label = f"v{raw_version}"
+        status = "ok" if raw_version == expected else "mismatch"
+    else:
+        label = "unset"
+        status = "mismatch"
+else:
+    label = "missing"
+    status = "missing"
+
+file_value = get(cfg, query_path, MISSING)
+default_value = get(default_cfg, query_path, MISSING)
+
+if file_value is not MISSING:
+    source = "file"
+    found = True
+    value = file_value
+elif default_value is not MISSING:
+    source = "default"
+    found = True
+    value = default_value
+else:
+    source = "unset"
+    found = False
+    value = None
+
+def value_type(input_value):
+    if input_value is None:
+        return "null"
+    if isinstance(input_value, bool):
+        return "boolean"
+    if isinstance(input_value, int):
+        return "integer"
+    if isinstance(input_value, float):
+        return "number"
+    if isinstance(input_value, str):
+        return "string"
+    if isinstance(input_value, list):
+        return "array"
+    if isinstance(input_value, dict):
+        return "object"
+    return type(input_value).__name__
+
+payload = {
+    "command": "config",
+    "subcommand": "get",
+    "path": query_path,
+    "config_path": path,
+    "config_exists": exists,
+    "schema": {
+        "expected": f"v{expected}",
+        "label": label,
+        "status": status,
+    },
+    "parse_error": parse_error,
+    "found": found,
+    "source": source,
+    "value_type": value_type(value),
+    "value": value,
+}
+
+if render == "json":
+    print(json.dumps(payload, indent=2, sort_keys=True))
+else:
+    if found:
+        print(f"{query_path} = {json.dumps(value, ensure_ascii=False)}")
+    else:
+        print(f"{query_path} = <unset>")
+    print(f"source: {source}")
+    print(f"config path: {path}")
+    if parse_error:
+        print(f"parse error: {parse_error}")
+PYEOF
+}
+
+config_get_text() {
+  config_get_emit "${1:-}" "text"
+}
+
+config_get_json() {
+  config_get_emit "${1:-}" "json"
+}
+
+config_repair() {
+  local dry_run=0
+  if [[ "${1:-}" == "--dry-run" ]]; then
+    dry_run=1
+    shift
+  fi
+  [[ "$#" -eq 0 ]] || die "usage: khuluma config repair [--dry-run]"
+  need python3
+
+  local report
+  local default_cfg_text
+  default_cfg_text="$(default_config_toml)"
+  report="$(
+    DEFAULT_CONFIG_TOML="$default_cfg_text" python3 - "$KHULUMA_CONFIG_FILE" "$KHULUMA_CONFIG_SCHEMA_VERSION" "$dry_run" <<'PYEOF'
+import copy
+import os
+import sys
+import tomllib
+from datetime import datetime
+
+path = os.path.expanduser(sys.argv[1])
+expected = int(sys.argv[2])
+dry_run = sys.argv[3] == "1"
+default_toml = os.environ["DEFAULT_CONFIG_TOML"]
+default_cfg = tomllib.loads(default_toml)
+
+def scalar_type_matches(current, default):
+  if isinstance(default, bool):
+    return isinstance(current, bool)
+  if isinstance(default, int):
+    return isinstance(current, int) and not isinstance(current, bool)
+  if isinstance(default, str):
+    return isinstance(current, str)
+  return isinstance(current, type(default))
+
+def merge_defaults(defaults, current, prefix=""):
+  added = []
+  reset = []
+  if not isinstance(defaults, dict):
+    return copy.deepcopy(defaults), added, reset
+
+  result = {}
+  if isinstance(current, dict):
+    for key, value in current.items():
+      if key not in defaults:
+        result[key] = value
+
+  for key, default_value in defaults.items():
+    key_path = f"{prefix}.{key}" if prefix else key
+    if not isinstance(current, dict) or key not in current:
+      result[key] = copy.deepcopy(default_value)
+      added.append(key_path)
+      continue
+    current_value = current[key]
+    if isinstance(default_value, dict):
+      if isinstance(current_value, dict):
+        merged_value, sub_added, sub_reset = merge_defaults(default_value, current_value, key_path)
+        result[key] = merged_value
+        added.extend(sub_added)
+        reset.extend(sub_reset)
+      else:
+        result[key] = copy.deepcopy(default_value)
+        reset.append(key_path)
+      continue
+    if scalar_type_matches(current_value, default_value):
+      result[key] = current_value
+    else:
+      result[key] = copy.deepcopy(default_value)
+      reset.append(key_path)
+  return result, added, reset
+
+def esc(s: str) -> str:
+  return (
+    s.replace("\\", "\\\\")
+     .replace('"', '\\"')
+     .replace("\n", "\\n")
+     .replace("\r", "\\r")
+     .replace("\t", "\\t")
+  )
+
+def fmt(v):
+  if isinstance(v, bool):
+    return "true" if v else "false"
+  if isinstance(v, int):
+    return str(v)
+  if isinstance(v, float):
+    return str(v)
+  if isinstance(v, str):
+    return f"\"{esc(v)}\""
+  if isinstance(v, list):
+    return "[" + ", ".join(fmt(x) for x in v) + "]"
+  raise TypeError(type(v))
+
+preferred_table_order = [
+  "meta",
+  "audio",
+  "audio.sounds",
+  "clean",
+  "history",
+  "whisper",
+  "swift_parakeet",
+  "inline",
+  "debug",
+]
+
+preferred_key_order = {
+  "meta": ["config_version"],
+  "audio": [],
+  "audio.sounds": ["cancel", "cancel_enabled", "enabled", "error", "error_enabled", "process", "process_enabled", "start", "start_enabled", "stop", "stop_enabled"],
+  "clean": ["repeats_level"],
+  "history": ["retention_days", "audio_retention_days"],
+  "whisper": ["models_dir", "backend", "model", "threads", "beam_size", "best_of", "vad", "vad_model", "vad_threshold", "vad_min_speech_ms", "vad_min_silence_ms", "vad_speech_pad_ms"],
+  "swift_parakeet": ["model_path", "model_version", "socket_path"],
+  "inline": ["autosend", "process_sound", "paste_target", "send_mode"],
+  "debug": ["keep_logs"],
+}
+
+def split_tables(obj, prefix=""):
+  if not isinstance(obj, dict):
+    return
+  scalars = {}
+  tables = {}
+  for k, v in obj.items():
+    if isinstance(v, dict):
+      tables[k] = v
+    else:
+      scalars[k] = v
+  yield prefix, scalars
+  for k in sorted(tables.keys()):
+    nxt = f"{prefix}.{k}" if prefix else k
+    yield from split_tables(tables[k], nxt)
+
+def render_toml(cfg):
+  tables = {}
+  for section, scalars in split_tables(cfg, ""):
+    if scalars:
+      tables[section] = scalars
+
+  def ordered_keys(section, scalars):
+    pref = preferred_key_order.get(section, [])
+    remaining = sorted([k for k in scalars.keys() if k not in pref])
+    return [k for k in pref if k in scalars] + remaining
+
+  parts = [
+    "# Khuluma configuration (TOML)",
+    "# Generated by `khuluma`; safe to edit.",
+    "",
+  ]
+
+  if "" in tables:
+    for key in ordered_keys("", tables[""]):
+      parts.append(f"{key} = {fmt(tables[''][key])}")
+    parts.append("")
+
+  sections = [s for s in tables.keys() if s]
+  ordered_sections = []
+  for section in preferred_table_order:
+    if section in sections:
+      ordered_sections.append(section)
+      sections.remove(section)
+  ordered_sections.extend(sorted(sections))
+
+  for section in ordered_sections:
+    parts.append(f"[{section}]")
+    for key in ordered_keys(section, tables[section]):
+      parts.append(f"{key} = {fmt(tables[section][key])}")
+    parts.append("")
+
+  return "\n".join(parts)
+
+exists = os.path.isfile(path)
+current_cfg = {}
+current_status = "missing"
+current_label = "missing"
+parse_error = ""
+action = "noop"
+backup_path = ""
+
+if exists:
+  try:
+    with open(path, "rb") as f:
+      current_cfg = tomllib.load(f) or {}
+    raw = current_cfg.get("meta", {}).get("config_version", "")
+    if isinstance(raw, int):
+      current_label = f"v{raw}"
+      current_status = "ok" if raw == expected else "mismatch"
+    else:
+      current_label = "unset"
+      current_status = "mismatch"
+  except tomllib.TOMLDecodeError as exc:
+    parse_error = str(exc).replace("\n", " ")
+    current_cfg = None
+    current_label = "invalid"
+    current_status = "invalid"
+
+added = []
+reset = []
+if current_cfg is None:
+  merged = copy.deepcopy(default_cfg)
+  action = "reset-invalid"
+  reset = ["config.toml"]
+elif not exists:
+  merged = copy.deepcopy(default_cfg)
+  action = "create"
+else:
+  merged, added, reset = merge_defaults(default_cfg, current_cfg)
+
+if not isinstance(merged.get("meta"), dict):
+  merged["meta"] = {}
+  if "meta" not in reset:
+    reset.append("meta")
+if merged["meta"].get("config_version") != expected:
+  if "meta.config_version" not in reset and "meta.config_version" not in added:
+    reset.append("meta.config_version")
+  merged["meta"]["config_version"] = expected
+
+changed = (not exists) or current_cfg is None or (current_cfg != merged)
+result_label = f"v{expected}"
+
+if changed and not dry_run:
+  os.makedirs(os.path.dirname(path), exist_ok=True)
+  if exists:
+    backup_path = f"{path}.bak.{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+    with open(path, "rb") as src, open(backup_path, "wb") as dst:
+      dst.write(src.read())
+  target = os.path.realpath(path)
+  tmp = f"{target}.{os.getpid()}.{os.urandom(4).hex()}.tmp"
+  fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+  try:
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+      f.write(render_toml(merged))
+    try:
+      os.chmod(tmp, os.stat(target).st_mode & 0o7777)
+    except OSError:
+      pass
+    os.replace(tmp, target)
+  except BaseException:
+    try:
+      __import__("subprocess").run(["python3", os.environ["KHULUMA_RECOVERY_HELPER"], os.path.abspath(tmp)], check=True)
+    except OSError:
+      pass
+    raise
+elif not changed:
+  action = "noop"
+
+if changed and action == "noop":
+  action = "repair"
+
+preview_added = ", ".join(added[:5])
+preview_reset = ", ".join(reset[:5])
+
+print(f"action\t{action}")
+print(f"changed\t{1 if changed else 0}")
+print(f"backup\t{backup_path}")
+print(f"current_label\t{current_label}")
+print(f"current_status\t{current_status}")
+print(f"result_label\t{result_label}")
+print(f"added_count\t{len(added)}")
+print(f"reset_count\t{len(reset)}")
+print(f"added_preview\t{preview_added}")
+print(f"reset_preview\t{preview_reset}")
+print(f"parse_error\t{parse_error}")
+PYEOF
+  )"
+
+  local action changed backup current_label current_status result_label added_count reset_count added_preview reset_preview parse_error
+  action="$(printf "%s\n" "$report" | sed -n 's/^action\t//p')"
+  changed="$(printf "%s\n" "$report" | sed -n 's/^changed\t//p')"
+  backup="$(printf "%s\n" "$report" | sed -n 's/^backup\t//p')"
+  current_label="$(printf "%s\n" "$report" | sed -n 's/^current_label\t//p')"
+  current_status="$(printf "%s\n" "$report" | sed -n 's/^current_status\t//p')"
+  result_label="$(printf "%s\n" "$report" | sed -n 's/^result_label\t//p')"
+  added_count="$(printf "%s\n" "$report" | sed -n 's/^added_count\t//p')"
+  reset_count="$(printf "%s\n" "$report" | sed -n 's/^reset_count\t//p')"
+  added_preview="$(printf "%s\n" "$report" | sed -n 's/^added_preview\t//p')"
+  reset_preview="$(printf "%s\n" "$report" | sed -n 's/^reset_preview\t//p')"
+  parse_error="$(printf "%s\n" "$report" | sed -n 's/^parse_error\t//p')"
+
+  if [[ "$changed" != "1" ]]; then
+    echo "Config repair: no changes needed ($current_label, status=$current_status)"
+    return 0
+  fi
+
+  if [[ "$dry_run" == "1" ]]; then
+    echo "Config repair dry-run: $current_label/$current_status -> $result_label"
+  else
+    echo "Config repair: $current_label/$current_status -> $result_label"
+  fi
+  case "$action" in
+    create) echo "Action: create default config" ;;
+    reset-invalid) echo "Action: replace invalid TOML with canonical defaults" ;;
+    repair) echo "Action: merge missing defaults and normalize schema version" ;;
+  esac
+  if [[ "${added_count:-0}" -gt 0 ]]; then
+    echo "Added defaults: $added_count${added_preview:+ ($added_preview)}"
+  fi
+  if [[ "${reset_count:-0}" -gt 0 ]]; then
+    echo "Reset fields: $reset_count${reset_preview:+ ($reset_preview)}"
+  fi
+  if [[ -n "$parse_error" ]]; then
+    echo "Parse error: $parse_error"
+  fi
+  if [[ -n "$backup" ]]; then
+    echo "Backup: $backup"
+  fi
+}
+
+manage_config() {
+  local json_output="0"
+  local args=()
+  local arg
+
+  for arg in "$@"; do
+    if [[ "$arg" == "--json" ]]; then
+      json_output="1"
+    else
+      args+=("$arg")
+    fi
+  done
+
+  local action="${args[0]:-show}"
+  case "$action" in
+    ""|show|status)
+      [[ "${#args[@]}" -le 1 ]] || die "usage: khuluma config [show|path|get <path>|defaults|repair [--dry-run]] [--json]"
+      if [[ "$json_output" == "1" ]]; then
+        config_show_json
+      else
+        config_show_text
+      fi
+      ;;
+    path)
+      [[ "${#args[@]}" -eq 1 ]] || die "usage: khuluma config path [--json]"
+      if [[ "$json_output" == "1" ]]; then
+        config_path_json
+      else
+        echo "$KHULUMA_CONFIG_FILE"
+      fi
+      ;;
+    get)
+      [[ "${#args[@]}" -eq 2 ]] || die "usage: khuluma config get <path> [--json]"
+      if [[ "$json_output" == "1" ]]; then
+        config_get_json "${args[1]}"
+      else
+        config_get_text "${args[1]}"
+      fi
+      ;;
+    defaults|default)
+      [[ "$json_output" == "0" ]] || die "config defaults does not accept --json"
+      [[ "${#args[@]}" -eq 1 ]] || die "usage: khuluma config defaults"
+      default_config_toml
+      ;;
+    repair)
+      [[ "$json_output" == "0" ]] || die "config repair does not accept --json"
+      config_repair "${args[@]:1}"
+      ;;
+    *)
+      die "usage: khuluma config [show|path|get <path>|defaults|repair [--dry-run]] [--json]"
+      ;;
+  esac
+}
+
+log_transcribe_event() {
+  local message="${1:-}"
+  [[ -n "$message" ]] || return 0
+  if [[ -n "${TRANSCRIBE_LOG:-}" ]]; then
+    printf '[%s] %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$message" >>"$TRANSCRIBE_LOG" 2>/dev/null || true
+  fi
+}
+
+resolve_transcribe_backend() {
+  printf "%s\n" "swift_parakeet"
+}
+
+resolve_swift_parakeet_socket_path() {
+  local socket_path="${KHULUMA_SWIFT_PARAKEET_SOCKET_PATH:-${CFG_SWIFT_PARAKEET_SOCKET_PATH:-$KHULUMA_CONFIG_DIR/.cache/khulumad.sock}}"
+  expand_path "$socket_path"
+}
+
+resolve_swift_parakeet_model_path() {
+  local explicit="${KHULUMA_SWIFT_PARAKEET_MODEL_PATH:-${CFG_SWIFT_PARAKEET_MODEL_PATH:-}}"
+  local candidate
+
+  if [[ -n "$explicit" ]]; then
+    expand_path "$explicit"
+    return 0
+  fi
+
+  for candidate in \
+    "$DEFAULT_SWIFT_PARAKEET_MODELS_DIR/parakeet-tdt-0.6b-v3-coreml" \
+    "$DEFAULT_SWIFT_PARAKEET_MODELS_DIR/parakeet-tdt-0.6b-v2-coreml"
+  do
+    [[ -d "$candidate" ]] || continue
+    printf "%s\n" "$candidate"
+    return 0
+  done
+
+  return 1
+}
+
+resolve_swift_parakeet_model_version() {
+  local explicit="${KHULUMA_SWIFT_PARAKEET_MODEL_VERSION:-${CFG_SWIFT_PARAKEET_MODEL_VERSION:-}}"
+  local model_path="${1:-}"
+  local base_name=""
+
+  if [[ -n "$explicit" ]]; then
+    explicit="$(printf "%s" "$explicit" | tr '[:upper:]' '[:lower:]' | tr -d '\r\n' | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+    case "$explicit" in
+      v2|v3)
+        printf "%s\n" "$explicit"
+        return 0
+        ;;
+    esac
+  fi
+
+  base_name="$(basename "$model_path" 2>/dev/null || true)"
+  case "$base_name" in
+    *v2*|*V2*)
+      printf "%s\n" "v2"
+      ;;
+    *v3*|*V3*)
+      printf "%s\n" "v3"
+      ;;
+    *)
+      printf "%s\n" "v3"
+      ;;
+  esac
+}
+
+current_transcribe_model_label() {
+  local model_path=""
+  model_path="$(resolve_swift_parakeet_model_path 2>/dev/null || true)"
+  if [[ -n "$model_path" ]]; then
+    basename "$model_path"
+  else
+    printf "%s\n" "parakeet-unresolved"
+  fi
+}
+
+resolve_khulumad_root() {
+  local script_dir candidate
+  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+  # Source locations: explicit override, a repo checkout, Homebrew's pkgshare,
+  # then the copy install.sh places in the build root.
+  for candidate in \
+    "${KHULUMA_DAEMON_SOURCE_ROOT:-}" \
+    "$script_dir/../native" \
+    "$script_dir/../share/khuluma/native" \
+    "$(khulumad_build_root)"
+  do
+    [[ -n "$candidate" ]] || continue
+    candidate="$(expand_path "$candidate")"
+    [[ -f "$candidate/Package.swift" ]] || continue
+    printf "%s\n" "$candidate"
+    return 0
+  done
+
+  return 1
+}
+
+# Where khulumad is built. Always user-writable, whichever channel
+# (Homebrew, bootstrap, local clone) supplied the sources.
+khulumad_build_root() {
+  printf "%s\n" "${KHULUMA_DAEMON_BUILD_ROOT:-$XDG_DATA_HOME/khuluma/native/khulumad}"
+}
+
+khulumad_built_stamp() {
+  printf "%s\n" "$(khulumad_build_root)/.build/khuluma-built-source-hash"
+}
+
+# Content hash of the files that determine the daemon binary. Only the
+# daemon's own targets count: the package also holds the Khuluma app, whose
+# changes must not trigger a daemon rebuild.
+khulumad_source_hash() {
+  local dir="${1:-}" target
+  [[ -n "$dir" && -f "$dir/Package.swift" ]] || return 1
+  for target in Sources/KhulumaDaemonKit Sources/khulumad; do
+    [[ -d "$dir/$target" && -n "$(find "$dir/$target" -type f -name '*.swift' -print -quit)" ]] || return 1
+  done
+  (
+    cd "$dir" || exit 1
+    {
+      printf '%s\0' Package.swift
+      [[ -f Package.resolved ]] && printf '%s\0' Package.resolved
+      for target in Sources/KhulumaDaemonKit Sources/khulumad; do
+        [[ -d "$target" ]] && find "$target" -type f -name '*.swift' -print0
+      done
+    } | LC_ALL=C sort -z | xargs -0 shasum -a 256
+  ) | shasum -a 256 | awk '{print $1}'
+}
+
+# Copy daemon sources into the build root (under the build lock). Staged first
+# so a failed copy never leaves a partial tree behind.
+khulumad_sync_sources() {
+  local src="$1" dest="$2" stage item source_hash destination_hash
+  source_hash="$(khulumad_source_hash "$src")" || return 1
+  [[ "$source_hash" =~ ^[0-9a-f]{64}$ ]] || return 1
+  [[ "$(cd "$src" && pwd -P)" == "$(mkdir -p "$dest" && cd "$dest" && pwd -P)" ]] && return 0
+  destination_hash="$(khulumad_source_hash "$dest" 2>/dev/null || true)"
+  [[ -n "$destination_hash" && "$source_hash" == "$destination_hash" ]] && return 0
+
+  log_transcribe_event "swift_parakeet: syncing khulumad sources from $src"
+  stage="$dest/.sync-stage.$$"
+  khuluma_trash_owned "$stage" || return 1
+  mkdir -p "$stage" || return 1
+  if ! {
+    cp "$src/Package.swift" "$stage/Package.swift" &&
+    { [[ ! -f "$src/Package.resolved" ]] || cp "$src/Package.resolved" "$stage/Package.resolved"; } &&
+    cp -R "$src/Sources" "$stage/Sources" &&
+    # Package.swift declares the test target, so its directory must exist.
+    { [[ ! -d "$src/Tests" ]] || cp -R "$src/Tests" "$stage/Tests"; }
+  }; then
+    khuluma_trash_owned "$stage"
+    return 1
+  fi
+
+  destination_hash="$(khulumad_source_hash "$stage")" || { khuluma_trash_owned "$stage"; return 1; }
+  [[ "$destination_hash" == "$source_hash" ]] || { khuluma_trash_owned "$stage"; return 1; }
+  khuluma_trash_owned "$dest/Sources" "$dest/Tests" "$dest/Package.resolved" || return 1
+  for item in Package.swift Package.resolved Sources Tests; do
+    [[ -e "$stage/$item" ]] || continue
+    mv -f "$stage/$item" "$dest/$item" || { khuluma_trash_owned "$stage"; return 1; }
+  done
+  khuluma_trash_owned "$stage"
+}
+
+# Prints current|stale|missing for the built daemon binary against the
+# sources in src_root (default: the resolved source root). Read-only.
+khulumad_binary_state() {
+  local src="${1:-}" binary stamp want
+  [[ -n "$src" ]] || src="$(resolve_khulumad_root 2>/dev/null || true)"
+  binary="$(khulumad_build_root)/.build/release/khulumad"
+  stamp="$(khulumad_built_stamp)"
+  if [[ ! -x "$binary" ]]; then
+    printf "%s\n" "missing"
+    return 0
+  fi
+  want="$(khulumad_source_hash "$src" 2>/dev/null || true)"
+  if [[ -n "$want" && -f "$stamp" && "$(cat "$stamp" 2>/dev/null)" == "$want" ]]; then
+    printf "%s\n" "current"
+  else
+    printf "%s\n" "stale"
+  fi
+}
+
+# --- Locks ------------------------------------------------------------------
+# mkdir locks recording the owner PID. A lock whose owner is gone is
+# reclaimed; only the owner releases it. The owner is the shell that holds
+# the lock, even a background subshell that outlives the main script.
+KHULUMAD_LOCK_OWNER=""
+
+# Writes this (sub)shell's PID to a file. bash 3.2 (/bin/bash, which Khuluma
+# runs the CLI with) has no BASHPID, and $$ names the main script; a command
+# run without $(...) is a direct child of this shell, so its PPID is ours.
+write_own_shell_pid() {
+  if [[ -n "${BASHPID:-}" ]]; then
+    printf '%s\n' "$BASHPID" >"$1"
+  else
+    sh -c 'echo "$PPID"' >"$1"
+  fi
+}
+
+# khulumad_lock_acquire LOCK [WAIT_SECONDS] [fast]
+# Waits up to WAIT_SECONDS, polling every second, or every 0.1 s with "fast".
+khulumad_lock_acquire() {
+  local lock="$1" wait_seconds="${2:-0}" fast="${3:-}" waited=0 limit owner
+  limit="$wait_seconds"
+  [[ "$fast" == "fast" ]] && limit=$((wait_seconds * 10))
+  mkdir -p "$(dirname "$lock")" 2>/dev/null || return 1
+  while :; do
+    if mkdir "$lock" 2>/dev/null; then
+      # An ownerless lock would later be reclaimed while still in use.
+      write_own_shell_pid "$lock/pid" 2>/dev/null || { khuluma_trash_owned "$lock"; return 1; }
+      KHULUMAD_LOCK_OWNER="$(cat "$lock/pid" 2>/dev/null || true)"
+      [[ "$KHULUMAD_LOCK_OWNER" =~ ^[0-9]+$ ]] || { khuluma_trash_owned "$lock"; return 1; }
+      return 0
+    fi
+    owner="$(cat "$lock/pid" 2>/dev/null || true)"
+    if [[ "$owner" =~ ^[0-9]+$ ]] && ! kill -0 "$owner" 2>/dev/null; then
+      khuluma_trash_owned "$lock"
+      continue
+    fi
+    # A lock without a PID for over a minute was abandoned mid-acquire.
+    if [[ -z "$owner" && -n "$(find "$lock" -maxdepth 0 -mmin +1 2>/dev/null)" ]]; then
+      khuluma_trash_owned "$lock"
+      continue
+    fi
+    (( waited >= limit )) && return 1
+    if [[ "$fast" == "fast" ]]; then sleep 0.1; else sleep 1; fi
+    waited=$((waited + 1))
+  done
+}
+
+khulumad_lock_release() {
+  local lock="$1"
+  [[ -n "$KHULUMAD_LOCK_OWNER" && "$(cat "$lock/pid" 2>/dev/null || true)" == "$KHULUMAD_LOCK_OWNER" ]] \
+    && khuluma_trash_owned "$lock"
+  return 0
+}
+
+# True while a live process holds LOCK.
+khulumad_lock_held() {
+  local owner
+  owner="$(cat "$1/pid" 2>/dev/null || true)"
+  [[ "$owner" =~ ^[0-9]+$ ]] && kill -0 "$owner" 2>/dev/null
+}
+
+khulumad_build_failed_stamp() {
+  printf "%s\n" "$(khulumad_build_root).build-failed"
+}
+
+khulumad_build_lock() {
+  printf "%s\n" "$(khulumad_build_root).build.lock"
+}
+
+khulumad_build() {
+  local build_root="$1" src="$2"
+  local -a build_flags=()
+  local sdk_path toolchain_cxx want
+
+  command -v swift >/dev/null 2>&1 || return 1
+  khulumad_sync_sources "$src" "$build_root" || return 1
+  # A stale Command Line Tools install can leave an incomplete
+  # usr/include/c++/v1 that newer clang searches before the SDK's libc++, so
+  # FluidAudio's C++ sources fail with "'cmath' file not found". Point clang
+  # at the SDK headers when that happens.
+  sdk_path="$(xcrun --sdk macosx --show-sdk-path 2>/dev/null || true)"
+  toolchain_cxx="$(dirname "$(xcrun -f clang 2>/dev/null || echo /nonexistent/clang)")/../include/c++/v1"
+  if [[ -n "$sdk_path" && -d "$toolchain_cxx" && ! -f "$toolchain_cxx/cmath" && -f "$sdk_path/usr/include/c++/v1/cmath" ]]; then
+    log_transcribe_event "swift_parakeet: toolchain libc++ headers are incomplete ($toolchain_cxx); using $sdk_path/usr/include/c++/v1"
+    build_flags=(-Xcxx -nostdinc++ -Xcxx -isystem -Xcxx "$sdk_path/usr/include/c++/v1")
+  fi
+
+  want="$(khulumad_source_hash "$build_root")" || return 1
+  [[ "$want" =~ ^[0-9a-f]{64}$ ]] || return 1
+  log_transcribe_event "swift_parakeet: building khulumad in $build_root"
+  (
+    cd "$build_root"
+    swift build -c release --product khulumad ${build_flags[@]+"${build_flags[@]}"}
+  ) >>"${TRANSCRIBE_LOG:-/dev/null}" 2>&1 || return 1
+
+  [[ -x "$build_root/.build/release/khulumad" ]] || return 1
+  [[ "$(khulumad_source_hash "$build_root")" == "$want" ]] || return 1
+  printf "%s\n" "$want" >"$(khulumad_built_stamp)"
+}
+
+# Sync + build under the build lock, waiting up to wait_seconds for another
+# build to finish (then re-checking, since it may have produced this build).
+khulumad_locked_build() {
+  local src="$1" wait_seconds="${2:-0}" build_root lock rc=0
+  build_root="$(khulumad_build_root)"
+  lock="$(khulumad_build_lock)"
+  if ! khulumad_lock_acquire "$lock" "$wait_seconds"; then
+    log_transcribe_event "swift_parakeet: another khulumad build is running"
+    return 2
+  fi
+  if [[ "$(khulumad_binary_state "$src")" != "current" ]]; then
+    khulumad_build "$build_root" "$src" || rc=1
+    # Remembered so `warmup --json` reports a failing build instead of
+    # "warming" forever.
+    if (( rc == 0 )); then
+      khuluma_trash_owned "$(khulumad_build_failed_stamp)"
+    else
+      date +%s >"$(khulumad_build_failed_stamp)" 2>/dev/null || true
+    fi
+  fi
+  khulumad_lock_release "$lock"
+  return "$rc"
+}
+
+# Resolves the daemon binary, building it when missing or out of date.
+# With --allow-stale (the dictation hot path) an outdated binary is returned
+# immediately and nothing is written; the caller schedules a refresh.
+ensure_khulumad_binary() {
+  local allow_stale="0"
+  [[ "${1:-}" == "--allow-stale" ]] && allow_stale="1"
+  local binary="${KHULUMA_DAEMON_BIN:-}"
+  local src state
+
+  if [[ -n "$binary" ]]; then
+    binary="$(expand_path "$binary")"
+    [[ -x "$binary" ]] || return 1
+    printf "%s\n" "$binary"
+    return 0
+  fi
+
+  src="$(resolve_khulumad_root 2>/dev/null || true)"
+  [[ -n "$src" ]] || return 1
+  binary="$(khulumad_build_root)/.build/release/khulumad"
+
+  state="$(khulumad_binary_state "$src")"
+  if [[ "$state" == "current" ]]; then
+    printf "%s\n" "$binary"
+    return 0
+  fi
+  if [[ "$state" == "stale" && "$allow_stale" == "1" ]]; then
+    log_transcribe_event "swift_parakeet: khulumad is out of date; using it now and refreshing in the background"
+    printf "%s\n" "$binary"
+    return 0
+  fi
+
+  # Missing, or an explicit refresh: build, waiting for a concurrent build.
+  khulumad_locked_build "$src" 1200 || true
+  if [[ -x "$binary" ]]; then
+    if [[ "$(khulumad_binary_state "$src")" != "current" ]]; then
+      log_transcribe_event "swift_parakeet: rebuilding khulumad failed; keeping the existing binary"
+    fi
+    printf "%s\n" "$binary"
+    return 0
+  fi
+  return 1
+}
+
+start_khulumad_background_refresh() {
+  [[ "${KHULUMA_DAEMON_BACKGROUND_REFRESH:-1}" == "1" ]] || return 0
+  [[ -z "${KHULUMA_DAEMON_BIN:-}" ]] || return 0
+  nohup "$KHULUMA_RUNNING_BINARY" warmup --best-effort --restart-stale \
+    >/dev/null 2>&1 </dev/null 8>&- &
+}
+
+khulumad_meta_path() {
+  printf "%s\n" "${1:-}.meta"
+}
+
+# True when the built binary matches its sources and any running daemon was
+# started from that build.
+khulumad_is_current() {
+  local src socket_path meta running_hash built
+  [[ -z "${KHULUMA_DAEMON_BIN:-}" ]] || return 0
+  src="$(resolve_khulumad_root 2>/dev/null || true)"
+  [[ -n "$src" ]] || return 0
+  [[ "$(khulumad_binary_state "$src")" == "current" ]] || return 1
+  socket_path="$(resolve_swift_parakeet_socket_path)"
+  swift_parakeet_ping "$socket_path" || return 0
+  meta="$(khulumad_meta_path "$socket_path")"
+  running_hash="$(awk -F= '$1 == "source_hash" { print $2 }' "$meta" 2>/dev/null || true)"
+  built="$(cat "$(khulumad_built_stamp)" 2>/dev/null || true)"
+  [[ -n "$built" && "$running_hash" == "$built" ]]
+}
+
+# PID of the daemon serving socket_path: its command line must end with that
+# exact socket path (guards against PID reuse and similar paths).
+khulumad_running_pid() {
+  local socket_path="$1" meta pid="" command
+  meta="$(khulumad_meta_path "$socket_path")"
+  if [[ -f "$meta" ]]; then
+    pid="$(awk -F= '$1 == "pid" { print $2 }' "$meta" 2>/dev/null)"
+  fi
+  if [[ "$pid" =~ ^[0-9]+$ ]]; then
+    command="$(ps -p "$pid" -o command= 2>/dev/null || true)"
+    command="${command%"${command##*[![:space:]]}"}"
+    if [[ "$command" == *" $socket_path" ]]; then
+      printf "%s\n" "$pid"
+      return 0
+    fi
+  fi
+  # Daemons started before meta files existed.
+  ps -axo pid=,command= 2>/dev/null | while read -r pid command; do
+    if [[ "$command" == *"khulumad serve --socket $socket_path" || "$command" == *"tmux-whisperd serve --socket $socket_path" ]]; then
+      printf "%s\n" "$pid"
+      break
+    fi
+  done
+}
+
+# Idle when nothing records or processes: no marker in the processing dir
+# with a live owner. Markers cover `inline process` runs and Khuluma takes
+# from recording start to delivery (Khuluma's carry a phase= line). Markers
+# whose owner has died are removed here.
+dictation_pipeline_idle() {
+  local f line pid busy=0
+  for f in "$PROCESSING_DIR"/*; do
+    [[ -f "$f" ]] || continue
+    line=""
+    IFS= read -r line <"$f" 2>/dev/null || true
+    pid=""
+    if [[ "$line" =~ ^pid=([0-9]+)$ ]]; then
+      pid="${BASH_REMATCH[1]}"
+    elif [[ "$line" =~ ^[0-9]+$ ]]; then
+      pid="$line"
+    fi
+    if [[ -n "$pid" ]]; then
+      if kill -0 "$pid" 2>/dev/null; then
+        busy=1
+      else
+        khuluma_trash_owned "$f" 2>/dev/null || true
+      fi
+    elif [[ -n "$(find "$f" -maxdepth 0 -mmin +1 2>/dev/null)" ]]; then
+      # No pid after a minute: abandoned mid-write.
+      khuluma_trash_owned "$f" 2>/dev/null || true
+    else
+      # Still being written.
+      busy=1
+    fi
+  done
+  (( busy == 0 ))
+}
+
+# Replace a running daemon that was built from older sources, only while
+# nothing is recording, processing, or in flight. Waits for idle up to
+# KHULUMA_DAEMON_RESTART_WAIT_SECONDS (default 30 minutes). The daemon is
+# asked to stop with SIGTERM: it releases the socket at once and finishes any
+# request it already accepted, so a request racing the idle check still
+# completes. It is never force-killed.
+restart_stale_khulumad() {
+  local socket_path="$1"
+  local meta built running_hash waited=0 lock binary rc
+  local max_wait="${KHULUMA_DAEMON_RESTART_WAIT_SECONDS:-1800}"
+  [[ "$max_wait" =~ ^[0-9]+$ ]] || max_wait=1800
+
+  swift_parakeet_ping "$socket_path" || return 0
+  built="$(cat "$(khulumad_built_stamp)" 2>/dev/null || true)"
+  [[ -n "$built" ]] || return 0
+  meta="$(khulumad_meta_path "$socket_path")"
+  running_hash="$(awk -F= '$1 == "source_hash" { print $2 }' "$meta" 2>/dev/null || true)"
+  [[ "$running_hash" == "$built" ]] && return 0
+  # Resolved up front: never build while holding the lifecycle lock.
+  binary="$(ensure_khulumad_binary --allow-stale 2>/dev/null || true)"
+  [[ -n "$binary" ]] || return 0
+  lock="$(khulumad_lifecycle_lock "$socket_path")"
+
+  while :; do
+    swift_parakeet_ping "$socket_path" || return 0
+    # Older daemons don't report active_requests; they serve one client at a
+    # time, so answering a ping at all means they are idle.
+    if dictation_pipeline_idle && [[ -z "${RESP_ACTIVE_REQUESTS:-}" || "${RESP_ACTIVE_REQUESTS}" == "0" ]]; then
+      if lifecycle_lock_acquire "$lock" "${KHULUMA_DAEMON_LIFECYCLE_WAIT_SECONDS:-30}"; then
+        rc=0
+        restart_stale_khulumad_locked "$socket_path" "$binary" "$built" || rc=$?
+        lifecycle_lock_release
+        # 2: a take started between the idle check and the lock; keep waiting.
+        [[ "$rc" == "2" ]] || return 0
+      fi
+    fi
+    if (( waited >= max_wait )); then
+      log_transcribe_event "swift_parakeet: daemon still busy after ${max_wait}s; leaving the old daemon running"
+      return 0
+    fi
+    sleep 5
+    waited=$((waited + 5))
+  done
+}
+
+# The swap itself, with the lifecycle lock held: recheck, stop, relaunch.
+# Returns 2 when the pipeline turned busy again.
+restart_stale_khulumad_locked() {
+  local socket_path="$1" binary="$2" built="$3" meta running_hash pid
+  meta="$(khulumad_meta_path "$socket_path")"
+  # Recheck under the lock: another caller may have swapped it already, or
+  # a take may have started since the idle check.
+  swift_parakeet_ping "$socket_path" || return 0
+  running_hash="$(awk -F= '$1 == "source_hash" { print $2 }' "$meta" 2>/dev/null || true)"
+  [[ "$running_hash" == "$built" ]] && return 0
+  if ! dictation_pipeline_idle || [[ -n "${RESP_ACTIVE_REQUESTS:-}" && "${RESP_ACTIVE_REQUESTS}" != "0" ]]; then
+    return 2
+  fi
+
+  pid="$(khulumad_running_pid "$socket_path")"
+  [[ "$pid" =~ ^[0-9]+$ ]] || {
+    log_transcribe_event "swift_parakeet: could not identify the running daemon; not restarting"
+    return 0
+  }
+  log_transcribe_event "swift_parakeet: restarting out-of-date daemon (pid $pid)"
+  kill -TERM "$pid" 2>/dev/null || return 0
+  for _ in {1..100}; do
+    [[ -S "$socket_path" ]] || break
+    if ! kill -0 "$pid" 2>/dev/null; then
+      # Older daemons exit on SIGTERM without removing their socket; with
+      # the process gone, nothing accepts on it any more.
+      swift_parakeet_socket_accepts "$socket_path" || swift_parakeet_remove_dead_socket "$socket_path"
+      break
+    fi
+    sleep 0.1
+  done
+  if [[ -S "$socket_path" ]]; then
+    log_transcribe_event "swift_parakeet: daemon $pid did not release its socket; not restarting"
+    return 0
+  fi
+  khuluma_trash_owned "$meta"
+  launch_swift_parakeet_daemon_locked "$socket_path" "$binary"
+}
+
+# Runtime endpoint removal is protocol maintenance, not file cleanup. Only an
+# owned socket that still refuses connections may be unlinked, never user data.
+swift_parakeet_remove_dead_socket() {
+  python3 - "$1" <<'SOCKETPY'
+import errno, os, socket, stat, sys
+path = sys.argv[1]
+try:
+    before = os.lstat(path)
+    if not stat.S_ISSOCK(before.st_mode) or before.st_uid != os.getuid():
+        raise SystemExit(1)
+    client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    client.settimeout(0.2)
+    try:
+        client.connect(path)
+    except OSError as error:
+        if error.errno not in (errno.ECONNREFUSED, errno.ENOENT):
+            raise SystemExit(1)
+    else:
+        raise SystemExit(1)
+    finally:
+        client.close()
+    after = os.lstat(path)
+    if (before.st_dev, before.st_ino) != (after.st_dev, after.st_ino):
+        raise SystemExit(1)
+    os.unlink(path)  # Verified stale Unix endpoint only.
+except FileNotFoundError:
+    pass
+SOCKETPY
+}
+
+swift_parakeet_request_json() {
+  local op="${1:-ping}"
+  local socket_path="${2:-}"
+  local wav_path="${3:-}"
+  local language="${4:-en}"
+  local flow="${5:-inline}"
+  local model_path="${6:-}"
+  local model_version="${7:-}"
+
+  python3 - "$socket_path" "$op" "$wav_path" "$language" "$flow" "$model_path" "$model_version" <<'PYEOF'
+import json
+import os
+import socket
+import sys
+import uuid
+
+socket_path, op, wav_path, language, flow, model_path, model_version = sys.argv[1:8]
+
+payload = {
+    "id": str(uuid.uuid4()),
+    "op": op,
+}
+if wav_path:
+    payload["wav_path"] = wav_path
+if language:
+    payload["language"] = language
+if flow:
+    payload["flow"] = flow
+if model_path:
+    payload["model_path"] = model_path
+if model_version:
+    payload["model_version"] = model_version
+
+timeout = float(os.environ.get("KHULUMA_SWIFT_PARAKEET_TIMEOUT_SECONDS", "600"))
+if op == "ping":
+    # The daemon answers pings even mid-transcription; one that doesn't
+    # answer quickly is hung, and callers must not wait on it for minutes.
+    timeout = min(timeout, float(os.environ.get("KHULUMA_SWIFT_PARAKEET_PING_TIMEOUT_SECONDS", "5")))
+
+try:
+    client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    client.settimeout(timeout)
+    client.connect(socket_path)
+    client.sendall(json.dumps(payload).encode("utf-8") + b"\n")
+    chunks = []
+    while True:
+        data = client.recv(4096)
+        if not data:
+            break
+        chunks.append(data)
+        if b"\n" in data:
+            break
+    client.close()
+    raw = b"".join(chunks).split(b"\n", 1)[0].decode("utf-8", "replace").strip()
+    if not raw:
+        raise RuntimeError("empty daemon response")
+    json.loads(raw)
+    print(raw)
+except Exception as exc:
+    print(json.dumps({
+        "id": "local-error",
+        "ok": False,
+        "engine": "swift_parakeet",
+        "error_code": "socket_error",
+        "message": str(exc),
+    }))
+PYEOF
+}
+
+daemon_response_to_shell() {
+  local json_payload="${1:-}"
+  python3 - "$json_payload" <<'PYEOF'
+import json
+import shlex
+import sys
+
+payload = json.loads(sys.argv[1])
+
+def q(value):
+    if value is None:
+        value = ""
+    return shlex.quote(str(value))
+
+ok = payload.get("ok", False)
+print(f"RESP_OK={q('1' if ok else '0')}")
+print(f"RESP_TEXT={q(payload.get('text', ''))}")
+print(f"RESP_ENGINE={q(payload.get('engine', ''))}")
+print(f"RESP_MODEL={q(payload.get('model', ''))}")
+print(f"RESP_DURATION_MS={q(payload.get('duration_ms', ''))}")
+print(f"RESP_ERROR_CODE={q(payload.get('error_code', ''))}")
+print(f"RESP_MESSAGE={q(payload.get('message', ''))}")
+print(f"RESP_VERSION={q(payload.get('version', ''))}")
+print(f"RESP_ACTIVE_REQUESTS={q(payload.get('active_requests', ''))}")
+print(f"RESP_PID={q(payload.get('pid', ''))}")
+print(f"RESP_GENERATION={q(payload.get('generation', ''))}")
+loaded = payload.get("model_loaded") or {}
+if not isinstance(loaded, dict):
+    loaded = {}
+print(f"RESP_MODEL_LOADED_PATH={q(loaded.get('path', ''))}")
+print(f"RESP_MODEL_LOADED_VERSION={q(loaded.get('version', ''))}")
+PYEOF
+}
+
+swift_parakeet_ping() {
+  local socket_path="${1:-}"
+  local response shell_vars
+  [[ -S "$socket_path" ]] || return 1
+  response="$(swift_parakeet_request_json "ping" "$socket_path")" || return 1
+  shell_vars="$(daemon_response_to_shell "$response" 2>/dev/null || true)"
+  [[ -n "$shell_vars" ]] || return 1
+  eval "$shell_vars"
+  [[ "${RESP_OK:-0}" == "1" ]]
+}
+
+# One lock per socket around every daemon launch and restart (Khuluma's
+# warmups, CLI fallbacks and installer refreshes all start daemons), so two
+# callers never both launch one or swap one out from under the other.
+khulumad_lifecycle_lock() {
+  printf "%s\n" "${1:-}.lifecycle.lock"
+}
+
+# The lifecycle lock is a kernel flock on fd 8 of this (sub)shell: it can't
+# be stolen or go stale, and the kernel releases it when the holder closes
+# fd 8 or dies. Long-lived children started while it's held (the daemon,
+# background refreshes) must not inherit fd 8.
+lifecycle_lock_acquire() {
+  local lockfile="$1" wait_seconds="${2:-20}"
+  [[ "$wait_seconds" =~ ^[0-9]+$ ]] || wait_seconds=20
+  mkdir -p "$(dirname "$lockfile")" 2>/dev/null || return 1
+  : >>"$lockfile" 2>/dev/null || return 1
+  { exec 8>>"$lockfile"; } 2>/dev/null || return 1
+  if python3 - "$wait_seconds" <<'PYEOF'
+import fcntl, sys, time
+deadline = time.monotonic() + float(sys.argv[1])
+while True:
+    try:
+        fcntl.flock(8, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        sys.exit(0)
+    except OSError:
+        if time.monotonic() >= deadline:
+            sys.exit(1)
+        time.sleep(0.05)
+PYEOF
+  then
+    return 0
+  fi
+  exec 8>&-
+  return 1
+}
+
+lifecycle_lock_release() {
+  exec 8>&-
+}
+
+# True while some process holds the lifecycle lock.
+lifecycle_lock_held() {
+  [[ -f "$1" ]] || return 1
+  python3 - "$1" <<'PYEOF'
+import fcntl, sys
+with open(sys.argv[1], "a") as f:
+    try:
+        fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        sys.exit(0)
+sys.exit(1)
+PYEOF
+}
+
+ensure_swift_parakeet_daemon() {
+  local socket_path="${1:-}"
+  local binary="" lock rc=0
+
+  if swift_parakeet_ping "$socket_path"; then
+    return 0
+  fi
+
+  # Resolved before taking the lock: a missing binary is built, which can
+  # take minutes.
+  binary="$(ensure_khulumad_binary --allow-stale 2>/dev/null || true)"
+  [[ -n "$binary" ]] || return 1
+
+  lock="$(khulumad_lifecycle_lock "$socket_path")"
+  if ! lifecycle_lock_acquire "$lock" "${KHULUMA_DAEMON_LIFECYCLE_WAIT_SECONDS:-30}"; then
+    # Another caller is still starting or replacing the daemon.
+    log_transcribe_event "swift_parakeet: daemon start/restart in progress elsewhere; not launching another"
+    swift_parakeet_ping "$socket_path"
+    return $?
+  fi
+  launch_swift_parakeet_daemon_locked "$socket_path" "$binary" || rc=$?
+  lifecycle_lock_release
+  return "$rc"
+}
+
+# Starts a daemon unless one is already serving. Call with the lifecycle
+# lock held.
+launch_swift_parakeet_daemon_locked() {
+  local socket_path="$1" binary="$2"
+  local launched_hash="" launched_pid meta tmp_meta max_wait deadline
+  max_wait="${KHULUMA_DAEMON_START_WAIT_SECONDS:-20}"
+  [[ "$max_wait" =~ ^[0-9]+$ ]] || max_wait=20
+
+  # Someone else may have started one while we waited for the lock.
+  swift_parakeet_ping "$socket_path" && return 0
+
+  # A socket nobody accepts on is left by a crashed daemon; the new daemon
+  # replaces it. One that accepts but doesn't answer is a live (hung)
+  # daemon: never unlink it, and don't start a second one beside it.
+  if [[ -S "$socket_path" ]] && swift_parakeet_socket_accepts "$socket_path"; then
+    log_transcribe_event "swift_parakeet: a daemon holds $socket_path but does not answer; not starting another"
+    return 1
+  fi
+
+  # Read the stamp before launching, so the meta file describes this binary
+  # even if a background refresh replaces it right afterwards.
+  launched_hash="$(cat "$(khulumad_built_stamp)" 2>/dev/null || true)"
+
+  mkdir -p "$(dirname "$socket_path")" 2>/dev/null || true
+  log_transcribe_event "swift_parakeet: starting daemon at $socket_path"
+  nohup "$binary" serve --socket "$socket_path" >>"${TRANSCRIBE_LOG:-/dev/null}" 2>&1 </dev/null 8>&- &
+  launched_pid=$!
+  if [[ -z "${KHULUMA_DAEMON_BIN:-}" && "$(khulumad_binary_state)" != "current" ]]; then
+    start_khulumad_background_refresh
+  fi
+
+  # Wait for as long as the daemon is alive and starting, holding the lock:
+  # releasing it early would let another caller launch a second one. Short
+  # pings keep the wait bounded by elapsed time.
+  deadline=$((SECONDS + max_wait))
+  while :; do
+    if KHULUMA_SWIFT_PARAKEET_PING_TIMEOUT_SECONDS=1 swift_parakeet_ping "$socket_path"; then
+      # Record which build is serving this socket so upgrades can replace
+      # it, but only once our daemon is the one answering (daemons without
+      # a pid in their ping count as ours while they're alive).
+      if [[ "${RESP_PID:-}" == "$launched_pid" ]] || { [[ -z "${RESP_PID:-}" ]] && kill -0 "$launched_pid" 2>/dev/null; }; then
+        meta="$(khulumad_meta_path "$socket_path")"
+        tmp_meta="$meta.tmp.$launched_pid"
+        if printf 'pid=%s\nsource_hash=%s\n' "$launched_pid" "$launched_hash" >"$tmp_meta" 2>/dev/null; then
+          mv -f "$tmp_meta" "$meta" 2>/dev/null || khuluma_trash_owned "$tmp_meta"
+        fi
+      fi
+      return 0
+    fi
+    # Exited (e.g. it found another daemon serving): stop waiting.
+    kill -0 "$launched_pid" 2>/dev/null || { swift_parakeet_ping "$socket_path"; return $?; }
+    (( SECONDS >= deadline )) && break
+    sleep 0.1
+  done
+
+  # Never answered: stop it before the lock is released, so it can't come
+  # up later beside a daemon someone else starts (SIGTERM releases its
+  # socket, if it got that far).
+  log_transcribe_event "swift_parakeet: daemon $launched_pid did not answer within ${max_wait}s; stopping it"
+  kill -TERM "$launched_pid" 2>/dev/null || true
+  for _ in {1..20}; do
+    kill -0 "$launched_pid" 2>/dev/null || break
+    sleep 0.1
+  done
+  return 1
+}
+
+# True when something accepts connections on the socket.
+swift_parakeet_socket_accepts() {
+  python3 - "$1" <<'PYEOF'
+import socket, sys
+s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+s.settimeout(2)
+try:
+    s.connect(sys.argv[1])
+except OSError:
+    sys.exit(1)
+finally:
+    s.close()
+PYEOF
+}
+
+# Rebuild an out-of-date daemon and swap it in once idle. Build and restart
+# each hold their own lock, so repeated triggers never run in parallel.
+refresh_khulumad() {
+  [[ -z "${KHULUMA_DAEMON_BIN:-}" ]] || return 0
+  local src restart_lock socket_path build_rc=0
+  src="$(resolve_khulumad_root 2>/dev/null || true)"
+  [[ -n "$src" ]] || return 1
+
+  if [[ "$(khulumad_binary_state "$src")" != "current" ]]; then
+    # Capture the status explicitly: the script runs under `set -e`.
+    khulumad_locked_build "$src" 0 || build_rc=$?
+    case "$build_rc" in
+      2) return 0 ;;   # another refresh is building; it will also restart
+      1) log_transcribe_event "swift_parakeet: rebuilding khulumad failed; keeping the existing binary"; return 1 ;;
+    esac
+  fi
+
+  restart_lock="$(khulumad_build_root).restart.lock"
+  khulumad_lock_acquire "$restart_lock" 0 || return 0
+  socket_path="$(resolve_swift_parakeet_socket_path)"
+  restart_stale_khulumad "$socket_path" || true
+  khulumad_lock_release "$restart_lock"
+}
+
+create_silent_wav() {
+  local wav_path="${1:-}"
+  local duration_ms="${2:-160}"
+  [[ -n "$wav_path" ]] || return 1
+  [[ "$duration_ms" =~ ^[0-9]+$ ]] || duration_ms=160
+
+  python3 - "$wav_path" "$duration_ms" <<'PYEOF'
+import sys
+import wave
+
+path = sys.argv[1]
+duration_ms = max(1, int(sys.argv[2]))
+sample_rate = 16000
+samples = max(1, int(sample_rate * duration_ms / 1000))
+
+with wave.open(path, "wb") as wav_file:
+    wav_file.setnchannels(1)
+    wav_file.setsampwidth(2)
+    wav_file.setframerate(sample_rate)
+    wav_file.writeframes(b"\x00\x00" * samples)
+PYEOF
+}
+
+swift_parakeet_prime_cli() {
+  local socket_path=""
+  local model_path=""
+  local model_version=""
+  local response=""
+  local shell_vars=""
+  local tmp_wav=""
+  local prime_ms="${KHULUMA_WARMUP_PRIME_MS:-1000}"
+
+  # FluidAudio warmup transcribes require at least 1 second of 16kHz audio.
+  if [[ "$prime_ms" =~ ^[0-9]+$ ]]; then
+    prime_ms=$((10#$prime_ms))
+  fi
+  if [[ ! "$prime_ms" =~ ^[0-9]+$ ]] || (( prime_ms < 1000 )); then
+    prime_ms=1000
+  fi
+
+  socket_path="$(resolve_swift_parakeet_socket_path)"
+  model_path="$(resolve_swift_parakeet_model_path 2>/dev/null || true)"
+  [[ -n "$model_path" ]] || return 1
+  model_version="$(resolve_swift_parakeet_model_version "$model_path")"
+
+  ensure_swift_parakeet_daemon "$socket_path" || return 1
+  tmp_wav="$(mktemp "${TMPDIR:-/tmp}/khuluma-prime.XXXXXX.wav" 2>/dev/null || true)"
+  [[ -n "$tmp_wav" ]] || return 1
+
+  if ! create_silent_wav "$tmp_wav" "$prime_ms"; then
+    khuluma_trash_owned "$tmp_wav" 2>/dev/null || true
+    return 1
+  fi
+
+  response="$(swift_parakeet_request_json "transcribe" "$socket_path" "$tmp_wav" "en" "warmup" "$model_path" "$model_version")" || true
+  khuluma_trash_owned "$tmp_wav" 2>/dev/null || true
+  [[ -n "$response" ]] || return 1
+
+  shell_vars="$(daemon_response_to_shell "$response" 2>/dev/null || true)"
+  [[ -n "$shell_vars" ]] || return 1
+  eval "$shell_vars"
+
+  if [[ "${RESP_OK:-0}" != "1" ]]; then
+    log_transcribe_event "swift_parakeet: daemon prime error ${RESP_ERROR_CODE:-unknown}: ${RESP_MESSAGE:-unknown error}"
+    return 1
+  fi
+
+  log_transcribe_event "swift_parakeet: prime transcribe ok (${RESP_DURATION_MS:-0}ms)"
+  KHULUMA_LAST_BACKEND_ENGINE="${RESP_ENGINE:-swift_parakeet}"
+  KHULUMA_LAST_BACKEND_MODEL="${RESP_MODEL:-$(basename "$model_path")}"
+  return 0
+}
+
+maybe_prime_swift_parakeet_after_warmup() {
+  local enabled="${KHULUMA_WARMUP_PRIME_TRANSCRIBE:-1}"
+  if ! bool_is_on "$enabled"; then
+    return 0
+  fi
+  swift_parakeet_prime_cli || true
+}
+
+swift_parakeet_warmup_cli() {
+  local socket_path=""
+  local model_path=""
+  local model_version=""
+  local response=""
+  local shell_vars=""
+
+  socket_path="$(resolve_swift_parakeet_socket_path)"
+  model_path="$(resolve_swift_parakeet_model_path 2>/dev/null || true)"
+  [[ -n "$model_path" ]] || return 1
+  model_version="$(resolve_swift_parakeet_model_version "$model_path")"
+
+  ensure_swift_parakeet_daemon "$socket_path" || return 1
+  response="$(swift_parakeet_request_json "warmup" "$socket_path" "" "en" "warmup" "$model_path" "$model_version")" || return 1
+  shell_vars="$(daemon_response_to_shell "$response" 2>/dev/null || true)"
+  [[ -n "$shell_vars" ]] || return 1
+  eval "$shell_vars"
+
+  if [[ "${RESP_OK:-0}" != "1" ]]; then
+    log_transcribe_event "swift_parakeet: daemon warmup error ${RESP_ERROR_CODE:-unknown}: ${RESP_MESSAGE:-unknown error}"
+    return 1
+  fi
+
+  KHULUMA_LAST_BACKEND_ENGINE="${RESP_ENGINE:-swift_parakeet}"
+  KHULUMA_LAST_BACKEND_MODEL="${RESP_MODEL:-$(basename "$model_path")}"
+  printf "%s\t%s\t%s\n" "${RESP_MODEL:-$(basename "$model_path")}" "${RESP_DURATION_MS:-0}" "${RESP_MESSAGE:-warmed}"
+}
+
+transcribe_swift_parakeet_cli() {
+  local wav="$1"
+  local language="${2:-en}"
+  local flow="${3:-inline}"
+  local socket_path=""
+  local model_path=""
+  local model_version=""
+  local response=""
+  local shell_vars=""
+
+  socket_path="$(resolve_swift_parakeet_socket_path)"
+  model_path="$(resolve_swift_parakeet_model_path 2>/dev/null || true)"
+  [[ -n "$model_path" ]] || return 1
+  model_version="$(resolve_swift_parakeet_model_version "$model_path")"
+
+  ensure_swift_parakeet_daemon "$socket_path" || return 1
+  response="$(swift_parakeet_request_json "transcribe" "$socket_path" "$wav" "$language" "$flow" "$model_path" "$model_version")" || return 1
+  shell_vars="$(daemon_response_to_shell "$response" 2>/dev/null || true)"
+  [[ -n "$shell_vars" ]] || return 1
+  eval "$shell_vars"
+
+  if [[ "${RESP_OK:-0}" != "1" ]]; then
+    log_transcribe_event "swift_parakeet: daemon error ${RESP_ERROR_CODE:-unknown}: ${RESP_MESSAGE:-unknown error}"
+    return 1
+  fi
+
+  KHULUMA_LAST_BACKEND_ENGINE="${RESP_ENGINE:-swift_parakeet}"
+  KHULUMA_LAST_BACKEND_MODEL="${RESP_MODEL:-$(basename "$model_path")}"
+  printf "%s" "${RESP_TEXT:-}"
+}
+
+merge_transcript_chunks() {
+  local chunks_file="${1:-}"
+  [[ -n "$chunks_file" && -f "$chunks_file" ]] || return 0
+
+  python3 - "$chunks_file" <<'PYEOF'
+import re
+import sys
+
+path = sys.argv[1]
+texts = [line.strip() for line in open(path, encoding="utf-8", errors="replace") if line.strip()]
+
+def word_matches(text):
+    return list(re.finditer(r"[A-Za-z0-9']+", text))
+
+def norm_words(text):
+    return [m.group(0).lower() for m in word_matches(text)]
+
+def char_after_words(text, count):
+    matches = word_matches(text)
+    if count <= 0 or count > len(matches):
+        return 0
+    return matches[count - 1].end()
+
+merged = ""
+merged_words = []
+
+for text in texts:
+    if not merged:
+        merged = text
+        merged_words = norm_words(merged)
+        continue
+
+    incoming_words = norm_words(text)
+    incoming_offset = 0
+    max_overlap = min(24, len(merged_words), len(incoming_words))
+    overlap = 0
+    for size in range(max_overlap, 1, -1):
+        if merged_words[-size:] == incoming_words[:size]:
+            overlap = size
+            break
+
+    if not overlap:
+        max_offset = min(12, max(0, len(incoming_words) - 2))
+        for offset in range(1, max_offset + 1):
+            max_overlap = min(24, len(merged_words), len(incoming_words) - offset)
+            for size in range(max_overlap, 1, -1):
+                if merged_words[-size:] == incoming_words[offset:offset + size]:
+                    incoming_offset = offset
+                    overlap = size
+                    break
+            if overlap:
+                break
+
+    if overlap:
+        rest = text[char_after_words(text, incoming_offset + overlap):].lstrip(" \t,.;:!?-")
+        if rest:
+            merged = (merged.rstrip() + " " + rest).strip()
+    else:
+        merged = (merged.rstrip() + " " + text.lstrip()).strip()
+    merged_words = norm_words(merged)
+
+print(merged, end="")
+PYEOF
+}
+
+transcribe_swift_parakeet_tail_rescue_cli() {
+  local wav="$1"
+  local language="${2:-en}"
+  local flow="${3:-inline}"
+  local txt duration_ms tail_ms min_duration_ms tail_s tail_dir tail_wav tail_text rescue_texts rc
+
+  txt="$(transcribe_swift_parakeet_cli "$wav" "$language" "$flow")" || return $?
+
+  if ! bool_is_on "${KHULUMA_SWIFT_PARAKEET_TAIL_RESCUE:-1}"; then
+    printf "%s" "$txt"
+    return 0
+  fi
+
+  duration_ms="$(audio_duration_ms "$wav" 2>/dev/null || true)"
+  tail_ms="$(resolve_ms_setting "${KHULUMA_SWIFT_PARAKEET_TAIL_RESCUE_MS:-}" "8000")"
+  min_duration_ms="$(resolve_ms_setting "${KHULUMA_SWIFT_PARAKEET_TAIL_RESCUE_MIN_MS:-}" "12000")"
+
+  if [[ ! "$duration_ms" =~ ^[0-9]+$ ]] || (( duration_ms < min_duration_ms )); then
+    printf "%s" "$txt"
+    return 0
+  fi
+  if (( tail_ms < 1000 )); then
+    tail_ms=1000
+  fi
+  if (( duration_ms <= tail_ms + 1000 )); then
+    printf "%s" "$txt"
+    return 0
+  fi
+  command -v ffmpeg >/dev/null 2>&1 || {
+    printf "%s" "$txt"
+    return 0
+  }
+
+  tail_dir="$(mktemp -d "${TMPDIR:-/tmp}/khuluma-tail-rescue.XXXXXX" 2>/dev/null || true)"
+  if [[ -z "$tail_dir" ]]; then
+    printf "%s" "$txt"
+    return 0
+  fi
+  tail_wav="$tail_dir/tail.wav"
+  rescue_texts="$tail_dir/rescue.txt"
+  tail_s="$(awk -v ms="$tail_ms" 'BEGIN { printf "%.3f", ms/1000 }')"
+  rc=0
+
+  if [[ -n "${TRANSCRIBE_LOG:-}" ]]; then
+    printf "[%s] swift_parakeet_tail_rescue: duration_ms=%s tail_ms=%s min_duration_ms=%s\n" \
+      "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$duration_ms" "$tail_ms" "$min_duration_ms" \
+      >>"$TRANSCRIBE_LOG" 2>/dev/null || true
+  fi
+
+  if ffmpeg -hide_banner -loglevel error -y \
+    -sseof "-$tail_s" -i "$wav" \
+    -ac 1 -ar 16000 -c:a pcm_s16le \
+    "$tail_wav" >>"${TRANSCRIBE_LOG:-/dev/null}" 2>&1; then
+    if tail_text="$(transcribe_swift_parakeet_cli "$tail_wav" "$language" "${flow}-tail" 2>>"${TRANSCRIBE_LOG:-/dev/null}")"; then
+      tail_text="${tail_text//$'\n'/ }"
+      if [[ -n "${tail_text//[[:space:]]/}" ]]; then
+        {
+          printf "%s\n" "$txt"
+          printf "%s\n" "$tail_text"
+        } >"$rescue_texts"
+        merge_transcript_chunks "$rescue_texts"
+        rc=$?
+      else
+        printf "%s" "$txt"
+      fi
+    else
+      printf "%s" "$txt"
+    fi
+  else
+    printf "%s" "$txt"
+  fi
+
+  khuluma_trash_owned "$tail_dir" 2>/dev/null || true
+  return "$rc"
+}
+
+# Prints warmup --json's one line from WARMUP_JSON_* values.
+warmup_json_emit() {
+  WJ_STATE="$1" WJ_REASON="${2:-}" WJ_MESSAGE="${3:-}" \
+  WJ_MODEL_PATH="${WARMUP_JSON_MODEL_PATH:-}" WJ_MODEL_VERSION="${WARMUP_JSON_MODEL_VERSION:-}" \
+  WJ_GENERATION="${RESP_GENERATION:-}" WJ_PID="${RESP_PID:-}" WJ_VERSION="${RESP_VERSION:-}" \
+  WJ_LOADED_PATH="${RESP_MODEL_LOADED_PATH:-}" WJ_LOADED_VERSION="${RESP_MODEL_LOADED_VERSION:-}" \
+  WJ_DURATION_MS="${WARMUP_JSON_DURATION_MS:-}" WJ_SOCKET="${WARMUP_JSON_SOCKET:-}" \
+  python3 - <<'PYEOF'
+import json, os
+e = os.environ
+def opt(name):
+    return e.get(name) or None
+duration = e.get("WJ_DURATION_MS", "")
+pid = e.get("WJ_PID", "")
+loaded = None
+if e.get("WJ_LOADED_PATH"):
+    loaded = {"path": e["WJ_LOADED_PATH"], "version": opt("WJ_LOADED_VERSION")}
+print(json.dumps({
+    "state": e["WJ_STATE"],
+    "reason": opt("WJ_REASON"),
+    "message": opt("WJ_MESSAGE"),
+    "socket_path": opt("WJ_SOCKET"),
+    "model_path": opt("WJ_MODEL_PATH"),
+    "model_version": opt("WJ_MODEL_VERSION"),
+    "daemon_version": opt("WJ_VERSION"),
+    "generation": opt("WJ_GENERATION"),
+    "pid": int(pid) if pid.isdigit() else None,
+    "model_loaded": loaded,
+    "duration_ms": int(duration) if duration.isdigit() else None,
+}))
+PYEOF
+}
+
+# khuluma warmup --json: start the daemon if needed, load the model, and
+# report the truth as one JSON line (always exit 0):
+#   ready        the daemon answers and has this model loaded
+#   warming      it is being built or started elsewhere; ask again later
+#   unavailable  it can't be used (no model, no binary, start or load failed)
+# Never builds inline: a missing daemon is built in the background.
+warmup_json() {
+  local model_path model_version socket_path response shell_vars src lock failed_at
+  RESP_GENERATION="" RESP_PID="" RESP_VERSION="" RESP_MODEL_LOADED_PATH="" RESP_MODEL_LOADED_VERSION=""
+  WARMUP_JSON_MODEL_PATH="" WARMUP_JSON_MODEL_VERSION="" WARMUP_JSON_DURATION_MS=""
+  socket_path="$(resolve_swift_parakeet_socket_path)"
+  WARMUP_JSON_SOCKET="$socket_path"
+
+  model_path="$(resolve_swift_parakeet_model_path 2>/dev/null || true)"
+  if [[ -z "$model_path" ]]; then
+    warmup_json_emit unavailable no_model "no local Parakeet model found under $DEFAULT_SWIFT_PARAKEET_MODELS_DIR"
+    return 0
+  fi
+  model_version="$(resolve_swift_parakeet_model_version "$model_path")"
+  WARMUP_JSON_MODEL_PATH="$model_path"
+  WARMUP_JSON_MODEL_VERSION="$model_version"
+
+  if ! swift_parakeet_ping "$socket_path"; then
+    if [[ -n "${KHULUMA_DAEMON_BIN:-}" ]]; then
+      [[ -x "$(expand_path "$KHULUMA_DAEMON_BIN")" ]] || {
+        warmup_json_emit unavailable no_daemon_binary "khulumad not found at $KHULUMA_DAEMON_BIN"
+        return 0
+      }
+    else
+      src="$(resolve_khulumad_root 2>/dev/null || true)"
+      if [[ -z "$src" ]]; then
+        warmup_json_emit unavailable no_daemon_sources "khulumad sources not found"
+        return 0
+      fi
+      if [[ "$(khulumad_binary_state "$src")" == "missing" ]]; then
+        if [[ "${KHULUMA_DAEMON_BACKGROUND_REFRESH:-1}" != "1" ]]; then
+          warmup_json_emit unavailable daemon_not_built "khulumad is not built yet (run: khuluma warmup)"
+          return 0
+        fi
+        if ! khulumad_lock_held "$(khulumad_build_lock)"; then
+          # A build that failed in the last 10 minutes is reported, not
+          # retried on every call.
+          failed_at="$(cat "$(khulumad_build_failed_stamp)" 2>/dev/null || true)"
+          if [[ "$failed_at" =~ ^[0-9]+$ ]] && (( $(date +%s) - failed_at < 600 )); then
+            warmup_json_emit unavailable build_failed "building khulumad failed; retrying in a few minutes (see ${TRANSCRIBE_LOG:-the transcribe log})"
+            return 0
+          fi
+          start_khulumad_background_refresh
+        fi
+        warmup_json_emit warming building "building khulumad (first run takes a few minutes)"
+        return 0
+      fi
+    fi
+    if ! ensure_swift_parakeet_daemon "$socket_path"; then
+      lock="$(khulumad_lifecycle_lock "$socket_path")"
+      if lifecycle_lock_held "$lock"; then
+        warmup_json_emit warming starting "the daemon is being started or replaced"
+      else
+        warmup_json_emit unavailable daemon_unavailable "could not start khulumad (see ${TRANSCRIBE_LOG:-the transcribe log})"
+      fi
+      return 0
+    fi
+  fi
+
+  response="$(swift_parakeet_request_json "warmup" "$socket_path" "" "en" "warmup" "$model_path" "$model_version")" || true
+  shell_vars="$(daemon_response_to_shell "$response" 2>/dev/null || true)"
+  [[ -n "$shell_vars" ]] && eval "$shell_vars"
+  if [[ "${RESP_OK:-0}" != "1" ]]; then
+    log_transcribe_event "swift_parakeet: daemon warmup error ${RESP_ERROR_CODE:-unknown}: ${RESP_MESSAGE:-unknown error}"
+    warmup_json_emit unavailable "${RESP_ERROR_CODE:-warmup_failed}" "${RESP_MESSAGE:-warmup failed}"
+    return 0
+  fi
+  WARMUP_JSON_DURATION_MS="${RESP_DURATION_MS:-}"
+  maybe_prime_swift_parakeet_after_warmup
+
+  # The daemon's own account of what it has loaded (older daemons don't say).
+  if ! swift_parakeet_ping "$socket_path"; then
+    warmup_json_emit unavailable daemon_unavailable "the daemon stopped answering after warmup"
+    return 0
+  fi
+  # Daemons that report a generation say what they hold: it must be this
+  # model and version (older daemons don't say; the warmup reply stands).
+  if [[ -n "${RESP_GENERATION:-}" || -n "${RESP_MODEL_LOADED_PATH:-}" ]]; then
+    if [[ -z "${RESP_MODEL_LOADED_PATH:-}" ]]; then
+      # Replaced between the warmup and now: the new daemon is cold.
+      warmup_json_emit warming cold "the daemon was replaced and has no model loaded yet"
+      return 0
+    fi
+    if [[ "$RESP_MODEL_LOADED_PATH" != "$model_path" || "${RESP_MODEL_LOADED_VERSION:-}" != "$model_version" ]]; then
+      # Another client loaded a different model since; ours isn't warm now.
+      warmup_json_emit warming model_changed "the daemon now has $RESP_MODEL_LOADED_PATH (${RESP_MODEL_LOADED_VERSION:-?}) loaded"
+      return 0
+    fi
+  fi
+  warmup_json_emit ready "" "warmed"
+}
+
+warmup_backend() {
+  local best_effort="0" restart_stale="0" refresh_in_background="0"
+  local arg model_path result model_name duration_ms message
+
+  if [[ "${1:-}" == "--json" ]]; then
+    [[ $# -eq 1 ]] || die "usage: khuluma warmup --json"
+    need python3
+    warmup_json
+    return 0
+  fi
+
+  for arg in "$@"; do
+    case "$arg" in
+      --best-effort) best_effort="1" ;;
+      --restart-stale) restart_stale="1" ;;
+      --refresh-in-background) refresh_in_background="1" ;;
+      *) die "usage: khuluma warmup [--best-effort] [--restart-stale] [--refresh-in-background] | --json" ;;
+    esac
+  done
+
+  model_path="$(resolve_swift_parakeet_model_path 2>/dev/null || true)"
+  if [[ -z "$model_path" ]]; then
+    if [[ "$best_effort" == "1" ]]; then
+      echo "Warmup: skipped (no local Parakeet model found)"
+      return 0
+    fi
+    die "no local Parakeet model found. Expected under $DEFAULT_SWIFT_PARAKEET_MODELS_DIR or set swift_parakeet.model_path"
+  fi
+
+  # Installer path: a daemon rebuild takes minutes, so hand it to a background
+  # job that swaps the daemon in once idle, and return immediately.
+  if [[ "$refresh_in_background" == "1" && -z "${KHULUMA_DAEMON_BIN:-}" ]] && ! khulumad_is_current; then
+    start_khulumad_background_refresh
+    echo "Warmup: updating the Parakeet daemon in the background (a rebuild can take a few minutes; dictation keeps working meanwhile)"
+    return 0
+  fi
+
+  if [[ "$restart_stale" == "1" ]]; then
+    refresh_khulumad || true
+  fi
+
+  result="$(swift_parakeet_warmup_cli 2>>"${TRANSCRIBE_LOG:-/dev/null}" || true)"
+  if [[ -z "$result" ]]; then
+    if [[ "$best_effort" == "1" ]]; then
+      echo "Warmup: skipped (daemon/model preload unavailable)"
+      return 0
+    fi
+    die "failed to warm up the swift_parakeet backend"
+  fi
+
+  maybe_prime_swift_parakeet_after_warmup
+
+  IFS=$'\t' read -r model_name duration_ms message <<<"$result"
+  echo "Warmup: ready (model=${model_name:-$(basename "$model_path")}, duration=${duration_ms:-0}ms)"
+}
+
+transcribe_audio() {
+  local wav="$1"
+  local _model_id="${2:-}"
+  local language="${3:-en}"
+  local _threads="${4:-2}"
+  local flow="${5:-inline}"
+  local requested_backend
+  local txt=""
+  local transcribe_rc=0
+
+  maybe_pad_transcribe_tail_inplace "$wav"
+  requested_backend="$(resolve_transcribe_backend)"
+  KHULUMA_LAST_BACKEND_ENGINE=""
+  KHULUMA_LAST_BACKEND_MODEL=""
+  set +e
+  txt="$(transcribe_swift_parakeet_tail_rescue_cli "$wav" "$language" "$flow" 2>>"${TRANSCRIBE_LOG:-/dev/null}")"
+  transcribe_rc=$?
+  set -e
+  write_backend_runtime_cache "$requested_backend" "$requested_backend" "" "${KHULUMA_LAST_BACKEND_ENGINE:-swift_parakeet}" "${KHULUMA_LAST_BACKEND_MODEL:-}"
+  [[ "$transcribe_rc" -eq 0 ]] || return "$transcribe_rc"
+  printf "%s" "$txt"
+}
+
+maybe_pad_transcribe_tail_inplace() {
+  local wav="${1:-}"
+  [[ -n "$wav" && -f "$wav" ]] || return 0
+
+  local tail_pad_ms="${KHULUMA_TRANSCRIBE_TAIL_PAD_MS:-500}"
+  [[ "$tail_pad_ms" =~ ^[0-9]+$ ]] || tail_pad_ms=500
+  (( tail_pad_ms > 0 )) || return 0
+
+  command -v ffmpeg >/dev/null 2>&1 || return 0
+
+  local tail_pad_s
+  tail_pad_s="$(awk "BEGIN { printf \"%.3f\", (${tail_pad_ms})/1000 }")"
+  local tmp=""
+  tmp="$(mktemp "${TMPDIR:-/tmp}/khuluma-tail-pad.XXXXXX.wav" 2>/dev/null || true)"
+  [[ -n "$tmp" ]] || tmp="${wav}.tail.wav"
+
+  if [[ -n "${TRANSCRIBE_LOG:-}" ]]; then
+    printf "[%s] transcribe_tail_pad: ms=%s\n" \
+      "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$tail_pad_ms" \
+      >>"$TRANSCRIBE_LOG" 2>/dev/null || true
+  fi
+
+  set +e
+  ffmpeg -hide_banner -loglevel error -y \
+    -i "$wav" \
+    -f lavfi -t "$tail_pad_s" -i "anullsrc=r=16000:cl=mono" \
+    -filter_complex "[0:a][1:a]concat=n=2:v=0:a=1" \
+    -ac 1 -ar 16000 -c:a pcm_s16le \
+    "$tmp" >>"${TRANSCRIBE_LOG:-/dev/null}" 2>&1
+  local rc=$?
+  set -e
+
+  if [[ "$rc" -ne 0 || ! -s "$tmp" ]]; then
+    khuluma_trash_owned "$tmp" 2>/dev/null || true
+    return 0
+  fi
+
+  mv -f "$tmp" "$wav" 2>/dev/null || {
+    khuluma_trash_owned "$tmp" 2>/dev/null || true
+    return 0
+  }
+}
+
+if [[ "$SKIP_INITIAL_CONFIG_LOAD" != "1" ]]; then
+  config_load
+fi
+
+# --- History Management -----------------------------------------------------
+
+HISTORY_DIR="$KHULUMA_CONFIG_DIR/history"
+BENCH_FILE="$HISTORY_DIR/bench.tsv"
+
+bench_field() {
+  printf "%s" "${1:-}" | tr '\t\r\n' '   '
+}
+
+# The TSV keeps its 19 columns so older rows still parse: the mode column is
+# always "none" now, and the postprocess (4, 10) and CLI capture (14-16)
+# arguments are always 0.
+append_bench_entry() {
+  local flow="${1:-unknown}"
+  local status="${2:-ok}"
+  local model="${3:-unknown}"
+  local postprocess="${4:-0}"
+  local raw_chars="${5:-0}"
+  local out_chars="${6:-0}"
+  local record_ms="${7:-0}"
+  local transcribe_ms="${8:-0}"
+  local clean_ms="${9:-0}"
+  local postprocess_ms="${10:-0}"
+  local paste_ms="${11:-0}"
+  local total_ms="${12:-0}"
+  local startup_total_ms="${13:-0}"
+  local startup_audio_ms="${14:-0}"
+  local startup_ffmpeg_live_ms="${15:-0}"
+  local startup_target_ms="${16:-0}"
+  local startup_audio_source="${17:-}"
+
+  mkdir -p "$HISTORY_DIR" 2>/dev/null || return 0
+  # Appends and trims share one lock: Khuluma's background `inline record` and
+  # CLI flows can write at once, and a row appended while another writer
+  # trims would be lost when the trimmed copy replaces the file. Wait briefly;
+  # without the lock, still append (best effort) but leave trimming to others.
+  local have_lock="0"
+  bench_lock_acquire && have_lock="1"
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+    "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
+    "$(bench_field "$flow")" \
+    "$(bench_field "$status")" \
+    "$(bench_field "$model")" \
+    "none" \
+    "$(bench_field "$postprocess")" \
+    "$(bench_field "$raw_chars")" \
+    "$(bench_field "$out_chars")" \
+    "$(bench_field "$record_ms")" \
+    "$(bench_field "$transcribe_ms")" \
+    "$(bench_field "$clean_ms")" \
+    "$(bench_field "$postprocess_ms")" \
+    "$(bench_field "$paste_ms")" \
+    "$(bench_field "$total_ms")" \
+    "$(bench_field "$startup_total_ms")" \
+    "$(bench_field "$startup_audio_ms")" \
+    "$(bench_field "$startup_ffmpeg_live_ms")" \
+    "$(bench_field "$startup_target_ms")" \
+    "$(bench_field "$startup_audio_source")" >>"$BENCH_FILE" 2>/dev/null || true
+
+  local max_rows rows
+  max_rows="${KHULUMA_BENCH_MAX_ROWS:-800}"
+  if [[ "$have_lock" == "1" && "$max_rows" =~ ^[0-9]+$ ]] && (( max_rows > 0 )) && [[ -f "$BENCH_FILE" ]]; then
+    rows="$(wc -l < "$BENCH_FILE" | tr -d ' ' || echo 0)"
+    if [[ "$rows" =~ ^[0-9]+$ ]] && (( rows > max_rows )); then
+      tail -n "$max_rows" "$BENCH_FILE" > "${BENCH_FILE}.tmp.$$" 2>/dev/null || true
+      mv -f "${BENCH_FILE}.tmp.$$" "$BENCH_FILE" 2>/dev/null || true
+    fi
+  fi
+  if [[ "$have_lock" == "1" ]]; then
+    khuluma_trash_empty_directory "${BENCH_FILE}.lock.d" 2>/dev/null || true
+  fi
+  return 0
+}
+
+# mkdir lock for bench.tsv, waiting up to ~3 s (a trim holds it for a few
+# milliseconds, so only a stuck writer makes anyone wait that long). A lock
+# left by a killed writer is stale after a minute.
+bench_lock_acquire() {
+  local lock_dir="${BENCH_FILE}.lock.d" attempt=0
+  while (( attempt < 60 )); do
+    attempt=$((attempt + 1))
+    mkdir "$lock_dir" 2>/dev/null && return 0
+    if [[ "$attempt" == "1" && -n "$(find "$lock_dir" -maxdepth 0 -mmin +1 2>/dev/null)" ]]; then
+      khuluma_trash_empty_directory "$lock_dir" 2>/dev/null || true
+      continue
+    fi
+    sleep 0.05
+  done
+  return 1
+}
+
+bench() {
+  local json_output="0"
+  local args=()
+  local filter_args=()
+  local arg
+  local usage="usage: khuluma bench [N|all] [--json] [--flow FLOW] [--status STATUS] [--model MODEL] [--slow-startup-ms N] [--slow-total-ms N] | bench export [N|all] [--json] [filters] | bench clear"
+
+  while [[ $# -gt 0 ]]; do
+    arg="${1:-}"
+    case "$arg" in
+      --json)
+        json_output="1"
+        ;;
+      --flow|--status|--model)
+        shift
+        [[ $# -gt 0 && -n "${1:-}" ]] || die "$usage"
+        filter_args+=("${arg#--}=${1:-}")
+        ;;
+      --flow=*|--status=*|--model=*)
+        filter_args+=("${arg#--}")
+        ;;
+      --slow-startup-ms|--slow-startup-total-ms)
+        shift
+        [[ $# -gt 0 && "${1:-}" =~ ^[0-9]+$ ]] || die "$usage"
+        filter_args+=("min_startup_total_ms=${1:-}")
+        ;;
+      --slow-startup-ms=*|--slow-startup-total-ms=*)
+        [[ "${arg#*=}" =~ ^[0-9]+$ ]] || die "$usage"
+        filter_args+=("min_startup_total_ms=${arg#*=}")
+        ;;
+      --slow-total-ms)
+        shift
+        [[ $# -gt 0 && "${1:-}" =~ ^[0-9]+$ ]] || die "$usage"
+        filter_args+=("min_total_ms=${1:-}")
+        ;;
+      --slow-total-ms=*)
+        [[ "${arg#*=}" =~ ^[0-9]+$ ]] || die "$usage"
+        filter_args+=("min_total_ms=${arg#*=}")
+        ;;
+      --slow-transcribe-ms)
+        shift
+        [[ $# -gt 0 && "${1:-}" =~ ^[0-9]+$ ]] || die "$usage"
+        filter_args+=("min_transcribe_ms=${1:-}")
+        ;;
+      --slow-transcribe-ms=*)
+        [[ "${arg#*=}" =~ ^[0-9]+$ ]] || die "$usage"
+        filter_args+=("min_transcribe_ms=${arg#*=}")
+        ;;
+      --slow-paste-ms)
+        shift
+        [[ $# -gt 0 && "${1:-}" =~ ^[0-9]+$ ]] || die "$usage"
+        filter_args+=("min_paste_ms=${1:-}")
+        ;;
+      --slow-paste-ms=*)
+        [[ "${arg#*=}" =~ ^[0-9]+$ ]] || die "$usage"
+        filter_args+=("min_paste_ms=${arg#*=}")
+        ;;
+      --*)
+        die "$usage"
+        ;;
+      *)
+        args+=("$arg")
+        ;;
+    esac
+    shift
+  done
+
+  local subcmd="show"
+  local spec="30"
+  case "${args[0]:-}" in
+    "")
+      ;;
+    clear)
+      [[ "$json_output" == "0" ]] || die "bench clear does not accept --json"
+      [[ "${#filter_args[@]}" -eq 0 ]] || die "$usage"
+      [[ "${#args[@]}" -eq 1 ]] || die "$usage"
+      khuluma_trash_owned "$BENCH_FILE" 2>/dev/null || true
+      echo "Bench data cleared."
+      return 0
+      ;;
+    export)
+      subcmd="export"
+      [[ "${#args[@]}" -le 2 ]] || die "$usage"
+      spec="${args[1]:-30}"
+      if [[ "$spec" != "all" ]]; then
+        [[ "$spec" =~ ^[0-9]+$ ]] || die "$usage"
+        (( spec > 0 )) || die "$usage"
+      fi
+      ;;
+    *)
+      [[ "${#args[@]}" -eq 1 ]] || die "$usage"
+      if [[ "${args[0]}" != "all" ]]; then
+        [[ "${args[0]}" =~ ^[0-9]+$ ]] || die "$usage"
+        (( ${args[0]} > 0 )) || die "$usage"
+      fi
+      spec="${args[0]}"
+      ;;
+  esac
+
+  need python3
+  python3 - "$BENCH_FILE" "$subcmd" "$spec" "$json_output" ${filter_args[@]+"${filter_args[@]}"} <<'PYEOF'
+import collections
+import json
+import os
+import statistics
+import sys
+
+path = os.path.expanduser(sys.argv[1])
+subcmd = sys.argv[2]
+spec = sys.argv[3]
+json_output = sys.argv[4] == "1"
+filter_args = sys.argv[5:]
+
+FILTER_LABELS = {
+    "flow": "flow",
+    "status": "status",
+    "model": "model",
+    "min_record_ms": "record_ms",
+    "min_transcribe_ms": "transcribe_ms",
+    "min_paste_ms": "paste_ms",
+    "min_total_ms": "total_ms",
+    "min_startup_total_ms": "startup_total_ms",
+}
+
+filters = {
+    "flow": None,
+    "status": None,
+    "model": None,
+    "minimums": {},
+}
+for item in filter_args:
+    if "=" not in item:
+        continue
+    key, value = item.split("=", 1)
+    key = key.strip()
+    value = value.strip()
+    if key in {"flow", "status", "model"}:
+        filters[key] = value
+    elif key in FILTER_LABELS:
+        try:
+            filters["minimums"][FILTER_LABELS[key]] = int(value)
+        except Exception:
+            raise SystemExit(f"invalid bench filter: {key}={value}")
+
+active_filters = {
+    key: value
+    for key, value in filters.items()
+    if (isinstance(value, dict) and value) or (not isinstance(value, dict) and value is not None)
+}
+
+records = []
+if os.path.isfile(path):
+    with open(path, "r", encoding="utf-8", errors="replace") as fh:
+        for line_number, line in enumerate(fh, start=1):
+            parts = line.rstrip("\n").split("\t")
+            if len(parts) < 14:
+                continue
+            ts, flow, status, model, _mode, post, rawc, outc, rec, trn, cln, pps, pst, tot = parts[:14]
+            # Column 5 held the cleanup mode (removed in v0.11; new rows write
+            # "none"), columns 6 and 12 the LLM post-processing flag and time,
+            # and 15-17 CLI capture timings (audio resolve, ffmpeg live check,
+            # target capture); new rows write 0 there.
+            startup_total = parts[14] if len(parts) > 14 else "0"
+            startup_source = parts[18] if len(parts) > 18 else ""
+
+            def to_int(v: str) -> int:
+                try:
+                    return int(v)
+                except Exception:
+                    return 0
+
+            records.append(
+                {
+                    "line_number": line_number,
+                    "timestamp": ts,
+                    "flow": flow,
+                    "status": status,
+                    "model": model,
+                    "raw_chars": to_int(rawc),
+                    "out_chars": to_int(outc),
+                    "record_ms": to_int(rec),
+                    "transcribe_ms": to_int(trn),
+                    "clean_ms": to_int(cln),
+                    "paste_ms": to_int(pst),
+                    "total_ms": to_int(tot),
+                    "startup_total_ms": to_int(startup_total),
+                    "startup_audio_source": startup_source,
+                }
+            )
+
+def select_subset(rows, raw_spec):
+    if raw_spec == "all":
+        return list(rows)
+    limit = int(raw_spec)
+    if limit <= 0:
+        limit = 1
+    return rows[-limit:]
+
+def matches_filters(row):
+    for key in ("flow", "status", "model"):
+        raw_value = filters.get(key)
+        if raw_value is None:
+            continue
+        accepted = {part.strip() for part in raw_value.split(",") if part.strip()}
+        if accepted and str(row.get(key, "")) not in accepted:
+            return False
+    for key, minimum in filters["minimums"].items():
+        if int(row.get(key, 0) or 0) < minimum:
+            return False
+    return True
+
+def percentile(values, pct):
+    if not values:
+        return 0
+    vals = sorted(values)
+    if len(vals) == 1:
+        return vals[0]
+    pos = (len(vals) - 1) * pct
+    lo = int(pos)
+    hi = min(lo + 1, len(vals) - 1)
+    frac = pos - lo
+    return int(round(vals[lo] * (1 - frac) + vals[hi] * frac))
+
+def metric_summary(values):
+    if not values:
+        return {"n": 0, "median": 0, "p90": 0, "max": 0}
+    return {
+        "n": len(values),
+        "median": int(statistics.median(values)),
+        "p90": percentile(values, 0.90),
+        "max": max(values),
+    }
+
+def fmt_stage(name, values):
+    metric = metric_summary(values)
+    if metric["n"] == 0:
+        return f"{name}: n=0"
+    return f"{name}: n={metric['n']} median={metric['median']}ms p90={metric['p90']}ms max={metric['max']}ms"
+
+def export_entries(rows):
+    newest_first = list(reversed(rows))
+    entries = []
+    for idx, row in enumerate(newest_first, start=1):
+        item = dict(row)
+        item["index"] = idx
+        entries.append(item)
+    return entries
+
+matching_records = [row for row in records if matches_filters(row)]
+subset = select_subset(matching_records, spec)
+exported = export_entries(subset)
+
+if subcmd == "export":
+    if json_output:
+        print(json.dumps(exported, indent=2, sort_keys=True))
+        raise SystemExit(0)
+    if not exported:
+        print("No bench data yet.")
+        raise SystemExit(0)
+    for entry in exported:
+        print(f"=== Bench {entry['index']} ===")
+        print(f"Timestamp: {entry['timestamp']}")
+        print(f"Flow: {entry['flow']}")
+        print(f"Status: {entry['status']}")
+        print(f"Model: {entry['model']}")
+        print("")
+        print("Metrics:")
+        for key in (
+            "record_ms",
+            "transcribe_ms",
+            "clean_ms",
+            "paste_ms",
+            "total_ms",
+            "raw_chars",
+            "out_chars",
+        ):
+            print(f"  {key}: {entry[key]}")
+        if entry["startup_total_ms"] > 0 or entry["startup_audio_source"]:
+            print("")
+            print("Startup:")
+            print(f"  startup_total_ms: {entry['startup_total_ms']}")
+            if entry["startup_audio_source"]:
+                print(f"  startup_audio_source: {entry['startup_audio_source']}")
+        print("")
+    raise SystemExit(0)
+
+flow_counts = collections.Counter(r["flow"] for r in subset)
+status_counts = collections.Counter(r["status"] for r in subset)
+latest = subset[-1] if subset else None
+
+payload = {
+    "command": "bench",
+    "subcommand": "show",
+    "source": path,
+    "total_records": len(records),
+    "filtered_records": len(matching_records),
+    "subset_records": len(subset),
+    "filters": active_filters,
+    "counts": {
+        "flows": {k: flow_counts[k] for k in sorted(flow_counts)},
+        "statuses": {k: status_counts[k] for k in sorted(status_counts)},
+    },
+    "stages": {
+        "record_ms": metric_summary([r["record_ms"] for r in subset if r["record_ms"] > 0]),
+        "transcribe_ms": metric_summary([r["transcribe_ms"] for r in subset if r["transcribe_ms"] >= 0]),
+        "clean_ms": metric_summary([r["clean_ms"] for r in subset if r["clean_ms"] >= 0]),
+        "paste_ms": metric_summary([r["paste_ms"] for r in subset if r["paste_ms"] > 0]),
+        "total_ms": metric_summary([r["total_ms"] for r in subset if r["total_ms"] > 0]),
+    },
+    "startup": {
+        "available": any(r["startup_total_ms"] > 0 for r in subset),
+        "total_ms": metric_summary([r["startup_total_ms"] for r in subset if r["startup_total_ms"] > 0]),
+    },
+    "latest": latest,
+    "next_commands": [
+        "khuluma history sessions 5",
+        "khuluma status --preset compact",
+    ],
+}
+
+if json_output:
+    print(json.dumps(payload, indent=2, sort_keys=True))
+    raise SystemExit(0)
+
+if not records:
+    print("No bench data yet.")
+    print("Run a dictation first, then: khuluma bench")
+    raise SystemExit(0)
+
+if active_filters:
+    print(f"Khuluma bench (last {len(subset)} of {len(matching_records)} matching runs; total {len(records)})")
+else:
+    print(f"Khuluma bench (last {len(subset)} of {len(records)} runs)")
+print(f"Source: {path}")
+if active_filters:
+    print("Filters:")
+    for key in ("flow", "status", "model"):
+        if filters.get(key) is not None:
+            print(f"  {key}: {filters[key]}")
+    for key, minimum in sorted(filters["minimums"].items()):
+        print(f"  {key}: >= {minimum}ms")
+print("")
+print("Counts:")
+flow_counts_text = ", ".join(f"{k}={v}" for k, v in sorted(flow_counts.items())) if flow_counts else "<none>"
+status_counts_text = ", ".join(f"{k}={v}" for k, v in sorted(status_counts.items())) if status_counts else "<none>"
+print("  by flow: " + flow_counts_text)
+print("  by status: " + status_counts_text)
+
+print("")
+print("Stages:")
+print("  " + fmt_stage("record", [r["record_ms"] for r in subset if r["record_ms"] > 0]))
+print("  " + fmt_stage("transcribe", [r["transcribe_ms"] for r in subset if r["transcribe_ms"] >= 0]))
+print("  " + fmt_stage("clean", [r["clean_ms"] for r in subset if r["clean_ms"] >= 0]))
+print("  " + fmt_stage("paste", [r["paste_ms"] for r in subset if r["paste_ms"] > 0]))
+print("  " + fmt_stage("total(stop->done)", [r["total_ms"] for r in subset if r["total_ms"] > 0]))
+
+startup_total_vals = [r["startup_total_ms"] for r in subset if r["startup_total_ms"] > 0]
+if startup_total_vals:
+    print("")
+    print("Startup readiness:")
+    print("  " + fmt_stage("startup.total(invoke->ready)", startup_total_vals))
+
+if latest is not None:
+    print("")
+    print("Latest:")
+    print(
+        "  "
+        + f"{latest['timestamp']} flow={latest['flow']} status={latest['status']} "
+        + f"model={latest['model']}"
+    )
+    print(
+        (
+            "  "
+            + "record={record_ms}ms transcribe={transcribe_ms}ms clean={clean_ms}ms "
+            + "paste={paste_ms}ms total={total_ms}ms "
+            + "raw_chars={raw_chars} out_chars={out_chars}"
+        ).format(**latest)
+    )
+    if latest.get("startup_total_ms", 0) > 0:
+        print(
+            (
+                "  "
+                + "startup_total={startup_total_ms}ms audio_source={startup_audio_source}"
+            ).format(**latest)
+        )
+
+print("")
+print("Next:")
+print("  khuluma history sessions 5")
+print("  khuluma status --preset compact")
+PYEOF
+}
+
+bool_is_on() {
+  local raw="${1:-}"
+  local v
+  v="$(printf "%s" "$raw" | tr '[:upper:]' '[:lower:]')"
+  case "$v" in
+    1|true|yes|on) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# The inline pipeline behind `inline process --json`: transcribe a WAV, clean
+# it up, record bench, usage and history, and
+# hand the text back in INLINE_EXTERNAL_* for the caller (Khuluma) to deliver.
+# INLINE_HISTORY_SAVED is 1 once the take's history entry is written.
+process_inline_recording() {
+  local wav="$1"
+  local target_app="${2:-}"
+  local model_id="${3:-}"
+  local record_ms="${4:-0}"
+  local startup_total_ms="${5:-0}"
+  local startup_audio_source="${6:-}"
+  local usage_started_ms="${7:-}"
+
+  need ffmpeg
+
+  local inline_proc_file=""
+  processing_marker_start "inline" 2>/dev/null || true
+  inline_proc_file="$PROCESSING_MARKER_FILE"
+  trap 'processing_marker_stop "$inline_proc_file"; trap - RETURN' RETURN
+
+  local flow_started_ms
+  local transcribe_ms=0 clean_ms=0 paste_ms=0 total_ms=0
+  local stage_started_ms
+  local transcribe_log
+  transcribe_log="$TMPDIR/khuluma-inline.transcribe.log"
+  local archive_prefix=""
+  archive_prefix="$(inline_archive_prefix 2>/dev/null || true)"
+  INLINE_CAPTURE_WAV_MS=""
+  INLINE_CAPTURE_WAV_BYTES=""
+  INLINE_CAPTURE_GAP_TO_RECORD_MS=""
+  if [[ -s "$wav" ]]; then
+    INLINE_CAPTURE_WAV_MS="$(audio_duration_ms "$wav" 2>/dev/null || true)"
+    INLINE_CAPTURE_WAV_BYTES="$(file_size_bytes "$wav" 2>/dev/null || true)"
+    if [[ "$INLINE_CAPTURE_WAV_MS" =~ ^[0-9]+$ && "$record_ms" =~ ^[0-9]+$ ]]; then
+      INLINE_CAPTURE_GAP_TO_RECORD_MS=$(( INLINE_CAPTURE_WAV_MS - record_ms ))
+    fi
+  fi
+
+  local now_ms_value
+  now_ms_value="$(now_ms)"
+  flow_started_ms=$(( now_ms_value - record_ms ))
+  if (( flow_started_ms < 0 )); then
+    flow_started_ms="$now_ms_value"
+  fi
+
+  if [[ ! -s "$wav" ]]; then
+    echo "No audio recorded"
+    total_ms=$(( $(now_ms) - flow_started_ms ))
+    append_bench_entry "inline" "record_failed" "$model_id" "0" "0" "0" "$record_ms" "0" "0" "0" "0" "$total_ms" \
+      "$startup_total_ms" "0" "0" "0" "$startup_audio_source"
+    archive_inline_debug_artifacts "$archive_prefix" "$wav" "$transcribe_log" "record_failed" \
+      "$record_ms" "0" "0" "0" "$total_ms"
+    return 1
+  fi
+
+  local txt
+  : >"$transcribe_log" 2>/dev/null || true
+  local TRANSCRIBE_LOG="$transcribe_log"
+
+  echo "⏳ Transcribing..."
+
+  local whisper_rc=0
+  stage_started_ms="$(now_ms)"
+  set +e
+  txt="$(transcribe_audio "$wav" "$model_id" "${KHULUMA_LANGUAGE:-en}" "" "inline")"
+  whisper_rc=$?
+  set -e
+  transcribe_ms=$(( $(now_ms) - stage_started_ms ))
+  if [[ "$whisper_rc" -ne 0 ]]; then
+    echo "Transcription failed (backend exit $whisper_rc)"
+    echo "Log: $transcribe_log"
+    total_ms=$(( $(now_ms) - flow_started_ms ))
+    append_bench_entry "inline" "transcribe_failed" "$model_id" "0" "0" "0" "$record_ms" "$transcribe_ms" "0" "0" "0" "$total_ms" \
+      "$startup_total_ms" "0" "0" "0" "$startup_audio_source"
+    archive_inline_debug_artifacts "$archive_prefix" "$wav" "$transcribe_log" "transcribe_failed" \
+      "$record_ms" "$transcribe_ms" "0" "0" "$total_ms"
+    return 1
+  fi
+
+  stage_started_ms="$(now_ms)"
+  cleanup_raw_transcript "$txt"
+  txt="$CLEANUP_TEXT"
+  clean_ms=$(( $(now_ms) - stage_started_ms ))
+
+  if [[ -z "${txt//[[:space:]]/}" ]]; then
+    echo "No speech detected"
+    total_ms=$(( $(now_ms) - flow_started_ms ))
+    append_bench_entry "inline" "no_speech" "$model_id" "0" "0" "0" "$record_ms" "$transcribe_ms" "$clean_ms" "0" "0" "$total_ms" \
+      "$startup_total_ms" "0" "0" "0" "$startup_audio_source"
+    archive_inline_debug_artifacts "$archive_prefix" "$wav" "$transcribe_log" "no_speech" \
+      "$record_ms" "$transcribe_ms" "$clean_ms" "0" "$total_ms"
+    return 1
+  fi
+
+  # Save raw transcript for history
+  local raw_txt="$txt"
+
+  finish_transcript_text "$txt"
+  txt="$CLEANUP_TEXT"
+
+  # The caller pastes/sends and plays sounds itself; hand the final text
+  # back. History, bench and usage are still recorded below.
+  INLINE_EXTERNAL_TEXT="$txt"
+  INLINE_EXTERNAL_RAW_TEXT="$raw_txt"
+
+  local delivery_completed_ms
+  delivery_completed_ms="$(now_ms)"
+  total_ms=$(( $(now_ms) - flow_started_ms ))
+  # Persist the small, transcript-free ledger while this confirmed delivery is
+  # still in hand.
+  local usage_full_elapsed_ms="$total_ms"
+  if [[ "$usage_started_ms" =~ ^[0-9]+$ ]]; then
+    usage_full_elapsed_ms=$(( delivery_completed_ms - usage_started_ms ))
+    (( usage_full_elapsed_ms < 0 )) && usage_full_elapsed_ms=0
+  fi
+  # `inline process --defer-usage`: the caller delivers, then records usage
+  # with the real outcome (`inline record` usage_only), so a failed paste is
+  # never counted.
+  if [[ "${INLINE_DEFER_USAGE:-0}" != "1" ]]; then
+    usage_record_delivery "inline" "$txt" "$record_ms" "$usage_full_elapsed_ms" || \
+      echo "[usage] unable to record delivered dictation summary" >&2
+  fi
+  append_bench_entry "inline" "ok" "$model_id" "0" "${#raw_txt}" "${#txt}" "$record_ms" "$transcribe_ms" "$clean_ms" "0" "$paste_ms" "$total_ms" \
+    "$startup_total_ms" "0" "0" "0" "$startup_audio_source"
+
+  INLINE_EXTERNAL_TIMINGS="record_ms=$record_ms transcribe_ms=$transcribe_ms clean_ms=$clean_ms total_ms=$total_ms"
+
+  archive_inline_debug_artifacts "$archive_prefix" "$wav" "$transcribe_log" "ok" \
+    "$record_ms" "$transcribe_ms" "$clean_ms" "$paste_ms" "$total_ms"
+
+  # Save history before returning, so `inline process` can report whether it
+  # is on disk (`history_saved`): Khuluma deletes a take's Quit copy only then.
+  local history_app="${target_app:-current}"
+  if save_history "$raw_txt" "$txt" "${history_app:-unknown}" "$record_ms" "$transcribe_ms" "$clean_ms" "$paste_ms" "$total_ms" >/dev/null 2>&1; then
+    INLINE_HISTORY_SAVED="1"
+  else
+    echo "[history] unable to save the take to history" >&2
+  fi
+}
+
+set_keep_logs() {
+  local val="${1:-}"
+  case "$val" in
+    on|1|true)
+      config_set "debug.keep_logs" "bool" "true"
+      config_load
+      echo "keep_logs: ON"
+      ;;
+    off|0|false)
+      config_set "debug.keep_logs" "bool" "false"
+      config_load
+      echo "keep_logs: OFF"
+      ;;
+    "")
+      if keep_logs_enabled; then
+        echo "keep_logs: ON"
+      else
+        echo "keep_logs: OFF"
+      fi
+      echo "Env override: KHULUMA_KEEP_LOGS=${KHULUMA_KEEP_LOGS:-<unset>}"
+      ;;
+    *)
+      die "usage: khuluma keep-logs [on|off]"
+      ;;
+  esac
+}
+
+set_repeats_level() {
+  local val="${1:-show}"
+  case "$val" in
+    0|1|2)
+      config_set "clean.repeats_level" "int" "$val"
+      config_load
+      echo "repeats_level: ${CFG_CLEAN_REPEATS_LEVEL:-1}"
+      ;;
+    off)
+      config_set "clean.repeats_level" "int" "0"
+      config_load
+      echo "repeats_level: ${CFG_CLEAN_REPEATS_LEVEL:-0}"
+      ;;
+    toggle)
+      local current="${CFG_CLEAN_REPEATS_LEVEL:-1}"
+      local next="1"
+      case "$current" in
+        0) next="1" ;;
+        1) next="2" ;;
+        *) next="0" ;;
+      esac
+      config_set "clean.repeats_level" "int" "$next"
+      config_load
+      echo "repeats_level: ${CFG_CLEAN_REPEATS_LEVEL:-$next}"
+      ;;
+    show|"")
+      echo "repeats_level: ${CFG_CLEAN_REPEATS_LEVEL:-1}"
+      echo "  0 = off"
+      echo "  1 = dedupe repeated words"
+      echo "  2 = dedupe repeated words + short phrases"
+      ;;
+    *)
+      die "usage: khuluma repeats [0|1|2|off|toggle|show]"
+      ;;
+  esac
+}
+
+set_autosend() {
+  local val="${1:-}"
+  case "$val" in
+    on|1)  config_set "inline.autosend" "bool" "true";  config_load; echo "Auto-send: ON (paste + send key)" ;;
+    off|0) config_set "inline.autosend" "bool" "false"; config_load; echo "Auto-send: OFF (paste only)" ;;
+    "")
+      [[ "${CFG_INLINE_AUTOSEND:-1}" == "1" ]] && echo "Auto-send: ON" || echo "Auto-send: OFF"
+      ;;
+    *) die "unknown value: $val (use: on, off)" ;;
+  esac
+}
+
+set_inline_process_sound() {
+  local val="${1:-}"
+  case "$val" in
+    on|1)  config_set "inline.process_sound" "bool" "true";  config_load; echo "inline process_sound: ON" ;;
+    off|0) config_set "inline.process_sound" "bool" "false"; config_load; echo "inline process_sound: OFF" ;;
+    "")
+      [[ "${CFG_INLINE_PROCESS_SOUND:-1}" == "1" ]] && echo "inline process_sound: ON" || echo "inline process_sound: OFF"
+      ;;
+    *) die "unknown value: $val (use: on, off)" ;;
+  esac
+}
+
+normalize_inline_paste_target() {
+  local val="${1:-restore}"
+  case "$val" in
+    current) echo "current" ;;
+    origin|restore|"") echo "restore" ;;
+    *) echo "restore" ;;
+  esac
+}
+
+normalize_inline_send_mode() {
+  local val="${1:-enter}"
+  case "$val" in
+    enter|"") echo "enter" ;;
+    ctrl_j|ctrl-j|ctrlj|ctrl+j) echo "ctrl_j" ;;
+    cmd_enter|cmd-enter|cmdenter|cmd+enter) echo "cmd_enter" ;;
+    *) echo "enter" ;;
+  esac
+}
+
+inline_send_mode_label() {
+  local norm
+  norm="$(normalize_inline_send_mode "${1:-enter}")"
+  case "$norm" in
+    ctrl_j) echo "ctrl_j" ;;
+    cmd_enter) echo "cmd_enter" ;;
+    *) echo "enter" ;;
+  esac
+}
+
+inline_send_mode_desc() {
+  local norm
+  norm="$(normalize_inline_send_mode "${1:-enter}")"
+  case "$norm" in
+    ctrl_j) echo "Ctrl+J" ;;
+    cmd_enter) echo "Cmd+Enter" ;;
+    *) echo "Enter" ;;
+  esac
+}
+
+inline_paste_target_label() {
+  local norm
+  norm="$(normalize_inline_paste_target "${1:-restore}")"
+  if [[ "$norm" == "current" ]]; then
+    echo "current"
+  else
+    echo "origin"
+  fi
+}
+
+set_paste_target() {
+  local val="${1:-}"
+  case "$val" in
+    origin|restore) config_set "inline.paste_target" "string" "restore"; config_load; echo "Paste target: ORIGIN (app from recording start)" ;;
+    current) config_set "inline.paste_target" "string" "current"; config_load; echo "Paste target: CURRENT (wherever you are now)" ;;
+    "")
+      local current_raw="${KHULUMA_INLINE_PASTE_TARGET:-${CFG_INLINE_PASTE_TARGET:-restore}}"
+      local current
+      current="$(inline_paste_target_label "$current_raw")"
+      echo "Paste target: $current"
+      echo ""
+      echo "Options:"
+      echo "  origin  - paste to app that was frontmost when recording started (alias: restore)"
+      echo "  current - paste to whatever app is frontmost when recording stops"
+      ;;
+    *) die "unknown value: $val (use: origin, current, restore)" ;;
+  esac
+}
+
+set_inline_send_mode() {
+  local val="${1:-}"
+  case "$val" in
+    enter)
+      config_set "inline.send_mode" "string" "enter"
+      config_load
+      echo "Inline send mode: Enter"
+      ;;
+    ctrl_j|ctrl-j|ctrlj|ctrl+j)
+      config_set "inline.send_mode" "string" "ctrl_j"
+      config_load
+      echo "Inline send mode: Ctrl+J"
+      ;;
+    cmd_enter|cmd-enter|cmdenter|cmd+enter)
+      config_set "inline.send_mode" "string" "cmd_enter"
+      config_load
+      echo "Inline send mode: Cmd+Enter"
+      ;;
+    "")
+      local current_raw="${KHULUMA_INLINE_SEND_MODE:-${CFG_INLINE_SEND_MODE:-enter}}"
+      local current
+      current="$(inline_send_mode_label "$current_raw")"
+      echo "Inline send mode: $current ($(inline_send_mode_desc "$current_raw"))"
+      echo ""
+      echo "Options:"
+      echo "  enter     - autosend with Enter"
+      echo "  ctrl_j    - autosend with Ctrl+J (often needed in Claude Code)"
+      echo "  cmd_enter - autosend with Cmd+Enter"
+      ;;
+    *)
+      die "unknown value: $val (use: enter, ctrl_j, cmd_enter)"
+      ;;
+  esac
+}
+
+VOCAB_FILE="$KHULUMA_CONFIG_DIR/vocab"
+
+normalize_vocab_entry() {
+  local entry="${1:-}"
+  entry="$(printf "%s" "$entry" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+  [[ -n "$entry" ]] || return 1
+  [[ "$entry" == \#* ]] && return 1
+
+  local left="" right=""
+  if [[ "$entry" == *"::"* ]]; then
+    left="${entry%%::*}"
+    right="${entry#*::}"
+  elif [[ "$entry" == *"->"* ]]; then
+    left="${entry%%->*}"
+    right="${entry#*->}"
+  elif [[ "$entry" == *"→"* ]]; then
+    left="${entry%%→*}"
+    right="${entry#*→}"
+  else
+    return 2
+  fi
+
+  left="$(printf "%s" "$left" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+  right="$(printf "%s" "$right" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+  [[ -n "$left" && -n "$right" ]] || return 2
+  printf "%s → %s" "$left" "$right"
+}
+
+append_vocab_entry() {
+  local raw="${1:-}"
+  local vocab_file="${2:-$VOCAB_FILE}"
+  local normalized=""
+  normalized="$(normalize_vocab_entry "$raw" 2>/dev/null || true)"
+  [[ -n "$normalized" ]] || return 2
+  mkdir -p "$(dirname "$vocab_file")"
+  touch "$vocab_file"
+  if grep -Fxq "$normalized" "$vocab_file" 2>/dev/null; then
+    return 1
+  fi
+  printf "%s\n" "$normalized" >>"$vocab_file"
+  return 0
+}
+
+import_vocab_stream() {
+  local invalid_log="${1:-}"
+  local vocab_file="${2:-$VOCAB_FILE}"
+  local added=0 dup=0 invalid=0
+  local line norm rc line_num=0
+  [[ -n "$invalid_log" ]] && : >"$invalid_log"
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line_num=$((line_num + 1))
+    norm="$(normalize_vocab_entry "$line" 2>/dev/null || true)"
+    if [[ -z "$norm" ]]; then
+      # Ignore blanks/comments silently; count malformed non-empty entries.
+      line="$(printf "%s" "$line" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+      if [[ -n "$line" && "$line" != \#* ]]; then
+        invalid=$((invalid + 1))
+        if [[ -n "$invalid_log" ]]; then
+          printf "%s\t%s\n" "$line_num" "$line" >>"$invalid_log"
+        fi
+      fi
+      continue
+    fi
+    append_vocab_entry "$norm" "$vocab_file"
+    rc=$?
+    case "$rc" in
+      0) added=$((added + 1)) ;;
+      1) dup=$((dup + 1)) ;;
+      *) invalid=$((invalid + 1)) ;;
+    esac
+  done
+  echo "$added $dup $invalid"
+}
+
+build_vocab_snapshot() {
+  local src="${1:-}"
+  local out="${2:-}"
+  local invalid_log="${3:-}"
+  [[ -n "$src" && -n "$out" ]] || return 2
+
+  local kept=0 dup=0 invalid=0
+  local line norm line_num=0 trimmed
+  : >"$out"
+  [[ -n "$invalid_log" ]] && : >"$invalid_log"
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line_num=$((line_num + 1))
+    norm="$(normalize_vocab_entry "$line" 2>/dev/null || true)"
+    if [[ -z "$norm" ]]; then
+      trimmed="$(printf "%s" "$line" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+      if [[ -n "$trimmed" && "$trimmed" != \#* ]]; then
+        invalid=$((invalid + 1))
+        if [[ -n "$invalid_log" ]]; then
+          printf "%s\t%s\n" "$line_num" "$trimmed" >>"$invalid_log"
+        fi
+      fi
+      continue
+    fi
+    if grep -Fxq "$norm" "$out" 2>/dev/null; then
+      dup=$((dup + 1))
+      continue
+    fi
+    printf "%s\n" "$norm" >>"$out"
+    kept=$((kept + 1))
+  done <"$src"
+
+  echo "$kept $dup $invalid"
+}
+
+prepare_vocab_work_file() {
+  local work_file="${1:-}"
+  [[ -n "$work_file" ]] || return 1
+  if [[ -f "$VOCAB_FILE" ]]; then
+    cp "$VOCAB_FILE" "$work_file"
+  else
+    : >"$work_file"
+  fi
+}
+
+make_vocab_backup() {
+  local src="${1:-}"
+  [[ -f "$src" ]] || return 1
+  local backup="${src}.bak.$(date +%Y%m%d-%H%M%S)"
+  cp "$src" "$backup"
+  printf "%s\n" "$backup"
+}
+
+show_vocab_invalid_preview() {
+  local invalid_log="${1:-}"
+  local limit="${2:-5}"
+  [[ -s "$invalid_log" ]] || return 0
+  echo "Invalid entries (first ${limit}):"
+  awk -F'\t' -v max="$limit" 'NR <= max { printf "  - line %s: %s\n", $1, $2 }' "$invalid_log"
+  echo "Tip: expected format wrong::right (also accepts wrong -> right or wrong → right)"
+}
+
+manage_vocab() {
+  local subcmd="${1:-}"
+  shift 2>/dev/null || true
+
+  case "$subcmd" in
+    add)
+      [[ "$#" -gt 0 ]] || die "usage: khuluma vocab add \"wrong::right\" [\"a::b\" ...]"
+      local token part
+      local added=0 dup=0 invalid=0
+      for token in "$@"; do
+        local IFS=';'
+        # Allow semicolon-separated batch in one argument.
+        read -r -a _parts <<<"$token"
+        for part in "${_parts[@]}"; do
+          if append_vocab_entry "$part"; then
+            added=$((added + 1))
+          else
+            case "$?" in
+              1) dup=$((dup + 1)) ;;
+              *) invalid=$((invalid + 1)) ;;
+            esac
+          fi
+        done
+      done
+      echo "Vocab add: added=$added duplicate=$dup invalid=$invalid"
+      if [[ "$invalid" -gt 0 ]]; then
+        echo "Tip: use format wrong::right (also accepts wrong -> right or wrong → right)"
+      fi
+      return 0
+      ;;
+    import)
+      local dry_run=0
+      if [[ "${1:-}" == "--dry-run" ]]; then
+        dry_run=1
+        shift
+      fi
+      local src="${1:-}"
+      [[ -n "$src" ]] || die "usage: khuluma vocab import <file>"
+      src="$(expand_path "$src")"
+      [[ -f "$src" ]] || die "file not found: $src"
+      local stats added dup invalid invalid_tmp work_file backup
+      invalid_tmp="$(mktemp "${TMPDIR:-/tmp}/khuluma-vocab-import-invalid.XXXXXX")"
+      work_file="$(mktemp "${TMPDIR:-/tmp}/khuluma-vocab-import.XXXXXX")"
+      prepare_vocab_work_file "$work_file"
+      stats="$(import_vocab_stream "$invalid_tmp" "$work_file" < "$src")"
+      added="$(printf "%s" "$stats" | awk "{print \$1}")"
+      dup="$(printf "%s" "$stats" | awk "{print \$2}")"
+      invalid="$(printf "%s" "$stats" | awk "{print \$3}")"
+      [[ -n "$added" ]] || added=0
+      [[ -n "$dup" ]] || dup=0
+      [[ -n "$invalid" ]] || invalid=0
+      backup=""
+      if [[ "$dry_run" != "1" && "$added" -gt 0 ]]; then
+        mkdir -p "$(dirname "$VOCAB_FILE")"
+        if [[ -f "$VOCAB_FILE" ]]; then
+          backup="$(make_vocab_backup "$VOCAB_FILE" || true)"
+        fi
+        mv -f "$work_file" "$VOCAB_FILE"
+      else
+        khuluma_trash_owned "$work_file"
+      fi
+      if [[ "$dry_run" == "1" ]]; then
+        echo "Vocab import dry-run ($src): added=$added duplicate=$dup invalid=$invalid"
+      else
+        echo "Vocab import ($src): added=$added duplicate=$dup invalid=$invalid"
+      fi
+      if [[ -n "$backup" ]]; then
+        echo "Backup: $backup"
+      fi
+      if [[ "$invalid" -gt 0 ]]; then
+        show_vocab_invalid_preview "$invalid_tmp" 5
+      fi
+      khuluma_trash_owned "$invalid_tmp"
+      ;;
+    export)
+      local dst="${1:-}"
+      [[ -n "$dst" ]] || die "usage: khuluma vocab export <file>"
+      [[ -f "$VOCAB_FILE" ]] || die "no custom vocab file: $VOCAB_FILE"
+      dst="$(expand_path "$dst")"
+      mkdir -p "$(dirname "$dst")"
+
+      local tmp invalid_tmp stats kept dup invalid backup
+      tmp="$(mktemp "${TMPDIR:-/tmp}/khuluma-vocab-export.XXXXXX")"
+      invalid_tmp="$(mktemp "${TMPDIR:-/tmp}/khuluma-vocab-export-invalid.XXXXXX")"
+      stats="$(build_vocab_snapshot "$VOCAB_FILE" "$tmp" "$invalid_tmp")"
+      kept="$(printf "%s" "$stats" | awk "{print \$1}")"
+      dup="$(printf "%s" "$stats" | awk "{print \$2}")"
+      invalid="$(printf "%s" "$stats" | awk "{print \$3}")"
+      [[ -n "$kept" ]] || kept=0
+      [[ -n "$dup" ]] || dup=0
+      [[ -n "$invalid" ]] || invalid=0
+
+      backup=""
+      if [[ -f "$dst" ]]; then
+        backup="${dst}.bak.$(date +%Y%m%d-%H%M%S)"
+        cp "$dst" "$backup"
+      fi
+      mv -f "$tmp" "$dst"
+      echo "Vocab export ($dst): entries=$kept duplicate_skipped=$dup invalid_skipped=$invalid"
+      if [[ -n "$backup" ]]; then
+        echo "Backup: $backup"
+      fi
+      if [[ "$invalid" -gt 0 ]]; then
+        show_vocab_invalid_preview "$invalid_tmp" 5
+      fi
+      khuluma_trash_owned "$invalid_tmp"
+      ;;
+    clipboard|clip|paste)
+      need pbpaste
+      local dry_run=0
+      if [[ "${1:-}" == "--dry-run" ]]; then
+        dry_run=1
+        shift
+      fi
+      local clip
+      clip="$(pbpaste)"
+      [[ -n "${clip//[[:space:]]/}" ]] || die "clipboard is empty"
+      local stats added dup invalid invalid_tmp work_file backup
+      invalid_tmp="$(mktemp "${TMPDIR:-/tmp}/khuluma-vocab-clipboard-invalid.XXXXXX")"
+      work_file="$(mktemp "${TMPDIR:-/tmp}/khuluma-vocab-clipboard.XXXXXX")"
+      prepare_vocab_work_file "$work_file"
+      stats="$(printf "%s\n" "$clip" | import_vocab_stream "$invalid_tmp" "$work_file")"
+      added="$(printf "%s" "$stats" | awk "{print \$1}")"
+      dup="$(printf "%s" "$stats" | awk "{print \$2}")"
+      invalid="$(printf "%s" "$stats" | awk "{print \$3}")"
+      [[ -n "$added" ]] || added=0
+      [[ -n "$dup" ]] || dup=0
+      [[ -n "$invalid" ]] || invalid=0
+      backup=""
+      if [[ "$dry_run" != "1" && "$added" -gt 0 ]]; then
+        mkdir -p "$(dirname "$VOCAB_FILE")"
+        if [[ -f "$VOCAB_FILE" ]]; then
+          backup="$(make_vocab_backup "$VOCAB_FILE" || true)"
+        fi
+        mv -f "$work_file" "$VOCAB_FILE"
+      else
+        khuluma_trash_owned "$work_file"
+      fi
+      if [[ "$dry_run" == "1" ]]; then
+        echo "Vocab clipboard import dry-run: added=$added duplicate=$dup invalid=$invalid"
+      else
+        echo "Vocab clipboard import: added=$added duplicate=$dup invalid=$invalid"
+      fi
+      if [[ -n "$backup" ]]; then
+        echo "Backup: $backup"
+      fi
+      if [[ "$invalid" -gt 0 ]]; then
+        show_vocab_invalid_preview "$invalid_tmp" 5
+      fi
+      khuluma_trash_owned "$invalid_tmp"
+      ;;
+    dedupe|clean)
+      if [[ ! -f "$VOCAB_FILE" ]]; then
+        echo "No custom vocab file"
+        return 0
+      fi
+      local before after tmp invalid_tmp stats kept dup invalid backup
+      before="$(wc -l < "$VOCAB_FILE" | tr -d ' ')"
+      tmp="$(mktemp "${TMPDIR:-/tmp}/khuluma-vocab.XXXXXX")"
+      invalid_tmp="$(mktemp "${TMPDIR:-/tmp}/khuluma-vocab-dedupe-invalid.XXXXXX")"
+      stats="$(build_vocab_snapshot "$VOCAB_FILE" "$tmp" "$invalid_tmp")"
+      kept="$(printf "%s" "$stats" | awk "{print \$1}")"
+      dup="$(printf "%s" "$stats" | awk "{print \$2}")"
+      invalid="$(printf "%s" "$stats" | awk "{print \$3}")"
+      [[ -n "$kept" ]] || kept=0
+      [[ -n "$dup" ]] || dup=0
+      [[ -n "$invalid" ]] || invalid=0
+      backup="${VOCAB_FILE}.bak.$(date +%Y%m%d-%H%M%S)"
+      cp "$VOCAB_FILE" "$backup"
+      mv -f "$tmp" "$VOCAB_FILE"
+      after="$(wc -l < "$VOCAB_FILE" | tr -d ' ')"
+      echo "Vocab dedupe: $before -> $after entries (duplicate_removed=$dup invalid_removed=$invalid)"
+      echo "Backup: $backup"
+      if [[ "$invalid" -gt 0 ]]; then
+        show_vocab_invalid_preview "$invalid_tmp" 5
+      fi
+      khuluma_trash_owned "$invalid_tmp"
+      ;;
+    edit)
+      mkdir -p "$(dirname "$VOCAB_FILE")"
+      touch "$VOCAB_FILE"
+      ${EDITOR:-nvim} "$VOCAB_FILE"
+      ;;
+    rm|remove)
+      local dry_run=0 use_regex=0
+      while [[ "$#" -gt 0 ]]; do
+        case "$1" in
+          --dry-run) dry_run=1 ;;
+          --regex) use_regex=1 ;;
+          --) shift; break ;;
+          *) break ;;
+        esac
+        shift
+      done
+      local pattern="$*"
+      if [[ -z "$pattern" ]]; then
+        die "usage: khuluma vocab rm [--dry-run] [--regex] \"pattern\""
+      fi
+      if [[ ! -f "$VOCAB_FILE" ]]; then
+        echo "No custom vocab file"
+        return 0
+      fi
+      local before after removed tmp backup match_mode
+      before="$(wc -l < "$VOCAB_FILE" | tr -d ' ')"
+      tmp="$(mktemp "${TMPDIR:-/tmp}/khuluma-vocab-rm.XXXXXX")"
+      if [[ "$use_regex" == "1" ]]; then
+        match_mode="regex"
+        local grep_rc=0
+        if grep -v -- "$pattern" "$VOCAB_FILE" >"$tmp"; then
+          grep_rc=0
+        else
+          grep_rc=$?
+          case "$grep_rc" in
+            1) : ;;
+            2)
+              khuluma_trash_owned "$tmp"
+              die "invalid regex pattern: $pattern"
+              ;;
+          esac
+        fi
+      else
+        match_mode="literal"
+        grep -F -v -- "$pattern" "$VOCAB_FILE" >"$tmp" || true
+      fi
+      after="$(wc -l < "$tmp" | tr -d ' ')"
+      removed=$((before - after))
+      backup=""
+      if [[ "$removed" -gt 0 && "$dry_run" != "1" ]]; then
+        backup="$(make_vocab_backup "$VOCAB_FILE" || true)"
+        mv -f "$tmp" "$VOCAB_FILE"
+      else
+        khuluma_trash_owned "$tmp"
+      fi
+      if [[ "$dry_run" == "1" ]]; then
+        echo "Vocab rm dry-run: removed=$removed match=$match_mode pattern=$pattern"
+      else
+        echo "Vocab rm: removed=$removed match=$match_mode pattern=$pattern"
+      fi
+      if [[ -n "$backup" ]]; then
+        echo "Backup: $backup"
+      fi
+      ;;
+    "")
+      if [[ -f "$VOCAB_FILE" ]]; then
+        echo "Custom corrections (~/.config/khuluma/vocab):"
+        echo ""
+        nl -ba "$VOCAB_FILE"
+        echo ""
+        echo "$(wc -l < "$VOCAB_FILE" | tr -d ' ') entries"
+        echo ""
+        echo "Commands:"
+        echo "  khuluma vocab add \"wrong::right\" [\"a::b\" ...]"
+        echo "  khuluma vocab import [--dry-run] <file>"
+        echo "  khuluma vocab export <file>"
+        echo "  khuluma vocab clipboard [--dry-run]"
+        echo "  khuluma vocab dedupe"
+        echo "  khuluma vocab rm [--dry-run] [--regex] \"pattern\""
+      else
+        echo "No custom vocab file yet."
+        echo ""
+        echo "Add corrections:"
+        echo "  khuluma vocab add \"health lag::help flag\""
+        echo "  khuluma vocab add \"my app::MyApp\""
+      fi
+      ;;
+    *) die "unknown vocab command: $subcmd (use: add, import, export, clipboard, dedupe, edit, rm)" ;;
+  esac
+}
+
+manage_sounds() {
+  local target="${1:-}"
+  local val="${2:-}"
+
+  local onoff
+  onoff() {
+    [[ "${1:-}" == "1" ]] && echo "ON" || echo "OFF"
+  }
+
+  case "$target" in
+    "" )
+      echo "Sounds:"
+      echo "  enabled: $(onoff "${CFG_AUDIO_SOUNDS_ENABLED:-1}")"
+      echo "  start:   $(onoff "${CFG_AUDIO_SOUNDS_START_ENABLED:-1}")"
+      echo "  stop:    $(onoff "${CFG_AUDIO_SOUNDS_STOP_ENABLED:-1}")"
+      echo "  process: $(onoff "${CFG_AUDIO_SOUNDS_PROCESS_ENABLED:-1}")"
+      echo "  error:   $(onoff "${CFG_AUDIO_SOUNDS_ERROR_ENABLED:-1}")"
+      echo "  cancel:  $(onoff "${CFG_AUDIO_SOUNDS_CANCEL_ENABLED:-1}")"
+      echo ""
+      echo "Paths (from config):"
+      echo "  start:   ${CFG_AUDIO_SOUNDS_START:-$KHULUMA_SOUNDS_DIR/start.wav}"
+      echo "  stop:    ${CFG_AUDIO_SOUNDS_STOP:-$KHULUMA_SOUNDS_DIR/stop.wav}"
+      echo "  process: ${CFG_AUDIO_SOUNDS_PROCESS:-$KHULUMA_SOUNDS_DIR/process.wav}"
+      echo "  error:   ${CFG_AUDIO_SOUNDS_ERROR:-$KHULUMA_SOUNDS_DIR/error.wav}"
+      echo "  cancel:  ${CFG_AUDIO_SOUNDS_CANCEL:-$KHULUMA_SOUNDS_DIR/cancel.wav}"
+      ;;
+    on|off|mute|unmute)
+      case "$target" in
+        on|unmute) config_set "audio.sounds.enabled" "bool" "true" ;;
+        off|mute) config_set "audio.sounds.enabled" "bool" "false" ;;
+      esac
+      config_load
+      echo "Sounds: $(onoff "${CFG_AUDIO_SOUNDS_ENABLED:-1}")"
+      ;;
+    start|stop|process|error|cancel)
+      [[ -n "$val" ]] || die "usage: khuluma sound $target on|off"
+      case "$val" in
+        on|1) config_set "audio.sounds.${target}_enabled" "bool" "true" ;;
+        off|0) config_set "audio.sounds.${target}_enabled" "bool" "false" ;;
+        *) die "usage: khuluma sound $target on|off" ;;
+      esac
+      config_load
+      local state="1"
+      case "$target" in
+        start) state="${CFG_AUDIO_SOUNDS_START_ENABLED:-1}" ;;
+        stop) state="${CFG_AUDIO_SOUNDS_STOP_ENABLED:-1}" ;;
+        process) state="${CFG_AUDIO_SOUNDS_PROCESS_ENABLED:-1}" ;;
+        error) state="${CFG_AUDIO_SOUNDS_ERROR_ENABLED:-1}" ;;
+        cancel) state="${CFG_AUDIO_SOUNDS_CANCEL_ENABLED:-1}" ;;
+      esac
+      echo "$target: $(onoff "$state")"
+      ;;
+    *) die "usage: khuluma sound [on|off|start|stop|process|error|cancel] [on|off]" ;;
+  esac
+}
+
+case "$cmd" in
+  ""|-h|--help|help) usage ;;
+  doctor) doctor "${@:2}" ;;
+  warmup) warmup_backend "${@:2}" ;;
+  transcribe) manage_transcribe "${@:2}" ;;
+  finder) manage_finder "${2:-}" ;;
+  app-config) app_config_json "${@:2}" ;;
+  bench) bench "${@:2}" ;;
+  changelog) changelog ;;
+  config) manage_config "${2:-}" "${@:3}" ;;
+  status) status "${@:2}" ;;
+  inline)
+    case "${2:-}" in
+      process) inline_process_json "${@:3}" ;;
+      cleanup) inline_cleanup_json "${@:3}" ;;
+      record) inline_record_json "${@:3}" ;;
+      process-sound|process_sound|processsound) set_inline_process_sound "${3:-}" ;;
+      *) die "usage: khuluma inline [process <wav> --json|process-sound on|off]" ;;
+    esac
+    ;;
+  sound|sounds) manage_sounds "${2:-}" "${3:-}" ;;
+  keep-logs|keep_logs|keeplogs) set_keep_logs "${2:-}" ;;
+  repeats) set_repeats_level "${2:-}" ;;
+  autosend) set_autosend "${2:-}" ;;
+  send-mode|send_mode|sendmode) set_inline_send_mode "${2:-}" ;;
+  target|paste_target) set_paste_target "${2:-}" ;;
+  vocab) manage_vocab "${2:-}" "${@:3}" ;;
+  mode) die "modes were removed in v0.11: every take uses $KHULUMA_CONFIG_DIR/vocab (khuluma vocab). Old modes/*/vocab entries are folded in by: khuluma migrate-modes" ;;
+  migrate-modes) migrate_modes "${@:2}" ;;
+  history) manage_history "${@:2}" ;;
+  version|--version) show_version "${@:2}" ;;
+  usage)
+    usage_json="0"
+    usage_days=""
+    set -- "${@:2}"
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --json) usage_json="1" ;;
+        --days)
+          [[ $# -ge 2 ]] || die "usage: khuluma usage [--json [--days N|all]]"
+          usage_days="$2"
+          shift
+          ;;
+        *) die "usage: khuluma usage [--json [--days N|all]]" ;;
+      esac
+      shift
+    done
+    if [[ -n "$usage_days" ]]; then
+      [[ "$usage_json" == "1" ]] || die "usage: --days needs --json"
+      if [[ "$usage_days" != "all" ]] && { [[ ! "$usage_days" =~ ^[0-9]+$ ]] || (( 10#$usage_days < 1 || 10#$usage_days > 3660 )); }; then
+        die "usage: --days takes 1-3660 or all"
+      fi
+      [[ "$usage_days" == "all" ]] || usage_days="$((10#$usage_days))"
+    fi
+    usage_summary "$usage_json" "$usage_days"
+    ;;
+  last)
+    if [[ "${2:-}" == "--json" ]]; then
+      show_last_history "json"
+    else
+      show_last_history
+    fi
+    ;;
+  *) die "unknown command: $cmd (run: khuluma --help)" ;;
+esac

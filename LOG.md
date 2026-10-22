@@ -1,15 +1,14 @@
 # Log
 
 ## Now
-Khuluma is the daily app. Review the complete identity migration in [`docs/KHULUMA_RENAME_PLAN.md`](docs/KHULUMA_RENAME_PLAN.md) before implementation. It proposes renaming the existing app/CLI/daemon/formula together while preserving current behavior; native CLI independence remains separate future work. Phase 0's code tidy-up and app rename are recorded complete; the daily-use gate remains open. Current tasks and decisions are kept here. The previous detailed roadmap is frozen in `docs/archive/KHULUMA_RENAME_ROADMAP.md`; its research and exit criteria are historical context, not a mandatory spec workflow.
+Implement the approved complete Khuluma identity migration in the isolated `codex/khuluma-rename` source/tap worktrees. [`docs/KHULUMA_RENAME_PLAN.md`](docs/KHULUMA_RENAME_PLAN.md) owns the finite checklist. Preserve the daily installed app, original dirty checkouts, user data and full history until isolated acceptance and one controlled cutover pass. Native CLI independence stays separate.
 
-The source `tmux-whisperd/.build` cache was moved to Trash on 2026-10-22;
-rebuild source products when development resumes. Installed Khuluma and its
-separate daemon/runtime are retained.
+Existing documentation was preserved in a separate baseline commit before code changes. The final Swift 6.4 gate passed 22 daemon/kit and 153 Core tests (175 total). Shell flow passed 281 assertions, migration passed 26 cases, the app helper passed 30 mocked cases, and the private controller passed 12 recovery cases. The release daemon passed a synthetic file-transcription canary with the existing offline model and stopped cleanly; final Stats fixtures were rendered and inspected. Actual signing, app/permission/login acceptance, runtime cutover and remote/Homebrew gates remain open. Current daily installation remains legacy `com.ricardo-nth.lowkey`, with its separate installed runtime retained.
 
 ## Next
 
-- [ ] P1 · Review the full identity rename plan; implementation, runtime/signing cutover and external publication have not begun · added 2026-10-22
+- [x] P1 · Review the full identity rename plan · added 2026-10-22
+- [ ] P1 · Complete isolated rename/migration/recovery acceptance, controlled daily cutover and source/tap integration · added 2026-10-22
 
 - [ ] P1 · Before phase 2: search UKIPO and EUIPO by hand for KHULUMA; register khuluma.app · added 2026-10-17
 - [ ] P1 · Khuluma app icon: the bundle has none yet (Dock, Finder, Login Items, System Settings show a blank icon); a menu-bar glyph to match · added 2026-10-17
@@ -32,12 +31,16 @@ separate daemon/runtime are retained.
 ## Decisions
 
 - Khuluma is the product; local, fast dictation and never losing a take remain the priorities. The CLI is its back end until native replacements are proven. Keep compatibility while both own the same files.
-- Name chosen: Khuluma. Bundle id `com.ricardo-nth.lowkey` and local signing identity remain until an authorized Developer ID transition. Name research is dated in `docs/plans/KHULUMA_NAME_CHECK.md`; official UK/EU checks remain open above.
+- Name chosen: Khuluma. Approved rename target is bundle `com.ricardo-nth.khuluma` with a separate `Khuluma Local Code Signing` identity; preserve the existing Lowkey identity and data for other apps/rollback. Daily identity changes only at the tested cutover. Name research is dated in `docs/plans/KHULUMA_NAME_CHECK.md`; official UK/EU checks remain open above.
 - Direct distribution is the planned channel. Mac App Store phase 6 is parked; the old roadmap keeps the sandbox research. Free/paid store distribution is undecided.
 - Tmux capture, CLI recording, LLM rewriting, silence trim, bash chunking, Raycast and SwiftBar were dropped; reintroduce none without evidence. Usage, Stats and logs keep counts/timings, not transcript text; history and pending recovery are the intentional text stores.
-- New repository is a proposal, not a completed move. Cask, signing, data migration, deprecation and archive steps remain future work; the app currently depends on the installed CLI.
+- Rename the existing repository in place to preserve all history; retain neutral `ricardo-nth/tap` and rename its formula to `khuluma`. External rename/release/tap publication remains pending actual gates. The app continues to depend on its matching CLI; cask/CLI-independence/deprecation/archive are separate future work.
 
 ## Done
+
+- 2026-10-22 · Implemented canonical identities and lossless migration; isolated native/shell/recovery/real-model gates passed; daily/public rollout pending · docs/KHULUMA_RENAME_PLAN.md
+
+- 2026-10-22 · Started approved rename in isolated source/tap worktrees; preserved existing docs baseline; cold Swift gate 170 tests passed · docs/KHULUMA_RENAME_PLAN.md
 
 - 2026-10-22 · Prepared reviewed identity migration plan with exact files/lines, state/rollback and release gates; runtime untouched · docs/KHULUMA_RENAME_PLAN.md
 

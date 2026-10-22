@@ -1,6 +1,6 @@
 # Sample Sounds
 
-This repository includes a tiny generated sound pack at `assets/sounds/dictate/`:
+This repository includes a tiny generated sound pack at `assets/sounds/khuluma/`:
 
 - `start.wav`
 - `stop.wav`
@@ -17,7 +17,7 @@ They are intentionally short and can be installed with:
 Installed location by default:
 
 ```bash
-~/.local/share/sounds/dictate
+~/.local/share/sounds/khuluma
 ```
 
 To skip sound installation:

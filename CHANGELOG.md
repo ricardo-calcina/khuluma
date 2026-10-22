@@ -1,5 +1,12 @@
 # Tmux Whisper changelog
 
+## Unreleased — Khuluma identity migration
+
+- Rename the CLI, native daemon and shared modules to Khuluma identities while preserving dictation, file transcription and app contracts.
+- Add recoverable migration tooling for legacy settings, history, usage, models and sounds, with isolated upgrade/rollback checks.
+- Prepare canonical signing, preferences, Finder and Homebrew upgrade paths; release and installed-runtime validation are tracked separately in LOG.md.
+
+
 ## v0.11.0 — Unreleased
 
 - **Removed before the Lowkey rename** (phase 0 of `docs/archive/KHULUMA_RENAME_ROADMAP.md`; Lowkey owns the dictation key and the menu-bar item):

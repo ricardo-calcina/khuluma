@@ -2,8 +2,10 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DICTATE_BIN="$ROOT/bin/tmux-whisper"
-TMP_ROOT="$(mktemp -d)"
+KHULUMA_BIN="$ROOT/bin/khuluma"
+TMP_ROOT="$(cd "$(mktemp -d)" && pwd -P)"
+KHULUMA_TEST_FIXTURE_ROOT="$TMP_ROOT"
+source "$ROOT/tests/fixture_helpers.sh"
 STUB_DIR="$TMP_ROOT/stubs"
 STUB_REGISTRY_DIR="$TMP_ROOT/stub-daemons"
 mkdir -p "$STUB_DIR"
@@ -90,9 +92,9 @@ cleanup() {
           kill -INT "$pid" 2>/dev/null || true
         fi
       fi
-      [[ -n "${wav:-}" ]] && rm -f "$wav" 2>/dev/null || true
+      : # Audio fixtures remain inside the retained temporary root.
     done < <(find "$TMP_ROOT" -type f -name '*.state' 2>/dev/null || true)
-    rm -rf "$TMP_ROOT"
+    report_fixture_root
   fi
 }
 trap cleanup EXIT
@@ -237,7 +239,7 @@ write_stubs() {
 set -euo pipefail
 
 if [[ "$*" == *"-list_devices true"* ]]; then
-  [[ -n "${DICTATE_TEST_FFMPEG_LIST_LOG:-}" ]] && printf 'list_devices\n' >>"$DICTATE_TEST_FFMPEG_LIST_LOG"
+  [[ -n "${KHULUMA_TEST_FFMPEG_LIST_LOG:-}" ]] && printf 'list_devices\n' >>"$KHULUMA_TEST_FFMPEG_LIST_LOG"
   cat >&2 <<'OUT'
 [AVFoundation input device @ 0x0] AVFoundation audio devices:
 [AVFoundation input device @ 0x0] [0] MacBook Air Microphone
@@ -247,13 +249,13 @@ OUT
   exit 0
 fi
 
-if [[ -n "${DICTATE_TEST_FFMPEG_LOG:-}" ]]; then
-  printf '%s\n' "$*" >>"$DICTATE_TEST_FFMPEG_LOG"
+if [[ -n "${KHULUMA_TEST_FFMPEG_LOG:-}" ]]; then
+  printf '%s\n' "$*" >>"$KHULUMA_TEST_FFMPEG_LOG"
 fi
 
 # Simulate a device that can't be opened by name (renamed/unplugged). Real
 # ffmpeg takes 0.2-0.8s to give up, well past a bare "is it running" check.
-if [[ "${DICTATE_TEST_FFMPEG_FAIL_NAME:-0}" == "1" && "$*" == *"-i :MacBook Air Microphone"* ]]; then
+if [[ "${KHULUMA_TEST_FFMPEG_FAIL_NAME:-0}" == "1" && "$*" == *"-i :MacBook Air Microphone"* ]]; then
   sleep 0.4
   echo "[AVFoundation indev] Audio device not found" >&2
   exit 251
@@ -276,7 +278,7 @@ else
   printf '%s\n' "stub-wav" >"$out"
 fi
 
-if [[ "${DICTATE_TEST_FFMPEG_HOLD:-0}" == "1" && ( "$out" == *"whisper-dictate-"* || "$out" == *"dictate-inline-"* ) ]]; then
+if [[ "${KHULUMA_TEST_FFMPEG_HOLD:-0}" == "1" && ( "$out" == *"khuluma-"* || "$out" == *"khuluma-inline-"* ) ]]; then
   trap 'exit 0' INT TERM
   if [[ "$*" != *"-nostdin"* ]]; then
     while IFS= read -r -n 1 ch; do
@@ -292,7 +294,7 @@ EOF
 #!/usr/bin/env bash
 set -euo pipefail
 
-duration_ms="${DICTATE_TEST_FFPROBE_DURATION_MS:-}"
+duration_ms="${KHULUMA_TEST_FFPROBE_DURATION_MS:-}"
 if [[ "$duration_ms" =~ ^[0-9]+$ ]]; then
   awk -v ms="$duration_ms" 'BEGIN { printf "%.6f\n", ms/1000 }'
   exit 0
@@ -305,7 +307,7 @@ EOF
 #!/usr/bin/env bash
 set -euo pipefail
 
-log="${DICTATE_TEST_TMUX_LOG:-}"
+log="${KHULUMA_TEST_TMUX_LOG:-}"
 cmd="${1:-}"
 [[ -n "$cmd" ]] || exit 0
 shift || true
@@ -326,22 +328,22 @@ case "$cmd" in
     done
     case "$fmt" in
       '#{pane_id}')
-        printf '%s\n' "${DICTATE_TEST_TMUX_PANE:-%1}"
+        printf '%s\n' "${KHULUMA_TEST_TMUX_PANE:-%1}"
         ;;
       '#{pane_current_path}')
-        printf '%s\n' "${DICTATE_TEST_TMUX_PATH:-/tmp/project}"
+        printf '%s\n' "${KHULUMA_TEST_TMUX_PATH:-/tmp/project}"
         ;;
       '#{pane_title}')
-        printf '%s\n' "${DICTATE_TEST_TMUX_TITLE:-main}"
+        printf '%s\n' "${KHULUMA_TEST_TMUX_TITLE:-main}"
         ;;
       '#{pane_current_command}')
-        printf '%s\n' "${DICTATE_TEST_TMUX_PANE_CMD:-bash}"
+        printf '%s\n' "${KHULUMA_TEST_TMUX_PANE_CMD:-bash}"
         ;;
       '#{pane_tty}')
-        printf '%s\n' "${DICTATE_TEST_TMUX_TTY:-}"
+        printf '%s\n' "${KHULUMA_TEST_TMUX_TTY:-}"
         ;;
       '#{pane_pid}')
-        printf '%s\n' "${DICTATE_TEST_TMUX_PANE_PID:-}"
+        printf '%s\n' "${KHULUMA_TEST_TMUX_PANE_PID:-}"
         ;;
     esac
     ;;
@@ -352,18 +354,18 @@ EOF
   cat >"$STUB_DIR/pbcopy" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
-cat >"${DICTATE_TEST_PBCOPY_OUT:-/tmp/dictate-test-pbcopy.out}"
+cat >"${KHULUMA_TEST_PBCOPY_OUT:-/tmp/khuluma-test-pbcopy.out}"
 EOF
 
   cat >"$STUB_DIR/osascript" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 joined="$*"
-if [[ -n "${DICTATE_TEST_OSASCRIPT_LOG:-}" ]]; then
-  printf '%s\n' "$joined" >>"$DICTATE_TEST_OSASCRIPT_LOG"
+if [[ -n "${KHULUMA_TEST_OSASCRIPT_LOG:-}" ]]; then
+  printf '%s\n' "$joined" >>"$KHULUMA_TEST_OSASCRIPT_LOG"
 fi
 if [[ "$joined" == *"get name of first process whose frontmost is true"* ]]; then
-  printf '%s\n' "${DICTATE_TEST_FRONT_APP:-Ghostty}"
+  printf '%s\n' "${KHULUMA_TEST_FRONT_APP:-Ghostty}"
 fi
 exit 0
 EOF
@@ -371,13 +373,13 @@ EOF
   cat >"$STUB_DIR/afplay" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
-if [[ -n "${DICTATE_TEST_SOUND_LOG:-}" ]]; then
-  printf '%s\n' "${1:-}" >>"$DICTATE_TEST_SOUND_LOG"
+if [[ -n "${KHULUMA_TEST_SOUND_LOG:-}" ]]; then
+  printf '%s\n' "${1:-}" >>"$KHULUMA_TEST_SOUND_LOG"
 fi
 exit 0
 EOF
 
-  cat >"$STUB_DIR/tmux-whisperd" <<'EOF'
+  cat >"$STUB_DIR/khulumad" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -400,7 +402,7 @@ case "$cmd" in
       esac
     done
     [[ -n "$socket_path" ]] || { echo "missing socket path" >&2; exit 2; }
-    registry_dir="${DICTATE_TEST_STUB_REGISTRY_DIR:-}"
+    registry_dir="${KHULUMA_TEST_STUB_REGISTRY_DIR:-}"
     if [[ -n "$registry_dir" ]]; then
       mkdir -p "$registry_dir"
       printf 'pid=%q\nsocket_path=%q\n' "$$" "$socket_path" >"$registry_dir/$$.state"
@@ -424,20 +426,20 @@ except OSError:
 finally:
     probe.close()
 try:
-    os.unlink(socket_path)
+    os.rename(socket_path, socket_path + ".retained." + __import__("uuid").uuid4().hex)
 except FileNotFoundError:
     pass
 
 import time, uuid
-time.sleep(float(os.environ.get("DICTATE_TEST_STUB_START_DELAY", "0") or 0))
+time.sleep(float(os.environ.get("KHULUMA_TEST_STUB_START_DELAY", "0") or 0))
 server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
 server.bind(socket_path)
 server.listen(5)
 transcribe_count = 0
 generation = str(uuid.uuid4())
 loaded = None
-delay_values = [s.strip() for s in os.environ.get("DICTATE_TEST_SWIFT_DELAY_SEQUENCE", "").split("|")]
-text_values = [s for s in os.environ.get("DICTATE_TEST_SWIFT_TEXT_SEQUENCE", "").split("|")]
+delay_values = [s.strip() for s in os.environ.get("KHULUMA_TEST_SWIFT_DELAY_SEQUENCE", "").split("|")]
+text_values = [s for s in os.environ.get("KHULUMA_TEST_SWIFT_TEXT_SEQUENCE", "").split("|")]
 
 while True:
     conn, _ = server.accept()
@@ -462,7 +464,7 @@ while True:
             }
             if loaded:
                 resp["model_loaded"] = loaded
-        elif os.environ.get("DICTATE_TEST_SWIFT_DAEMON_FAIL", "0") == "1":
+        elif os.environ.get("KHULUMA_TEST_SWIFT_DAEMON_FAIL", "0") == "1":
             resp = {
                 "id": req.get("id"),
                 "ok": False,
@@ -472,7 +474,7 @@ while True:
             }
         else:
             if req.get("op") == "transcribe" and req.get("flow") != "warmup":
-                if os.environ.get("DICTATE_TEST_SWIFT_REJECT_SUBSECOND", "0") == "1":
+                if os.environ.get("KHULUMA_TEST_SWIFT_REJECT_SUBSECOND", "0") == "1":
                     wav_path = req.get("wav_path") or ""
                     try:
                         with open(wav_path, encoding="utf-8", errors="replace") as fh:
@@ -499,16 +501,16 @@ while True:
                         time.sleep(float(delay_values[idx]))
                     except Exception:
                         pass
-                text_value = os.environ.get("DICTATE_TEST_SWIFT_TEXT", "swift transcript")
+                text_value = os.environ.get("KHULUMA_TEST_SWIFT_TEXT", "swift transcript")
                 if idx < len(text_values) and text_values[idx]:
                     text_value = text_values[idx]
             elif req.get("op") == "transcribe":
                 text_value = ""
             else:
-                text_value = os.environ.get("DICTATE_TEST_SWIFT_TEXT", "swift transcript")
-            if req.get("model_path") and os.environ.get("DICTATE_TEST_STUB_NEVER_LOADS", "0") != "1":
+                text_value = os.environ.get("KHULUMA_TEST_SWIFT_TEXT", "swift transcript")
+            if req.get("model_path") and os.environ.get("KHULUMA_TEST_STUB_NEVER_LOADS", "0") != "1":
                 loaded = {"path": req["model_path"],
-                          "version": os.environ.get("DICTATE_TEST_STUB_LOADED_VERSION") or req.get("model_version") or "v3"}
+                          "version": os.environ.get("KHULUMA_TEST_STUB_LOADED_VERSION") or req.get("model_version") or "v3"}
             resp = {
                 "id": req.get("id"),
                 "ok": True,
@@ -523,7 +525,7 @@ while True:
 PYEOF
     ;;
   version|--version)
-    printf '%s\n' "tmux-whisperd test-stub"
+    printf '%s\n' "khulumad test-stub"
     ;;
   *)
     echo "unknown command: $cmd" >&2
@@ -532,7 +534,7 @@ PYEOF
 esac
 EOF
 
-  chmod +x "$STUB_DIR/ffmpeg" "$STUB_DIR/ffprobe" "$STUB_DIR/tmux" "$STUB_DIR/pbcopy" "$STUB_DIR/osascript" "$STUB_DIR/afplay" "$STUB_DIR/tmux-whisperd"
+  chmod +x "$STUB_DIR/ffmpeg" "$STUB_DIR/ffprobe" "$STUB_DIR/tmux" "$STUB_DIR/pbcopy" "$STUB_DIR/osascript" "$STUB_DIR/afplay" "$STUB_DIR/khulumad"
 }
 
 CASE_DIR=""
@@ -546,9 +548,10 @@ setup_case() {
 
   # Keep the stub daemon socket short enough for macOS AF_UNIX limits.
   socket_tag="$(printf '%s' "$name" | cksum | cut -d' ' -f1)"
-  [[ -n "$socket_tag" ]] || socket_tag="dictatetest"
+  [[ -n "$socket_tag" ]] || socket_tag="khulumatest"
 
   : >"$CASE_DIR/config/vocab"
+  cp "$ROOT/config/config.toml" "$CASE_DIR/config/config.toml"
 
   export HOME="$CASE_DIR/home"
   export XDG_CONFIG_HOME="$CASE_DIR/home/.config"
@@ -561,56 +564,52 @@ setup_case() {
   ln -sf "$STUB_DIR/pbcopy" "$HOME/.local/bin/pbcopy"
   ln -sf "$STUB_DIR/osascript" "$HOME/.local/bin/osascript"
   ln -sf "$STUB_DIR/afplay" "$HOME/.local/bin/afplay"
-  mkdir -p "$HOME/.local/share/sounds/dictate"
-  : >"$HOME/.local/share/sounds/dictate/start.wav"
-  : >"$HOME/.local/share/sounds/dictate/stop.wav"
-  : >"$HOME/.local/share/sounds/dictate/process.wav"
-  : >"$HOME/.local/share/sounds/dictate/error.wav"
-  : >"$HOME/.local/share/sounds/dictate/cancel.wav"
+  mkdir -p "$HOME/.local/share/sounds/khuluma"
+  : >"$HOME/.local/share/sounds/khuluma/start.wav"
+  : >"$HOME/.local/share/sounds/khuluma/stop.wav"
+  : >"$HOME/.local/share/sounds/khuluma/process.wav"
+  : >"$HOME/.local/share/sounds/khuluma/error.wav"
+  : >"$HOME/.local/share/sounds/khuluma/cancel.wav"
 
-  export DICTATE_CONFIG_DIR="$CASE_DIR/config"
-  export DICTATE_CONFIG_FILE="$CASE_DIR/config/config.toml"
-  export DICTATE_LIB_PATH="$ROOT/bin/dictate-lib.sh"
-  export DICTATE_STATE_FILE="$CASE_DIR/tmux.state"
-  export DICTATE_INLINE_STATE_FILE="$CASE_DIR/inline.state"
-  export DICTATE_PROCESSING_DIR="$CASE_DIR/processing"
-  export DICTATE_TMPDIR="$CASE_DIR/tmp"
-  export DICTATE_RECORD_LOG="$CASE_DIR/logs/record.log"
-  export DICTATE_TRANSCRIBE_LOG="$CASE_DIR/logs/transcribe.log"
-  export DICTATE_TMUX_JOBS_DIR="$CASE_DIR/tmux-jobs"
-  export DICTATE_TMUX_WHISPERD_BIN="$STUB_DIR/tmux-whisperd"
-  export DICTATE_TEST_STUB_REGISTRY_DIR="$STUB_REGISTRY_DIR"
-  export DICTATE_SWIFT_PARAKEET_MODEL_PATH="$CASE_DIR/swift-model"
-  export DICTATE_SWIFT_PARAKEET_SOCKET_PATH="$TMP_ROOT/${socket_tag}.sock"
-  export DICTATE_KEEP_LOGS=1
-  unset DICTATE_HISTORY_AUDIO_RETENTION_DAYS
-  export DICTATE_AUDIO_INDEX=0
-  export DICTATE_TMUX_AUTOSEND=1
-  export DICTATE_TMUX_SEND_DELAY_MS=0
-  export DICTATE_TMUX_CODEX_TAB_DELAY_MS=0
-  export DICTATE_INLINE_ACTIVATE_DELAY_MS=0
-  export DICTATE_INLINE_SEND_DELAY_MS=0
-  export DICTATE_INLINE_PASTE_TARGET=current
-  unset DICTATE_SWIFT_PARAKEET_MODEL_VERSION
+  export KHULUMA_CONFIG_DIR="$CASE_DIR/config"
+  export KHULUMA_CONFIG_FILE="$CASE_DIR/config/config.toml"
+  export KHULUMA_LIB_PATH="$ROOT/bin/khuluma-lib.sh"
+  export KHULUMA_STATE_FILE="$CASE_DIR/tmux.state"
+  export KHULUMA_INLINE_STATE_FILE="$CASE_DIR/inline.state"
+  export KHULUMA_PROCESSING_DIR="$CASE_DIR/processing"
+  export KHULUMA_TMPDIR="$CASE_DIR/tmp"
+  export KHULUMA_RECORD_LOG="$CASE_DIR/logs/record.log"
+  export KHULUMA_TRANSCRIBE_LOG="$CASE_DIR/logs/transcribe.log"
+  export KHULUMA_DAEMON_BIN="$STUB_DIR/khulumad"
+  export KHULUMA_TEST_STUB_REGISTRY_DIR="$STUB_REGISTRY_DIR"
+  export KHULUMA_SWIFT_PARAKEET_MODEL_PATH="$CASE_DIR/swift-model"
+  export KHULUMA_SWIFT_PARAKEET_SOCKET_PATH="$TMP_ROOT/${socket_tag}.sock"
+  export KHULUMA_KEEP_LOGS=1
+  unset KHULUMA_HISTORY_AUDIO_RETENTION_DAYS
+  export KHULUMA_AUDIO_INDEX=0
+  export KHULUMA_INLINE_ACTIVATE_DELAY_MS=0
+  export KHULUMA_INLINE_SEND_DELAY_MS=0
+  export KHULUMA_INLINE_PASTE_TARGET=current
+  unset KHULUMA_SWIFT_PARAKEET_MODEL_VERSION
 
-  export DICTATE_TEST_FFMPEG_LOG="$CASE_DIR/logs/ffmpeg.log"
-  export DICTATE_TEST_TMUX_LOG="$CASE_DIR/logs/tmux.log"
-  export DICTATE_TEST_OSASCRIPT_LOG="$CASE_DIR/logs/osascript.log"
-  export DICTATE_TEST_PBCOPY_OUT="$CASE_DIR/logs/pbcopy.txt"
-  export DICTATE_TEST_SOUND_LOG="$CASE_DIR/logs/sounds.log"
-  export DICTATE_TEST_TMUX_PANE="%1"
-  export DICTATE_TEST_TMUX_PANE_CMD="bash"
-  export DICTATE_TEST_FFMPEG_HOLD=0
-  export DICTATE_TEST_SWIFT_TEXT="default transcript"
-  unset DICTATE_TEST_SWIFT_DAEMON_FAIL
-  unset DICTATE_TEST_SWIFT_DELAY_SEQUENCE
-  unset DICTATE_TEST_SWIFT_TEXT_SEQUENCE
-  unset DICTATE_TEST_SWIFT_REJECT_SUBSECOND
-  unset DICTATE_TEST_FFPROBE_DURATION_MS
-  unset DICTATE_TRANSCRIBE_FILE_LOG
-  unset DICTATE_SWIFT_PARAKEET_TAIL_RESCUE
-  unset DICTATE_SWIFT_PARAKEET_TAIL_RESCUE_MS
-  unset DICTATE_SWIFT_PARAKEET_TAIL_RESCUE_MIN_MS
+  export KHULUMA_TEST_FFMPEG_LOG="$CASE_DIR/logs/ffmpeg.log"
+  export KHULUMA_TEST_TMUX_LOG="$CASE_DIR/logs/tmux.log"
+  export KHULUMA_TEST_OSASCRIPT_LOG="$CASE_DIR/logs/osascript.log"
+  export KHULUMA_TEST_PBCOPY_OUT="$CASE_DIR/logs/pbcopy.txt"
+  export KHULUMA_TEST_SOUND_LOG="$CASE_DIR/logs/sounds.log"
+  export KHULUMA_TEST_TMUX_PANE="%1"
+  export KHULUMA_TEST_TMUX_PANE_CMD="bash"
+  export KHULUMA_TEST_FFMPEG_HOLD=0
+  export KHULUMA_TEST_SWIFT_TEXT="default transcript"
+  unset KHULUMA_TEST_SWIFT_DAEMON_FAIL
+  unset KHULUMA_TEST_SWIFT_DELAY_SEQUENCE
+  unset KHULUMA_TEST_SWIFT_TEXT_SEQUENCE
+  unset KHULUMA_TEST_SWIFT_REJECT_SUBSECOND
+  unset KHULUMA_TEST_FFPROBE_DURATION_MS
+  unset KHULUMA_TRANSCRIBE_FILE_LOG
+  unset KHULUMA_SWIFT_PARAKEET_TAIL_RESCUE
+  unset KHULUMA_SWIFT_PARAKEET_TAIL_RESCUE_MS
+  unset KHULUMA_SWIFT_PARAKEET_TAIL_RESCUE_MIN_MS
 
   unset TMUX
   unset TMUX_PANE
@@ -619,13 +618,13 @@ setup_case() {
 # CLI fallback takes go through `inline process`: print the text it returns.
 app_process_text() {
   printf '%s\n' "app take" >"$CASE_DIR/take.wav"
-  "$DICTATE_BIN" inline process "$CASE_DIR/take.wav" --app Safari --record-ms "${1:-3000}" --json \
+  "$KHULUMA_BIN" inline process "$CASE_DIR/take.wav" --app Safari --record-ms "${1:-3000}" --json \
     | python3 -c 'import json, sys; r = json.load(sys.stdin); print(r["text"] if r["ok"] else "FAILED: %s" % r)'
 }
 
 run_inline_keep_logs_archive_round() {
   setup_case "inline-keep-logs-archive"
-  export DICTATE_TEST_SWIFT_TEXT="inline archive transcript"
+  export KHULUMA_TEST_SWIFT_TEXT="inline archive transcript"
 
   local text archive_dir wav_archive meta_archive transcribe_archive
   archive_dir="$CASE_DIR/config/history/inline-debug"
@@ -654,8 +653,8 @@ run_inline_keep_logs_archive_round() {
 
 run_inline_audio_retention_round() {
   setup_case "inline-audio-retention"
-  export DICTATE_TEST_SWIFT_TEXT="inline retention transcript"
-  export DICTATE_HISTORY_AUDIO_RETENTION_DAYS=0
+  export KHULUMA_TEST_SWIFT_TEXT="inline retention transcript"
+  export KHULUMA_HISTORY_AUDIO_RETENTION_DAYS=0
 
   local text archive_dir wav_archive meta_archive history_file
   archive_dir="$CASE_DIR/config/history/inline-debug"
@@ -683,21 +682,21 @@ run_inline_audio_retention_round() {
 
 run_inline_swift_round() {
   setup_case "inline-swift"
-  export DICTATE_TEST_SWIFT_TEXT="swift backend transcript"
+  export KHULUMA_TEST_SWIFT_TEXT="swift backend transcript"
 
   local text
   text="$(app_process_text)"
   assert_contains "inline_swift_transcript" "$text" "swift backend transcript"
-  assert_file_contains "inline_swift_tail_pad_ffmpeg" "$DICTATE_TEST_FFMPEG_LOG" "anullsrc=r=16000:cl=mono"
+  assert_file_contains "inline_swift_tail_pad_ffmpeg" "$KHULUMA_TEST_FFMPEG_LOG" "anullsrc=r=16000:cl=mono"
 }
 
 run_inline_swift_tail_rescue_round() {
   setup_case "inline-swift-tail-rescue"
-  export DICTATE_TEST_FFPROBE_DURATION_MS=20591
-  export DICTATE_TEST_SWIFT_TEXT_SEQUENCE="section by section review and then we'll go back|And we'll go back down and break down each section and then potentially rewrite then"
+  export KHULUMA_TEST_FFPROBE_DURATION_MS=20591
+  export KHULUMA_TEST_SWIFT_TEXT_SEQUENCE="section by section review and then we'll go back|And we'll go back down and break down each section and then potentially rewrite then"
 
   local text inline_transcribe_log
-  inline_transcribe_log="$CASE_DIR/tmp/whisper-dictate-inline.transcribe.log"
+  inline_transcribe_log="$CASE_DIR/tmp/khuluma-inline.transcribe.log"
   text="$(app_process_text 20591)"
   assert_contains "inline_swift_tail_rescue_merged" "$text" "section by section review and then we'll go back down and break down each section and then potentially rewrite then"
   assert_file_contains "inline_swift_tail_rescue_log" "$inline_transcribe_log" "swift_parakeet_tail_rescue:"
@@ -707,7 +706,7 @@ run_status_model_mode_round() {
   setup_case "status-model-mode"
 
   local out
-  out="$("$DICTATE_BIN" status)"
+  out="$("$KHULUMA_BIN" status)"
   assert_contains "status_backend_swift" "$out" "backend: swift_parakeet"
   [[ "$out" != *"mode."* && "$out" != *"postprocess"* ]] || fail "status_no_tmux_lines"
   pass "status_no_tmux_lines"
@@ -717,7 +716,7 @@ run_status_model_mode_round() {
 run_status_backend_round() {
   setup_case "status-backend"
   local out
-  out="$("$DICTATE_BIN" status)"
+  out="$("$KHULUMA_BIN" status)"
   assert_contains "status_backend_summary_headline" "$out" "headline: Dictation is ready, but the backend is cold."
   assert_contains "status_backend_requested" "$out" "backend: swift_parakeet"
   assert_contains "status_backend_model" "$out" "swift_parakeet.model: $CASE_DIR/swift-model (v3)"
@@ -735,8 +734,8 @@ assert_path_absent() {
 
 setup_transcribe_case() {
   setup_case "$1"
-  export DICTATE_TEST_FFPROBE_DURATION_MS=5000
-  export DICTATE_TRANSCRIBE_FILE_LOG="$CASE_DIR/logs/transcribe-file.log"
+  export KHULUMA_TEST_FFPROBE_DURATION_MS=5000
+  export KHULUMA_TRANSCRIBE_FILE_LOG="$CASE_DIR/logs/transcribe-file.log"
   mkdir -p "$CASE_DIR/memos"
   printf '%s\n' "original memo bytes" >"$CASE_DIR/memos/memo.m4a"
   cp "$CASE_DIR/memos/memo.m4a" "$CASE_DIR/memo.orig"
@@ -745,24 +744,24 @@ setup_transcribe_case() {
 run_transcribe_file_raw_round() {
   setup_transcribe_case "transcribe-raw"
   # Dictation cleanup that must NOT apply to file transcripts.
-  printf '%s\n' 'codex -> Codex' >"$DICTATE_CONFIG_DIR/vocab"
-  export DICTATE_TEST_SWIFT_TEXT="codex picked a color um [BLANK_AUDIO]"
+  printf '%s\n' 'codex -> Codex' >"$KHULUMA_CONFIG_DIR/vocab"
+  export KHULUMA_TEST_SWIFT_TEXT="codex picked a color um [BLANK_AUDIO]"
   local out
-  out="$("$DICTATE_BIN" transcribe "$CASE_DIR/memos/memo.m4a" 2>"$CASE_DIR/logs/stderr.txt")"
+  out="$("$KHULUMA_BIN" transcribe "$CASE_DIR/memos/memo.m4a" 2>"$CASE_DIR/logs/stderr.txt")"
 
   assert_equals "transcribe_raw_stdout" "$out" "codex picked a color um"
   assert_file_contains "transcribe_raw_progress_stderr" "$CASE_DIR/logs/stderr.txt" "Transcribing $CASE_DIR/memos/memo.m4a (5s)"
   cmp -s "$CASE_DIR/memos/memo.m4a" "$CASE_DIR/memo.orig" || fail "transcribe_raw_original_untouched"
   pass "transcribe_raw_original_untouched"
-  assert_file_contains "transcribe_raw_ffmpeg_input" "$DICTATE_TEST_FFMPEG_LOG" "$CASE_DIR/memos/memo.m4a -vn"
-  assert_file_contains "transcribe_raw_ffmpeg_format" "$DICTATE_TEST_FFMPEG_LOG" "ac 1 -ar 16000 -c:a pcm_s16le"
-  assert_file_not_contains "transcribe_raw_ffmpeg_never_writes_input" "$DICTATE_TEST_FFMPEG_LOG" "pcm_s16le $CASE_DIR/memos/memo.m4a"
-  assert_path_absent "transcribe_raw_no_clipboard" "$DICTATE_TEST_PBCOPY_OUT"
-  assert_path_absent "transcribe_raw_no_usage_ledger" "$DICTATE_CONFIG_DIR/usage.json"
-  assert_path_absent "transcribe_raw_no_history" "$DICTATE_CONFIG_DIR/history"
-  assert_path_absent "transcribe_raw_no_sounds" "$DICTATE_TEST_SOUND_LOG"
-  assert_path_absent "transcribe_raw_no_osascript" "$DICTATE_TEST_OSASCRIPT_LOG"
-  if compgen -G "$CASE_DIR/tmp/tmux-whisper-transcribe.*" >/dev/null; then
+  assert_file_contains "transcribe_raw_ffmpeg_input" "$KHULUMA_TEST_FFMPEG_LOG" "$CASE_DIR/memos/memo.m4a -vn"
+  assert_file_contains "transcribe_raw_ffmpeg_format" "$KHULUMA_TEST_FFMPEG_LOG" "ac 1 -ar 16000 -c:a pcm_s16le"
+  assert_file_not_contains "transcribe_raw_ffmpeg_never_writes_input" "$KHULUMA_TEST_FFMPEG_LOG" "pcm_s16le $CASE_DIR/memos/memo.m4a"
+  assert_path_absent "transcribe_raw_no_clipboard" "$KHULUMA_TEST_PBCOPY_OUT"
+  assert_path_absent "transcribe_raw_no_usage_ledger" "$KHULUMA_CONFIG_DIR/usage.json"
+  assert_path_absent "transcribe_raw_no_history" "$KHULUMA_CONFIG_DIR/history"
+  assert_path_absent "transcribe_raw_no_sounds" "$KHULUMA_TEST_SOUND_LOG"
+  assert_path_absent "transcribe_raw_no_osascript" "$KHULUMA_TEST_OSASCRIPT_LOG"
+  if compgen -G "$CASE_DIR/tmp/khuluma-transcribe.*" >/dev/null; then
     fail "transcribe_raw_temp_cleaned"
   fi
   pass "transcribe_raw_temp_cleaned"
@@ -770,10 +769,10 @@ run_transcribe_file_raw_round() {
 
 run_transcribe_file_outputs_round() {
   setup_transcribe_case "transcribe-outputs"
-  export DICTATE_TEST_SWIFT_TEXT="file transcript text"
+  export KHULUMA_TEST_SWIFT_TEXT="file transcript text"
   local out rc
 
-  out="$("$DICTATE_BIN" transcribe "$CASE_DIR/memos/memo.m4a" --beside -q)"
+  out="$("$KHULUMA_BIN" transcribe "$CASE_DIR/memos/memo.m4a" --beside -q)"
   assert_equals "transcribe_beside_stdout_empty" "$out" ""
   assert_file_contains "transcribe_beside_written" "$CASE_DIR/memos/memo.txt" "file transcript text"
   local mode
@@ -785,34 +784,34 @@ run_transcribe_file_outputs_round() {
   assert_equals "transcribe_beside_umask_mode" "$mode" "$(printf '%o' $(( 0666 & ~$(umask) )))"
 
   rc=0
-  "$DICTATE_BIN" transcribe "$CASE_DIR/memos/memo.m4a" --beside -q 2>"$CASE_DIR/logs/exists.txt" || rc=$?
+  "$KHULUMA_BIN" transcribe "$CASE_DIR/memos/memo.m4a" --beside -q 2>"$CASE_DIR/logs/exists.txt" || rc=$?
   assert_equals "transcribe_beside_exists_exit" "$rc" "1"
   assert_file_contains "transcribe_beside_exists_message" "$CASE_DIR/logs/exists.txt" "use --force to overwrite"
   assert_file_not_contains "transcribe_exists_fails_before_decode" "$CASE_DIR/logs/exists.txt" "Transcribing"
 
   printf '%s\n' "stale" >"$CASE_DIR/memos/memo.txt"
-  "$DICTATE_BIN" transcribe "$CASE_DIR/memos/memo.m4a" --beside --force -q
+  "$KHULUMA_BIN" transcribe "$CASE_DIR/memos/memo.m4a" --beside --force -q
   assert_file_contains "transcribe_beside_force" "$CASE_DIR/memos/memo.txt" "file transcript text"
   assert_file_not_contains "transcribe_beside_force_replaced" "$CASE_DIR/memos/memo.txt" "stale"
 
-  "$DICTATE_BIN" transcribe "$CASE_DIR/memos/memo.m4a" -o "$CASE_DIR/out/one.txt" -q
+  "$KHULUMA_BIN" transcribe "$CASE_DIR/memos/memo.m4a" -o "$CASE_DIR/out/one.txt" -q
   assert_file_contains "transcribe_output_file" "$CASE_DIR/out/one.txt" "file transcript text"
-  if compgen -G "$CASE_DIR/memos/.tmux-whisper-transcript.*" >/dev/null || compgen -G "$CASE_DIR/out/.tmux-whisper-transcript.*" >/dev/null; then
+  if compgen -G "$CASE_DIR/memos/.khuluma-transcript.*" >/dev/null || compgen -G "$CASE_DIR/out/.khuluma-transcript.*" >/dev/null; then
     fail "transcribe_no_temp_files_in_output_dirs"
   fi
   pass "transcribe_no_temp_files_in_output_dirs"
 
   cp "$CASE_DIR/memos/memo.m4a" "$CASE_DIR/memos/second.mp3"
-  "$DICTATE_BIN" transcribe "$CASE_DIR/memos/memo.m4a" "$CASE_DIR/memos/second.mp3" --out-dir "$CASE_DIR/out-dir" --format json -q
+  "$KHULUMA_BIN" transcribe "$CASE_DIR/memos/memo.m4a" "$CASE_DIR/memos/second.mp3" --out-dir "$CASE_DIR/out-dir" --format json -q
   assert_file_contains "transcribe_out_dir_json_first" "$CASE_DIR/out-dir/memo.json" '"text": "file transcript text"'
   assert_file_contains "transcribe_out_dir_json_duration" "$CASE_DIR/out-dir/second.json" '"audio_duration_ms": 5000'
 
-  out="$("$DICTATE_BIN" transcribe "$CASE_DIR/memos/memo.m4a" "$CASE_DIR/memos/second.mp3" -q -c)"
+  out="$("$KHULUMA_BIN" transcribe "$CASE_DIR/memos/memo.m4a" "$CASE_DIR/memos/second.mp3" -q -c)"
   assert_contains "transcribe_multi_header_first" "$out" "==> $CASE_DIR/memos/memo.m4a <=="
   assert_contains "transcribe_multi_header_second" "$out" "==> $CASE_DIR/memos/second.mp3 <=="
-  assert_file_contains "transcribe_clipboard_combined" "$DICTATE_TEST_PBCOPY_OUT" "file transcript text"
+  assert_file_contains "transcribe_clipboard_combined" "$KHULUMA_TEST_PBCOPY_OUT" "file transcript text"
 
-  out="$("$DICTATE_BIN" transcribe - --format json -q <"$CASE_DIR/memos/memo.m4a")"
+  out="$("$KHULUMA_BIN" transcribe - --format json -q <"$CASE_DIR/memos/memo.m4a")"
   assert_contains "transcribe_stdin_json_file" "$out" '"file": "stdin"'
   assert_contains "transcribe_stdin_json_engine" "$out" '"engine": "swift_parakeet"'
 }
@@ -822,21 +821,21 @@ run_transcribe_file_errors_round() {
   local rc out
 
   rc=0
-  "$DICTATE_BIN" transcribe "$CASE_DIR/memos/missing.m4a" >/dev/null 2>"$CASE_DIR/logs/missing.txt" || rc=$?
+  "$KHULUMA_BIN" transcribe "$CASE_DIR/memos/missing.m4a" >/dev/null 2>"$CASE_DIR/logs/missing.txt" || rc=$?
   assert_equals "transcribe_missing_exit" "$rc" "2"
   assert_file_contains "transcribe_missing_message" "$CASE_DIR/logs/missing.txt" "not a readable file"
 
   rc=0
-  "$DICTATE_BIN" transcribe "$CASE_DIR/memos/memo.m4a" "$CASE_DIR/memo.orig" -o "$CASE_DIR/x.txt" >/dev/null 2>&1 || rc=$?
+  "$KHULUMA_BIN" transcribe "$CASE_DIR/memos/memo.m4a" "$CASE_DIR/memo.orig" -o "$CASE_DIR/x.txt" >/dev/null 2>&1 || rc=$?
   assert_equals "transcribe_output_single_input_exit" "$rc" "2"
 
   rc=0
-  "$DICTATE_BIN" transcribe - --beside </dev/null >/dev/null 2>&1 || rc=$?
+  "$KHULUMA_BIN" transcribe - --beside </dev/null >/dev/null 2>&1 || rc=$?
   assert_equals "transcribe_stdin_beside_rejected" "$rc" "2"
 
-  export DICTATE_TEST_SWIFT_DAEMON_FAIL=1
+  export KHULUMA_TEST_SWIFT_DAEMON_FAIL=1
   rc=0
-  out="$("$DICTATE_BIN" transcribe "$CASE_DIR/memos/memo.m4a" --beside -q 2>"$CASE_DIR/logs/daemon.txt")" || rc=$?
+  out="$("$KHULUMA_BIN" transcribe "$CASE_DIR/memos/memo.m4a" --beside -q 2>"$CASE_DIR/logs/daemon.txt")" || rc=$?
   assert_equals "transcribe_daemon_fail_exit" "$rc" "1"
   assert_equals "transcribe_daemon_fail_no_stdout" "$out" ""
   assert_file_contains "transcribe_daemon_fail_message" "$CASE_DIR/logs/daemon.txt" "transcription failed"
@@ -845,49 +844,49 @@ run_transcribe_file_errors_round() {
 
 run_transcribe_file_no_speech_round() {
   setup_transcribe_case "transcribe-no-speech"
-  export DICTATE_TEST_SWIFT_TEXT="[BLANK_AUDIO]"
+  export KHULUMA_TEST_SWIFT_TEXT="[BLANK_AUDIO]"
   local rc=0
-  "$DICTATE_BIN" transcribe "$CASE_DIR/memos/memo.m4a" -q >/dev/null 2>"$CASE_DIR/logs/silent.txt" || rc=$?
+  "$KHULUMA_BIN" transcribe "$CASE_DIR/memos/memo.m4a" -q >/dev/null 2>"$CASE_DIR/logs/silent.txt" || rc=$?
   assert_equals "transcribe_no_speech_exit" "$rc" "1"
   assert_file_contains "transcribe_no_speech_message" "$CASE_DIR/logs/silent.txt" "no speech detected"
 }
 
 run_transcribe_file_long_round() {
   setup_transcribe_case "transcribe-long"
-  export DICTATE_TEST_FFPROBE_DURATION_MS=1200000
-  export DICTATE_TEST_SWIFT_TEXT_SEQUENCE="alpha beta gamma delta epsilon zeta|epsilon zeta eta theta"
+  export KHULUMA_TEST_FFPROBE_DURATION_MS=1200000
+  export KHULUMA_TEST_SWIFT_TEXT_SEQUENCE="alpha beta gamma delta epsilon zeta|epsilon zeta eta theta"
   local out
-  out="$("$DICTATE_BIN" transcribe "$CASE_DIR/memos/memo.m4a" -q)"
+  out="$("$KHULUMA_BIN" transcribe "$CASE_DIR/memos/memo.m4a" -q)"
   assert_equals "transcribe_long_tail_rescue_merge" "$out" "alpha beta gamma delta epsilon zeta eta theta"
-  assert_file_contains "transcribe_long_tail_rescue_logged" "$DICTATE_TRANSCRIBE_FILE_LOG" "swift_parakeet_tail_rescue: duration_ms=1200000"
-  assert_path_absent "transcribe_long_dictation_log_untouched" "$DICTATE_TRANSCRIBE_LOG"
+  assert_file_contains "transcribe_long_tail_rescue_logged" "$KHULUMA_TRANSCRIBE_FILE_LOG" "swift_parakeet_tail_rescue: duration_ms=1200000"
+  assert_path_absent "transcribe_long_dictation_log_untouched" "$KHULUMA_TRANSCRIBE_LOG"
 }
 
 run_transcribe_file_no_tail_rescue_round() {
   setup_transcribe_case "transcribe-no-tail"
-  export DICTATE_TEST_FFPROBE_DURATION_MS=1200000
-  export DICTATE_TEST_SWIFT_TEXT_SEQUENCE="only the main pass|should not appear"
+  export KHULUMA_TEST_FFPROBE_DURATION_MS=1200000
+  export KHULUMA_TEST_SWIFT_TEXT_SEQUENCE="only the main pass|should not appear"
   local out
-  out="$("$DICTATE_BIN" transcribe "$CASE_DIR/memos/memo.m4a" -q --no-tail-rescue)"
+  out="$("$KHULUMA_BIN" transcribe "$CASE_DIR/memos/memo.m4a" -q --no-tail-rescue)"
   assert_equals "transcribe_no_tail_rescue" "$out" "only the main pass"
-  assert_file_not_contains "transcribe_no_tail_rescue_logged" "$DICTATE_TRANSCRIBE_FILE_LOG" "swift_parakeet_tail_rescue"
+  assert_file_not_contains "transcribe_no_tail_rescue_logged" "$KHULUMA_TRANSCRIBE_FILE_LOG" "swift_parakeet_tail_rescue"
 }
 
 
 run_finder_quick_action_round() {
   setup_case "finder-quick-action"
   local services="$CASE_DIR/services" workflow out
-  workflow="$services/Transcribe with Tmux Whisper.workflow"
+  workflow="$services/Transcribe with Khuluma.workflow"
 
-  out="$(DICTATE_SERVICES_DIR="$services" "$DICTATE_BIN" finder install)"
-  assert_contains "finder_install_message" "$out" "Installed Finder Quick Action: Transcribe with Tmux Whisper"
-  assert_contains "finder_install_handler" "$out" "handler: $ROOT/integrations/finder/tmux-whisper-transcribe.sh"
-  WORKFLOW="$workflow" HANDLER="$ROOT/integrations/finder/tmux-whisper-transcribe.sh" python3 - <<'PYEOF2'
+  out="$(KHULUMA_SERVICES_DIR="$services" "$KHULUMA_BIN" finder install)"
+  assert_contains "finder_install_message" "$out" "Installed Finder Quick Action: Transcribe with Khuluma"
+  assert_contains "finder_install_handler" "$out" "handler: $ROOT/integrations/finder/khuluma-transcribe.sh"
+  WORKFLOW="$workflow" HANDLER="$ROOT/integrations/finder/khuluma-transcribe.sh" python3 - <<'PYEOF2'
 import os, plistlib
 wf = os.environ["WORKFLOW"]
 info = plistlib.load(open(os.path.join(wf, "Contents/Info.plist"), "rb"))
 service = info["NSServices"][0]
-assert service["NSMenuItem"]["default"] == "Transcribe with Tmux Whisper"
+assert service["NSMenuItem"]["default"] == "Transcribe with Khuluma"
 assert service["NSRequiredContext"]["NSApplicationIdentifier"] == "com.apple.finder"
 assert "public.audio" in service["NSSendFileTypes"]
 doc = plistlib.load(open(os.path.join(wf, "Contents/document.wflow"), "rb"))
@@ -899,9 +898,9 @@ assert doc["workflowMetaData"]["workflowTypeIdentifier"] == "com.apple.Automator
 PYEOF2
   pass "finder_install_workflow_plists"
 
-  out="$(DICTATE_SERVICES_DIR="$services" "$DICTATE_BIN" finder status)"
+  out="$(KHULUMA_SERVICES_DIR="$services" "$KHULUMA_BIN" finder status)"
   assert_contains "finder_status_installed" "$out" "(installed)"
-  out="$(DICTATE_SERVICES_DIR="$services" "$DICTATE_BIN" finder remove)"
+  out="$(KHULUMA_SERVICES_DIR="$services" "$KHULUMA_BIN" finder remove)"
   assert_contains "finder_remove_message" "$out" "Removed Finder Quick Action"
   assert_path_absent "finder_remove_workflow" "$workflow"
 }
@@ -909,33 +908,50 @@ PYEOF2
 run_finder_handler_round() {
   setup_case "finder-handler"
   local stub="$CASE_DIR/stub-cli" args_log="$CASE_DIR/logs/cli-args.txt" notify_log="$CASE_DIR/logs/notify.txt"
+  local guard="$CASE_DIR/legacy-guard" guard_log="$CASE_DIR/logs/legacy-guard.txt"
+  # A regressed old handler must fail inside the fixture, never try installed
+  # Homebrew binaries, real notifications or the global Finder log.
+  printf '#!/usr/bin/env bash\nprintf invoked >"%s"\nexit 97\n' "$guard_log" >"$guard"
+  chmod +x "$guard"
   printf '#!/usr/bin/env bash\nprintf "%%s\\n" "$*" >>"%s"\nexit "${STUB_CLI_EXIT:-0}"\n' "$args_log" >"$stub"
   chmod +x "$stub"
   mkdir -p "$CASE_DIR/memos"
   : >"$CASE_DIR/memos/idea one.m4a"
 
-  DICTATE_BIN="$stub" DICTATE_FINDER_NOTIFY_LOG="$notify_log" DICTATE_FINDER_TRANSCRIBE_LOG="$CASE_DIR/logs/finder.log" \
-    bash "$ROOT/integrations/finder/tmux-whisper-transcribe.sh" "$CASE_DIR/memos/idea one.m4a"
+  DICTATE_BIN="$guard" DICTATE_FINDER_NOTIFY_LOG="$CASE_DIR/logs/legacy-notify.txt" DICTATE_FINDER_TRANSCRIBE_LOG="$CASE_DIR/logs/legacy-finder.log" \
+  KHULUMA_BIN="$stub" KHULUMA_FINDER_NOTIFY_LOG="$notify_log" KHULUMA_FINDER_TRANSCRIBE_LOG="$CASE_DIR/logs/finder.log" \
+    bash "$ROOT/integrations/finder/khuluma-transcribe.sh" "$CASE_DIR/memos/idea one.m4a"
   assert_file_contains "finder_handler_cli_args" "$args_log" "transcribe --beside --clipboard $CASE_DIR/memos/idea one.m4a"
+  assert_path_absent "finder_handler_legacy_guard_unused" "$guard_log"
   assert_file_contains "finder_handler_notify_start" "$notify_log" "Transcribing idea one.m4a..."
   assert_file_contains "finder_handler_notify_done" "$notify_log" "Saved idea one.txt and copied it to the clipboard."
 
   local rc=0
-  printf 'tmux-whisper: output exists (use --force to overwrite): x.txt\n' >>"$CASE_DIR/logs/finder.log"
-  STUB_CLI_EXIT=1 DICTATE_BIN="$stub" DICTATE_FINDER_NOTIFY_LOG="$notify_log" DICTATE_FINDER_TRANSCRIBE_LOG="$CASE_DIR/logs/finder.log" \
-    bash "$ROOT/integrations/finder/tmux-whisper-transcribe.sh" "$CASE_DIR/memos/idea one.m4a" || rc=$?
+  printf 'khuluma: output exists (use --force to overwrite): x.txt\n' >>"$CASE_DIR/logs/finder.log"
+  DICTATE_BIN="$guard" DICTATE_FINDER_NOTIFY_LOG="$CASE_DIR/logs/legacy-notify.txt" DICTATE_FINDER_TRANSCRIBE_LOG="$CASE_DIR/logs/legacy-finder.log" \
+  STUB_CLI_EXIT=1 KHULUMA_BIN="$stub" KHULUMA_FINDER_NOTIFY_LOG="$notify_log" KHULUMA_FINDER_TRANSCRIBE_LOG="$CASE_DIR/logs/finder.log" \
+    bash "$ROOT/integrations/finder/khuluma-transcribe.sh" "$CASE_DIR/memos/idea one.m4a" || rc=$?
   assert_equals "finder_handler_failure_exit_clean" "$rc" "0"
   assert_file_contains "finder_handler_notify_failure" "$notify_log" "Transcription failed: output exists"
+
+  local before_args
+  before_args="$(wc -l <"$args_log" | tr -d ' ')"
+  DICTATE_BIN="$guard" DICTATE_FINDER_NOTIFY_LOG="$CASE_DIR/logs/legacy-notify.txt" DICTATE_FINDER_TRANSCRIBE_LOG="$CASE_DIR/logs/legacy-finder.log" \
+  KHULUMA_BIN="$CASE_DIR/does-not-exist" KHULUMA_FINDER_NOTIFY_LOG="$notify_log" KHULUMA_FINDER_TRANSCRIBE_LOG="$CASE_DIR/logs/finder.log" \
+    bash "$ROOT/integrations/finder/khuluma-transcribe.sh" "$CASE_DIR/memos/idea one.m4a"
+  assert_file_contains "finder_handler_invalid_override_refused" "$notify_log" "Configured Khuluma CLI is not executable: $CASE_DIR/does-not-exist"
+  assert_equals "finder_handler_invalid_override_no_cli" "$(wc -l <"$args_log" | tr -d ' ')" "$before_args"
+  assert_path_absent "finder_handler_invalid_override_no_legacy" "$guard_log"
 }
 
 
 run_transcribe_file_daemon_unavailable_round() {
   setup_transcribe_case "transcribe-no-daemon"
-  export DICTATE_TMUX_WHISPERD_BIN="$CASE_DIR/missing-tmux-whisperd"
+  export KHULUMA_DAEMON_BIN="$CASE_DIR/missing-khulumad"
   local rc=0
-  "$DICTATE_BIN" transcribe "$CASE_DIR/memos/memo.m4a" --beside >/dev/null 2>"$CASE_DIR/logs/no-daemon.txt" || rc=$?
+  "$KHULUMA_BIN" transcribe "$CASE_DIR/memos/memo.m4a" --beside >/dev/null 2>"$CASE_DIR/logs/no-daemon.txt" || rc=$?
   assert_equals "transcribe_no_daemon_exit" "$rc" "2"
-  assert_file_contains "transcribe_no_daemon_message" "$CASE_DIR/logs/no-daemon.txt" "Parakeet daemon unavailable: could not start tmux-whisperd"
+  assert_file_contains "transcribe_no_daemon_message" "$CASE_DIR/logs/no-daemon.txt" "Parakeet daemon unavailable: could not start khulumad"
   assert_file_not_contains "transcribe_no_daemon_fails_before_file" "$CASE_DIR/logs/no-daemon.txt" "Transcribing"
   assert_path_absent "transcribe_no_daemon_no_output" "$CASE_DIR/memos/memo.txt"
 }
@@ -948,15 +964,16 @@ run_transcribe_file_write_race_round() {
   # A competing writer creates the destination after the existence check
   # (simulated from the chmod step), which must not be clobbered without --force.
   RACE_DIR="$dir" bash -c '
+    source "$2"
     source "$1"
     transcribe_file_log() { :; }
     chmod() { printf "%s\n" "competing notes" >"$RACE_DIR/memo.txt"; }
     transcribe_file_write_output "$RACE_DIR/memo.txt" "new transcript" 0
-  ' _ "$ROOT/bin/tmux-whisper-lib/transcribe_file.sh" 2>"$CASE_DIR/logs/race.txt" || rc=$?
+  ' _ "$ROOT/bin/khuluma-lib/transcribe_file.sh" "$ROOT/bin/khuluma-lib/identity.sh" 2>"$CASE_DIR/logs/race.txt" || rc=$?
   assert_equals "transcribe_race_exit" "$rc" "1"
   assert_file_contains "transcribe_race_kept_existing" "$dir/memo.txt" "competing notes"
   assert_file_contains "transcribe_race_message" "$CASE_DIR/logs/race.txt" "output exists"
-  if compgen -G "$dir/.tmux-whisper-transcript.*" >/dev/null; then
+  if compgen -G "$dir/.khuluma-transcript.*" >/dev/null; then
     fail "transcribe_race_temp_removed"
   fi
   pass "transcribe_race_temp_removed"
@@ -1001,22 +1018,22 @@ print("" if v is None else v)' "$1" "$2"
 
 run_daemon_lifecycle_round() {
   setup_case "daemon-lifecycle"
-  local socket="$DICTATE_SWIFT_PARAKEET_SOCKET_PATH" meta="$DICTATE_SWIFT_PARAKEET_SOCKET_PATH.meta"
-  local out a b pid meta_pid holder lock="$DICTATE_SWIFT_PARAKEET_SOCKET_PATH.lifecycle.lock"
+  local socket="$KHULUMA_SWIFT_PARAKEET_SOCKET_PATH" meta="$KHULUMA_SWIFT_PARAKEET_SOCKET_PATH.meta"
+  local out a b pid meta_pid holder lock="$KHULUMA_SWIFT_PARAKEET_SOCKET_PATH.lifecycle.lock"
   mkdir -p "$CASE_DIR/memos"
   printf '%s\n' "memo" >"$CASE_DIR/memos/m.m4a"
   # Slow starts make the launchers overlap.
-  export DICTATE_TEST_STUB_START_DELAY=0.5
+  export KHULUMA_TEST_STUB_START_DELAY=0.5
 
   # Khuluma-style warmups, a CLI transcription and a background warmup all
   # find no daemon at once: exactly one starts, and meta names it.
-  "$DICTATE_BIN" warmup --json >"$CASE_DIR/w1.json" &
+  "$KHULUMA_BIN" warmup --json >"$CASE_DIR/w1.json" &
   a=$!
-  "$DICTATE_BIN" warmup --json >"$CASE_DIR/w2.json" &
+  "$KHULUMA_BIN" warmup --json >"$CASE_DIR/w2.json" &
   b=$!
-  DICTATE_TEST_FFPROBE_DURATION_MS=3000 "$DICTATE_BIN" transcribe "$CASE_DIR/memos/m.m4a" -q >"$CASE_DIR/t.txt" &
+  KHULUMA_TEST_FFPROBE_DURATION_MS=3000 "$KHULUMA_BIN" transcribe "$CASE_DIR/memos/m.m4a" -q >"$CASE_DIR/t.txt" &
   local c=$!
-  "$DICTATE_BIN" warmup --best-effort >/dev/null &
+  "$KHULUMA_BIN" warmup --best-effort >/dev/null &
   local d=$!
   wait "$a" "$b" "$c" "$d" || fail "lifecycle_concurrent_callers_exit_ok"
   pass "lifecycle_concurrent_callers_exit_ok"
@@ -1024,7 +1041,7 @@ run_daemon_lifecycle_round() {
   out="$(cat "$CASE_DIR/w1.json")"
   assert_equals "lifecycle_warmup_json_ready" "$(json_field "$out" state)" "ready"
   assert_equals "lifecycle_warmup_json_ready_too" "$(json_field "$(cat "$CASE_DIR/w2.json")" state)" "ready"
-  assert_equals "lifecycle_warmup_json_model" "$(json_field "$out" model_loaded.path)" "$DICTATE_SWIFT_PARAKEET_MODEL_PATH"
+  assert_equals "lifecycle_warmup_json_model" "$(json_field "$out" model_loaded.path)" "$KHULUMA_SWIFT_PARAKEET_MODEL_PATH"
   [[ -n "$(json_field "$out" generation)" ]] || fail "lifecycle_warmup_json_generation"
   pass "lifecycle_warmup_json_generation"
   pid="$(json_field "$out" pid)"
@@ -1034,38 +1051,38 @@ run_daemon_lifecycle_round() {
   flock_held "$lock" && fail "lifecycle_lock_released"
   pass "lifecycle_lock_released"
   # The daemon must not inherit the lock (it would hold it forever).
-  "$DICTATE_BIN" warmup --json >/dev/null
+  "$KHULUMA_BIN" warmup --json >/dev/null
   flock_held "$lock" && fail "lifecycle_daemon_does_not_hold_lock"
   pass "lifecycle_daemon_does_not_hold_lock"
 
   # A daemon too slow to answer is stopped before the lock is released, so
   # it can't come up later beside one someone else starts.
   cleanup_stub_daemons
-  wait_for_absent "$socket" 60 || rm -f "$socket"
-  export DICTATE_TEST_STUB_START_DELAY=3
-  out="$(DICTATE_DAEMON_START_WAIT_SECONDS=1 "$DICTATE_BIN" warmup --json)"
+  wait_for_absent "$socket" 60 || preserve_fixture "$socket"
+  export KHULUMA_TEST_STUB_START_DELAY=3
+  out="$(KHULUMA_DAEMON_START_WAIT_SECONDS=1 "$KHULUMA_BIN" warmup --json)"
   assert_equals "lifecycle_slow_start_unavailable" "$(json_field "$out" state)" "unavailable"
-  assert_file_contains "lifecycle_slow_start_logged" "$DICTATE_TRANSCRIBE_LOG" "did not answer within 1s; stopping it"
+  assert_file_contains "lifecycle_slow_start_logged" "$KHULUMA_TRANSCRIBE_LOG" "did not answer within 1s; stopping it"
   sleep 3
   assert_equals "lifecycle_slow_start_stopped" "$(live_stub_daemons_for "$socket")" "0"
-  unset DICTATE_TEST_STUB_START_DELAY
-  wait_for_absent "$socket" 60 || rm -f "$socket"
+  unset KHULUMA_TEST_STUB_START_DELAY
+  wait_for_absent "$socket" 60 || preserve_fixture "$socket"
 
   # Ready means this daemon holds this model and version.
-  out="$(DICTATE_TEST_STUB_LOADED_VERSION=v2 "$DICTATE_BIN" warmup --json)"
+  out="$(KHULUMA_TEST_STUB_LOADED_VERSION=v2 "$KHULUMA_BIN" warmup --json)"
   assert_equals "lifecycle_other_version_not_ready" "$(json_field "$out" state)" "warming"
   assert_equals "lifecycle_other_version_reason" "$(json_field "$out" reason)" "model_changed"
   cleanup_stub_daemons
-  wait_for_absent "$socket" 60 || rm -f "$socket"
-  out="$(DICTATE_TEST_STUB_NEVER_LOADS=1 "$DICTATE_BIN" warmup --json)"
+  wait_for_absent "$socket" 60 || preserve_fixture "$socket"
+  out="$(KHULUMA_TEST_STUB_NEVER_LOADS=1 "$KHULUMA_BIN" warmup --json)"
   assert_equals "lifecycle_cold_not_ready" "$(json_field "$out" state)" "warming"
   assert_equals "lifecycle_cold_reason" "$(json_field "$out" reason)" "cold"
   cleanup_stub_daemons
-  wait_for_absent "$socket" 60 || rm -f "$socket"
+  wait_for_absent "$socket" 60 || preserve_fixture "$socket"
 
   # A daemon that accepts but never answers is never unlinked or doubled.
   cleanup_stub_daemons
-  wait_for_absent "$socket" 60 || rm -f "$socket"
+  wait_for_absent "$socket" 60 || preserve_fixture "$socket"
   python3 - "$socket" "$CASE_DIR/hung.ready" <<'PYEOF' &
 import socket, sys, time
 s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -1083,20 +1100,20 @@ PYEOF
   holder=$!
   for _ in {1..100}; do [[ -f "$CASE_DIR/hung.ready" ]] && break; sleep 0.05; done
   [[ -f "$CASE_DIR/hung.ready" ]] || fail "lifecycle_hung_daemon_started"
-  out="$(DICTATE_SWIFT_PARAKEET_PING_TIMEOUT_SECONDS=0.5 "$DICTATE_BIN" warmup --json)"
+  out="$(KHULUMA_SWIFT_PARAKEET_PING_TIMEOUT_SECONDS=0.5 "$KHULUMA_BIN" warmup --json)"
   assert_equals "lifecycle_hung_daemon_unavailable" "$(json_field "$out" state)" "unavailable"
   [[ -S "$socket" ]] || fail "lifecycle_hung_socket_kept"
   pass "lifecycle_hung_socket_kept"
-  assert_file_contains "lifecycle_hung_logged" "$DICTATE_TRANSCRIBE_LOG" "does not answer; not starting another"
+  assert_file_contains "lifecycle_hung_logged" "$KHULUMA_TRANSCRIBE_LOG" "does not answer; not starting another"
   assert_equals "lifecycle_hung_no_second_daemon" "$(live_stub_daemons_for "$socket")" "0"
   kill "$holder" 2>/dev/null; wait "$holder" 2>/dev/null || true
 
   # A socket left by a crashed daemon (nobody accepting) is replaced.
   [[ -S "$socket" ]] || fail "lifecycle_stale_socket_left"
-  out="$("$DICTATE_BIN" warmup --json)"
+  out="$("$KHULUMA_BIN" warmup --json)"
   assert_equals "lifecycle_stale_socket_replaced" "$(json_field "$out" state)" "ready"
   cleanup_stub_daemons
-  wait_for_absent "$socket" 60 || rm -f "$socket"
+  wait_for_absent "$socket" 60 || preserve_fixture "$socket"
 
   # Someone else is mid-start: report warming instead of piling on.
   python3 - "$lock" "$CASE_DIR/lock.ready" <<'PYEOF' &
@@ -1108,28 +1125,28 @@ time.sleep(30)
 PYEOF
   holder=$!
   for _ in {1..100}; do [[ -f "$CASE_DIR/lock.ready" ]] && break; sleep 0.05; done
-  out="$(DICTATE_DAEMON_LIFECYCLE_WAIT_SECONDS=0 "$DICTATE_BIN" warmup --json)"
+  out="$(KHULUMA_DAEMON_LIFECYCLE_WAIT_SECONDS=0 "$KHULUMA_BIN" warmup --json)"
   assert_equals "lifecycle_lock_held_warming" "$(json_field "$out" state)" "warming"
   assert_equals "lifecycle_lock_held_reason" "$(json_field "$out" reason)" "starting"
   assert_equals "lifecycle_lock_held_no_daemon" "$(live_stub_daemons_for "$socket")" "0"
   kill "$holder" 2>/dev/null; wait "$holder" 2>/dev/null || true
   # Its holder died: the kernel released the lock.
-  out="$("$DICTATE_BIN" warmup --json)"
+  out="$("$KHULUMA_BIN" warmup --json)"
   assert_equals "lifecycle_dead_lock_reclaimed" "$(json_field "$out" state)" "ready"
   cleanup_stub_daemons
-  wait_for_absent "$socket" 60 || rm -f "$socket"
+  wait_for_absent "$socket" 60 || preserve_fixture "$socket"
 
   # A socket dir that doesn't exist yet (fresh install, custom path).
-  out="$(DICTATE_SWIFT_PARAKEET_SOCKET_PATH="$TMP_ROOT/fresh/d.sock" "$DICTATE_BIN" warmup --json)"
+  out="$(KHULUMA_SWIFT_PARAKEET_SOCKET_PATH="$TMP_ROOT/fresh/d.sock" "$KHULUMA_BIN" warmup --json)"
   assert_equals "lifecycle_fresh_socket_dir" "$(json_field "$out" state)" "ready"
   cleanup_stub_daemons
 
-  out="$(DICTATE_TMUX_WHISPERD_BIN="$CASE_DIR/missing-daemon" "$DICTATE_BIN" warmup --json)"
+  out="$(KHULUMA_DAEMON_BIN="$CASE_DIR/missing-daemon" "$KHULUMA_BIN" warmup --json)"
   assert_equals "lifecycle_missing_binary_unavailable" "$(json_field "$out" state)" "unavailable"
   assert_equals "lifecycle_missing_binary_reason" "$(json_field "$out" reason)" "no_daemon_binary"
-  out="$(DICTATE_SWIFT_PARAKEET_MODEL_PATH= "$DICTATE_BIN" warmup --json)"
+  out="$(KHULUMA_SWIFT_PARAKEET_MODEL_PATH= "$KHULUMA_BIN" warmup --json)"
   assert_equals "lifecycle_no_model_reason" "$(json_field "$out" reason)" "no_model"
-  out="$(DICTATE_TEST_SWIFT_DAEMON_FAIL=1 "$DICTATE_BIN" warmup --json)"
+  out="$(KHULUMA_TEST_SWIFT_DAEMON_FAIL=1 "$KHULUMA_BIN" warmup --json)"
   assert_equals "lifecycle_warmup_error_unavailable" "$(json_field "$out" state)" "unavailable"
   assert_equals "lifecycle_warmup_error_code" "$(json_field "$out" reason)" "forced_error"
   cleanup_stub_daemons
@@ -1137,155 +1154,174 @@ PYEOF
 
 run_daemon_build_and_refresh_round() {
   setup_case "daemon-refresh"
-  unset DICTATE_TMUX_WHISPERD_BIN
-  local src="$CASE_DIR/whisperd-src" build="$CASE_DIR/whisperd-build" build_log="$CASE_DIR/logs/swift-build.log"
-  mkdir -p "$src/Sources/tmux-whisperd" "$src/Tests/TmuxWhisperKitTests"
+  unset KHULUMA_DAEMON_BIN
+  local src="$CASE_DIR/daemon-src" build="$CASE_DIR/daemon-build" build_log="$CASE_DIR/logs/swift-build.log"
+  mkdir -p "$src/Sources/khulumad" "$src/Sources/KhulumaDaemonKit" "$src/Tests/KhulumaDaemonKitTests"
+  printf '%s\n' '// shared runtime fixture' >"$src/Sources/KhulumaDaemonKit/Runtime.swift"
   printf '%s\n' '// swift-tools-version: 6.0' >"$src/Package.swift"
-  printf '%s\n' 'print("v1")' >"$src/Sources/tmux-whisperd/main.swift"
-  printf '%s\n' '// tests' >"$src/Tests/TmuxWhisperKitTests/T.swift"
-  export DICTATE_TMUX_WHISPERD_ROOT="$src"
-  export DICTATE_TMUX_WHISPERD_BUILD_ROOT="$build"
-  export DICTATE_DAEMON_BACKGROUND_REFRESH=0
-  export DICTATE_DAEMON_RESTART_WAIT_SECONDS=0
-  export DICTATE_TEST_SWIFT_BUILD_LOG="$build_log"
-  export DICTATE_TEST_STUB_DAEMON="$STUB_DIR/tmux-whisperd"
+  printf '%s\n' 'print("v1")' >"$src/Sources/khulumad/main.swift"
+  printf '%s\n' '// tests' >"$src/Tests/KhulumaDaemonKitTests/T.swift"
+  export KHULUMA_DAEMON_SOURCE_ROOT="$src"
+  export KHULUMA_DAEMON_BUILD_ROOT="$build"
+  export KHULUMA_DAEMON_BACKGROUND_REFRESH=0
+  export KHULUMA_DAEMON_RESTART_WAIT_SECONDS=0
+  export KHULUMA_TEST_SWIFT_BUILD_LOG="$build_log"
+  export KHULUMA_TEST_STUB_DAEMON="$STUB_DIR/khulumad"
   cat >"$HOME/.local/bin/swift" <<'EOF'
 #!/usr/bin/env bash
 [[ "${1:-}" == "build" ]] || exit 0
-printf '%s\n' "$*" >>"$DICTATE_TEST_SWIFT_BUILD_LOG"
-[[ "${DICTATE_TEST_SWIFT_BUILD_FAIL:-0}" == "1" ]] && { echo "error: Build failed" >&2; exit 1; }
-[[ -d Tests ]] || { echo "error: invalid custom path 'Tests/TmuxWhisperKitTests'" >&2; exit 1; }
+printf '%s\n' "$*" >>"$KHULUMA_TEST_SWIFT_BUILD_LOG"
+[[ "${KHULUMA_TEST_SWIFT_BUILD_FAIL:-0}" == "1" ]] && { echo "error: Build failed" >&2; exit 1; }
+[[ -d Tests ]] || { echo "error: invalid custom path 'Tests/KhulumaDaemonKitTests'" >&2; exit 1; }
 mkdir -p .build/release
-cp "$DICTATE_TEST_STUB_DAEMON" .build/release/tmux-whisperd
-chmod +x .build/release/tmux-whisperd
+cp "$KHULUMA_TEST_STUB_DAEMON" .build/release/khulumad
+chmod +x .build/release/khulumad
 EOF
   chmod +x "$HOME/.local/bin/swift"
-  local socket="$DICTATE_SWIFT_PARAKEET_SOCKET_PATH" meta="$DICTATE_SWIFT_PARAKEET_SOCKET_PATH.meta"
+  local socket="$KHULUMA_SWIFT_PARAKEET_SOCKET_PATH" meta="$KHULUMA_SWIFT_PARAKEET_SOCKET_PATH.meta"
   local builds stamp pid1 pid2 hash out
 
   # A first build that failed recently is reported, not retried on every call.
   date +%s >"$build.build-failed"
-  out="$(DICTATE_DAEMON_BACKGROUND_REFRESH=1 "$DICTATE_BIN" warmup --json)"
+  out="$(KHULUMA_DAEMON_BACKGROUND_REFRESH=1 "$KHULUMA_BIN" warmup --json)"
   assert_equals "daemon_failed_build_unavailable" "$(json_field "$out" reason)" "build_failed"
   [[ -s "$build_log" ]] && fail "daemon_failed_build_not_retried"
   pass "daemon_failed_build_not_retried"
-  rm -f "$build.build-failed"
+  preserve_fixture "$build.build-failed"
 
   # First use: sources synced into the build root, built once, daemon started.
-  "$DICTATE_BIN" warmup >/dev/null
+  "$KHULUMA_BIN" warmup >/dev/null
   builds="$(grep -c . "$build_log")"
   assert_equals "daemon_first_build" "$builds" "1"
-  assert_file_contains "daemon_sources_synced" "$build/Sources/tmux-whisperd/main.swift" 'print("v1")'
+  assert_file_contains "daemon_sources_synced" "$build/Sources/khulumad/main.swift" 'print("v1")'
   [[ -d "$build/Tests" ]] || fail "daemon_tests_dir_synced"
   pass "daemon_tests_dir_synced"
-  stamp="$(cat "$build/.build/tmux-whisper-built-source-hash")"
+  stamp="$(cat "$build/.build/khuluma-built-source-hash")"
   assert_file_contains "daemon_meta_records_build" "$meta" "source_hash=$stamp"
   pid1="$(awk -F= '$1 == "pid" { print $2 }' "$meta")"
 
+  # Malformed renamed source must not compare as empty==empty, compile,
+  # advance the stamp or stop the already serving daemon.
+  mv "$src/Sources/KhulumaDaemonKit" "$CASE_DIR/kit-source-retained"
+  "$KHULUMA_BIN" warmup --restart-stale >"$CASE_DIR/logs/invalid-source.txt" 2>&1 || true
+  assert_equals "daemon_invalid_source_never_builds" "$(grep -c . "$build_log")" "1"
+  assert_equals "daemon_invalid_source_keeps_stamp" "$(cat "$build/.build/khuluma-built-source-hash")" "$stamp"
+  assert_equals "daemon_invalid_source_keeps_owner" "$(awk -F= '$1 == "pid" { print $2 }' "$meta")" "$pid1"
+  python3 - "$socket" <<'PYINVALID' || fail "daemon_invalid_source_keeps_serving"
+import json, socket, sys
+with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
+    client.settimeout(2)
+    client.connect(sys.argv[1])
+    client.sendall(b'{"id":"invalid-source-check","op":"ping"}\n')
+    assert json.loads(client.makefile("rb").readline())["ok"] is True
+PYINVALID
+  pass "daemon_invalid_source_keeps_serving"
+  mv "$CASE_DIR/kit-source-retained" "$src/Sources/KhulumaDaemonKit"
+
   # Unchanged sources: no rebuild.
-  "$DICTATE_BIN" warmup --restart-stale >/dev/null
+  "$KHULUMA_BIN" warmup --restart-stale >/dev/null
   assert_equals "daemon_no_rebuild_when_current" "$(grep -c . "$build_log")" "1"
 
   # Khuluma app sources share the package but are not part of the daemon.
   mkdir -p "$src/Sources/Khuluma"
   printf '%s\n' '// app-only change' >"$src/Sources/Khuluma/AppController.swift"
-  "$DICTATE_BIN" warmup --restart-stale >/dev/null
+  "$KHULUMA_BIN" warmup --restart-stale >/dev/null
   assert_equals "daemon_ignores_app_sources" "$(grep -c . "$build_log")" "1"
 
   # A busy pipeline blocks the swap even though a new build exists.
-  printf '%s\n' 'print("v2")' >"$src/Sources/tmux-whisperd/main.swift"
-  mkdir -p "$DICTATE_PROCESSING_DIR"
-  printf 'pid=%s\nkind=inline\nphase=processing\n' "$$" >"$DICTATE_PROCESSING_DIR/inline-khuluma-busy"
-  "$DICTATE_BIN" warmup --restart-stale >/dev/null
+  printf '%s\n' 'print("v2")' >"$src/Sources/khulumad/main.swift"
+  mkdir -p "$KHULUMA_PROCESSING_DIR"
+  printf 'pid=%s\nkind=inline\nphase=processing\n' "$$" >"$KHULUMA_PROCESSING_DIR/inline-khuluma-busy"
+  "$KHULUMA_BIN" warmup --restart-stale >/dev/null
   assert_equals "daemon_rebuilt_on_source_change" "$(grep -c . "$build_log")" "2"
   assert_equals "daemon_not_restarted_while_busy" "$(awk -F= '$1 == "pid" { print $2 }' "$meta")" "$pid1"
-  assert_file_contains "daemon_busy_logged" "$DICTATE_TRANSCRIBE_LOG" "daemon still busy"
-  rm -f "$DICTATE_PROCESSING_DIR/inline-khuluma-busy"
+  assert_file_contains "daemon_busy_logged" "$KHULUMA_TRANSCRIBE_LOG" "daemon still busy"
+  preserve_fixture "$KHULUMA_PROCESSING_DIR/inline-khuluma-busy"
 
   # A Khuluma take in any phase (recording included) keeps the old daemon.
   local take_owner
   sleep 60 &
   take_owner=$!
-  mkdir -p "$DICTATE_PROCESSING_DIR"
-  printf 'pid=%s\nkind=inline\nsession_id=t1\nphase=recording\n' "$take_owner" >"$DICTATE_PROCESSING_DIR/inline-khuluma-t1"
-  "$DICTATE_BIN" warmup --restart-stale >/dev/null
+  mkdir -p "$KHULUMA_PROCESSING_DIR"
+  printf 'pid=%s\nkind=inline\nsession_id=t1\nphase=recording\n' "$take_owner" >"$KHULUMA_PROCESSING_DIR/inline-khuluma-t1"
+  "$KHULUMA_BIN" warmup --restart-stale >/dev/null
   assert_equals "daemon_not_restarted_mid_recording" "$(awk -F= '$1 == "pid" { print $2 }' "$meta")" "$pid1"
   # A marker whose owner died (Khuluma crashed) is pruned rather than
   # blocking upgrades forever; so is one abandoned before its pid was written.
   kill "$take_owner" 2>/dev/null; wait "$take_owner" 2>/dev/null || true
-  : >"$DICTATE_PROCESSING_DIR/inline-khuluma-t2"
-  touch -t 202001010000 "$DICTATE_PROCESSING_DIR/inline-khuluma-t2"
+  : >"$KHULUMA_PROCESSING_DIR/inline-khuluma-t2"
+  touch -t 202001010000 "$KHULUMA_PROCESSING_DIR/inline-khuluma-t2"
 
   # Idle: the out-of-date daemon is replaced by one started from the new build.
-  "$DICTATE_BIN" warmup --restart-stale >/dev/null
+  "$KHULUMA_BIN" warmup --restart-stale >/dev/null
   pid2="$(awk -F= '$1 == "pid" { print $2 }' "$meta")"
   [[ -n "$pid2" && "$pid2" != "$pid1" ]] || fail "daemon_restarted_when_idle"
   pass "daemon_restarted_when_idle"
-  assert_path_absent "daemon_dead_take_marker_pruned" "$DICTATE_PROCESSING_DIR/inline-khuluma-t1"
-  assert_path_absent "daemon_abandoned_marker_pruned" "$DICTATE_PROCESSING_DIR/inline-khuluma-t2"
-  assert_equals "daemon_meta_names_new_daemon" "$(json_field "$("$DICTATE_BIN" warmup --json)" pid)" "$pid2"
+  assert_path_absent "daemon_dead_take_marker_pruned" "$KHULUMA_PROCESSING_DIR/inline-khuluma-t1"
+  assert_path_absent "daemon_abandoned_marker_pruned" "$KHULUMA_PROCESSING_DIR/inline-khuluma-t2"
+  assert_equals "daemon_meta_names_new_daemon" "$(json_field "$("$KHULUMA_BIN" warmup --json)" pid)" "$pid2"
   kill -0 "$pid1" 2>/dev/null && fail "daemon_old_process_stopped"
   pass "daemon_old_process_stopped"
-  hash="$(cat "$build/.build/tmux-whisper-built-source-hash")"
+  hash="$(cat "$build/.build/khuluma-built-source-hash")"
   assert_file_contains "daemon_meta_updated" "$meta" "source_hash=$hash"
   assert_equals "daemon_no_extra_build_on_restart" "$(grep -c . "$build_log")" "2"
 
   # Hot path with an outdated binary: start it now, never build inline.
-  printf '%s\n' 'print("v3")' >"$src/Sources/tmux-whisperd/main.swift"
+  printf '%s\n' 'print("v3")' >"$src/Sources/khulumad/main.swift"
   kill "$pid2" 2>/dev/null || true
-  wait_for_absent "$socket" 60 || rm -f "$socket"
+  wait_for_absent "$socket" 60 || preserve_fixture "$socket"
   mkdir -p "$CASE_DIR/memos"
   printf '%s\n' "memo" >"$CASE_DIR/memos/m.m4a"
-  DICTATE_TEST_FFPROBE_DURATION_MS=3000 "$DICTATE_BIN" transcribe "$CASE_DIR/memos/m.m4a" -q >/dev/null
+  KHULUMA_TEST_FFPROBE_DURATION_MS=3000 "$KHULUMA_BIN" transcribe "$CASE_DIR/memos/m.m4a" -q >/dev/null
   assert_equals "daemon_hot_path_never_builds" "$(grep -c . "$build_log")" "2"
-  assert_file_contains "daemon_hot_path_uses_stale" "$CASE_DIR/tmp/tmux-whisper-file.transcribe.log" "out of date; using it now"
-  assert_file_contains "daemon_hot_path_never_syncs" "$build/Sources/tmux-whisperd/main.swift" 'print("v2")'
+  assert_file_contains "daemon_hot_path_uses_stale" "$CASE_DIR/tmp/khuluma-file.transcribe.log" "out of date; using it now"
+  assert_file_contains "daemon_hot_path_never_syncs" "$build/Sources/khulumad/main.swift" 'print("v2")'
 
   # A build lock held by a live process blocks a concurrent refresh...
   sleep 60 &
   local holder=$!
   mkdir -p "$build.build.lock"
   printf '%s\n' "$holder" >"$build.build.lock/pid"
-  "$DICTATE_BIN" warmup --restart-stale >/dev/null
+  "$KHULUMA_BIN" warmup --restart-stale >/dev/null
   assert_equals "daemon_live_lock_blocks_build" "$(grep -c . "$build_log")" "2"
-  assert_file_contains "daemon_live_lock_logged" "$DICTATE_TRANSCRIBE_LOG" "another tmux-whisperd build is running"
+  assert_file_contains "daemon_live_lock_logged" "$KHULUMA_TRANSCRIBE_LOG" "another khulumad build is running"
   # ...and is reclaimed once its owner is gone.
   kill "$holder" 2>/dev/null; wait "$holder" 2>/dev/null || true
-  "$DICTATE_BIN" warmup --restart-stale >/dev/null
+  "$KHULUMA_BIN" warmup --restart-stale >/dev/null
   assert_equals "daemon_dead_lock_reclaimed" "$(grep -c . "$build_log")" "3"
   [[ -d "$build.build.lock" ]] && fail "daemon_lock_released"
   pass "daemon_lock_released"
-  printf '%s\n' 'print("v4")' >"$src/Sources/tmux-whisperd/main.swift"
+  printf '%s\n' 'print("v4")' >"$src/Sources/khulumad/main.swift"
 
   # A failed rebuild keeps the working binary.
-  DICTATE_TEST_SWIFT_BUILD_FAIL=1 "$DICTATE_BIN" warmup --restart-stale >/dev/null
-  assert_file_contains "daemon_failed_rebuild_keeps_binary" "$DICTATE_TRANSCRIBE_LOG" "rebuilding tmux-whisperd failed; keeping the existing binary"
-  [[ -x "$build/.build/release/tmux-whisperd" ]] || fail "daemon_binary_still_present"
+  KHULUMA_TEST_SWIFT_BUILD_FAIL=1 "$KHULUMA_BIN" warmup --restart-stale >/dev/null
+  assert_file_contains "daemon_failed_rebuild_keeps_binary" "$KHULUMA_TRANSCRIBE_LOG" "rebuilding khulumad failed; keeping the existing binary"
+  [[ -x "$build/.build/release/khulumad" ]] || fail "daemon_binary_still_present"
   pass "daemon_binary_still_present"
   [[ -s "$build.build-failed" ]] || fail "daemon_failed_build_recorded"
   pass "daemon_failed_build_recorded"
 
-  unset DICTATE_TMUX_WHISPERD_ROOT DICTATE_TMUX_WHISPERD_BUILD_ROOT DICTATE_DAEMON_BACKGROUND_REFRESH DICTATE_DAEMON_RESTART_WAIT_SECONDS
-  unset DICTATE_TEST_SWIFT_BUILD_LOG DICTATE_TEST_STUB_DAEMON
+  unset KHULUMA_DAEMON_SOURCE_ROOT KHULUMA_DAEMON_BUILD_ROOT KHULUMA_DAEMON_BACKGROUND_REFRESH KHULUMA_DAEMON_RESTART_WAIT_SECONDS
+  unset KHULUMA_TEST_SWIFT_BUILD_LOG KHULUMA_TEST_STUB_DAEMON
 }
 
 
 run_app_backend_round() {
   setup_case "app-backend"
-  export DICTATE_TEST_SWIFT_TEXT="codex app transcript"
-  printf '%s\n' 'codex -> Codex' >"$DICTATE_CONFIG_DIR/vocab"
-  export DICTATE_TEST_FFPROBE_DURATION_MS=3000
+  export KHULUMA_TEST_SWIFT_TEXT="codex app transcript"
+  printf '%s\n' 'codex -> Codex' >"$KHULUMA_CONFIG_DIR/vocab"
+  export KHULUMA_TEST_FFPROBE_DURATION_MS=3000
   printf '%s\n' "app take" >"$CASE_DIR/take.wav"
   local out
 
-  out="$("$DICTATE_BIN" app-config --json)"
+  out="$("$KHULUMA_BIN" app-config --json)"
   printf '%s' "$out" | python3 -c '
 import json, sys
 c = json.load(sys.stdin)
 assert c["schema_version"] == 1, c
 assert c["hotkey"] == "ctrl+option+space", c["hotkey"]
 assert set(c["sounds"]) == {"start", "stop", "process", "error", "cancel"}, c["sounds"]
-assert c["sounds"]["start"]["path"].endswith("/dictate/start.wav"), c["sounds"]["start"]
+assert c["sounds"]["start"]["path"].endswith("/khuluma/start.wav"), c["sounds"]["start"]
 assert c["inline"]["send_mode"] in ("enter", "cmd_enter", "ctrl_j"), c["inline"]
 assert c["inline"]["send_delay_ms"] == 0 and c["inline"]["activate_delay_ms"] == 0, c["inline"]
 cl = c["cleanup"]
@@ -1295,20 +1331,20 @@ assert not any(key in cl for key in removed), cl
 ' || fail "app_config_json_shape"
   pass "app_config_json_shape"
 
-  out="$(DICTATE_CLEAN=1 DICTATE_REPEATS_LEVEL=2 "$DICTATE_BIN" app-config --json)"
+  out="$(KHULUMA_CLEAN=1 KHULUMA_REPEATS_LEVEL=2 "$KHULUMA_BIN" app-config --json)"
   assert_contains "app_config_cleanup_env" "$out" '"clean": "1", "repeats_level": "2"'
 
   # An unexported LC_ALL=C from ~/.zshenv must not hide the exported UTF-8
   # LANG that grep/sed inherit: the native pipeline has to fall back.
   printf '%s\n' 'LC_ALL=C' >"$HOME/.zshenv"
-  out="$(env -u LC_ALL -u LC_CTYPE -u LC_COLLATE LANG=en_US.UTF-8 "$DICTATE_BIN" app-config --json)"
+  out="$(env -u LC_ALL -u LC_CTYPE -u LC_COLLATE LANG=en_US.UTF-8 "$KHULUMA_BIN" app-config --json)"
   assert_contains "app_config_locale_exported_lang" "$out" '"locale_ctype": "en_US.UTF-8", "locale_collate": "en_US.UTF-8"'
   printf '%s\n' 'export LC_ALL=C' >"$HOME/.zshenv"
-  out="$(env -u LC_ALL -u LC_CTYPE -u LC_COLLATE LANG=en_US.UTF-8 "$DICTATE_BIN" app-config --json)"
+  out="$(env -u LC_ALL -u LC_CTYPE -u LC_COLLATE LANG=en_US.UTF-8 "$KHULUMA_BIN" app-config --json)"
   assert_contains "app_config_locale_exported_c" "$out" '"locale_ctype": "C", "locale_collate": "C"'
-  rm -f "$HOME/.zshenv"
+  preserve_fixture "$HOME/.zshenv"
 
-  out="$(printf 'um the the codex [blank audio] color\n\n' | DICTATE_CLEAN=1 "$DICTATE_BIN" inline cleanup --json)"
+  out="$(printf 'um the the codex [blank audio] color\n\n' | KHULUMA_CLEAN=1 "$KHULUMA_BIN" inline cleanup --json)"
   printf '%s' "$out" | python3 -c '
 import json, sys
 r = json.load(sys.stdin)
@@ -1319,17 +1355,17 @@ assert r["cleanup"]["clean"] == "1", r["cleanup"]
 ' || { echo "$out" >&2; fail "app_inline_cleanup_json"; }
   pass "app_inline_cleanup_json"
 
-  out="$(printf '[blank audio]' | "$DICTATE_BIN" inline cleanup --json)"
+  out="$(printf '[blank audio]' | "$KHULUMA_BIN" inline cleanup --json)"
   assert_contains "app_inline_cleanup_no_speech" "$out" '"status": "no_speech"'
 
-  out="$(DICTATE_APP_HOTKEY="cmd+shift+d" "$DICTATE_BIN" app-config --json)"
+  out="$(KHULUMA_APP_HOTKEY="cmd+shift+d" "$KHULUMA_BIN" app-config --json)"
   assert_contains "app_config_hotkey_override" "$out" '"hotkey": "cmd+shift+d"'
-  out="$(DICTATE_INLINE_PROCESS_SOUND=0 "$DICTATE_BIN" app-config --json)"
+  out="$(KHULUMA_INLINE_PROCESS_SOUND=0 "$KHULUMA_BIN" app-config --json)"
   printf '%s' "$out" | python3 -c 'import json,sys; assert json.load(sys.stdin)["inline"]["process_sound"] is False' \
     || fail "app_config_process_sound_override"
   pass "app_config_process_sound_override"
 
-  out="$("$DICTATE_BIN" inline process "$CASE_DIR/take.wav" --app Safari --record-ms 3000 --startup-ms 9 --json)"
+  out="$("$KHULUMA_BIN" inline process "$CASE_DIR/take.wav" --app Safari --record-ms 3000 --startup-ms 9 --json)"
   printf '%s' "$out" | python3 -c '
 import json, sys
 r = json.load(sys.stdin)
@@ -1342,13 +1378,13 @@ assert r["history_saved"] is True, r
 ' || { echo "$out" >&2; fail "app_process_json_ok"; }
   pass "app_process_json_ok"
   # history_saved is reported once the entry is on disk, not in the background.
-  assert_equals "app_process_history_on_disk" "$(ls "$DICTATE_CONFIG_DIR/history"/*.json | wc -l | tr -d ' ')" "1"
-  assert_file_contains "app_process_history_text" "$(ls "$DICTATE_CONFIG_DIR/history"/*.json)" '"processed": "Codex app transcript"'
-  assert_path_absent "app_process_no_clipboard" "$DICTATE_TEST_PBCOPY_OUT"
-  assert_path_absent "app_process_no_osascript" "$DICTATE_TEST_OSASCRIPT_LOG"
-  assert_path_absent "app_process_no_sounds" "$DICTATE_TEST_SOUND_LOG"
-  assert_file_contains "app_process_usage_recorded" "$DICTATE_CONFIG_DIR/usage.json" '"inline": 1'
-  assert_file_contains "app_process_bench_source" "$DICTATE_CONFIG_DIR/history/bench.tsv" "app:avaudioengine"
+  assert_equals "app_process_history_on_disk" "$(ls "$KHULUMA_CONFIG_DIR/history"/*.json | wc -l | tr -d ' ')" "1"
+  assert_file_contains "app_process_history_text" "$(ls "$KHULUMA_CONFIG_DIR/history"/*.json)" '"processed": "Codex app transcript"'
+  assert_path_absent "app_process_no_clipboard" "$KHULUMA_TEST_PBCOPY_OUT"
+  assert_path_absent "app_process_no_osascript" "$KHULUMA_TEST_OSASCRIPT_LOG"
+  assert_path_absent "app_process_no_sounds" "$KHULUMA_TEST_SOUND_LOG"
+  assert_file_contains "app_process_usage_recorded" "$KHULUMA_CONFIG_DIR/usage.json" '"inline": 1'
+  assert_file_contains "app_process_bench_source" "$KHULUMA_CONFIG_DIR/history/bench.tsv" "app:avaudioengine"
   [[ -f "$CASE_DIR/take.wav" ]] || fail "app_process_keeps_callers_wav"
   pass "app_process_keeps_callers_wav"
 
@@ -1356,30 +1392,30 @@ assert r["history_saved"] is True, r
   # report the delivery (`inline record` usage_only), so a failed paste is
   # never counted.
   local bench_rows history_files
-  bench_rows="$(wc -l <"$DICTATE_CONFIG_DIR/history/bench.tsv" | tr -d ' ')"
-  out="$("$DICTATE_BIN" inline process "$CASE_DIR/take.wav" --app Safari --record-ms 3000 --defer-usage --json)"
+  bench_rows="$(wc -l <"$KHULUMA_CONFIG_DIR/history/bench.tsv" | tr -d ' ')"
+  out="$("$KHULUMA_BIN" inline process "$CASE_DIR/take.wav" --app Safari --record-ms 3000 --defer-usage --json)"
   assert_equals "app_process_defer_usage_flag" "$(json_field "$out" usage_deferred)" "True"
-  assert_equals "app_process_defer_usage_not_counted" "$(json_field "$("$DICTATE_BIN" usage --json)" delivered_dictations.count)" "1"
-  assert_equals "app_process_defer_usage_bench" "$(wc -l <"$DICTATE_CONFIG_DIR/history/bench.tsv" | tr -d ' ')" "$((bench_rows + 1))"
-  history_files="$(ls "$DICTATE_CONFIG_DIR/history"/*.json | wc -l | tr -d ' ')"
+  assert_equals "app_process_defer_usage_not_counted" "$(json_field "$("$KHULUMA_BIN" usage --json)" delivered_dictations.count)" "1"
+  assert_equals "app_process_defer_usage_bench" "$(wc -l <"$KHULUMA_CONFIG_DIR/history/bench.tsv" | tr -d ' ')" "$((bench_rows + 1))"
+  history_files="$(ls "$KHULUMA_CONFIG_DIR/history"/*.json | wc -l | tr -d ' ')"
   printf '%s' '{"take_id":"deferred-1","status":"ok","delivered":true,"usage_only":true,"text":"Codex app transcript",
     "record_ms":3000,"started_at_ms":1000,"delivered_at_ms":5000,"delivered_local_date":"2026-10-15"}' \
-    | "$DICTATE_BIN" inline record --json >"$CASE_DIR/usage-only.json"
+    | "$KHULUMA_BIN" inline record --json >"$CASE_DIR/usage-only.json"
   assert_file_contains "app_usage_only_recorded" "$CASE_DIR/usage-only.json" '"usage_recorded": true'
-  assert_equals "app_usage_only_counted_once" "$(json_field "$("$DICTATE_BIN" usage --json)" delivered_dictations.count)" "2"
-  assert_equals "app_usage_only_no_bench_row" "$(wc -l <"$DICTATE_CONFIG_DIR/history/bench.tsv" | tr -d ' ')" "$((bench_rows + 1))"
-  assert_equals "app_usage_only_no_history" "$(ls "$DICTATE_CONFIG_DIR/history"/*.json | wc -l | tr -d ' ')" "$history_files"
-  assert_file_contains "app_usage_only_day" "$DICTATE_CONFIG_DIR/usage.json" '"2026-10-15"'
+  assert_equals "app_usage_only_counted_once" "$(json_field "$("$KHULUMA_BIN" usage --json)" delivered_dictations.count)" "2"
+  assert_equals "app_usage_only_no_bench_row" "$(wc -l <"$KHULUMA_CONFIG_DIR/history/bench.tsv" | tr -d ' ')" "$((bench_rows + 1))"
+  assert_equals "app_usage_only_no_history" "$(ls "$KHULUMA_CONFIG_DIR/history"/*.json | wc -l | tr -d ' ')" "$history_files"
+  assert_file_contains "app_usage_only_day" "$KHULUMA_CONFIG_DIR/usage.json" '"2026-10-15"'
   printf '%s' '{"take_id":"deferred-1","status":"ok","delivered":true,"usage_only":true,"text":"Codex app transcript"}' \
-    | "$DICTATE_BIN" inline record --json >/dev/null
-  assert_equals "app_usage_only_replay_once" "$(json_field "$("$DICTATE_BIN" usage --json)" delivered_dictations.count)" "2"
+    | "$KHULUMA_BIN" inline record --json >/dev/null
+  assert_equals "app_usage_only_replay_once" "$(json_field "$("$KHULUMA_BIN" usage --json)" delivered_dictations.count)" "2"
 
   # A history write that fails still hands the text back, but says so:
   # Khuluma then keeps the take's Quit copy instead of settling it.
-  history_files="$(ls "$DICTATE_CONFIG_DIR/history"/*.json | wc -l | tr -d ' ')"
-  chmod 500 "$DICTATE_CONFIG_DIR/history"
-  out="$("$DICTATE_BIN" inline process "$CASE_DIR/take.wav" --app Safari --record-ms 3000 --defer-usage --json)"
-  chmod 700 "$DICTATE_CONFIG_DIR/history"
+  history_files="$(ls "$KHULUMA_CONFIG_DIR/history"/*.json | wc -l | tr -d ' ')"
+  chmod 500 "$KHULUMA_CONFIG_DIR/history"
+  out="$("$KHULUMA_BIN" inline process "$CASE_DIR/take.wav" --app Safari --record-ms 3000 --defer-usage --json)"
+  chmod 700 "$KHULUMA_CONFIG_DIR/history"
   printf '%s' "$out" | python3 -c '
 import json, sys
 r = json.load(sys.stdin)
@@ -1387,7 +1423,7 @@ assert r["ok"] and r["status"] == "ok" and r["text"] == "Codex app transcript", 
 assert r["history_saved"] is False, r
 ' || { echo "$out" >&2; fail "app_process_history_failed"; }
   pass "app_process_history_failed"
-  assert_equals "app_process_history_failed_no_entry" "$(ls "$DICTATE_CONFIG_DIR/history"/*.json | wc -l | tr -d ' ')" "$history_files"
+  assert_equals "app_process_history_failed_no_entry" "$(ls "$KHULUMA_CONFIG_DIR/history"/*.json | wc -l | tr -d ' ')" "$history_files"
 }
 
 # `inline record` dedups history/bench and usage separately: a replay after
@@ -1395,15 +1431,15 @@ assert r["history_saved"] is False, r
 # failed is retried without writing history again.
 run_inline_record_usage_retry_round() {
   setup_case "inline-record-usage"
-  local cache="$DICTATE_CONFIG_DIR/.cache" ledger="$DICTATE_CONFIG_DIR/usage.json" history_files
+  local cache="$KHULUMA_CONFIG_DIR/.cache" ledger="$KHULUMA_CONFIG_DIR/usage.json" history_files
 
   printf '%s' '{"take_id":"t-crash","status":"ok","delivered":true,"raw_text":"a b","text":"a b","record_ms":1000}' \
-    | "$DICTATE_BIN" inline record --json >/dev/null
+    | "$KHULUMA_BIN" inline record --json >/dev/null
   # Crash after the usage write, before the take was marked recorded.
   : >"$cache/recorded-takes"
   : >"$cache/recorded-takes-history"
   printf '%s' '{"take_id":"t-crash","status":"ok","delivered":true,"raw_text":"a b","text":"a b","record_ms":1000}' \
-    | "$DICTATE_BIN" inline record --json >"$CASE_DIR/replay.json"
+    | "$KHULUMA_BIN" inline record --json >"$CASE_DIR/replay.json"
   assert_file_contains "inline_record_crash_replay_usage_ok" "$CASE_DIR/replay.json" '"usage_recorded": true'
   assert_equals "inline_record_crash_replay_counted_once" \
     "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["delivered_dictations"]["count"])' "$ledger")" "1"
@@ -1413,52 +1449,52 @@ run_inline_record_usage_retry_round() {
   cp "$ledger" "$CASE_DIR/ledger.good"
   printf 'not json' >"$ledger"
   printf '%s' '{"take_id":"t-retry","status":"ok","delivered":true,"raw_text":"c d e","text":"c d e","record_ms":2000}' \
-    | "$DICTATE_BIN" inline record --json >"$CASE_DIR/retry-1.json" 2>/dev/null
+    | "$KHULUMA_BIN" inline record --json >"$CASE_DIR/retry-1.json" 2>/dev/null
   assert_file_contains "inline_record_usage_failed" "$CASE_DIR/retry-1.json" '"usage_recorded": false'
   assert_file_contains "inline_record_usage_failed_history" "$CASE_DIR/retry-1.json" '"history_saved": true'
   assert_file_contains "inline_record_usage_dedup_flag" "$CASE_DIR/retry-1.json" '"usage_dedup": true'
-  history_files="$(ls "$DICTATE_CONFIG_DIR/history"/*.json | wc -l | tr -d ' ')"
+  history_files="$(ls "$KHULUMA_CONFIG_DIR/history"/*.json | wc -l | tr -d ' ')"
   mv -f "$CASE_DIR/ledger.good" "$ledger"
   printf '%s' '{"take_id":"t-retry","status":"ok","delivered":true,"raw_text":"c d e","text":"c d e","record_ms":2000}' \
-    | "$DICTATE_BIN" inline record --json >"$CASE_DIR/retry-2.json"
+    | "$KHULUMA_BIN" inline record --json >"$CASE_DIR/retry-2.json"
   assert_file_contains "inline_record_usage_retried" "$CASE_DIR/retry-2.json" '"usage_recorded": true'
   assert_equals "inline_record_usage_retry_counted" \
     "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["delivered_dictations"]["count"])' "$ledger")" "2"
   assert_equals "inline_record_usage_retry_no_second_history" \
-    "$(ls "$DICTATE_CONFIG_DIR/history"/*.json | wc -l | tr -d ' ')" "$history_files"
+    "$(ls "$KHULUMA_CONFIG_DIR/history"/*.json | wc -l | tr -d ' ')" "$history_files"
   printf '%s' '{"take_id":"t-retry","status":"ok","delivered":true,"text":"c d e"}' \
-    | "$DICTATE_BIN" inline record --json >"$CASE_DIR/retry-3.json"
+    | "$KHULUMA_BIN" inline record --json >"$CASE_DIR/retry-3.json"
   assert_file_contains "inline_record_usage_retry_then_final" "$CASE_DIR/retry-3.json" '"duplicate": true'
 
   # A history write that fails: usage is counted, the take isn't final, and a
   # replay saves the history without a second bench row or usage count.
   local bench_rows
-  bench_rows="$(wc -l <"$DICTATE_CONFIG_DIR/history/bench.tsv" | tr -d ' ')"
-  chmod 500 "$DICTATE_CONFIG_DIR/history"
+  bench_rows="$(wc -l <"$KHULUMA_CONFIG_DIR/history/bench.tsv" | tr -d ' ')"
+  chmod 500 "$KHULUMA_CONFIG_DIR/history"
   printf '%s' '{"take_id":"t-hist","status":"ok","delivered":true,"raw_text":"f g","text":"f g","record_ms":700}' \
-    | "$DICTATE_BIN" inline record --json >"$CASE_DIR/hist-1.json" 2>/dev/null
-  chmod 700 "$DICTATE_CONFIG_DIR/history"
+    | "$KHULUMA_BIN" inline record --json >"$CASE_DIR/hist-1.json" 2>/dev/null
+  chmod 700 "$KHULUMA_CONFIG_DIR/history"
   assert_file_contains "inline_record_history_failed" "$CASE_DIR/hist-1.json" '"history_saved": false'
   if grep -qxF t-hist "$cache/recorded-takes"; then fail "inline_record_history_failed_not_final"; fi
   pass "inline_record_history_failed_not_final"
-  history_files="$(ls "$DICTATE_CONFIG_DIR/history"/*.json 2>/dev/null | wc -l | tr -d ' ')"
+  history_files="$(ls "$KHULUMA_CONFIG_DIR/history"/*.json 2>/dev/null | wc -l | tr -d ' ')"
   printf '%s' '{"take_id":"t-hist","status":"ok","delivered":true,"raw_text":"f g","text":"f g","record_ms":700}' \
-    | "$DICTATE_BIN" inline record --json >"$CASE_DIR/hist-2.json"
+    | "$KHULUMA_BIN" inline record --json >"$CASE_DIR/hist-2.json"
   assert_file_contains "inline_record_history_retried" "$CASE_DIR/hist-2.json" '"history_saved": true'
-  assert_equals "inline_record_history_retry_saved" "$(ls "$DICTATE_CONFIG_DIR/history"/*.json | wc -l | tr -d ' ')" "$((history_files + 1))"
-  assert_equals "inline_record_history_retry_one_bench_row" "$(wc -l <"$DICTATE_CONFIG_DIR/history/bench.tsv" | tr -d ' ')" "$((bench_rows + 1))"
+  assert_equals "inline_record_history_retry_saved" "$(ls "$KHULUMA_CONFIG_DIR/history"/*.json | wc -l | tr -d ' ')" "$((history_files + 1))"
+  assert_equals "inline_record_history_retry_one_bench_row" "$(wc -l <"$KHULUMA_CONFIG_DIR/history/bench.tsv" | tr -d ' ')" "$((bench_rows + 1))"
   assert_equals "inline_record_history_retry_usage_once" \
     "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["delivered_dictations"]["count"])' "$ledger")" "3"
   grep -qxF t-hist "$cache/recorded-takes" || fail "inline_record_history_retry_final"
   pass "inline_record_history_retry_final"
 
   # No take id or delivery date (older apps): counted, on bash 3.2 too.
-  printf '%s' '{"status":"ok","delivered":true,"text":"no id"}' | "$DICTATE_BIN" inline record --json >"$CASE_DIR/no-id.json"
+  printf '%s' '{"status":"ok","delivered":true,"text":"no id"}' | "$KHULUMA_BIN" inline record --json >"$CASE_DIR/no-id.json"
   assert_file_contains "inline_record_without_take_id" "$CASE_DIR/no-id.json" '"usage_recorded": true'
 
   # The delivery date Khuluma sends wins over the date the record is written.
   printf '%s' '{"take_id":"t-late","status":"ok","delivered":true,"text":"late","record_ms":500,"delivered_local_date":"2026-01-02"}' \
-    | "$DICTATE_BIN" inline record --json >/dev/null
+    | "$KHULUMA_BIN" inline record --json >/dev/null
   assert_file_contains "inline_record_delivery_date_bucket" "$ledger" '"2026-01-02"'
 }
 
@@ -1466,14 +1502,14 @@ run_inline_record_usage_retry_round() {
 # records, exactly-once take ids, and `usage --json --days`.
 run_usage_daily_round() {
   setup_case "usage-daily"
-  local ledger="$DICTATE_CONFIG_DIR/usage.json" out before
-  usage_rec() { bash -c 'source "$1"; shift; usage_record_delivery "$@"' _ "$ROOT/bin/tmux-whisper-lib/history.sh" "$@"; }
+  local ledger="$KHULUMA_CONFIG_DIR/usage.json" out before
+  usage_rec() { bash -c 'source "$1"; shift; usage_record_delivery "$@"' _ "$ROOT/bin/khuluma-lib/history.sh" "$@"; }
   ledger_check() { python3 -c "import json,sys; p=json.load(open(sys.argv[1])); $2" "$ledger" || fail "$1"; pass "$1"; }
 
   # A ledger from before daily buckets is upgraded on the next delivery.
   printf '%s\n' '{"schema_version":1,"tracking_started_at":"2026-09-19T06:30:53Z","delivered_dictations":{"count":80,"by_flow":{"inline":80,"tmux":0}},"processed_words":24306,"recording_duration_ms":8112000,"full_elapsed_duration_ms":8484000}' >"$ledger"
   # 21:30 UTC is already the 15th in Dubai.
-  TZ=Asia/Dubai DICTATE_USAGE_NOW=2026-10-14T21:30:00Z usage_rec inline "hello there zqxsentinel" 3000 3500 --take-id take-1 \
+  TZ=Asia/Dubai KHULUMA_USAGE_NOW=2026-10-14T21:30:00Z usage_rec inline "hello there zqxsentinel" 3000 3500 --take-id take-1 \
     || fail "usage_daily_record"
   ledger_check "usage_daily_upgrade" '
 assert p["delivered_dictations"]["count"] == 81 and p["processed_words"] == 24309, p
@@ -1484,13 +1520,13 @@ assert d["days"] == {"2026-10-15": {"count": 1, "inline": 1, "tmux": 0, "words":
 assert p["recent_take_ids"] == {"take-1": "2026-10-15"}, p'
 
   before="$(cksum <"$ledger")"
-  TZ=Asia/Dubai DICTATE_USAGE_NOW=2026-10-14T21:31:00Z usage_rec inline "hello there zqxsentinel" 3000 3500 --take-id take-1 \
+  TZ=Asia/Dubai KHULUMA_USAGE_NOW=2026-10-14T21:31:00Z usage_rec inline "hello there zqxsentinel" 3000 3500 --take-id take-1 \
     || fail "usage_daily_replay_rc"
   assert_equals "usage_daily_replay_is_noop" "$(cksum <"$ledger")" "$before"
 
   # Replayed the next day with its delivery date; then a tmux take today.
-  TZ=Asia/Dubai DICTATE_USAGE_NOW=2026-10-16T08:00:00Z usage_rec inline "one two" 1000 1200 --take-id take-2 --local-date 2026-10-15
-  TZ=Asia/Dubai DICTATE_USAGE_NOW=2026-10-16T08:00:00Z usage_rec tmux "a b c d" 5000 5400
+  TZ=Asia/Dubai KHULUMA_USAGE_NOW=2026-10-16T08:00:00Z usage_rec inline "one two" 1000 1200 --take-id take-2 --local-date 2026-10-15
+  TZ=Asia/Dubai KHULUMA_USAGE_NOW=2026-10-16T08:00:00Z usage_rec tmux "a b c d" 5000 5400
   ledger_check "usage_daily_buckets" '
 days = p["daily"]["days"]
 assert days["2026-10-15"]["count"] == 2 and days["2026-10-15"]["words"] == 5, days
@@ -1503,7 +1539,7 @@ assert set(p["recent_take_ids"]) == {"take-1", "take-2"}, p'
   # delivery has no day and shows up as untracked.
   cp "$ledger" "$CASE_DIR/before-v1.json"
   bash -c 'source "$1"; source "$2"; usage_record_delivery_v1 inline "older cli" 1000 1100' _ \
-    "$ROOT/bin/tmux-whisper-lib/history.sh" "$ROOT/tests/fixtures/usage_writer_v1.sh" || fail "usage_daily_v1_writer"
+    "$ROOT/bin/khuluma-lib/history.sh" "$ROOT/tests/fixtures/usage_writer_v1.sh" || fail "usage_daily_v1_writer"
   python3 - "$CASE_DIR/before-v1.json" "$ledger" <<'PYEOF' || fail "usage_daily_v1_writer_preserves"
 import json, sys
 a, b = (json.load(open(f)) for f in sys.argv[1:])
@@ -1512,7 +1548,7 @@ assert b["daily"] == a["daily"] and b["recent_take_ids"] == a["recent_take_ids"]
 PYEOF
   pass "usage_daily_v1_writer_preserves"
 
-  out="$(TZ=Asia/Dubai DICTATE_USAGE_NOW=2026-10-16T09:00:00Z "$DICTATE_BIN" usage --json --days 7)"
+  out="$(TZ=Asia/Dubai KHULUMA_USAGE_NOW=2026-10-16T09:00:00Z "$KHULUMA_BIN" usage --json --days 7)"
   printf '%s' "$out" | python3 -c '
 import json, sys
 r = json.load(sys.stdin)
@@ -1527,17 +1563,17 @@ assert d["days"][1] == {"date": "2026-10-16", "count": 1, "words": 4, "recording
     "longest_recording_ms": 5000, "most_words": 4, "by_flow": {"inline": 0, "tmux": 1}}, d
 ' || { echo "$out" >&2; fail "usage_days_json"; }
   pass "usage_days_json"
-  out="$(TZ=Asia/Dubai DICTATE_USAGE_NOW=2026-10-16T09:00:00Z "$DICTATE_BIN" usage --days 1 --json)"
+  out="$(TZ=Asia/Dubai KHULUMA_USAGE_NOW=2026-10-16T09:00:00Z "$KHULUMA_BIN" usage --days 1 --json)"
   assert_equals "usage_days_slice" "$(printf '%s' "$out" | python3 -c 'import json,sys; d=json.load(sys.stdin)["daily"]; print([x["date"] for x in d["days"]], d["untracked_deliveries"])')" "['2026-10-16'] 1"
-  out="$(TZ=Asia/Dubai DICTATE_USAGE_NOW=2026-10-16T09:00:00Z "$DICTATE_BIN" usage --json --days all)"
+  out="$(TZ=Asia/Dubai KHULUMA_USAGE_NOW=2026-10-16T09:00:00Z "$KHULUMA_BIN" usage --json --days all)"
   assert_equals "usage_days_all_range" "$(json_field "$out" daily.range.from)" "2026-10-15"
-  out="$("$DICTATE_BIN" usage --json)"
+  out="$("$KHULUMA_BIN" usage --json)"
   assert_equals "usage_default_has_no_days" "$(json_field "$out" daily)" ""
   assert_equals "usage_default_daily_started" "$(json_field "$out" coverage.daily_tracking_started_at)" "2026-10-14T21:30:00Z"
   local bad
   for bad in "--json --days 0" "--json --days 3661" "--json --days abc" "--days 3" "--json --days"; do
     # shellcheck disable=SC2086
-    if "$DICTATE_BIN" usage $bad >/dev/null 2>&1; then fail "usage_days_rejects: $bad"; fi
+    if "$KHULUMA_BIN" usage $bad >/dev/null 2>&1; then fail "usage_days_rejects: $bad"; fi
   done
   pass "usage_days_rejects_bad_args"
 
@@ -1550,7 +1586,7 @@ p["daily"]["notes"] = "zqxleak"
 p["history"] = "zqxleak"
 json.dump(p, open(sys.argv[1], "w"))
 PYEOF
-  out="$("$DICTATE_BIN" usage --json --days all)$("$DICTATE_BIN" usage --json)"
+  out="$("$KHULUMA_BIN" usage --json --days all)$("$KHULUMA_BIN" usage --json)"
   assert_equals "usage_days_never_leaks" "$(printf '%s' "$out" | grep -c 'zqx' || true)" "0"
   if grep -q zqxsentinel "$ledger"; then fail "usage_ledger_never_stores_text"; fi
   pass "usage_ledger_never_stores_text"
@@ -1563,7 +1599,7 @@ p["daily"]["days"]["2026-10-16"]["count"] = "lots"
 json.dump(p, open(sys.argv[1], "w"))
 PYEOF
   cp "$ledger" "$CASE_DIR/before-bad.json"
-  TZ=Asia/Dubai DICTATE_USAGE_NOW=2026-10-16T10:00:00Z usage_rec inline "still counted" 1000 1000 2>"$CASE_DIR/bad.err" \
+  TZ=Asia/Dubai KHULUMA_USAGE_NOW=2026-10-16T10:00:00Z usage_rec inline "still counted" 1000 1000 2>"$CASE_DIR/bad.err" \
     || fail "usage_daily_malformed_rc"
   python3 - "$CASE_DIR/before-bad.json" "$ledger" <<'PYEOF' || fail "usage_daily_malformed_keeps_totals"
 import json, sys
@@ -1573,7 +1609,7 @@ assert b["daily"] == a["daily"], b
 PYEOF
   pass "usage_daily_malformed_keeps_totals"
   assert_file_contains "usage_daily_malformed_warns" "$CASE_DIR/bad.err" "daily usage is unreadable"
-  out="$(TZ=Asia/Dubai DICTATE_USAGE_NOW=2026-10-16T10:00:00Z "$DICTATE_BIN" usage --json --days 7)"
+  out="$(TZ=Asia/Dubai KHULUMA_USAGE_NOW=2026-10-16T10:00:00Z "$KHULUMA_BIN" usage --json --days 7)"
   # A bad bucket makes the whole section unreadable, never silently partial.
   assert_equals "usage_days_bad_bucket_unreadable" "$(printf '%s' "$out" | python3 -c 'import json,sys; d=json.load(sys.stdin)["daily"]; print(d["status"], d["days"], d["started_at"])')" "unreadable [] None"
   python3 - "$ledger" <<'PYEOF'
@@ -1582,7 +1618,7 @@ p = json.load(open(sys.argv[1]))
 p["daily"]["days"]["2026-10-16"] = {"count": 1}
 json.dump(p, open(sys.argv[1], "w"))
 PYEOF
-  assert_equals "usage_days_missing_fields_unreadable" "$(json_field "$("$DICTATE_BIN" usage --json --days 7)" daily.status)" "unreadable"
+  assert_equals "usage_days_missing_fields_unreadable" "$(json_field "$("$KHULUMA_BIN" usage --json --days 7)" daily.status)" "unreadable"
   python3 - "$ledger" <<'PYEOF'
 import json, sys
 p = json.load(open(sys.argv[1]))
@@ -1590,7 +1626,7 @@ del p["daily"]["days"]["2026-10-16"]
 p["daily"]["started_at"] = "zqxleak said this"
 json.dump(p, open(sys.argv[1], "w"))
 PYEOF
-  out="$("$DICTATE_BIN" usage --json --days 7)$("$DICTATE_BIN" usage --json)"
+  out="$("$KHULUMA_BIN" usage --json --days 7)$("$KHULUMA_BIN" usage --json)"
   assert_equals "usage_days_bad_started_at_never_leaks" "$(printf '%s' "$out" | grep -c 'zqx' || true)" "0"
   python3 - "$ledger" <<'PYEOF'
 import json, sys
@@ -1598,7 +1634,7 @@ p = json.load(open(sys.argv[1]))
 p["daily"] = "garbage"
 json.dump(p, open(sys.argv[1], "w"))
 PYEOF
-  out="$("$DICTATE_BIN" usage --json --days 7)"
+  out="$("$KHULUMA_BIN" usage --json --days 7)"
   assert_equals "usage_days_unreadable_status" "$(json_field "$out" daily.status)" "unreadable"
 }
 
@@ -1607,19 +1643,19 @@ PYEOF
 # runs the pipeline under `|| rc=$?`) the partial text carries on.
 run_cleanup_stage_failure_round() {
   setup_case "cleanup-stage-failure"
-  export DICTATE_TEST_SWIFT_TEXT="stage failure transcript"
-  export DICTATE_TEST_FFPROBE_DURATION_MS=3000
+  export KHULUMA_TEST_SWIFT_TEXT="stage failure transcript"
+  export KHULUMA_TEST_FFPROBE_DURATION_MS=3000
   printf '%s\n' "app take" >"$CASE_DIR/take.wav"
-  local failing_lib="$CASE_DIR/dictate-lib-failing-sanitize.sh"
+  local failing_lib="$CASE_DIR/khuluma-lib-failing-sanitize.sh"
   {
-    cat "$ROOT/bin/dictate-lib.sh"
-    printf '%s\n' 'dictate_lib_sanitize_transcript_artifacts() { cat; return 7; }'
+    cat "$ROOT/bin/khuluma-lib.sh"
+    printf '%s\n' 'khuluma_lib_sanitize_transcript_artifacts() { cat; return 7; }'
   } >"$failing_lib"
   local out rc=0
-  out="$(printf 'hello there' | DICTATE_LIB_PATH="$failing_lib" "$DICTATE_BIN" inline cleanup --json 2>/dev/null)" || rc=$?
+  out="$(printf 'hello there' | KHULUMA_LIB_PATH="$failing_lib" "$KHULUMA_BIN" inline cleanup --json 2>/dev/null)" || rc=$?
   assert_equals "cleanup_stage_failure_exit_status" "$rc" "7"
 
-  out="$(DICTATE_LIB_PATH="$failing_lib" "$DICTATE_BIN" inline process "$CASE_DIR/take.wav" --app Safari --json)"
+  out="$(KHULUMA_LIB_PATH="$failing_lib" "$KHULUMA_BIN" inline process "$CASE_DIR/take.wav" --app Safari --json)"
   printf '%s' "$out" | python3 -c '
 import json, sys
 r = json.load(sys.stdin)
@@ -1636,7 +1672,7 @@ run_inline_record_round() {
   setup_case "inline-record"
   local out bench
 
-  out="$("$DICTATE_BIN" app-config --json)"
+  out="$("$KHULUMA_BIN" app-config --json)"
   printf '%s' "$out" | python3 -c '
 import json, sys
 c = json.load(sys.stdin)
@@ -1653,31 +1689,31 @@ assert "capabilities" not in c, c
   # Khuluma refuses takes unless the CLI speaks its contract: the two numbers
   # must move together.
   local swift_contract
-  swift_contract="$(sed -nE 's/^ *public static let version = ([0-9]+).*/\1/p' "$ROOT/tmux-whisperd/Sources/KhulumaCore/CLIModels.swift")"
+  swift_contract="$(sed -nE 's/^ *public static let version = ([0-9]+).*/\1/p' "$ROOT/native/Sources/KhulumaCore/CLIModels.swift")"
   [[ -n "$swift_contract" ]] || fail "app_contract_swift_constant_found"
   assert_equals "app_config_contract_matches_khuluma" "$(json_field "$out" app_contract)" "$swift_contract"
-  assert_equals "app_config_usage_path" "$(json_field "$out" usage.summary_path)" "$DICTATE_CONFIG_DIR/usage.json"
-  printf '[app]\nsupervise_daemon = false\n' >"$DICTATE_CONFIG_FILE"
-  out="$("$DICTATE_BIN" app-config --json)"
+  assert_equals "app_config_usage_path" "$(json_field "$out" usage.summary_path)" "$KHULUMA_CONFIG_DIR/usage.json"
+  printf '[app]\nsupervise_daemon = false\n' >"$KHULUMA_CONFIG_FILE"
+  out="$("$KHULUMA_BIN" app-config --json)"
   assert_equals "app_config_supervise_off" "$(json_field "$out" pipeline.supervise)" "False"
-  rm -f "$DICTATE_CONFIG_FILE"
+  preserve_fixture "$KHULUMA_CONFIG_FILE"
 
   # No locale at all is the C locale, even though Python itself coerces it to
   # C.UTF-8 in its own environment.
-  out="$(env -u LC_ALL -u LC_CTYPE -u LC_COLLATE -u LANG "$DICTATE_BIN" app-config --json)"
+  out="$(env -u LC_ALL -u LC_CTYPE -u LC_COLLATE -u LANG "$KHULUMA_BIN" app-config --json)"
   assert_contains "app_config_locale_unset_is_c" "$out" '"locale_ctype": "", "locale_collate": ""'
 
   printf '%s' '{"take_id":"t-ok","status":"ok","delivered":true,"raw_text":"open ai","text":"OpenAI",
     "app":"Ghostty","record_ms":3000,"transcribe_ms":400,"clean_ms":3,"paste_ms":50,"total_ms":3500,"startup_ms":12,
     "started_at_ms":1000,"delivered_at_ms":4600,"capture_wav_ms":3010,"capture_wav_bytes":96364}' \
-    | "$DICTATE_BIN" inline record --json >"$CASE_DIR/record-ok.json"
+    | "$KHULUMA_BIN" inline record --json >"$CASE_DIR/record-ok.json"
   assert_file_contains "inline_record_ok_usage" "$CASE_DIR/record-ok.json" '"usage_recorded": true'
-  assert_file_contains "inline_record_usage_ledger" "$DICTATE_CONFIG_DIR/usage.json" '"inline": 1'
-  assert_file_contains "inline_record_usage_elapsed" "$DICTATE_CONFIG_DIR/usage.json" '"full_elapsed_duration_ms": 3600'
-  bench="$(tail -n 1 "$DICTATE_CONFIG_DIR/history/bench.tsv")"
+  assert_file_contains "inline_record_usage_ledger" "$KHULUMA_CONFIG_DIR/usage.json" '"inline": 1'
+  assert_file_contains "inline_record_usage_elapsed" "$KHULUMA_CONFIG_DIR/usage.json" '"full_elapsed_duration_ms": 3600'
+  bench="$(tail -n 1 "$KHULUMA_CONFIG_DIR/history/bench.tsv")"
   assert_contains "inline_record_bench_row" "$bench" $'\tinline\tok\t'
   assert_contains "inline_record_bench_source" "$bench" $'\t3000\t400\t3\t0\t50\t3500\t12\t0\t0\t0\tapp:native'
-  python3 - "$DICTATE_CONFIG_DIR/history" <<'PYEOF' || fail "inline_record_history"
+  python3 - "$KHULUMA_CONFIG_DIR/history" <<'PYEOF' || fail "inline_record_history"
 import glob, json, os, sys
 files = sorted(glob.glob(os.path.join(sys.argv[1], "*.json")))
 assert len(files) == 1, files
@@ -1690,16 +1726,16 @@ PYEOF
   # A replayed take (Khuluma's spool after a quit timeout or crash) is
   # recorded once.
   printf '%s' '{"take_id":"t-ok","status":"ok","delivered":true,"raw_text":"open ai","text":"OpenAI"}' \
-    | "$DICTATE_BIN" inline record --json >"$CASE_DIR/record-dup.json"
+    | "$KHULUMA_BIN" inline record --json >"$CASE_DIR/record-dup.json"
   assert_file_contains "inline_record_duplicate_detected" "$CASE_DIR/record-dup.json" '"duplicate": true'
-  assert_file_contains "inline_record_duplicate_usage_once" "$DICTATE_CONFIG_DIR/usage.json" '"inline": 1'
+  assert_file_contains "inline_record_duplicate_usage_once" "$KHULUMA_CONFIG_DIR/usage.json" '"inline": 1'
 
   # A second take in the same second gets its own history file.
   printf '%s' '{"take_id":"t-ok2","status":"ok","delivered":true,"raw_text":"b","text":"b"}' \
-    | "$DICTATE_BIN" inline record --json >/dev/null
+    | "$KHULUMA_BIN" inline record --json >/dev/null
   printf '%s' '{"take_id":"t-ok3","status":"ok","delivered":true,"raw_text":"c","text":"c"}' \
-    | "$DICTATE_BIN" inline record --json >/dev/null
-  python3 - "$DICTATE_CONFIG_DIR/history" <<'PYEOF' || fail "inline_record_history_unique_names"
+    | "$KHULUMA_BIN" inline record --json >/dev/null
+  python3 - "$KHULUMA_CONFIG_DIR/history" <<'PYEOF' || fail "inline_record_history_unique_names"
 import glob, json, os, sys
 files = glob.glob(os.path.join(sys.argv[1], "*.json"))
 assert len(files) == 3, files
@@ -1709,62 +1745,62 @@ PYEOF
 
   # Failed delivery: a bench row, but no usage and no history.
   printf '%s' '{"take_id":"t-fail","status":"paste_failed","delivered":false,"raw_text":"x","text":"x"}' \
-    | "$DICTATE_BIN" inline record --json >"$CASE_DIR/record-fail.json"
+    | "$KHULUMA_BIN" inline record --json >"$CASE_DIR/record-fail.json"
   assert_file_contains "inline_record_failed_no_usage" "$CASE_DIR/record-fail.json" '"usage_recorded": false'
-  assert_file_contains "inline_record_failed_usage_unchanged" "$DICTATE_CONFIG_DIR/usage.json" '"inline": 3'
-  [[ "$(ls "$DICTATE_CONFIG_DIR/history"/*.json | wc -l | tr -d ' ')" == "3" ]] || fail "inline_record_failed_no_history"
+  assert_file_contains "inline_record_failed_usage_unchanged" "$KHULUMA_CONFIG_DIR/usage.json" '"inline": 3'
+  [[ "$(ls "$KHULUMA_CONFIG_DIR/history"/*.json | wc -l | tr -d ' ')" == "3" ]] || fail "inline_record_failed_no_history"
   pass "inline_record_failed_no_history"
-  assert_contains "inline_record_failed_bench" "$(tail -n 1 "$DICTATE_CONFIG_DIR/history/bench.tsv")" $'\tpaste_failed\t'
+  assert_contains "inline_record_failed_bench" "$(tail -n 1 "$KHULUMA_CONFIG_DIR/history/bench.tsv")" $'\tpaste_failed\t'
 
-  printf '%s' '{"take_id":"t-none","status":"no_speech","delivered":false}' | "$DICTATE_BIN" inline record --json >/dev/null
-  assert_contains "inline_record_no_speech_bench" "$(tail -n 1 "$DICTATE_CONFIG_DIR/history/bench.tsv")" $'\tno_speech\t'
+  printf '%s' '{"take_id":"t-none","status":"no_speech","delivered":false}' | "$KHULUMA_BIN" inline record --json >/dev/null
+  assert_contains "inline_record_no_speech_bench" "$(tail -n 1 "$KHULUMA_CONFIG_DIR/history/bench.tsv")" $'\tno_speech\t'
 
   # [debug] keep_logs: the handed-over WAV is archived and removed.
   printf 'RIFF fake wav' >"$CASE_DIR/take-padded.wav"
   printf '{"take_id":"t-keep","status":"ok","delivered":true,"raw_text":"k","text":"k","wav_path":"%s"}' \
-    "$CASE_DIR/take-padded.wav" | DICTATE_KEEP_LOGS=1 "$DICTATE_BIN" inline record --json >/dev/null
+    "$CASE_DIR/take-padded.wav" | KHULUMA_KEEP_LOGS=1 "$KHULUMA_BIN" inline record --json >/dev/null
   assert_path_absent "inline_record_keep_logs_wav_moved" "$CASE_DIR/take-padded.wav"
-  ls "$DICTATE_CONFIG_DIR/history/inline-debug/"*t-keep.wav >/dev/null 2>&1 || fail "inline_record_keep_logs_archive_wav"
+  ls "$KHULUMA_CONFIG_DIR/history/inline-debug/"*t-keep.wav >/dev/null 2>&1 || fail "inline_record_keep_logs_archive_wav"
   pass "inline_record_keep_logs_archive_wav"
-  ls "$DICTATE_CONFIG_DIR/history/inline-debug/"*t-keep.meta >/dev/null 2>&1 || fail "inline_record_keep_logs_archive_meta"
+  ls "$KHULUMA_CONFIG_DIR/history/inline-debug/"*t-keep.meta >/dev/null 2>&1 || fail "inline_record_keep_logs_archive_meta"
   pass "inline_record_keep_logs_archive_meta"
 
   # A take recovered at quit (never pasted): history, no usage.
   local usage_before
-  usage_before="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["delivered_dictations"]["count"])' "$DICTATE_CONFIG_DIR/usage.json")"
+  usage_before="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["delivered_dictations"]["count"])' "$KHULUMA_CONFIG_DIR/usage.json")"
   printf '%s' '{"take_id":"t-recovered","status":"recovered","delivered":false,"raw_text":"saved at quit","text":"Saved at quit"}' \
-    | "$DICTATE_BIN" inline record --json >"$CASE_DIR/record-recovered.json"
+    | "$KHULUMA_BIN" inline record --json >"$CASE_DIR/record-recovered.json"
   assert_file_contains "inline_record_recovered_no_usage" "$CASE_DIR/record-recovered.json" '"usage_recorded": false'
   assert_file_contains "inline_record_recovered_history" "$CASE_DIR/record-recovered.json" '"history_saved": true'
-  [[ "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["delivered_dictations"]["count"])' "$DICTATE_CONFIG_DIR/usage.json")" == "$usage_before" ]] \
+  [[ "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["delivered_dictations"]["count"])' "$KHULUMA_CONFIG_DIR/usage.json")" == "$usage_before" ]] \
     || fail "inline_record_recovered_usage_unchanged"
   pass "inline_record_recovered_usage_unchanged"
-  grep -rq '"processed": "Saved at quit"' "$DICTATE_CONFIG_DIR/history/" || fail "inline_record_recovered_history_file"
+  grep -rq '"processed": "Saved at quit"' "$KHULUMA_CONFIG_DIR/history/" || fail "inline_record_recovered_history_file"
   pass "inline_record_recovered_history_file"
-  assert_contains "inline_record_recovered_bench" "$(tail -n 1 "$DICTATE_CONFIG_DIR/history/bench.tsv")" $'\trecovered\t'
+  assert_contains "inline_record_recovered_bench" "$(tail -n 1 "$KHULUMA_CONFIG_DIR/history/bench.tsv")" $'\trecovered\t'
 
   # Concurrent writers on a bench at its row limit: every new row survives
   # the trims (appends and trims share one lock).
   local i
-  : >"$DICTATE_CONFIG_DIR/history/bench.tsv"
+  : >"$KHULUMA_CONFIG_DIR/history/bench.tsv"
   for i in $(seq 1 30); do
-    printf 'old\tinline\tok\tm\tpad%s\n' "$i" >>"$DICTATE_CONFIG_DIR/history/bench.tsv"
+    printf 'old\tinline\tok\tm\tpad%s\n' "$i" >>"$KHULUMA_CONFIG_DIR/history/bench.tsv"
   done
   for i in $(seq 1 10); do
     printf '{"take_id":"c%s","status":"ok","delivered":false,"model":"conc%s"}' "$i" "$i" \
-      | DICTATE_BENCH_MAX_ROWS=30 "$DICTATE_BIN" inline record --json >/dev/null &
+      | KHULUMA_BENCH_MAX_ROWS=30 "$KHULUMA_BIN" inline record --json >/dev/null &
   done
   wait
-  [[ "$(wc -l <"$DICTATE_CONFIG_DIR/history/bench.tsv" | tr -d ' ')" == "30" ]] || fail "inline_record_bench_trimmed"
+  [[ "$(wc -l <"$KHULUMA_CONFIG_DIR/history/bench.tsv" | tr -d ' ')" == "30" ]] || fail "inline_record_bench_trimmed"
   pass "inline_record_bench_trimmed"
   for i in $(seq 1 10); do
-    grep -q $'\tconc'"$i"$'\t' "$DICTATE_CONFIG_DIR/history/bench.tsv" || fail "inline_record_concurrent_bench_row_$i"
+    grep -q $'\tconc'"$i"$'\t' "$KHULUMA_CONFIG_DIR/history/bench.tsv" || fail "inline_record_concurrent_bench_row_$i"
   done
   pass "inline_record_concurrent_bench_rows"
-  assert_path_absent "inline_record_bench_lock_released" "$DICTATE_CONFIG_DIR/history/bench.tsv.lock.d"
+  assert_path_absent "inline_record_bench_lock_released" "$KHULUMA_CONFIG_DIR/history/bench.tsv.lock.d"
 
   local rc=0
-  printf 'not json' | "$DICTATE_BIN" inline record --json >/dev/null 2>&1 || rc=$?
+  printf 'not json' | "$KHULUMA_BIN" inline record --json >/dev/null 2>&1 || rc=$?
   [[ "$rc" != "0" ]] || fail "inline_record_rejects_bad_payload"
   pass "inline_record_rejects_bad_payload"
 }
@@ -1774,21 +1810,21 @@ PYEOF
 run_config_last_good_round() {
   setup_case "config-last-good"
   # Earlier rounds export inline overrides; this round tests config.toml itself.
-  unset DICTATE_AUTOSEND DICTATE_INLINE_SEND_MODE
-  export DICTATE_TEST_SWIFT_TEXT="config fallback transcript"
-  export DICTATE_TEST_FFPROBE_DURATION_MS=3000
+  unset KHULUMA_AUTOSEND KHULUMA_INLINE_SEND_MODE
+  export KHULUMA_TEST_SWIFT_TEXT="config fallback transcript"
+  export KHULUMA_TEST_FFPROBE_DURATION_MS=3000
   printf '%s\n' "app take" >"$CASE_DIR/take.wav"
   local out
-  printf '[meta]\nconfig_version = 1\n\n[inline]\nautosend = false\nsend_mode = "cmd_enter"\n' >"$DICTATE_CONFIG_FILE"
+  printf '[meta]\nconfig_version = 1\n\n[inline]\nautosend = false\nsend_mode = "cmd_enter"\n' >"$KHULUMA_CONFIG_FILE"
 
-  out="$("$DICTATE_BIN" app-config --json)"
+  out="$("$KHULUMA_BIN" app-config --json)"
   assert_contains "config_valid_status" "$out" '"config": {"error": null, "source": "file"}'
   assert_contains "config_valid_autosend_off" "$out" '"autosend": false'
-  [[ -f "$(dirname "$DICTATE_CONFIG_FILE")/.config.toml.last-good" ]] || fail "config_last_good_saved"
+  [[ -f "$(dirname "$KHULUMA_CONFIG_FILE")/.config.toml.last-good" ]] || fail "config_last_good_saved"
   pass "config_last_good_saved"
 
-  printf '[meta]\nconfig_version = 1\n\n[inline]\nautosend = fal' >"$DICTATE_CONFIG_FILE"
-  out="$("$DICTATE_BIN" app-config --json)"
+  printf '[meta]\nconfig_version = 1\n\n[inline]\nautosend = fal' >"$KHULUMA_CONFIG_FILE"
+  out="$("$KHULUMA_BIN" app-config --json)"
   printf '%s' "$out" | python3 -c '
 import json, sys
 c = json.load(sys.stdin)
@@ -1797,37 +1833,37 @@ assert c["inline"]["autosend"] is False and c["inline"]["send_mode"] == "cmd_ent
 ' || { echo "$out" >&2; fail "config_invalid_uses_last_good"; }
   pass "config_invalid_uses_last_good"
 
-  out="$("$DICTATE_BIN" inline process "$CASE_DIR/take.wav" --app Safari --json)"
+  out="$("$KHULUMA_BIN" inline process "$CASE_DIR/take.wav" --app Safari --json)"
   assert_contains "config_invalid_inline_process_last_good" "$out" '"autosend": false'
-  out="$("$DICTATE_BIN" doctor 2>&1 || true)"
+  out="$("$KHULUMA_BIN" doctor 2>&1 || true)"
   assert_contains "config_invalid_doctor_says_last_good" "$out" "the last valid copy of config.toml"
 
   # Snapshots that parse but aren't trustworthy are invalid too, and never
   # replace the copy: an empty file (e.g. mid-write) and a non-boolean switch.
   local copy
-  copy="$(dirname "$DICTATE_CONFIG_FILE")/.config.toml.last-good"
-  : >"$DICTATE_CONFIG_FILE"
-  out="$("$DICTATE_BIN" app-config --json)"
+  copy="$(dirname "$KHULUMA_CONFIG_FILE")/.config.toml.last-good"
+  : >"$KHULUMA_CONFIG_FILE"
+  out="$("$KHULUMA_BIN" app-config --json)"
   assert_contains "config_empty_uses_last_good" "$out" '"source": "last_good"'
   assert_contains "config_empty_keeps_autosend_off" "$out" '"autosend": false'
-  printf '[inline]\nautosend = "false"\n' >"$DICTATE_CONFIG_FILE"
-  out="$("$DICTATE_BIN" app-config --json)"
+  printf '[inline]\nautosend = "false"\n' >"$KHULUMA_CONFIG_FILE"
+  out="$("$KHULUMA_BIN" app-config --json)"
   assert_contains "config_string_bool_rejected" "$out" 'inline.autosend must be true or false'
   assert_contains "config_string_bool_keeps_autosend_off" "$out" '"autosend": false'
   assert_file_contains "config_copy_not_replaced" "$copy" 'autosend = false'
 
   # An unreadable file recovers from the copy too.
-  printf '[inline]\nautosend = true\n' >"$DICTATE_CONFIG_FILE"
-  chmod 000 "$DICTATE_CONFIG_FILE"
-  out="$("$DICTATE_BIN" app-config --json 2>/dev/null || true)"
-  chmod 600 "$DICTATE_CONFIG_FILE"
+  printf '[inline]\nautosend = true\n' >"$KHULUMA_CONFIG_FILE"
+  chmod 000 "$KHULUMA_CONFIG_FILE"
+  out="$("$KHULUMA_BIN" app-config --json 2>/dev/null || true)"
+  chmod 600 "$KHULUMA_CONFIG_FILE"
   assert_contains "config_unreadable_uses_last_good" "$out" '"source": "last_good"'
   assert_contains "config_unreadable_keeps_autosend_off" "$out" '"autosend": false'
 
   # No trustworthy settings at all: defaults, but never sending, in every flow.
-  rm -f "$copy"
-  printf '[inline\nautosend = fal' >"$DICTATE_CONFIG_FILE"
-  out="$("$DICTATE_BIN" app-config --json)"
+  preserve_fixture "$copy"
+  printf '[inline\nautosend = fal' >"$KHULUMA_CONFIG_FILE"
+  out="$("$KHULUMA_BIN" app-config --json)"
   assert_contains "config_invalid_no_copy_reports_defaults" "$out" '"source": "defaults"'
   assert_contains "config_invalid_no_copy_inline_autosend_off" "$out" '"autosend": false'
   [[ ! -e "$copy" ]] || fail "config_invalid_never_creates_copy"
@@ -1836,21 +1872,21 @@ assert c["inline"]["autosend"] is False and c["inline"]["send_mode"] == "cmd_ent
   # config_set writes atomically through a symlinked config.toml.
   local real="$CASE_DIR/dotfiles-config.toml"
   printf '[meta]\nconfig_version = 1\n\n[inline]\nautosend = true\n' >"$real"
-  ln -sf "$real" "$DICTATE_CONFIG_FILE"
-  "$DICTATE_BIN" autosend off >/dev/null
-  [[ -L "$DICTATE_CONFIG_FILE" ]] || fail "config_set_keeps_symlink"
+  ln -sf "$real" "$KHULUMA_CONFIG_FILE"
+  "$KHULUMA_BIN" autosend off >/dev/null
+  [[ -L "$KHULUMA_CONFIG_FILE" ]] || fail "config_set_keeps_symlink"
   pass "config_set_keeps_symlink"
   assert_file_contains "config_set_updates_target" "$real" 'autosend = false'
-  unset DICTATE_TEST_SWIFT_TEXT DICTATE_TEST_FFPROBE_DURATION_MS
+  unset KHULUMA_TEST_SWIFT_TEXT KHULUMA_TEST_FFPROBE_DURATION_MS
 }
 
 run_app_backend_failure_round() {
   setup_case "app-backend-failure"
-  export DICTATE_TEST_SWIFT_DAEMON_FAIL=1
-  export DICTATE_TEST_FFPROBE_DURATION_MS=3000
+  export KHULUMA_TEST_SWIFT_DAEMON_FAIL=1
+  export KHULUMA_TEST_FFPROBE_DURATION_MS=3000
   printf '%s\n' "app take" >"$CASE_DIR/take.wav"
   local out rc=0
-  out="$("$DICTATE_BIN" inline process "$CASE_DIR/take.wav" --json)" || rc=$?
+  out="$("$KHULUMA_BIN" inline process "$CASE_DIR/take.wav" --json)" || rc=$?
   assert_equals "app_process_failure_exit_zero" "$rc" "0"
   printf '%s' "$out" | python3 -c '
 import json, sys
@@ -1860,8 +1896,8 @@ assert r["text"] == "" and r["message"], r
 assert r["history_saved"] is False, r
 ' || { echo "$out" >&2; fail "app_process_failure_json"; }
   pass "app_process_failure_json"
-  assert_path_absent "app_process_failure_no_usage" "$DICTATE_CONFIG_DIR/usage.json"
-  unset DICTATE_TEST_SWIFT_DAEMON_FAIL
+  assert_path_absent "app_process_failure_no_usage" "$KHULUMA_CONFIG_DIR/usage.json"
+  unset KHULUMA_TEST_SWIFT_DAEMON_FAIL
 }
 
 write_stubs

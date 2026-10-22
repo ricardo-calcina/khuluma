@@ -2,8 +2,8 @@
 """Generate (or check) Khuluma's TextPipeline parity fixtures.
 
 Expected outputs come from running the CLI's real bash/Perl cleanup:
-- stage cases call one bin/dictate-lib.sh function on the raw input;
-- pipeline cases run `bin/tmux-whisper inline cleanup --json` against a
+- stage cases call one bin/khuluma-lib.sh function on the raw input;
+- pipeline cases run `bin/khuluma inline cleanup --json` against a
   scratch copy of a fixture config dir, with a scratch HOME and LC_ALL=C
   (the environment Khuluma gives the CLI).
 
@@ -31,17 +31,17 @@ SEED = 20261009
 
 STAGE_RUNNER = r"""
 set -u
-source "$1/bin/dictate-lib.sh"
+source "$1/bin/khuluma-lib.sh"
 work="$2"
 while IFS=$'\x1f' read -r idx fn a1 a2 _end; do
   in="$work/in/$idx"
   out="$work/out/$idx"
   case "$fn" in
-    sanitize) dictate_lib_sanitize_transcript_artifacts <"$in" >"$out" ;;
-    fillers) dictate_lib_clean_fillers <"$in" >"$out" ;;
-    repeats) dictate_lib_clean_repeats "$a1" <"$in" >"$out" ;;
-    british) dictate_lib_normalize_british_spelling "$a1" <"$in" >"$out" ;;
-    vocab) dictate_lib_apply_vocab_corrections "$a1" <"$in" >"$out" ;;
+    sanitize) khuluma_lib_sanitize_transcript_artifacts <"$in" >"$out" ;;
+    fillers) khuluma_lib_clean_fillers <"$in" >"$out" ;;
+    repeats) khuluma_lib_clean_repeats "$a1" <"$in" >"$out" ;;
+    british) khuluma_lib_normalize_british_spelling "$a1" <"$in" >"$out" ;;
+    vocab) khuluma_lib_apply_vocab_corrections "$a1" <"$in" >"$out" ;;
     *) echo "unknown stage: $fn" >&2; exit 1 ;;
   esac
 done <"$work/manifest"
@@ -115,6 +115,7 @@ def fuzz_cases(rng):
             tail_text = rng.choice(["", "  ", "\n", "\u00a0", tail_text + "\n" + tail_text])
         add("merge", full, tail_text)
 
+    # Keep recorded fuzz metadata as legacy-environment compatibility cases.
     envs = [{}, {"DICTATE_CLEAN": "1"}, {"DICTATE_CLEAN": "1", "DICTATE_REPEATS_LEVEL": "2"},
             {"DICTATE_BRITISH_SPELLING": "0"}, {"DICTATE_VOCAB_CLEAN": "0"}]
     for i in range(30):
@@ -134,8 +135,8 @@ def prepare_config(name, dest):
 
 
 def merge_script():
-    """The Python body of merge_transcript_chunks, taken from bin/tmux-whisper."""
-    with open(os.path.join(ROOT, "bin", "tmux-whisper"), encoding="utf-8") as f:
+    """The Python body of merge_transcript_chunks, taken from bin/khuluma."""
+    with open(os.path.join(ROOT, "bin", "khuluma"), encoding="utf-8") as f:
         source = f.read()
     start = source.index("merge_transcript_chunks() {")
     body_start = source.index("<<'PYEOF'\n", start) + len("<<'PYEOF'\n")
@@ -181,7 +182,7 @@ def run_stage_cases(cases, work):
     return results
 
 
-def run_pipeline_cases(cases, work):
+def run_pipeline_cases(cases, work, recovery):
     results = []
     for idx, case in enumerate(cases):
         case_dir = os.path.join(work, f"p{idx}")
@@ -194,13 +195,15 @@ def run_pipeline_cases(cases, work):
             "PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
             "LC_ALL": "C",
             "TMPDIR": case_dir,
-            "DICTATE_LIB_PATH": os.path.join(ROOT, "bin", "dictate-lib.sh"),
-            "DICTATE_INTERNAL_LIB_DIR": os.path.join(ROOT, "bin", "tmux-whisper-lib"),
-            "DICTATE_CONFIG_DIR": cfg,
+            "KHULUMA_TMPDIR": case_dir,
+            "KHULUMA_TEST_RECOVERY_ROOT": recovery,
+            "KHULUMA_LIB_PATH": os.path.join(ROOT, "bin", "khuluma-lib.sh"),
+            "KHULUMA_INTERNAL_LIB_DIR": os.path.join(ROOT, "bin", "khuluma-lib"),
+            "KHULUMA_CONFIG_DIR": cfg,
         }
         env.update(case["env"])
         proc = subprocess.run(
-            [os.path.join(ROOT, "bin", "tmux-whisper"), "inline", "cleanup", "--json"],
+            [os.path.join(ROOT, "bin", "khuluma"), "inline", "cleanup", "--json"],
             input=case["input"].encode("utf-8"), env=env, capture_output=True)
         if proc.returncode != 0:
             sys.exit(f"{case['id']}: inline cleanup failed ({proc.returncode}): {proc.stderr.decode(errors='replace')}")
@@ -226,10 +229,18 @@ def generate():
         sys.exit(f"duplicate case ids: {duplicates}")
     merge = [c for c in stage if c["fn"] == "merge"]
     stage = [c for c in stage if c["fn"] != "merge"]
-    with tempfile.TemporaryDirectory(prefix="cleanup-fixtures.") as work:
-        stage_results = run_stage_cases(stage, os.path.join(work, "stage"))
-        stage_results += run_merge_cases(merge, os.path.join(work, "merge"))
-        pipeline_results = run_pipeline_cases(pipeline, os.path.join(work, "pipeline"))
+    # Retain generated fixtures for inspection and recoverable cleanup.
+    work = os.path.realpath(tempfile.mkdtemp(prefix="khuluma-cleanup-fixtures."))
+    print(f"Retained cleanup fixtures: {work}", file=sys.stderr)
+    stage_results = run_stage_cases(stage, os.path.join(work, "stage"))
+    stage_results += run_merge_cases(merge, os.path.join(work, "merge"))
+    recovery = os.path.join(work, ".recovery")
+    os.mkdir(recovery, 0o700)
+    marker = os.path.join(recovery, ".khuluma-recovery-fixture")
+    with open(marker, "w", encoding="utf-8") as file:
+        json.dump({"schema_version": 1, "fixture_root": os.path.realpath(work)}, file)
+    os.chmod(marker, 0o600)
+    pipeline_results = run_pipeline_cases(pipeline, os.path.join(work, "pipeline"), recovery)
     document = {
         "generated_by": "tests/gen-cleanup-fixtures.sh (do not edit by hand)",
         "stage": stage_results,

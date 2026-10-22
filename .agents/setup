@@ -40,14 +40,14 @@ python3 -c 'import tomllib' || { echo "python3 lacks tomllib (need >= 3.11)" >&2
 step "Writing orb agent notes"
 mkdir -p "$HOME/.config/amp"
 cat >"$HOME/.config/amp/AGENTS.md" <<'NOTES'
-# Orb notes (tmux-whisper)
+# Orb notes (Khuluma)
 
 - Linux orb: `./tests/ci.sh` is the validation that runs here (bash + python3 + rg).
-- The Swift package (`tmux-whisperd/`, Khuluma, TmuxWhisperKit) targets macOS 14 only
+- The Swift package (`native/`, Khuluma, KhulumaDaemonKit) targets macOS 14 only
   (AppKit, CoreML). `swift test` and `tools/build-khuluma-app.sh` cannot run in the orb;
   rely on the `Swift` GitHub workflow (macos-latest) for those.
 - `tests/gen-cleanup-fixtures.sh --check` runs on macOS in CI; results on Linux can differ.
-- `./install.sh --force` installs into the orb's own ~/.local and ~/.config/dictate, which is
+- `./install.sh --force` installs into the orb's own ~/.local and ~/.config/khuluma, which is
   harmless here but is not a real-use check.
 NOTES
 
