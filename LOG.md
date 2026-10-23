@@ -2,7 +2,7 @@
 
 ## Now
 
-Khuluma v0.11.0 build 342 is installed from `0ad066f`, with the raised app icon and 18-point menu glyph. Signature, 36 helper regressions, 16 native button renders and doctor pass; config, daemon binary and PID are unchanged. Native menu captures prove stable space and open/dismiss behavior. Finder still chooses the light icon despite valid AppKit light/dark rendering; the compiled native catalog remains open. Its source/workflow are prepared in `7d82223`; public build publication awaits explicit approval after automatic review rejected the push. General appearance remains Auto; the user approved and enabled icon style Dark → Auto.
+Khuluma v0.11.0 build 347 is installed from `646be9b`, with the raised adaptive app icon and 18-point menu glyph. Finder verified clean light/dark switching in the installed bundle; general appearance is Auto and icon style is Dark → Auto. The catalog compiled successfully in the approved temporary public build, and that branch is removed. Signature, 36 helper regressions, 16 native button renders and doctor pass; config, daemon binary and PID are unchanged. Native menu captures prove stable space and open/dismiss behavior; their cached button images do not verify selected background material. Reproduction and evidence are in `assets/icons/README.md`.
 
 The menu utility and integrated Settings from build 340 remain in the installed icon update, with the matching local CLI (contract 4). Stats uses three sections across the viewport, with an accurate full-target milestone bar, toolbar utilities and compact Settings. File-transcription entry/output remains a separate design question.
 
@@ -20,7 +20,7 @@ Continue the existing daily-use observation before phase 1. No installed old Kwi
 - [x] P1 · Complete isolated rename/migration/recovery acceptance, controlled daily cutover and source/tap integration · added 2026-10-22
 
 - [ ] P1 · Before phase 2: search UKIPO and EUIPO by hand for KHULUMA; register khuluma.app · added 2026-10-17
-- [ ] P1 · Finish Finder automatic light/dark icons with prepared native catalog; public compile awaits approval; raised icon/18 pt menu glyph installed · added 2026-10-17
+- [x] P1 · Install raised adaptive light/dark app icon and 18 pt menu glyph; verify Finder automatic switching · added 2026-10-17
 - [ ] P1 · Join the Apple Developer Program before phase 2 · added 2026-10-15
 - [ ] P1 · Phase 0 gate: a week of daily use, then `tools/khuluma-report.sh` gates still met · added 2026-10-17
 - [ ] P1 · Phase 1 step 1: native usage ledger and history writer, proven against the CLI with shared fixtures (removes `inline record`) · added 2026-10-17
@@ -42,7 +42,7 @@ Continue the existing daily-use observation before phase 1. No installed old Kwi
 
 ## Decisions
 
-- Icon update recovery: `/Users/admin/Applications/.khuluma-app.LYfteh/previous.app` retains signed build 340; QA and native render evidence stay at `/private/tmp/khuluma-icons-qa.bhadKs/`. Preserve newer user data when recovering.
+- Icon update recovery: `/Users/admin/Applications/.khuluma-app.LYC8GT/previous.app` retains signed build 342; `.khuluma-app.LYfteh/previous.app` retains build 340. QA and native render evidence stay at `/private/tmp/khuluma-icons-qa.bhadKs/`. Preserve newer user data when recovering.
 
 - Local menu/Settings cutover recovery: `/Users/admin/Applications/.khuluma-live.qBasYG/previous.app` retains build 332; `code-manifest.json` and code backups retain the matching prior local CLI/receipt. Preserve newer usage/history when recovering.
 
@@ -56,6 +56,8 @@ Continue the existing daily-use observation before phase 1. No installed old Kwi
 - Rename the existing repository in place to preserve all history; retain neutral `ricardo-nth/tap` and rename its formula to `khuluma`. The in-place repository rename, immutable v0.10.0 release and canonical formula/map are published and verified. The app continues to depend on its matching CLI; cask/CLI-independence/deprecation/archive are separate future work.
 
 ## Done
+
+- 2026-10-23 · Installed signed build 347 with compiled adaptive icon; Finder light/dark, helper/native-render/signature/doctor checks pass, daemon/config preserved, temporary public build branch removed · 646be9b; assets/icons/README.md
 
 - 2026-10-23 · Installed signed build 342 raised app icon/18 pt menu glyph; helper/native-render/doctor checks pass, config/daemon preserved; Finder adaptive catalog pending · 0ad066f; assets/icons/README.md
 
@@ -134,5 +136,3 @@ Continue the existing daily-use observation before phase 1. No installed old Kwi
 - 2026-10-16 · Lowkey requires its matching CLI (app contract); rollout switches, verify and the older-CLI paths removed after the v0.10.0 gates passed · #68
 
 - 2026-10-16 · Raycast scripts, `integrations` doctor/repair and the `swiftbar` stub removed · #66
-
-- 2026-10-16 · Finished plans moved to docs/plans/archive/ · #65

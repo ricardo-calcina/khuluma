@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Add the raised Khuluma app icon with light/dark artwork and an 18-point menu glyph. Keep native light/dark/selected menu tinting and preserve recording, processing and error feedback in a stable-width slot.
+- Add the raised Khuluma app icon with automatic light/dark artwork on macOS 26 and an 18-point menu glyph. Keep native light/dark/selected menu tinting and preserve recording, processing and error feedback in a stable-width slot.
 - Replace the command-list menu with a wide native menu showing centered total words, estimated time saved and average WPM, with a compact icon footer. Let macOS handle placement, repeat-click and outside-click dismissal, and give the three action icons hover and keyboard focus feedback. Show warnings only when attention is needed.
 - Keep Stats as the home window and open compact Settings through a native titlebar gear, with key-press shortcut capture, model selection, auto-send, sounds, login and diagnostics controls.
 - Simplify Stats around the same three centered lifetime figures and daily activity. Keep streak quiet, show dated records as a compact list, distinguish recording time from estimated time saved, and retain a slim word milestone bar. Reduce the titlebar gear to a small native button.
