@@ -80,6 +80,13 @@ These commands are safe to build integrations on:
     Contract 4 adds app settings writes and explicit provider selection. It
     prevents an older app from ignoring the selected cloud provider and
     continuing to invoke the local daemon.
+    Contract 5 keeps the native and CLI hesitation, sentence-repetition and
+    vocabulary punctuation rules in step. Install the app and CLI together;
+    an older app would otherwise apply different cleanup to the same take.
+  - `cleanup.clean` resolves `KHULUMA_CLEAN` first, then `[clean] enabled`
+    (false by default). `cleanup.repeats_level` keeps its string shape; level
+    3 removes only exact adjacent sentences of five or more words, preserving
+    grammatical doubles and short emphasis. Levels 0–2 retain their meaning.
   - `sounds_enabled` is the master sound switch. It is independent of each
     event's effective `sounds.<event>.enabled` value.
   - `transcription.provider` is `parakeet` (the default, local) or

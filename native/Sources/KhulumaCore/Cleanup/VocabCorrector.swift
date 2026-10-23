@@ -124,7 +124,7 @@ public struct VocabCorrector: Sendable {
       pattern = "(?<![A-Za-z0-9_.-])" + pattern
     }
     if let last = left.unicodeScalars.last, asciiWordScalar(last) {
-      pattern += "(?![A-Za-z0-9_.-])"
+      pattern += "(?![A-Za-z0-9_-]|\\.[[:alnum:]_-])"
     }
     return try? ICURegex(validating: pattern, caseInsensitive: true)
   }

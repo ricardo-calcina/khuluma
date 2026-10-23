@@ -5,6 +5,7 @@
 config_version = 1
 
 [clean]
+enabled = false
 repeats_level = 1
 
 [history]

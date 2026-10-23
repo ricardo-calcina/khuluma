@@ -92,7 +92,7 @@ def fuzz_cases(rng):
     for _ in range(80):
         add("fillers", soup(rng))
     for _ in range(80):
-        add("repeats", soup(rng), rng.choice(["0", "1", "2"]))
+        add("repeats", soup(rng), rng.choice(["0", "1", "2", "3"]))
     for _ in range(60):
         add("british", soup(rng), rng.choice(["1", "1", "0"]))
     for _ in range(100):

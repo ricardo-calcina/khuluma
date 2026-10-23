@@ -7,7 +7,7 @@ import Foundation
 /// so odd values ("2abc", "TRUE", "007") behave identically.
 public struct CleanupSettings: Codable, Equatable, Sendable {
   public var configDir: String
-  /// `KHULUMA_CLEAN`: fillers/repeats run only when exactly "1".
+  /// `KHULUMA_CLEAN` / `[clean] enabled`: fillers/repeats run only when exactly "1".
   public var clean: String
   /// `KHULUMA_REPEATS_LEVEL` / `[clean] repeats_level`.
   public var repeatsLevel: String

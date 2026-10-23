@@ -8,6 +8,33 @@ import Testing
 /// Strings are compared as UTF-8 bytes, never with String == (which treats
 /// canonically equivalent strings as equal).
 struct CleanupParityTests {
+  @Test func hesitationCleanupPreservesIntentAndQuotedWords() {
+    #expect(TextCleanup.cleanFillers("Um, I think this is right, uh but I believe we should check.") ==
+      "I think this is right, but I believe we should check.")
+    #expect(TextCleanup.cleanFillers(#"The word "um", `uh`, /um/file and um.txt stay."#) ==
+      #"The word "um", `uh`, /um/file and um.txt stay."#)
+  }
+
+  @Test func sentenceCleanupIsConservativeAndOptIn() {
+    let sentence = "Please use the existing local app."
+    #expect(TextCleanup.cleanRepeats(sentence + " " + sentence, level: 3) == sentence)
+    #expect(TextCleanup.cleanRepeats(sentence + " " + sentence, level: 2) == sentence + " " + sentence)
+    let correction = sentence + " Please use the newer local app."
+    #expect(TextCleanup.cleanRepeats(correction, level: 3) == correction)
+    #expect(TextCleanup.cleanRepeats("Do it now. Do it now.", level: 3) == "Do it now. Do it now.")
+    #expect(TextCleanup.cleanRepeats("I had had enough. That is very very good.", level: 3) ==
+      "I had had enough. That is very very good.")
+  }
+
+  @Test func configuredBrandSheetAppliesAfterHesitationAndSentenceCleanup() {
+    let settings = CleanupSettings(configDir: Self.configPath("dictation"), clean: "1", repeatsLevel: "3")
+    let result = TextPipeline(settings: settings).process(transcript:
+      "Um, I think we should use PN PM. I think we should use PN PM. Then open Kaluma in X code.")
+    #expect(result == .text(
+      raw: "I think we should use PN PM. Then open Kaluma in X code.",
+      text: "I think we should use pnpm. Then open Khuluma in Xcode."))
+  }
+
   static let repoRoot = URL(fileURLWithPath: #filePath)
     .deletingLastPathComponent()  // KhulumaCoreTests
     .deletingLastPathComponent()  // Tests

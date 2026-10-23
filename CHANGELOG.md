@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add opt-in `clean.enabled` in config and repetition level 3 for exact adjacent sentences of at least five words. Preserve short emphasis, corrections and grammatical doubles. Narrow filler cleanup to unquoted hesitation sounds so uncertainty and natural wording survive; keep CLI/native cleanup identical.
+- Apply vocabulary spellings before a sentence-ending full stop or ellipsis while preserving filename extensions and hyphenated identifiers.
+- Require matching app/CLI contract 5 so the same take gets the same cleanup on either path.
 - Replace the Recording microphone with a cursed-speech mouth and the Processing waveform with a fang seal. Keep the Ready emblem, native tinting, stable menu bar width and existing delivery timing. Preserve the alternative full-emblem artwork for a possible future theme.
 - Add the raised Khuluma app icon with automatic light/dark artwork on macOS 26 and an 18-point menu glyph. Keep native light/dark/selected menu tinting and preserve recording, processing and error feedback in a stable-width slot.
 - Replace the command-list menu with a wide native menu showing centered total words, estimated time saved and average WPM, with a compact icon footer. Let macOS handle placement, repeat-click and outside-click dismissal, and give the three action icons hover and keyboard focus feedback. Show warnings only when attention is needed.

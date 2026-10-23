@@ -1316,6 +1316,41 @@ PYINVALID
 }
 
 
+run_dictation_cleanup_round() {
+  setup_case "dictation-cleanup"
+  printf '[meta]\nconfig_version = 1\n\n[clean]\nenabled = true\nrepeats_level = 3\n' >"$KHULUMA_CONFIG_FILE"
+  printf '%s\n' 'PN PM::pnpm' 'pnpm::pnpm' 'Kaluma::Khuluma' 'X code::Xcode' >"$KHULUMA_CONFIG_DIR/vocab"
+  local input='Um, I think we should use PN PM. I think we should use PN PM. Then open Kaluma in X code.'
+  local out
+  out="$(printf '%s' "$input" | "$KHULUMA_BIN" inline cleanup --json)"
+  printf '%s' "$out" | python3 -c '
+import json, sys
+r = json.load(sys.stdin)
+assert r["cleanup"]["clean"] == "1" and r["cleanup"]["repeats_level"] == "3", r
+assert r["raw_text"] == "I think we should use PN PM. Then open Kaluma in X code.", r
+assert r["text"] == "I think we should use pnpm. Then open Khuluma in Xcode.", r
+' || fail "dictation_config_cleanup"
+  pass "dictation_config_cleanup"
+  out="$(KHULUMA_CLEAN=0 "$KHULUMA_BIN" app-config --json)"
+  printf '%s' "$out" | python3 -c 'import json,sys; assert json.load(sys.stdin)["cleanup"]["clean"] == "0"' \
+    || fail "dictation_env_override"
+  out="$(printf '%s' "$input" | KHULUMA_CLEAN=0 "$KHULUMA_BIN" inline cleanup --json)"
+  printf '%s' "$out" | python3 -c 'import json,sys; r=json.load(sys.stdin); assert r["raw_text"].startswith("Um,") and r["raw_text"].count("I think") == 2, r' \
+    || fail "dictation_env_disables_processing"
+  pass "dictation_env_override"
+  out="$("$KHULUMA_BIN" repeats 3)"
+  assert_contains "dictation_repeats_level3" "$out" 'repeats_level: 3'
+  out="$("$KHULUMA_BIN" status --json)"
+  printf '%s' "$out" | python3 -c 'import json,sys; r=json.load(sys.stdin); c=r["effective_settings"]["clean"]; assert c["regex"] is True and c["repeats_level"] == 3, r' \
+    || fail "dictation_status_config"
+  pass "dictation_status_config"
+  printf '[clean]\nenabled = "false"\n' >"$KHULUMA_CONFIG_FILE"
+  out="$("$KHULUMA_BIN" app-config --json)"
+  printf '%s' "$out" | python3 -c 'import json,sys; r=json.load(sys.stdin); assert "clean.enabled must be true or false" in r["config"]["error"] and r["config"]["source"] == "last_good", r' \
+    || fail "dictation_enabled_type_validation"
+  pass "dictation_enabled_type_validation"
+}
+
 run_app_backend_round() {
   setup_case "app-backend"
   export KHULUMA_TEST_SWIFT_TEXT="codex app transcript"
@@ -1928,6 +1963,7 @@ run_transcribe_file_write_race_round
 run_daemon_lifecycle_round
 run_daemon_build_and_refresh_round
 run_app_backend_round
+run_dictation_cleanup_round
 run_app_backend_failure_round
 run_config_last_good_round
 run_inline_record_round

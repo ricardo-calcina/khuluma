@@ -2,7 +2,9 @@
 
 ## Now
 
-Khuluma v0.11.0 build 351 is installed from `6bc646c`, with cursed-speech status set 1: the existing Ready emblem, speaking mouth for Recording and fang seal for Processing/Finishing. Signature, 36 helper regressions, 16 native button captures and doctor pass; config, daemon binary/PID, Ready glyph and adaptive app catalog are unchanged. The 36-point slot and all three 28-by-20-point custom canvases remain stable. Native menu captures prove open/dismiss behavior; their cached button images do not verify selected background material. Reproduction and evidence are in `assets/icons/README.md`.
+Prepared conservative dictation cleanup on `feat/dictation-cleanup`: unquoted hesitation sounds, exact adjacent sentences and vocabulary spellings at sentence endings. Shell CI checks (initial/resumed runs), 15 focused Swift tests and 962 cleanup parity cases pass. The private 69-take replay removed 108 hesitation sounds and preserved all 34 “I think” phrases. App/CLI contract 5 requires a coordinated update. Personal vocab stays outside Git; the daily app/config/history/daemon are unchanged. Integrate with the concurrent icon work before any separate runtime cutover.
+
+At this branch’s starting point, Khuluma v0.11.0 build 351 was installed from `6bc646c`, with cursed-speech status set 1: the existing Ready emblem, speaking mouth for Recording and fang seal for Processing/Finishing. Signature, 36 helper regressions, 16 native button captures and doctor pass; config, daemon binary/PID, Ready glyph and adaptive app catalog are unchanged. The 36-point slot and all three 28-by-20-point custom canvases remain stable. Native menu captures prove open/dismiss behavior; their cached button images do not verify selected background material. Reproduction and evidence are in `assets/icons/README.md`.
 
 Cursed-speech set 2, which keeps the full emblem during Recording/Finishing, is retained with its renderer and previews at `assets/icons/menu-bar/concepts/`. A possible future Settings theme control is separate work. Phase timing, delivery, overlap priority and error handling are unchanged. The raised app icon still uses the compiled native catalog; its Finder light/dark switching was verified in build 347. General appearance remains Auto and icon style Dark → Auto; the approved temporary public build branch is removed.
 
@@ -16,6 +18,8 @@ Continue the existing daily-use observation before phase 1. No installed old Kwi
 
 ## Next
 
+- [x] P1 · Audit saved dictation and prepare conservative hesitation/sentence/brand cleanup in source · added 2026-10-23
+- [ ] P1 · Integrate cleanup with current icon work; separately install matching contract-5 app/CLI and reviewed personal vocab, then verify a real take · added 2026-10-23
 - [x] P1 · Build useful menu panel and integrated Settings with shortcut capture and opt-in Scribe · added 2026-10-23
 - [x] P1 · Install the approved menu/Settings app and matching CLI, preserving data/daemon and verifying daily use · added 2026-10-23
 - [x] P1 · Review the full identity rename plan · added 2026-10-22
@@ -60,6 +64,8 @@ Continue the existing daily-use observation before phase 1. No installed old Kwi
 - Rename the existing repository in place to preserve all history; retain neutral `ricardo-nth/tap` and rename its formula to `khuluma`. The in-place repository rename, immutable v0.10.0 release and canonical formula/map are published and verified. The app continues to depend on its matching CLI; cask/CLI-independence/deprecation/archive are separate future work.
 
 ## Done
+
+- 2026-10-23 · Prepared conservative hesitation/sentence cleanup and brand punctuation fixes; 69-take private replay 108→0 hesitations, shell checks/15 Swift tests/962 parity cases pass; daily runtime unchanged · native/Sources/KhulumaCore/Cleanup; feat/dictation-cleanup
 
 - 2026-10-23 · Installed signed build 351 cursed-speech set 1; 36 helper/16 native capture/signature/doctor checks pass, config/daemon/app icon preserved; set 2 retained for future theme · 6bc646c; assets/icons/menu-bar/README.md
 
@@ -138,5 +144,3 @@ Continue the existing daily-use observation before phase 1. No installed old Kwi
 - 2026-10-16 · P0b docs: README, ROADMAP, CONTRIBUTING, TROUBLESHOOTING (Lowkey section), domain and templates rewritten around Lowkey; pre-v0.7 changelog archived; pad-sfx.sh removed · #72
 
 - 2026-10-16 · Lowkey's AppController split into TakePipeline, TakePersister, StatusMenu, LoginItem; menu status is a tested LowkeyCore type · #71
-
-- 2026-10-16 · LLM post-processing, silence trim and bash chunking removed (with budget, replay, bench-matrix, mode prompts); app contract 2 · #70

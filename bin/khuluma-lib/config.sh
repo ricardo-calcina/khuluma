@@ -12,6 +12,7 @@ default_config_toml() {
 config_version = 1
 
 [clean]
+enabled = false
 repeats_level = 1
 
 [history]
@@ -74,7 +75,7 @@ last_good = os.path.join(os.path.dirname(path), "." + os.path.basename(path) + "
 BOOL_KEYS = (
   "audio.sounds.enabled", "audio.sounds.start_enabled", "audio.sounds.stop_enabled",
   "audio.sounds.process_enabled", "audio.sounds.error_enabled", "audio.sounds.cancel_enabled",
-  "inline.autosend", "inline.process_sound", "debug.keep_logs", "app.supervise_daemon",
+  "inline.autosend", "inline.process_sound", "debug.keep_logs", "app.supervise_daemon", "clean.enabled",
 )
 
 class InvalidConfig(ValueError):
@@ -204,6 +205,7 @@ out = {
   "CFG_DEBUG_KEEP_LOGS": "1" if b(get("debug.keep_logs", False), False) else "0",
   "CFG_APP_HOTKEY": str(get("app.hotkey", "ctrl+option+space")),
   "CFG_APP_SUPERVISE_DAEMON": "1" if b(get("app.supervise_daemon", True), True) else "0",
+  "CFG_CLEAN_ENABLED": "1" if b(get("clean.enabled", False), False) else "0",
   "CFG_CLEAN_REPEATS_LEVEL": str(get("clean.repeats_level", "1")),
 }
 

@@ -97,10 +97,23 @@ khuluma sound start|stop|process|error on|off
 
 ## Vocab
 
-Cleanup removes fillers and repeats, applies your vocab corrections and British spelling. There is one vocab file, `~/.config/khuluma/vocab`, used for every take in every app.
+Vocab corrections and British spelling run by default. Hesitation and repetition cleanup is opt-in: in `~/.config/khuluma/config.toml`, set:
+
+```toml
+[clean]
+enabled = true
+repeats_level = 3
+```
+
+This removes unquoted hesitation sounds (`um`, `umm`, `uh`, `uhh`, `erm`) while preserving wording such as “I think”, “actually” and “I mean”. Level 3 removes exact adjacent sentences of at least five words (ignoring case and extra spaces), keeping the first copy. It preserves changed wording, short emphasis, and grammatical doubles such as “had had”. It does not summarise, remove non-adjacent repeats, or guess which near-repeat you intended. Sentences need matching punctuation and must fit within 2,002 bytes. Levels 1 and 2 retain the older word/short-phrase stutter cleanup; 0 disables repetition cleanup. `KHULUMA_CLEAN=0|1` overrides `clean.enabled`; `KHULUMA_REPEATS_LEVEL` overrides the configured level.
+
+The brand sheet is the existing `~/.config/khuluma/vocab`, used for every take in every app. Add observed spellings and their preferred replacements; matching ignores case and runs locally after hesitation/repetition cleanup. Rules match whole terms, so a rule for `pnpm` leaves `pnpm-lock.yaml` intact. For example:
 
 ```bash
 khuluma vocab add "clawed::Claude"     # also "wrong -> right"
+khuluma vocab add "Kaluma::Khuluma" "khuluma::Khuluma"
+khuluma vocab add "PN PM::pnpm" "pnpm::pnpm"
+khuluma vocab add "X code::Xcode" "xcode::Xcode"
 khuluma vocab import --dry-run fixes.txt
 khuluma vocab dedupe                   # backs up first
 khuluma vocab rm "literal text"        # --regex to match a pattern

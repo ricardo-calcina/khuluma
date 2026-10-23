@@ -2593,6 +2593,144 @@
     "x y z"
    ],
    "input": "x y z"
+  },
+  {
+   "id": "hesitations-preserve-intent",
+   "fn": "fillers",
+   "args": [],
+   "input": "Um, I think we should keep it, uh but I believe it needs work."
+  },
+  {
+   "id": "hesitations-protected",
+   "fn": "fillers",
+   "args": [],
+   "input": "The word \"um\", `uh`, /um/file and um.txt stay."
+  },
+  {
+   "id": "hesitations-only",
+   "fn": "fillers",
+   "args": [],
+   "input": "Um, uh, umm, UHH."
+  },
+  {
+   "id": "sentence-exact",
+   "fn": "repeats",
+   "args": [
+    "3"
+   ],
+   "input": "Please use the existing local app. Please use the existing local app. Then check the result."
+  },
+  {
+   "id": "sentence-middle",
+   "fn": "repeats",
+   "args": [
+    "3"
+   ],
+   "input": "First check this. Please use the existing local app. Please use the existing local app. Then check the result."
+  },
+  {
+   "id": "sentence-triple",
+   "fn": "repeats",
+   "args": [
+    "3"
+   ],
+   "input": "Please use the existing local app. please use the existing local app. Please use the existing local app."
+  },
+  {
+   "id": "sentence-correction",
+   "fn": "repeats",
+   "args": [
+    "3"
+   ],
+   "input": "Please use the existing local app. Please use the newer local app."
+  },
+  {
+   "id": "sentence-emphasis",
+   "fn": "repeats",
+   "args": [
+    "3"
+   ],
+   "input": "Do it now. Do it now."
+  },
+  {
+   "id": "sentence-level2",
+   "fn": "repeats",
+   "args": [
+    "2"
+   ],
+   "input": "Please use the existing local app. Please use the existing local app."
+  },
+  {
+   "id": "sentence-whitespace",
+   "fn": "repeats",
+   "args": [
+    "3"
+   ],
+   "input": "Please  use the existing local app. Please use\tthe existing local app."
+  },
+  {
+   "id": "sentence-unicode",
+   "fn": "repeats",
+   "args": [
+    "3"
+   ],
+   "input": "Please keep the café menu unchanged. Please keep the café menu unchanged."
+  },
+  {
+   "id": "sentence-punctuation",
+   "fn": "repeats",
+   "args": [
+    "3"
+   ],
+   "input": "Please use the existing local app! Please use the existing local app?"
+  },
+  {
+   "id": "sentence-different-number",
+   "fn": "repeats",
+   "args": [
+    "3"
+   ],
+   "input": "Please use version 2 for this. Please use version 3 for this."
+  },
+  {
+   "id": "sentence-quoted",
+   "fn": "repeats",
+   "args": [
+    "3"
+   ],
+   "input": "\"Please use the existing local app.\" \"Please use the existing local app.\""
+  },
+  {
+   "id": "sentence-unfinished",
+   "fn": "repeats",
+   "args": [
+    "3"
+   ],
+   "input": "Please use the existing local app. Please use the existing local app"
+  },
+  {
+   "id": "brand-sheet",
+   "fn": "vocab",
+   "args": [
+    "dictation"
+   ],
+   "input": "Kaluma, X code, xcode, PN PM, PNPM, P N P M and pnpm-lock.yaml"
+  },
+  {
+   "id": "brand-sentence-punctuation",
+   "fn": "vocab",
+   "args": [
+    "dictation"
+   ],
+   "input": "Pnpm. PN PM. Xcode... Kaluma. pnpm.yaml pnpm-lock.yaml pnpm.日本"
+  },
+  {
+   "id": "sentence-preserve-grammar",
+   "fn": "repeats",
+   "args": [
+    "3"
+   ],
+   "input": "I had had enough. That is very very good."
   }
  ],
  "pipeline": [
@@ -2763,6 +2901,26 @@
    "config": "cascade",
    "env": {},
    "input": "q̣́ text"
+  },
+  {
+   "id": "dictation-config-enabled",
+   "config": "dictation",
+   "env": {},
+   "input": "Um, I think we should use PN PM. I think we should use PN PM. Then open Kaluma in X code."
+  },
+  {
+   "id": "dictation-env-off",
+   "config": "dictation",
+   "env": {
+    "KHULUMA_CLEAN": "0"
+   },
+   "input": "Um, I think we should use PN PM. I think we should use PN PM."
+  },
+  {
+   "id": "dictation-no-speech",
+   "config": "dictation",
+   "env": {},
+   "input": "Um, uh, umm."
   }
  ]
 }

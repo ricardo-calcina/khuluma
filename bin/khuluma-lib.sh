@@ -24,15 +24,10 @@ khuluma_lib_expand_sound_path() {
   printf "%s" "$p"
 }
 
-# Clean filler words from text (uses perl for case-insensitive matching).
+# Remove hesitation sounds, preserving hedges, corrections and quoted words.
 khuluma_lib_clean_fillers() {
   perl -pe '
-    s/\b(um|uh|uhh|umm|er|err|ah|ahh|hmm|hm|mhm|erm|huh)\b[,.]?\s*//gi;
-    s/\b(you know|I mean|kind of|sort of|basically|actually|literally|obviously|honestly|frankly|clearly),?\s*//gi;
-    s/\b(I guess|I think|I suppose|I believe|in my opinion|to be honest|to be fair),?\s*//gi;
-    s/\b(so yeah|and yeah|but yeah|yeah so|ok so|okay so|alright so|right so),?\s*//gi;
-    s/\b(anyway|anyways|anyhow),?\s*//gi;
-    s/\b(like),?\s+(like),?/like/gi;
+    s/(?<![\w.\/@\x27"`-])\b(?:um+|uh+|erm)\b(?![\w\/@\x27"`-]|\.[A-Za-z0-9])[,.]?\s*//gi;
     s/\s+/ /g;
     s/^ //; s/ $//;
     s/ ,/,/g; s/ \././g; s/,,/,/g;
@@ -43,6 +38,7 @@ khuluma_lib_clean_fillers() {
 # Level 0: off
 # Level 1: repeated words
 # Level 2: repeated 2-3 word adjacent phrases + repeated words
+# Level 3: exact adjacent sentences of at least five words only
 khuluma_lib_clean_repeats() {
   local level="${1:-1}"
   KHULUMA_REPEATS_LEVEL="$level" perl -pe '
@@ -50,11 +46,23 @@ khuluma_lib_clean_repeats() {
     $level = int($level);
     my $w = qr/[A-Za-z]+(?:\x27[A-Za-z]+)*/;
 
-    if ($level >= 2) {
+    if ($level >= 3) {
+      s/\s+/ /g;
+      my $changed;
+      do {
+        $changed = 0;
+        s{(^|[.!?] +)([A-Za-z0-9][^.!?\r\n]{0,2000}[.!?]) +\2(?=\s|$)}{
+          my ($original, $prefix, $sentence) = ($&, $1, $2);
+          my @words = ($sentence =~ /[A-Za-z0-9]+(?:\x27[A-Za-z0-9]+)*/g);
+          if (@words >= 5) { $changed = 1; $prefix . $sentence } else { $original }
+        }gei;
+      } while ($changed);
+    }
+    if ($level >= 2 && $level < 3) {
       1 while s/\b($w)\s+($w)\s+($w)\b\s+\1\s+\2\s+\3\b/$1 $2 $3/gi;
       1 while s/\b($w)\s+($w)\b\s+\1\s+\2\b/$1 $2/gi;
     }
-    if ($level >= 1) {
+    if ($level >= 1 && $level < 3) {
       1 while s/\b($w)\b\s+\1\b/$1/gi;
     }
     s/\s+/ /g; s/^ //; s/ $//;
@@ -179,7 +187,9 @@ khuluma_lib_apply_vocab_corrections() {
           $pattern = "(?<![A-Za-z0-9_.-])" . $pattern;
         }
         if ($last =~ /[A-Za-z0-9_]/) {
-          $pattern .= "(?![A-Za-z0-9_.-])";
+          # A terminal full stop is punctuation; a dot followed by an
+          # identifier is a filename/domain suffix and stays protected.
+          $pattern .= "(?![A-Za-z0-9_-]|\\.[[:alnum:]_-])";
         }
         return qr/$pattern/i;
       }

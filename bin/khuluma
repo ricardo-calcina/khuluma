@@ -27,7 +27,7 @@ KHULUMA_CLI_VERSION="0.11.0"
 # Khuluma refuses takes unless its own contract number (AppContract.version
 # in native/Sources/KhulumaCore/CLIModels.swift) is the same: bump
 # both together whenever either side needs the other to change.
-KHULUMA_APP_CONTRACT=4
+KHULUMA_APP_CONTRACT=5
 
 usage() {
   cat <<'EOF'
@@ -67,7 +67,7 @@ DIAGNOSTICS:
 
 TEXT CLEANUP:
   khuluma repeats            # show repeat cleanup level
-  khuluma repeats 0|1|2      # set repeat cleanup level
+  khuluma repeats 0|1|2|3    # set repeat cleanup level
 
 SOUNDS:
   khuluma sound              # show sound settings
@@ -211,6 +211,7 @@ clean_fillers() {
 # Level 0: off
 # Level 1: repeated word ("the the" -> "the")
 # Level 2: repeated short phrase (2–3 words) ("go ahead and go ahead and" -> "go ahead and")
+# Level 3: exact adjacent sentences only (5+ words)
 clean_repeats() {
   local level="${1:-1}"
   khuluma_lib_clean_repeats "$level"
@@ -231,7 +232,7 @@ apply_vocab_corrections() {
 }
 
 # First cleanup pass on a fresh transcript: artefacts, then fillers/repeats
-# when KHULUMA_CLEAN=1. Each stage goes through $(...), so trailing newlines
+# when clean.enabled=true (or KHULUMA_CLEAN=1). Each stage goes through $(...), so trailing newlines
 # are dropped between stages; Khuluma's TextPipeline mirrors this exactly.
 # Sets CLEANUP_TEXT rather than printing, so callers run the stages in their
 # own shell: a failing stage aborts under set -e with its own status, and
@@ -240,7 +241,7 @@ apply_vocab_corrections() {
 cleanup_raw_transcript() {
   local txt="$1"
   txt="$(printf "%s" "$txt" | sanitize_transcript_artifacts)"
-  if [[ "${KHULUMA_CLEAN:-0}" == "1" ]]; then
+  if [[ "${KHULUMA_CLEAN:-${CFG_CLEAN_ENABLED:-0}}" == "1" ]]; then
     txt="$(printf "%s" "$txt" | clean_fillers)"
     local repeats_level="${KHULUMA_REPEATS_LEVEL:-${CFG_CLEAN_REPEATS_LEVEL:-1}}"
     if [[ "$repeats_level" != "0" ]]; then
@@ -585,7 +586,7 @@ preferred_key_order = {
   "meta": ["config_version"],
   "audio": [],
   "audio.sounds": ["cancel", "cancel_enabled", "enabled", "error", "error_enabled", "process", "process_enabled", "start", "start_enabled", "stop", "stop_enabled"],
-  "clean": ["repeats_level"],
+  "clean": ["enabled", "repeats_level"],
   "history": ["retention_days", "audio_retention_days"],
   "transcription": ["provider"],
   "whisper": ["models_dir", "backend", "model", "threads", "beam_size", "best_of", "vad", "vad_model", "vad_threshold", "vad_min_speech_ms", "vad_min_silence_ms", "vad_speech_pad_ms"],
@@ -1136,7 +1137,7 @@ preferred_key_order = {
   "meta": ["config_version"],
   "audio": [],
   "audio.sounds": ["cancel", "cancel_enabled", "enabled", "error", "error_enabled", "process", "process_enabled", "start", "start_enabled", "stop", "stop_enabled"],
-  "clean": ["repeats_level"],
+  "clean": ["enabled", "repeats_level"],
   "history": ["retention_days", "audio_retention_days"],
   "whisper": ["models_dir", "backend", "model", "threads", "beam_size", "best_of", "vad", "vad_model", "vad_threshold", "vad_min_speech_ms", "vad_min_silence_ms", "vad_speech_pad_ms"],
   "swift_parakeet": ["model_path", "model_version", "socket_path"],
@@ -3469,7 +3470,7 @@ set_keep_logs() {
 set_repeats_level() {
   local val="${1:-show}"
   case "$val" in
-    0|1|2)
+    0|1|2|3)
       config_set "clean.repeats_level" "int" "$val"
       config_load
       echo "repeats_level: ${CFG_CLEAN_REPEATS_LEVEL:-1}"
@@ -3485,6 +3486,7 @@ set_repeats_level() {
       case "$current" in
         0) next="1" ;;
         1) next="2" ;;
+        2) next="3" ;;
         *) next="0" ;;
       esac
       config_set "clean.repeats_level" "int" "$next"
@@ -3496,9 +3498,10 @@ set_repeats_level() {
       echo "  0 = off"
       echo "  1 = dedupe repeated words"
       echo "  2 = dedupe repeated words + short phrases"
+      echo "  3 = only dedupe exact adjacent sentences (5+ words); preserve short emphasis"
       ;;
     *)
-      die "usage: khuluma repeats [0|1|2|off|toggle|show]"
+      die "usage: khuluma repeats [0|1|2|3|off|toggle|show]"
       ;;
   esac
 }
