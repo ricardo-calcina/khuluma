@@ -1,0 +1,40 @@
+{
+  "fill": "none",
+  "groups": [
+    {
+      "blur-material": null,
+      "layers": [
+        {
+          "glass": false,
+          "image-name-specializations": [
+            {
+              "value": "Khuluma-Light.png"
+            },
+            {
+              "appearance": "dark",
+              "value": "Khuluma-Dark.png"
+            }
+          ],
+          "name": "Approved raised artwork",
+          "position": {
+            "scale": 1,
+            "translation-in-points": [0, 0]
+          }
+        }
+      ],
+      "name": "Khuluma",
+      "shadow": {
+        "kind": "none",
+        "opacity": 0
+      },
+      "specular": false,
+      "translucency": {
+        "enabled": false,
+        "value": 0
+      }
+    }
+  ],
+  "supported-platforms": {
+    "squares": ["macOS"]
+  }
+}
