@@ -28,5 +28,6 @@ echo "Syntax checks passed."
 ./tests/test_identity_migration.sh
 python3 tests/test_finder_transaction.py
 python3 tests/test_app_build_helpers.py
+python3 tests/test_audio_cleanup.py
 
 echo "All CI checks passed."

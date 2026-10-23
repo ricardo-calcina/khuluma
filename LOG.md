@@ -62,6 +62,8 @@ Continue the existing daily-use observation before phase 1. No installed old Kwi
 
 ## Done
 
+- 2026-10-23 · Audio cleanup saves history before deleting working WAVs; archive expiry uses 48 hours without Trash; 292 flow/provider/4 deletion-boundary checks pass · bin/khuluma-lib/audio_cleanup.py
+
 - 2026-10-23 · Installed signed build 355 round Recording mouth and both Settings themes; 36 helper/32 static/98 motion/native Picker/relaunch/signature/doctor checks pass, config/daemon/catalog preserved · 2b460a9; assets/icons/README.md
 
 - 2026-10-23 · Installed signed build 353 with slow Processing rotation; timed/menu-open/phase/Reduce Motion/static/signature/doctor checks pass, config/daemon/assets preserved · fb06b5b; assets/icons/README.md

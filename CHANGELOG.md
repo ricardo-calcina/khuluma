@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Delete temporary dictation WAVs after history is saved and delete expired audio archives directly, without filling Trash. Keep audio if history saving fails; use an elapsed 48-hour default for audio expiry.
 - Make the Recording mouth rounder and add Settings → Appearance → Menu bar icons. Switch immediately between Cursed speech and Full emblem, remember the choice, and rotate only the centre seal in Full emblem while processing.
 - Slowly rotate the Processing fang seal while work is in flight, including with the menu open. Stop on other states and respect Reduce Motion.
 - Replace the Recording microphone with a cursed-speech mouth and the Processing waveform with a fang seal. Keep the Ready emblem, native tinting, stable menu bar width and existing delivery timing.

@@ -137,18 +137,14 @@ history_audio_retention_days() {
 
 cleanup_inline_debug_audio() {
   local days="${1:-$(history_audio_retention_days)}"
-  local dir expired
+  local dir
   dir="$(inline_debug_archive_dir 2>/dev/null || true)"
   [[ -n "$dir" && -d "$dir" ]] || return 0
   [[ "$days" =~ ^[0-9]+$ ]] || days=2
 
-  if [[ "$days" == "0" ]]; then
-    while IFS= read -r -d '' expired; do khuluma_trash_owned "$expired" || return 1; done \
-      < <(find "$dir" -name "*.wav" -type f -print0 2>/dev/null)
-  else
-    while IFS= read -r -d '' expired; do khuluma_trash_owned "$expired" || return 1; done \
-      < <(find "$dir" -name "*.wav" -type f -mtime +"$days" -print0 2>/dev/null)
-  fi
+  # Audio expiry frees storage directly. Use elapsed days (48 hours by
+  # default), rather than find -mtime +2, which waits until three days old.
+  python3 "$SCRIPT_DIR/khuluma-lib/audio_cleanup.py" expired "$dir" "$days"
 }
 
 history_entry_file_by_index() {

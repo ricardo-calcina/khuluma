@@ -16,6 +16,7 @@ KHULUMA_RUNNING_BINARY="${BASH_SOURCE[0]:-$0}"
 [[ -r "$SCRIPT_DIR/khuluma-lib/identity.sh" ]] || { printf '%s\n' 'khuluma: missing identity helpers; reinstall the matching runtime' >&2; exit 2; }
 source "$SCRIPT_DIR/khuluma-lib/identity.sh"
 
+KHULUMA_SYSTEM_TMPDIR="${TMPDIR:-/tmp}"
 TMPDIR="${KHULUMA_TMPDIR:-/tmp}"
 TRANSCRIBE_LOG="${KHULUMA_TRANSCRIBE_LOG:-$TMPDIR/khuluma.transcribe.log}"
 
@@ -436,6 +437,7 @@ archive_inline_debug_artifacts() {
   local paste_ms="${8:-0}"
   local total_ms="${9:-0}"
   local take_id="${10:-}"
+  INLINE_DEBUG_ARCHIVE_SAVED=0
 
   if [[ -n "$prefix" ]]; then
     local archive_wav_ms archive_wav_bytes
@@ -447,7 +449,9 @@ archive_inline_debug_artifacts() {
     INLINE_DEBUG_WAV_RETENTION_DAYS="$(history_audio_retention_days)"
     INLINE_DEBUG_AUDIO_RETENTION_NOTE="WAV retained for ${INLINE_DEBUG_WAV_RETENTION_DAYS} day(s); JSON history and .meta/.log artifacts remain for stats/roundups."
 
-    [[ -f "$wav" ]] && cp -f "$wav" "${prefix}.wav" 2>/dev/null || true
+    if [[ -f "$wav" ]] && cp -f "$wav" "${prefix}.wav" 2>/dev/null; then
+      INLINE_DEBUG_ARCHIVE_SAVED=1
+    fi
     [[ -f "$transcribe_log" ]] && cp -f "$transcribe_log" "${prefix}.transcribe.log" 2>/dev/null || true
     {
       printf 'session_id=%q\n' "$take_id"
@@ -466,10 +470,22 @@ archive_inline_debug_artifacts() {
       printf 'total_ms=%q\n' "$total_ms"
       printf 'archived_at=%q\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
     } >"${prefix}.meta" 2>/dev/null || true
-    cleanup_inline_debug_audio "$INLINE_DEBUG_WAV_RETENTION_DAYS"
   fi
+  # Failed/no-speech takes have no successful transcript to save. Keep their
+  # debug recovery copy before releasing the temporary duplicate.
+  if [[ "$status" != "ok" && "$status" != "recovered" && "$INLINE_DEBUG_ARCHIVE_SAVED" == "1" ]]; then
+    delete_inline_working_audio "$wav" || true
+    cleanup_inline_debug_audio || true
+  fi
+}
 
-  khuluma_trash_owned "$wav" 2>/dev/null || true
+# Release only an app-owned working WAV, after its transcript is in history.
+# Native capture uses the macOS temp directory; CLI fallback uses TMPDIR.
+delete_inline_working_audio() {
+  [[ -n "${1:-}" ]] || return 0
+  python3 "$SCRIPT_DIR/khuluma-lib/audio_cleanup.py" temporary "$1" \
+    "$TMPDIR" "$KHULUMA_SYSTEM_TMPDIR" \
+    "${KHULUMA_SUPPORT_DIR:+$KHULUMA_SUPPORT_DIR/temporary}" "${2:-}"
 }
 
 resolve_ms_setting() {
@@ -2304,12 +2320,12 @@ swift_parakeet_prime_cli() {
   [[ -n "$tmp_wav" ]] || return 1
 
   if ! create_silent_wav "$tmp_wav" "$prime_ms"; then
-    khuluma_trash_owned "$tmp_wav" 2>/dev/null || true
+    delete_inline_working_audio "$tmp_wav" 2>/dev/null || true
     return 1
   fi
 
   response="$(swift_parakeet_request_json "transcribe" "$socket_path" "$tmp_wav" "en" "warmup" "$model_path" "$model_version")" || true
-  khuluma_trash_owned "$tmp_wav" 2>/dev/null || true
+  delete_inline_working_audio "$tmp_wav" 2>/dev/null || true
   [[ -n "$response" ]] || return 1
 
   shell_vars="$(daemon_response_to_shell "$response" 2>/dev/null || true)"
@@ -2531,6 +2547,7 @@ transcribe_swift_parakeet_tail_rescue_cli() {
     printf "%s" "$txt"
   fi
 
+  delete_inline_working_audio "$tail_wav" "$tail_dir" 2>/dev/null || true
   khuluma_trash_owned "$tail_dir" 2>/dev/null || true
   return "$rc"
 }
@@ -2791,12 +2808,12 @@ maybe_pad_transcribe_tail_inplace() {
   set -e
 
   if [[ "$rc" -ne 0 || ! -s "$tmp" ]]; then
-    khuluma_trash_owned "$tmp" 2>/dev/null || true
+    delete_inline_working_audio "$tmp" 2>/dev/null || true
     return 0
   fi
 
   mv -f "$tmp" "$wav" 2>/dev/null || {
-    khuluma_trash_owned "$tmp" 2>/dev/null || true
+    delete_inline_working_audio "$tmp" 2>/dev/null || true
     return 0
   }
 }
@@ -3434,6 +3451,8 @@ process_inline_recording() {
   local history_app="${target_app:-current}"
   if save_history "$raw_txt" "$txt" "${history_app:-unknown}" "$record_ms" "$transcribe_ms" "$clean_ms" "$paste_ms" "$total_ms" >/dev/null 2>&1; then
     INLINE_HISTORY_SAVED="1"
+    delete_inline_working_audio "$wav" || true
+    cleanup_inline_debug_audio || true
   else
     echo "[history] unable to save the take to history" >&2
   fi

@@ -516,7 +516,7 @@ print(json.dumps({"ok": True, "take_id": os.environ["APPREC_TAKE_ID"], "duplicat
 
     # Debug archive ([debug] keep_logs), as inline process writes it: the
     # padded WAV the app transcribed plus a .meta file. The app hands the WAV
-    # over; archiving removes it.
+    # over; release it only after history is saved below.
     INLINE_CAPTURE_WAV_MS="$REC_CAPTURE_WAV_MS"
     INLINE_CAPTURE_WAV_BYTES="$REC_CAPTURE_WAV_BYTES"
     INLINE_CAPTURE_GAP_TO_RECORD_MS=""
@@ -541,6 +541,11 @@ print(json.dumps({"ok": True, "take_id": os.environ["APPREC_TAKE_ID"], "duplicat
       history_done="1"
       inline_record_mark "$history_ledger"
     fi
+  fi
+
+  if [[ "$history_saved" == "1" ]]; then
+    delete_inline_working_audio "$REC_WAV_PATH" || true
+    cleanup_inline_debug_audio || true
   fi
 
   # Fully handled: a replay is then a plain duplicate. Otherwise the app keeps
