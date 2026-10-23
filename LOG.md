@@ -4,6 +4,8 @@
 
 Khuluma v0.11.0 build 347 is installed from `646be9b`, with the raised adaptive app icon and 18-point menu glyph. Finder verified clean light/dark switching in the installed bundle; general appearance is Auto and icon style is Dark → Auto. The catalog compiled successfully in the approved temporary public build, and that branch is removed. Signature, 36 helper regressions, 16 native button renders and doctor pass; config, daemon binary and PID are unchanged. Native menu captures prove stable space and open/dismiss behavior; their cached button images do not verify selected background material. Reproduction and evidence are in `assets/icons/README.md`.
 
+Cursed-speech Recording/Finishing previews are at `assets/icons/menu-bar/concepts/`; the two sets preserve Ready and are awaiting a choice. The preview does not change the installed app or state logic.
+
 The menu utility and integrated Settings from build 340 remain in the installed icon update, with the matching local CLI (contract 4). Stats uses three sections across the viewport, with an accurate full-target milestone bar, toolbar utilities and compact Settings. File-transcription entry/output remains a separate design question.
 
 The user confirmed build 340 menu toggling, dictation and Control-Escape cancellation. Live Stats matches the CLI. F17, Parakeet, canonical data/config/model/sound paths, signing identity and the running daemon were preserved. The Homebrew keg and public release remain unchanged; build 340 and older code/receipt backups are retained for recovery.
@@ -32,7 +34,7 @@ Continue the existing daily-use observation before phase 1. No installed old Kwi
 - [ ] P2 · Stats stage 3 ideas (not committed): weeks view, wpm trend, typing_wpm config, time of day, opt-in per-app · added 2026-10-16
 - [x] P2 · Use total words, estimated time saved and average WPM in the menu and Stats summary · added 2026-10-23
 - [ ] P2 · Review the existing file-transcription entry/output flow before choosing a drag target · added 2026-10-23
-- [ ] P2 · Preview JJK-inspired recording/processing glyphs: cursed-speech mouth/seal, Gojo eye/infinity or energy/barrier; choose before implementation · added 2026-10-23
+- [ ] P2 · Choose cursed-speech status glyphs from two 18 pt preview sets, then implement Recording/Finishing replacements · added 2026-10-23
 - [ ] P2 · Lowkey ideas parked from 3c, only with evidence: config file watcher, warm mic/pre-roll · added 2026-10-16
 - [ ] P2 · Phase 2 after CLI independence: Developer ID signing/notarization, versioned app distribution and khuluma cask; Settings, History, Transcribe File and bundled agent CLI; verify fresh-Mac permissions and file transcription · added 2026-10-22
 - [ ] P2 · Decide the future signed-app cask/update approach before phase 2 distribution; paid membership/domain require separate authorization · added 2026-10-22
@@ -57,6 +59,8 @@ Continue the existing daily-use observation before phase 1. No installed old Kwi
 - Rename the existing repository in place to preserve all history; retain neutral `ricardo-nth/tap` and rename its formula to `khuluma`. The in-place repository rename, immutable v0.10.0 release and canonical formula/map are published and verified. The app continues to depend on its matching CLI; cask/CLI-independence/deprecation/archive are separate future work.
 
 ## Done
+
+- 2026-10-23 · Rendered two cursed-speech Recording/Finishing sets with exact Ready glyph, enlarged detail and light/dark 18 pt strips; previews only, runtime unchanged · assets/icons/menu-bar/concepts/
 
 - 2026-10-23 · Rechecked installed build 347 native catalog against Xcode 26.6 provenance and Apple guidance; brainstormed status glyphs, runtime unchanged · assets/icons/app/catalog-build.json; tools/compile-khuluma-icon.sh
 
@@ -135,5 +139,3 @@ Continue the existing daily-use observation before phase 1. No installed old Kwi
 - 2026-10-16 · LLM post-processing, silence trim and bash chunking removed (with budget, replay, bench-matrix, mode prompts); app contract 2 · #70
 
 - 2026-10-16 · tmux flow and CLI recording removed (start/stop/toggle, tmux, keybind, devices, watch, debug, logs); Lowkey records, the CLI is its back end · #69
-
-- 2026-10-16 · Lowkey requires its matching CLI (app contract); rollout switches, verify and the older-CLI paths removed after the v0.10.0 gates passed · #68

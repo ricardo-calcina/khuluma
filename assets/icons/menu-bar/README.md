@@ -4,6 +4,8 @@ Ricardo selected the 18-point glyph on 2026-10-23. The app bundler copies its PD
 
 The template is black and clear only: macOS supplies the tint for light, dark and selected states. Four bold fang marks on each arc preserve the mouth at menu bar size. The app icon's raised finish is reserved for the larger app icon.
 
+Two [cursed speech status concepts](concepts/README.md) compare custom Recording and Finishing glyphs while keeping this Ready template unchanged. They are previews awaiting a choice; the installed app continues to use its current status symbols.
+
 - `khuluma-menu-template.pdf`: vector template on a 28 × 20 pt canvas, with an 18 pt glyph.
 - `khuluma-menu-template.svg`: matching editable vector.
 - `khuluma-menu-template.png` / `khuluma-menu-template@2x.png`: transparent 28 × 20 / 56 × 40 px exports.

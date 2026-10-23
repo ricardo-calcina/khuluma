@@ -95,6 +95,8 @@ The bundle stages the compiled `Assets.car` and declares `CFBundleIconName=AppIc
 
 The native menu uses `assets/icons/menu-bar/khuluma-menu-template.pdf`: a black-and-clear 28-by-20-point canvas with an 18-point glyph. StatusMenu owns the fixed 36-point slot, template tint and accessible status label. Ready uses the brand glyph; recording, processing and error retain their status symbols. macOS supplies light/dark/selected tint. Raised shading belongs only in the app icon.
 
+Unselected status exploration lives in `assets/icons/menu-bar/concepts/`. Both sets preserve the exact Ready emblem. One uses a separate speaking mouth and turning fang seal; the other retains the full emblem and changes its centre. Preview labels call the existing processing/delivery interval Finishing. These assets are not bundled, and no installed status behavior or symbol has changed.
+
 ### Motion
 
 No decorative animation. The transient panel opens without animation. Existing Stats numeric transitions respect Reduce Motion.
