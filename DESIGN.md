@@ -16,6 +16,8 @@ spacing:
   menu-inset: 16px
   menu-gap: 10px
   stats-inset: 20px
+  stats-vertical-inset: 12px
+  stats-gap: 12px
 components:
   button: {}
   picker: {}
@@ -53,7 +55,7 @@ System body, callout and caption styles carry controls and explanations. Semibol
 
 MenuPanel owns the 400-point panel width, 16-point horizontal and 12-point vertical content insets, and 10-point row gap. A quiet All time caption replaces the product heading. Three equal, centered columns show Total words, Time saved and Average WPM. A single divider separates three icon actions: open the app, Settings and Quit. The footer uses 12-point horizontal and 4-point vertical padding. Model and shortcut belong only in Settings. Warnings and recovery actions expand the panel only when applicable.
 
-StatsWindowController owns the native unified compact toolbar: a trailing 13-point gear in a 28-by-24-point small native button on Stats, leading Back on Settings. No content-level tabs or navigation header. The window starts at 560 by 634 points and can resize down to 560 by 420. Stats uses equal centered lifetime figures above Activity, a quiet current streak line, a compact dated records list, recording totals and a slim word milestone bar. Records show best day, longest take and longest streak without trophy icons, New badges or competitive framing. Recording time clearly separates all-time and today. Its 560-point layout sits in a bounded ScrollView. Settings uses the native grouped Form and its system scrolling. Both destinations remain reachable in a short window.
+StatsWindowController owns the native unified compact toolbar: trailing Usage information, Refresh and Settings on Stats, leading Back on Settings. All three Stats actions use 13-point symbols in 28-by-24-point small native buttons. No content-level tabs or navigation header. The window starts at 560 by 634 points and can resize down to 560 by 420. Stats uses equal centered lifetime figures above Activity, a quiet current streak line, a compact dated records list, recording totals and a slim word milestone bar. The All time caption has a 6-point gap; content uses 20-point horizontal/12-point vertical insets and 12-point section gaps. Records show best day, longest take and longest streak without trophy icons, New badges or competitive framing. Recording time clearly separates all-time and today. Normal content fits the starting window without scrolling; its bounded ScrollView remains a fallback for short windows and additional notices. Settings uses the native grouped Form and its system scrolling. Both destinations remain reachable in a short window.
 
 ## Elevation & Depth
 
@@ -75,7 +77,7 @@ Native titlebar toolbar items, icon-only menu footer controls and native form co
 
 ### Navigation and data display
 
-Stats is the home destination. Its gear and Command-comma open Settings; Back, Command-left-bracket or Escape return to Stats. Command-W closes either destination; Escape on Stats closes the window. StatusMenu and its isolated preview share the native menu container. StatsModel observes the ledger only while a surface is open; it has no polling loop. Menu updates and size invalidation use common run loop modes so they continue during menu tracking.
+Stats is the home destination. Its gear and Command-comma open Settings; Back, Command-left-bracket or Escape return to Stats. Refresh and Command-R reload Stats. Usage information opens a compact transient native popover with coverage dates, privacy and the last update time, replacing the permanent footer. Refresh failures remain visible in the main content as well. Escape dismisses usage information first; otherwise Escape on Stats closes the window. Command-W closes either destination. StatusMenu and its isolated preview share the native menu container. StatsModel observes the ledger only while a surface is open; it has no polling loop. Menu updates and size invalidation use common run loop modes so they continue during menu tracking.
 
 ### Forms and overlays
 

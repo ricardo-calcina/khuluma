@@ -2,7 +2,7 @@
 
 ## Now
 
-The menu utility and integrated Settings are implemented in source on `feat/menu-utility-settings`: a native usage menu following Sys Stats, centered total words/time saved/average WPM, a simpler Stats layout with quiet records/recording totals/word milestones, small titlebar gear, compact Settings, shortcut capture and opt-in Scribe v2. The file-transcription entry/output workflow remains a separate design question. App/CLI contract 4 keeps transcription destinations compatible. Private UI/build/navigation and network-free provider checks pass; the daily runtime has not been updated for this work.
+The menu utility and integrated Settings are implemented in source on `feat/menu-utility-settings`: a native usage menu following Sys Stats, centered total words/time saved/average WPM, compact Stats with quiet records/recording totals/word milestones, titlebar Refresh/Settings and usage info, compact Settings, shortcut capture and opt-in Scribe v2. The file-transcription entry/output workflow remains a separate design question. App/CLI contract 4 keeps transcription destinations compatible. Private UI/build/navigation and network-free provider checks pass; the daily runtime has not been updated for this work.
 
 Khuluma v0.11.0 (build 332) is the installed daily app, with matching local and Homebrew CLIs. The user verified dictation, paste, cancel, Stats and Start at Login, with no recovered-take warning. Canonical synthetic file transcription passed. The signed app uses `com.ricardo-nth.khuluma`; config, model, sound and runtime paths stay canonical, and the existing app-owned daemon remained running through the package upgrade.
 
@@ -50,6 +50,8 @@ Continue the existing daily-use observation before phase 1. No installed old Kwi
 - Rename the existing repository in place to preserve all history; retain neutral `ricardo-nth/tap` and rename its formula to `khuluma`. The in-place repository rename, immutable v0.10.0 release and canonical formula/map are published and verified. The app continues to depend on its matching CLI; cask/CLI-independence/deprecation/archive are separate future work.
 
 ## Done
+
+- 2026-10-23 · Fit normal Stats without scrolling; moved Refresh and usage info to toolbar; build/42 renders and live info/Escape/navigation pass, daily app unchanged · native/Sources/Khuluma/Stats; DESIGN.md
 
 - 2026-10-23 · Restored quiet dated records, recording totals and word milestones; build/16 stats tests/32 renders and live scroll/accessibility pass · native/Sources/Khuluma/Stats/StatsView.swift; DESIGN.md
 

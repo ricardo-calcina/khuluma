@@ -7,7 +7,10 @@ import KhulumaCore
 final class StatsWindowController: NSWindowController, NSWindowDelegate, NSToolbarDelegate {
   private let model: StatsModel
   private let navigation = AppNavigation()
+  private let detailsPopover = NSPopover()
   private static let settingsItem = NSToolbarItem.Identifier("Khuluma.Settings")
+  private static let refreshItem = NSToolbarItem.Identifier("Khuluma.Refresh")
+  private static let infoItem = NSToolbarItem.Identifier("Khuluma.UsageInfo")
   private static let backItem = NSToolbarItem.Identifier("Khuluma.Back")
 
   init(model: StatsModel, settings: SettingsModel) {
@@ -36,6 +39,12 @@ final class StatsWindowController: NSWindowController, NSWindowDelegate, NSToolb
     window.toolbar = toolbar
     window.onSettings = { [weak self] in self?.openSettings() }
     window.onBack = { [weak self] in self?.backToStats() }
+    window.onRefresh = { [weak self] in self?.refreshStats() }
+    window.onDismissUsageInfo = { [weak self] in
+      guard let self, self.detailsPopover.isShown else { return false }
+      self.detailsPopover.performClose(nil)
+      return true
+    }
     navigation.onChange = { [weak self] in self?.updateChrome() }
     updateChrome()
   }
@@ -61,9 +70,23 @@ final class StatsWindowController: NSWindowController, NSWindowDelegate, NSToolb
 
   @objc private func openSettings() { navigation.selection = .settings }
   @objc private func backToStats() { navigation.selection = .stats }
+  @objc private func refreshStats() { model.reload() }
+
+  @objc private func showUsageInfo(_ sender: NSButton) {
+    if detailsPopover.isShown {
+      detailsPopover.performClose(sender)
+      return
+    }
+    let content = NSHostingController(rootView: StatsDetailsView(model: model))
+    content.sizingOptions = [.preferredContentSize]
+    detailsPopover.contentViewController = content
+    detailsPopover.behavior = .transient
+    detailsPopover.show(relativeTo: sender.bounds, of: sender, preferredEdge: .minY)
+  }
 
   private func updateChrome() {
     guard let window = window as? StatsWindow, let toolbar = window.toolbar else { return }
+    detailsPopover.performClose(nil)
     let settings = navigation.selection == .settings
     window.showingSettings = settings
     window.title = settings ? "Settings" : "Khuluma"
@@ -72,41 +95,54 @@ final class StatsWindowController: NSWindowController, NSWindowDelegate, NSToolb
       window.title = settings ? "Settings · Preview" : "Khuluma Preview · Sample Data"
     }
     let desired: [NSToolbarItem.Identifier] = settings
-      ? [Self.backItem, .flexibleSpace] : [.flexibleSpace, Self.settingsItem]
+      ? [Self.backItem, .flexibleSpace] : [.flexibleSpace, Self.infoItem, Self.refreshItem, Self.settingsItem]
     guard toolbar.items.map(\.itemIdentifier) != desired else { return }
     for index in toolbar.items.indices.reversed() { toolbar.removeItem(at: index) }
     for (index, identifier) in desired.enumerated() { toolbar.insertItem(withItemIdentifier: identifier, at: index) }
   }
 
   func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-    [Self.backItem, .flexibleSpace, Self.settingsItem]
+    [Self.backItem, .flexibleSpace, Self.infoItem, Self.refreshItem, Self.settingsItem]
   }
 
   func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-    [.flexibleSpace, Self.settingsItem]
+    [.flexibleSpace, Self.infoItem, Self.refreshItem, Self.settingsItem]
   }
 
   func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier identifier: NSToolbarItem.Identifier,
                willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
-    guard identifier == Self.settingsItem || identifier == Self.backItem else { return nil }
+    let label: String
+    let symbol: String
+    let action: Selector
+    let help: String
+    switch identifier {
+    case Self.settingsItem:
+      (label, symbol, action, help) = ("Settings", "gearshape", #selector(openSettings), "Settings (⌘,)")
+    case Self.refreshItem:
+      (label, symbol, action, help) = ("Refresh", "arrow.clockwise", #selector(refreshStats), "Refresh (⌘R)")
+    case Self.infoItem:
+      (label, symbol, action, help) = ("Usage information", "info.circle", #selector(showUsageInfo(_:)), "Usage information")
+    case Self.backItem:
+      (label, symbol, action, help) = ("Back", "chevron.left", #selector(backToStats), "Back to Stats (⌘[)")
+    default:
+      return nil
+    }
     let item = NSToolbarItem(itemIdentifier: identifier)
-    let settings = identifier == Self.settingsItem
-    item.label = settings ? "Settings" : "Back"
-    item.toolTip = settings ? "Settings (⌘,)" : "Back to Stats (⌘[)"
-    item.image = NSImage(systemSymbolName: settings ? "gearshape" : "chevron.left",
-                         accessibilityDescription: settings ? "Settings" : "Back to Stats")
+    item.label = label
+    item.toolTip = help
+    item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: label)
     item.target = self
-    item.isNavigational = !settings
-    item.action = settings ? #selector(openSettings) : #selector(backToStats)
-    if settings {
-      let button = NSButton(image: item.image!, target: self, action: #selector(openSettings))
-      button.image = item.image?.withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 13, weight: .regular))
+    item.isNavigational = identifier == Self.backItem
+    item.action = action
+    if identifier != Self.backItem, let image = item.image {
+      let button = NSButton(image: image, target: self, action: action)
+      button.image = image.withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 13, weight: .regular))
       button.imageScaling = .scaleNone
       button.bezelStyle = .texturedRounded
       button.controlSize = .small
       button.showsBorderOnlyWhileMouseInside = true
       button.toolTip = item.toolTip
-      button.setAccessibilityLabel("Settings")
+      button.setAccessibilityLabel(label)
       button.translatesAutoresizingMaskIntoConstraints = false
       NSLayoutConstraint.activate([
         button.widthAnchor.constraint(equalToConstant: 28),
@@ -118,7 +154,10 @@ final class StatsWindowController: NSWindowController, NSWindowDelegate, NSToolb
   }
 
   func windowDidBecomeKey(_ notification: Notification) { model.windowBecameKey() }
-  func windowWillClose(_ notification: Notification) { model.windowClosed() }
+  func windowWillClose(_ notification: Notification) {
+    detailsPopover.performClose(nil)
+    model.windowClosed()
+  }
 }
 
 @MainActor
@@ -149,9 +188,12 @@ struct AppView: View {
 private final class StatsWindow: NSWindow {
   var onSettings: () -> Void = {}
   var onBack: () -> Void = {}
+  var onRefresh: () -> Void = {}
+  var onDismissUsageInfo: () -> Bool = { false }
   var showingSettings = false
 
   override func cancelOperation(_ sender: Any?) {
+    if onDismissUsageInfo() { return }
     if showingSettings { onBack() } else { performClose(sender) }
   }
 
@@ -162,6 +204,7 @@ private final class StatsWindow: NSWindow {
       case "w": performClose(nil); return true
       case ",": onSettings(); return true
       case "[" where showingSettings: onBack(); return true
+      case "r" where !showingSettings: onRefresh(); return true
       default: break
       }
     }

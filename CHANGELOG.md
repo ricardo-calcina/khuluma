@@ -5,6 +5,7 @@
 - Replace the command-list menu with a wide native menu showing centered total words, estimated time saved and average WPM, with a compact icon footer. Let macOS handle placement, repeat-click and outside-click dismissal, and give the three action icons hover and keyboard focus feedback. Show warnings only when attention is needed.
 - Keep Stats as the home window and open compact Settings through a native titlebar gear, with key-press shortcut capture, model selection, auto-send, sounds, login and diagnostics controls.
 - Simplify Stats around the same three centered lifetime figures and daily activity. Keep streak quiet, show dated records as a compact list, distinguish recording time from estimated time saved, and retain a slim word milestone bar. Reduce the titlebar gear to a small native button.
+- Fit Stats in its normal window without scrolling, move Refresh beside Settings, and put coverage/privacy/update details behind an info button. Keep refresh failures visible in context.
 - Add opt-in ElevenLabs Scribe v2 for dictation, file transcription and recovery; keep Parakeet as the local default and keep credentials out of settings JSON and logs.
 - Pin each app CLI request to its expected provider and preserve failed CLI/cloud audio for recovery. App and CLI now require contract 4 together.
 - Add isolated interactive UI previews and light/dark fixtures without starting capture, recovery or a daemon.

@@ -54,6 +54,13 @@ enum StatsSnapshot {
       let navigation = AppNavigation()
       save("app-stats", view: AnyView(AppView(stats: full, settings: local, navigation: navigation)),
            width: 560, height: 634)
+      save("app-stats-short", view: AnyView(AppView(stats: full, settings: local, navigation: navigation)),
+           width: 560, height: 420)
+      save("app-stats-milestone", view: AnyView(AppView(stats: examples[0].1, settings: local, navigation: navigation)),
+           width: 560, height: 634)
+      for (name, model) in [("normal", full), ("stale", examples.last!.1)] {
+        save("usage-info-\(name)", view: AnyView(StatsDetailsView(model: model)), width: 292)
+      }
       let settingsNavigation = AppNavigation()
       settingsNavigation.selection = .settings
       save("app-settings", view: AnyView(AppView(stats: full, settings: cloud, navigation: settingsNavigation)),
@@ -107,6 +114,7 @@ enum StatsSnapshot {
                                               daily: daily(status: "not_started", today: today, days: [])),
                           today: today),
         updatedAt: updated)),
+      ("refresh-failed", StatsModel(stats: fullStats, updatedAt: updated, refreshFailed: true)),
     ]
   }
 

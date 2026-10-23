@@ -8,7 +8,8 @@ struct StatsView: View {
     Group {
       if let stats = model.stats {
         StatsContent(stats: stats, model: model)
-          .padding(20)
+          .padding(.horizontal, 20)
+          .padding(.vertical, 12)
       } else if model.refreshFailed {
         Placeholder(symbol: "exclamationmark.triangle", text: "Couldn't load stats.") {
           Button("Try Again") { model.reload() }
@@ -44,8 +45,12 @@ private struct StatsContent: View {
   @ObservedObject var model: StatsModel
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 20) {
+    VStack(alignment: .leading, spacing: 12) {
       Hero(lifetime: stats.lifetime)
+      if model.refreshFailed {
+        Notice(symbol: "exclamationmark.triangle",
+               text: "Couldn't refresh. Showing the last available stats.")
+      }
       Divider()
       switch stats.dailyStatus {
       case nil, "unreadable":
@@ -63,13 +68,14 @@ private struct StatsContent: View {
         }
       }
       Divider()
-      StreakSection(stats: stats)
-      RecordsSection(records: stats.records)
+      VStack(alignment: .leading, spacing: 8) {
+        StreakSection(stats: stats)
+        RecordsSection(records: stats.records)
+      }
       Divider()
       RecordingTime(stats: stats)
       MilestoneProgress(milestone: stats.milestone, words: stats.lifetime.words,
                         reached: model.celebrating)
-      Footer(stats: stats, model: model)
     }
   }
 }
@@ -82,9 +88,9 @@ private struct Hero: View {
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
   var body: some View {
-    VStack(spacing: 16) {
+    VStack(spacing: 6) {
       Text("All time")
-        .font(.callout)
+        .font(.caption)
         .foregroundStyle(.secondary)
       HStack(alignment: .top, spacing: 12) {
         figure("Total words", value: lifetime.words.formatted(), tracking: Double(lifetime.words))
@@ -95,7 +101,6 @@ private struct Hero: View {
       }
     }
     .fixedSize(horizontal: false, vertical: true)
-    .padding(.vertical, 8)
   }
 
   @ViewBuilder
@@ -113,7 +118,7 @@ private struct Hero: View {
 
   private func figure(_ title: String, value: String, tracking: Double?,
                       info: String? = nil, caption: String? = nil) -> some View {
-    VStack(spacing: 6) {
+    VStack(spacing: 4) {
       Text(title)
         .font(.callout)
         .foregroundStyle(.secondary)
@@ -407,7 +412,7 @@ private struct RecordsSection: View {
   let records: UsageStats.Records
 
   var body: some View {
-    Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 10) {
+    Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 8) {
       row("Best day", record: records.bestDay,
           help: "Most words in a recorded day, across all daily stats.") { "\($0.formatted()) words" }
       row("Longest take", record: records.longestTake,
@@ -496,36 +501,42 @@ private struct MilestoneProgress: View {
   }
 }
 
-// MARK: - Footer
+// MARK: - Usage information
 
-private struct Footer: View {
-  let stats: UsageStats
+struct StatsDetailsView: View {
   @ObservedObject var model: StatsModel
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 2) {
-      Divider().padding(.bottom, 4)
-      HStack(alignment: .bottom) {
-        VStack(alignment: .leading, spacing: 2) {
-          Text(Format.coverage(stats)).foregroundStyle(.secondary)
-          Text("Counts and durations only, never what you said.").foregroundStyle(.secondary)
-          Text(updatedLine).foregroundStyle(model.refreshFailed ? Color.orange : Color.secondary)
-        }
-        Spacer()
-        Button {
-          model.reload()
-        } label: {
-          Label("Refresh", systemImage: "arrow.clockwise")
-        }
-        .keyboardShortcut("r")
+    VStack(alignment: .leading, spacing: 12) {
+      Text("Usage information").font(.headline)
+      if let stats = model.stats {
+        Text(Format.coverage(stats))
+      } else {
+        Text("Usage data hasn't been loaded yet.")
       }
+      Text("Counts and durations only, never what you said.")
+        .foregroundStyle(.secondary)
+      Divider()
+      if model.refreshFailed {
+        Label(model.stats == nil ? "Couldn't load usage data. Try refreshing."
+                : "Couldn't refresh. The displayed stats are from the last successful update.",
+              systemImage: "exclamationmark.triangle")
+      }
+      Text(updatedLine)
+        .foregroundStyle(.secondary)
     }
-    .font(.caption)
+    .font(.callout)
+    .padding(16)
+    .frame(width: 292, alignment: .leading)
+    .fixedSize(horizontal: false, vertical: true)
   }
 
   private var updatedLine: String {
-    let time = model.updatedAt.map { $0.formatted(date: .omitted, time: .shortened) } ?? "–"
-    return model.refreshFailed ? "Couldn't refresh · Updated \(time)" : "Updated \(time)"
+    if let updated = model.updatedAt {
+      return "Updated \(updated.formatted(date: .abbreviated, time: .shortened))"
+    } else {
+      return "Not updated yet"
+    }
   }
 }
 
