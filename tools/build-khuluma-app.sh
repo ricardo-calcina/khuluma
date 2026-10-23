@@ -28,8 +28,9 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 APP_ICON="$ROOT/assets/icons/app/Khuluma.icns"
+APP_CATALOG="$ROOT/assets/icons/app/Assets.car"
 MENU_ICON="$ROOT/assets/icons/menu-bar/khuluma-menu-template.pdf"
-for resource in "$APP_ICON" "$MENU_ICON"; do
+for resource in "$APP_ICON" "$APP_CATALOG" "$MENU_ICON"; do
   [[ -s "$resource" ]] || { echo "Required icon resource missing: $resource" >&2; exit 2; }
 done
 khuluma_reject_obsolete_environment
@@ -169,12 +170,13 @@ binary="$stage_root/swift-build/release/Khuluma"
 mkdir -p "$stage/Contents/MacOS" "$stage/Contents/Resources"
 cp "$binary" "$stage/Contents/MacOS/Khuluma"
 cp "$APP_ICON" "$stage/Contents/Resources/Khuluma.icns"
+cp "$APP_CATALOG" "$stage/Contents/Resources/Assets.car"
 cp "$MENU_ICON" "$stage/Contents/Resources/KhulumaMenuTemplate.pdf"
 python3 - "$stage/Contents/Info.plist" "$BUNDLE_ID" "$version" "$build_number" <<'PY'
 import plistlib, sys
 path, identifier, version, build = sys.argv[1:]
 with open(path, "wb") as handle:
-    plistlib.dump({"CFBundleIdentifier": identifier, "CFBundleName": "Khuluma", "CFBundleDisplayName": "Khuluma", "CFBundleExecutable": "Khuluma", "CFBundleIconFile": "Khuluma.icns", "CFBundlePackageType": "APPL", "CFBundleShortVersionString": version, "CFBundleVersion": build, "CFBundleInfoDictionaryVersion": "6.0", "LSMinimumSystemVersion": "14.0", "LSUIElement": True, "NSHighResolutionCapable": True, "NSMicrophoneUsageDescription": "Khuluma records your voice while dictation is active. Parakeet transcribes on this Mac; audio is sent to ElevenLabs only when you choose Scribe."}, handle)
+    plistlib.dump({"CFBundleIdentifier": identifier, "CFBundleName": "Khuluma", "CFBundleDisplayName": "Khuluma", "CFBundleExecutable": "Khuluma", "CFBundleIconFile": "Khuluma.icns", "CFBundleIconName": "AppIcon", "CFBundlePackageType": "APPL", "CFBundleShortVersionString": version, "CFBundleVersion": build, "CFBundleInfoDictionaryVersion": "6.0", "LSMinimumSystemVersion": "14.0", "LSUIElement": True, "NSHighResolutionCapable": True, "NSMicrophoneUsageDescription": "Khuluma records your voice while dictation is active. Parakeet transcribes on this Mac; audio is sent to ElevenLabs only when you choose Scribe."}, handle)
 PY
 plutil -lint "$stage/Contents/Info.plist" >/dev/null
 codesign --force --options runtime --timestamp=none --keychain "$KEYCHAIN" \
