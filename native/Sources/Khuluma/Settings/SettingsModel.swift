@@ -10,6 +10,7 @@ final class SettingsModel: ObservableObject {
   @Published var message: String?
   @Published var failed = false
   @Published var loginStatus = LoginItem.status
+  @Published var showingVocabulary = false
   var onSave: (String, String) -> Void = { _, _ in }
   var onReload: () -> Void = {}
   var onToggleLogin: () -> Void = {}
@@ -17,6 +18,9 @@ final class SettingsModel: ObservableObject {
   var onIconThemeChange: (StatusIconTheme) -> Void = { _ in }
   var onOpenLog: () -> Void = { NSWorkspace.shared.open(Log.fileURL) }
   var onOpenConfig: () -> Void = {}
+  var onLoadVocabulary: () throws -> VocabularySnapshot = { throw CLIBridge.BridgeError.notInstalled }
+  var onSaveVocabulary: (VocabularySnapshot) throws -> VocabularySnapshot = { _ in throw CLIBridge.BridgeError.notInstalled }
+  var onValidateVocabulary: (Data) throws -> VocabularySheet = { try VocabularySheet.decode($0) }
   var preview = false
 
   private let defaults: UserDefaults

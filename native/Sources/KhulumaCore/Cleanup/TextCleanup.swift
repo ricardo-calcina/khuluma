@@ -42,18 +42,9 @@ public enum TextCleanup {
   // MARK: khuluma_lib_clean_fillers
 
   private static let fillerRules: [(ICURegex, String)] = [
-    (ICURegex("\\b(um|uh|uhh|umm|er|err|ah|ahh|hmm|hm|mhm|erm|huh)\\b[,.]?\(s)*", caseInsensitive: true), ""),
     (ICURegex(
-      "\\b(you know|I mean|kind of|sort of|basically|actually|literally|obviously|honestly|frankly|clearly),?\(s)*",
+      #"(?<![\w./@'"`-])\b(?:um+|uh+|erm)\b(?![\w/@'"`-]|\.[A-Za-z0-9])[,.]?"# + "\(s)*",
       caseInsensitive: true), ""),
-    (ICURegex(
-      "\\b(I guess|I think|I suppose|I believe|in my opinion|to be honest|to be fair),?\(s)*",
-      caseInsensitive: true), ""),
-    (ICURegex(
-      "\\b(so yeah|and yeah|but yeah|yeah so|ok so|okay so|alright so|right so),?\(s)*",
-      caseInsensitive: true), ""),
-    (ICURegex("\\b(anyway|anyways|anyhow),?\(s)*", caseInsensitive: true), ""),
-    (ICURegex("\\b(like),?\(s)+(like),?", caseInsensitive: true), "like"),
     (ICURegex("\(s)+"), " "),
   ]
   private static let fillerTidy: [(ICURegex, String)] = [
@@ -64,13 +55,24 @@ public enum TextCleanup {
   private static let leadingSpace = ICURegex("^ ")
   private static let trailingSpace = ICURegex(" $")
 
-  /// Removes filler words and hedges. Like the Perl, it also folds each line
+  /// Removes hesitation sounds, preserving hedges and quoted words.
+  /// Like the Perl, it also folds each line
   /// break into the following text (`a\nb` becomes `ab`).
-  public static func cleanFillers(_ text: String) -> String {
-    PerlText.byteMode(text) { bytes in
+  public static func cleanFillers(_ text: String, words: [String]? = nil) -> String {
+    var rules = fillerRules
+    if let words {
+      let phrases = words.sorted { $0.utf8.count > $1.utf8.count }.map {
+        NSRegularExpression.escapedPattern(for: PerlText.byteView($0.utf8))
+      }
+      let pattern = phrases.isEmpty ? "(?!)" : phrases.joined(separator: "|")
+      rules[0] = (ICURegex(
+        #"(?<![\w./@'"`-])(?:"# + pattern + #")(?![\w/@'"`-]|\.[A-Za-z0-9])[,.]?"# + "\(s)*",
+        caseInsensitive: true), "")
+    }
+    return PerlText.byteMode(text) { bytes in
       PerlText.eachLine(bytes) { line in
         var out = line
-        for (rule, template) in fillerRules {
+        for (rule, template) in rules {
           out = rule.replaceAll(out, template: template)
         }
         out = leadingSpace.replaceFirst(out, template: "")
@@ -92,19 +94,40 @@ public enum TextCleanup {
     "\\b(\(word))\(s)+(\(word))\\b\(s)+\\1\(s)+\\2\\b", caseInsensitive: true)
   private static let repeatedWord = ICURegex("\\b(\(word))\\b\(s)+\\1\\b", caseInsensitive: true)
   private static let anySpaceRun = ICURegex("\(s)+")
+  private static let repeatedSentence = ICURegex(
+    "(^|[.!?] +)([A-Za-z0-9][^.!?\\r\\n]{0,2000}[.!?]) +\\2(?=\(s)|$)", caseInsensitive: true)
+  private static let sentenceWord = ICURegex("[A-Za-z0-9]+(?:'[A-Za-z0-9]+)*")
+
+  private static func cleanRepeatedSentences(_ text: String) -> String {
+    var out = text
+    while true {
+      let next = repeatedSentence.replaceAll(out) { match, ns in
+        let sentence = match.group(2, in: ns)
+        guard sentenceWord.matches(sentence).count >= 5 else { return match.group(0, in: ns) }
+        return match.group(1, in: ns) + sentence
+      }
+      if next == out { return out }
+      out = next
+    }
+  }
 
   /// Collapses stutters. `level` is Perl's `int()` of the configured level:
-  /// >= 2 also collapses repeated 2–3 word phrases, >= 1 repeated words.
+  /// Level 2 collapses repeated 2–3 word phrases and words, level 1 words.
+  /// >= 3 only collapses exact adjacent sentences of at least five words,
+  /// preserving short emphasis and grammatical doubles such as "had had".
   /// Whitespace is normalised at every level, as in the Perl.
   public static func cleanRepeats(_ text: String, level: Double) -> String {
     PerlText.byteMode(text) { bytes in
       PerlText.eachLine(bytes) { line in
         var out = line
-        if level >= 2 {
+        if level >= 3 {
+          out = cleanRepeatedSentences(anySpaceRun.replaceAll(out, template: " "))
+        }
+        if level >= 2 && level < 3 {
           out = repeatedTriple.replaceUntilStable(out, template: "$1 $2 $3")
           out = repeatedPair.replaceUntilStable(out, template: "$1 $2")
         }
-        if level >= 1 {
+        if level >= 1 && level < 3 {
           out = repeatedWord.replaceUntilStable(out, template: "$1")
         }
         out = anySpaceRun.replaceAll(out, template: " ")

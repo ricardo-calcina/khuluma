@@ -85,6 +85,10 @@ SettingsModel owns authoritative config, save-in-progress and inline save/error 
 
 Choosing ElevenLabs is explicit, with an audio-upload and usage-credit notice visible before selection. Parakeet remains the default. Key availability is shown without exposing the credential. No automatic fallback uploads audio to another provider.
 
+Cleanup & vocabulary is part of the existing Settings Form: an immediate cleanup switch, a native repetition Picker and Manage Vocabulary. Vocabulary opens a 560-by-660-point native sheet. VocabularyView owns the native segmented section Picker, bounded List, labelled entry fields, local search with Clear, and native open/save file panels. VocabularyModel owns the draft, selection, validation feedback and Undo; CLIBridge and the CLI own validated persistence. Keep footer actions visible, preserve fields on errors, and block changing section/selection until an entry is added, updated or cleared. All three sections share these controls. No new color or typography tokens are introduced.
+
+Import validates one JSON document and presents section totals plus added/changed/removed counts before replacing the draft. Save Changes commits the draft; Cancel/Escape confirms discard only when necessary. Reload confirms before losing edits. Remove affects the draft and offers Undo. Export says Export Draft when changes are unsaved. Saves retain an exact previous-file backup and reject a stale revision, keeping the draft available for export and retry. The first save retains the old text vocabulary intact and makes vocabulary.json the single active document. The isolated UI preview uses only in-memory vocabulary; sample actions never discover the daily CLI.
+
 ### Iconography
 
 Interface controls use SF Symbols. The menu icon uses custom cursed-speech templates for Ready, Recording and Processing, with the existing SF Symbol for error. The idle glyph needs no textual Ready line. Gear and Back use standard Mac toolbar placement and accessible names.

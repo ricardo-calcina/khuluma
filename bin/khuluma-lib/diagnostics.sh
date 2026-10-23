@@ -640,7 +640,7 @@ status() {
   keep_logs_val="${KHULUMA_KEEP_LOGS:-${CFG_DEBUG_KEEP_LOGS:-0}}"
 
   local clean_enabled repeats_level
-  clean_enabled="${KHULUMA_CLEAN:-0}"
+  clean_enabled="${KHULUMA_CLEAN:-${CFG_CLEAN_ENABLED:-0}}"
   repeats_level="${KHULUMA_REPEATS_LEVEL:-${CFG_CLEAN_REPEATS_LEVEL:-1}}"
   local vocab_clean
   vocab_clean="${KHULUMA_VOCAB_CLEAN:-1}"

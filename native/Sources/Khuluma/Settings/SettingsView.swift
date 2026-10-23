@@ -24,6 +24,26 @@ struct SettingsView: View {
       } header: { Text("Dictation") }
 
       Section {
+        Toggle("Clean up dictation", isOn: setting("clean.enabled", model.config?.cleanup.clean == "1"))
+          .disabled(!model.editable)
+        Picker("Repetition", selection: Binding(
+          get: { model.config?.cleanup.repeatsLevel ?? "0" },
+          set: { model.save("clean.repeats_level", $0) })) {
+          Text("Keep repetitions").tag("0")
+          Text("Repeated words").tag("1")
+          Text("Words and short phrases").tag("2")
+          Text("Exact repeated sentences").tag("3")
+        }
+        .disabled(!model.editable || model.config?.cleanup.clean != "1")
+        Text("Removes the fillers in your vocabulary. Sentence cleanup keeps changed wording and short emphasis.")
+          .font(.caption).foregroundStyle(.secondary)
+        Button("Manage Vocabulary…") { model.showingVocabulary = true }
+          .disabled(!model.editable)
+        Text("One vocabulary for fillers, brands and other words. Edit entries here, or import and export JSON.")
+          .font(.caption).foregroundStyle(.secondary)
+      } header: { Text("Cleanup & vocabulary") }
+
+      Section {
         Picker("Model", selection: Binding(get: { model.provider }, set: { model.save("transcription.provider", $0) })) {
           Text(localModelTitle).tag("parakeet")
           Text("ElevenLabs Scribe v2").tag("elevenlabs")
@@ -93,6 +113,7 @@ struct SettingsView: View {
       if model.saving { ProgressView("Saving settings…").controlSize(.small) }
     }
     .formStyle(.grouped)
+    .sheet(isPresented: $model.showingVocabulary) { VocabularyView(settings: model) }
   }
 
   private var localModelTitle: String {

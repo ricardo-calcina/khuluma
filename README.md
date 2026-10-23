@@ -97,10 +97,38 @@ khuluma sound start|stop|process|error on|off
 
 ## Vocab
 
-Cleanup removes fillers and repeats, applies your vocab corrections and British spelling. There is one vocab file, `~/.config/khuluma/vocab`, used for every take in every app.
+Open **Settings → Cleanup & vocabulary** to turn cleanup on and choose repetition handling. **Manage Vocabulary** opens one editor with Fillers, Brands and Other words. Add or update individual entries there, or export a JSON file, revise it with an agent and import the updated file. Import shows section totals and added/changed/removed counts, then stages a draft for review. Save Changes applies it to the next take. Undo restores draft edits; Cancel/Escape protects unsaved changes.
+
+Vocabulary corrections and British spelling run by default. Hesitation and repetition cleanup is opt-in. The same settings can be set in `~/.config/khuluma/config.toml`:
+
+```toml
+[clean]
+enabled = true
+repeats_level = 3
+```
+
+This removes the unquoted hesitation phrases in Fillers while preserving wording such as “I think”, “actually” and “I mean”. Add observed forms such as `ahhh` or `er` as literal entries; no regular expressions are needed. An empty Fillers section keeps hesitation sounds. Level 3 removes exact adjacent sentences of at least five words (ignoring case and extra spaces), keeping the first copy. It preserves changed wording, short emphasis, and grammatical doubles such as “had had”. It does not summarise, remove non-adjacent repeats, or guess which near-repeat you intended. Sentences need matching punctuation and must fit within 2,002 bytes. Levels 1 and 2 retain the older word/short-phrase stutter cleanup; 0 disables repetition cleanup. `KHULUMA_CLEAN=0|1` overrides `clean.enabled`; `KHULUMA_REPEATS_LEVEL` overrides the configured level.
+
+The first save creates `~/.config/khuluma/vocabulary.json` as the single active vocabulary for every app. The previous `vocab` file is retained intact; its corrections initially appear in Other words. Earlier JSON versions are retained in `vocabulary-backups/`. Saves refuse to overwrite a newer version written by another agent: export your draft, reload the current version, then review your update again.
+
+The portable file is ordinary JSON, with one heard spelling per entry and no duplicate heard phrases across sections. Matching ignores case. Fillers are removals; Brands and Other words use the same literal replacement behavior. A `pnpm` correction leaves `pnpm-lock.yaml` intact. Files support up to 5,000 entries and 1 MB; each phrase is at most 200 characters on one line. See [the example](config/vocabulary.example.json):
+
+```json
+{
+  "schema_version": 1,
+  "fillers": ["um", "uh", "ahhh", "er"],
+  "brands": [{"heard": "PN PM", "write": "pnpm"}],
+  "words": [{"heard": "source slash", "write": "src/"}]
+}
+```
+
+Before the first JSON save, the existing text vocabulary and its CLI editing commands still work. Once JSON is active, these old editing commands refuse to change the inactive text file; use Settings or the revision-checked `vocab-sheet` API in [CLI contracts](docs/CLI_CONTRACTS.md).
 
 ```bash
 khuluma vocab add "clawed::Claude"     # also "wrong -> right"
+khuluma vocab add "Kaluma::Khuluma" "khuluma::Khuluma"
+khuluma vocab add "PN PM::pnpm" "pnpm::pnpm"
+khuluma vocab add "X code::Xcode" "xcode::Xcode"
 khuluma vocab import --dry-run fixes.txt
 khuluma vocab dedupe                   # backs up first
 khuluma vocab rm "literal text"        # --regex to match a pattern

@@ -20,14 +20,36 @@ public struct VocabCorrector: Sendable {
   /// untouched (`cat`), skipping compaction and whitespace tidying too.
   let rules: [Rule]?
 
-  /// The vocab file the CLI reads, `<config>/vocab`, if it is a regular file.
+  /// The JSON sheet when present; otherwise the retained text vocab file.
   public static func files(configDir: String) -> [String] {
+    let sheet = VocabularySheet.path(configDir: configDir)
+    if PerlText.isFile(sheet) { return [sheet] }
     let vocab = configDir + "/vocab"
     return PerlText.isFile(vocab) ? [vocab] : []
   }
 
   public init(configDir: String) {
     self.init(files: VocabCorrector.files(configDir: configDir))
+  }
+
+  public init(sheet: VocabularySheet) {
+    rules = Self.makeRules((sheet.brands + sheet.words).map { (left: $0.heard, right: $0.write) })
+  }
+
+  private static func makeRules(_ parsed: [(left: String, right: String)]) -> [Rule] {
+    let sorted = parsed.enumerated().sorted { a, b in
+      let la = PerlText.perlLength(a.element.left), lb = PerlText.perlLength(b.element.left)
+      if la != lb { return la > lb }
+      if !a.element.left.unicodeScalars.elementsEqual(b.element.left.unicodeScalars) {
+        return PerlText.codePointLess(a.element.left, b.element.left)
+      }
+      return a.offset < b.offset
+    }
+    return sorted.compactMap { entry in
+      guard let pattern = Self.rulePattern(entry.element.left) else { return nil }
+      return Rule(left: entry.element.left, right: entry.element.right, pattern: pattern,
+                  template: NSRegularExpression.escapedTemplate(for: entry.element.right))
+    }
   }
 
   public init(files: [String]) {
@@ -37,25 +59,16 @@ public struct VocabCorrector: Sendable {
     }
     var rules: [Rule] = []
     for path in files {
+      if path.hasSuffix("/vocabulary.json") {
+        guard let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
+              let sheet = try? VocabularySheet.decode(data) else { self.rules = nil; return }
+        rules.append(contentsOf: Self.makeRules((sheet.brands + sheet.words).map { (left: $0.heard, right: $0.write) }))
+        continue
+      }
       guard PerlText.isFile(path), let contents = PerlText.readFile(path) else { continue }
       let parsed = PerlText.fileLines(contents).compactMap(VocabCorrector.parseLine)
       // Longest left side first, ties by code point; stable like Perl's sort.
-      let sorted = parsed.enumerated().sorted { a, b in
-        let la = PerlText.perlLength(a.element.left)
-        let lb = PerlText.perlLength(b.element.left)
-        if la != lb { return la > lb }
-        // Not `!=`: String equality treats canonically equivalent text as equal.
-        if !a.element.left.unicodeScalars.elementsEqual(b.element.left.unicodeScalars) {
-          return PerlText.codePointLess(a.element.left, b.element.left)
-        }
-        return a.offset < b.offset
-      }
-      for entry in sorted {
-        guard let pattern = VocabCorrector.rulePattern(entry.element.left) else { continue }
-        rules.append(Rule(
-          left: entry.element.left, right: entry.element.right, pattern: pattern,
-          template: NSRegularExpression.escapedTemplate(for: entry.element.right)))
-      }
+      rules.append(contentsOf: Self.makeRules(parsed))
     }
     self.rules = rules
   }
@@ -124,7 +137,7 @@ public struct VocabCorrector: Sendable {
       pattern = "(?<![A-Za-z0-9_.-])" + pattern
     }
     if let last = left.unicodeScalars.last, asciiWordScalar(last) {
-      pattern += "(?![A-Za-z0-9_.-])"
+      pattern += "(?![A-Za-z0-9_-]|\\.[[:alnum:]_-])"
     }
     return try? ICURegex(validating: pattern, caseInsensitive: true)
   }

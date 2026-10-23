@@ -23,7 +23,7 @@ app_delivery_settings_env() {
 # Prints one JSON object (the "cleanup" section of app-config).
 app_cleanup_settings_json() {
   APPCLEAN_CONFIG_DIR="$KHULUMA_CONFIG_DIR" \
-  APPCLEAN_CLEAN="${KHULUMA_CLEAN:-0}" \
+  APPCLEAN_CLEAN="${KHULUMA_CLEAN:-${CFG_CLEAN_ENABLED:-0}}" \
   APPCLEAN_REPEATS_LEVEL="${KHULUMA_REPEATS_LEVEL:-${CFG_CLEAN_REPEATS_LEVEL:-1}}" \
   APPCLEAN_VOCAB_CLEAN="${KHULUMA_VOCAB_CLEAN:-1}" \
   APPCLEAN_BRITISH_SPELLING="${KHULUMA_BRITISH_SPELLING:-1}" \
@@ -133,9 +133,13 @@ app_settings() {
         [[ -d "$(expand_path "$value")" ]] || die "model path must be an existing directory"
       fi
       ;;
-    debug.keep_logs|inline.autosend|audio.sounds.enabled)
+    debug.keep_logs|inline.autosend|audio.sounds.enabled|clean.enabled)
       type="bool"
       [[ "$value" == "true" || "$value" == "false" || "$value" == "1" || "$value" == "0" ]] || die "setting value must be true or false"
+      ;;
+    clean.repeats_level)
+      type="int"
+      [[ "$value" =~ ^[0-3]$ ]] || die "repeat cleanup level must be 0, 1, 2 or 3"
       ;;
     app.hotkey)
       python3 - "$value" <<'PYEOF' || die "invalid hotkey; use a modifier and key, or F1–F20"

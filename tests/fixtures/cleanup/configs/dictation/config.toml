@@ -1,0 +1,6 @@
+[meta]
+config_version = 1
+
+[clean]
+enabled = true
+repeats_level = 3

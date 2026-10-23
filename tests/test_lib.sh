@@ -48,13 +48,29 @@ assert_eq "expand_sound_path" "/tmp/example-sounds/dictate/start.wav" "$(khuluma
 unset SOUNDS_DIR
 
 cleaned="$(printf '%s' 'um, I mean basically this is fine' | khuluma_lib_clean_fillers | trim_nl)"
-assert_eq "clean_fillers" "this is fine" "$cleaned"
+assert_eq "clean_fillers_preserve_wording" "I mean basically this is fine" "$cleaned"
+assert_eq "clean_fillers_hesitation" "I think we should keep it, but I believe it needs work." \
+  "$(printf '%s' 'Um, I think we should keep it, uh but I believe it needs work.' | khuluma_lib_clean_fillers)"
+assert_eq "clean_fillers_protected_text" 'The word "um", `uh`, /um/file and um.txt stay.' \
+  "$(printf '%s' 'The word "um", `uh`, /um/file and um.txt stay.' | khuluma_lib_clean_fillers)"
 
 repeats1="$(printf '%s' 'this this is is fine fine' | khuluma_lib_clean_repeats 1 | trim_nl)"
 assert_eq "clean_repeats_level1" "this is fine" "$repeats1"
 
 repeats2="$(printf '%s' 'go to go to the store' | khuluma_lib_clean_repeats 2 | trim_nl)"
 assert_eq "clean_repeats_level2" "go to the store" "$repeats2"
+assert_eq "clean_repeated_sentence" "Please use the existing local app. Then check the result." \
+  "$(printf '%s' 'Please use the existing local app. Please use the existing local app. Then check the result.' | khuluma_lib_clean_repeats 3)"
+assert_eq "clean_repeated_sentence_three_times" "Please use the existing local app." \
+  "$(printf '%s' 'Please use the existing local app. please use the existing local app. Please use the existing local app.' | khuluma_lib_clean_repeats 3)"
+assert_eq "clean_repeated_sentence_correction" "Please use the existing local app. Please use the newer local app." \
+  "$(printf '%s' 'Please use the existing local app. Please use the newer local app.' | khuluma_lib_clean_repeats 3)"
+assert_eq "clean_repeated_short_emphasis" "Do it now. Do it now." \
+  "$(printf '%s' 'Do it now. Do it now.' | khuluma_lib_clean_repeats 3)"
+assert_eq "clean_repeated_words_preserve_meaning" "I had had enough. It is very very good that that works." \
+  "$(printf '%s' 'I had had enough. It is very very good that that works.' | khuluma_lib_clean_repeats 3)"
+assert_eq "clean_repeated_sentence_opt_in" "Please use the existing local app. Please use the existing local app." \
+  "$(printf '%s' 'Please use the existing local app. Please use the existing local app.' | khuluma_lib_clean_repeats 2)"
 
 sanitized="$(printf '%s' '[blank audio] hello (blank_audio) world' | khuluma_lib_sanitize_transcript_artifacts | trim_nl)"
 assert_eq "sanitize_artifacts" "hello world" "$sanitized"
@@ -78,6 +94,8 @@ mkdir -p "$cfg_tmp/modes/code"
 printf '%s\n' 'codex -> CODEX' 'zebra -> Zebra' > "$cfg_tmp/modes/code/vocab"
 vocab_out="$(printf '%s' 'codex and tmux' | khuluma_lib_apply_vocab_corrections "$cfg_tmp" | trim_nl)"
 assert_eq "vocab_corrections" "Codex and Tmux" "$vocab_out"
+assert_eq "vocab_sentence_punctuation" "Codex. Codex... codex.txt codex-lock.yaml" \
+  "$(printf '%s' 'codex. codex... codex.txt codex-lock.yaml' | khuluma_lib_apply_vocab_corrections "$cfg_tmp")"
 vocab_spaced_out="$(printf '%s' 'c o r e m l and q w e n' | khuluma_lib_apply_vocab_corrections "$cfg_tmp" | trim_nl)"
 assert_eq "vocab_spaced_acronyms" "CoreML and Qwen" "$vocab_spaced_out"
 vocab_specific_phrase="$(printf '%s' 'qwen three point five is fast' | khuluma_lib_apply_vocab_corrections "$cfg_tmp" | trim_nl)"

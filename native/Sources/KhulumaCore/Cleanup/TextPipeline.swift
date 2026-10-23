@@ -7,7 +7,7 @@ import Foundation
 /// so odd values ("2abc", "TRUE", "007") behave identically.
 public struct CleanupSettings: Codable, Equatable, Sendable {
   public var configDir: String
-  /// `KHULUMA_CLEAN`: fillers/repeats run only when exactly "1".
+  /// `KHULUMA_CLEAN` / `[clean] enabled`: fillers/repeats run only when exactly "1".
   public var clean: String
   /// `KHULUMA_REPEATS_LEVEL` / `[clean] repeats_level`.
   public var repeatsLevel: String
@@ -85,16 +85,19 @@ public struct TextPipeline: Sendable {
   /// `transcript` is the transcriber's output.
   public func process(transcript: String) -> CleanupOutcome {
     if settings.requiresCLI { return .needsCLI }
-    let raw = cleanRaw(PerlText.bashCapture(transcript))
+    let sheet: VocabularySheet?
+    do { sheet = try VocabularySheet.load(configDir: settings.configDir) }
+    catch { return .needsCLI } // Let the CLI report the invalid document and retain the take.
+    let raw = cleanRaw(PerlText.bashCapture(transcript), sheet: sheet)
     if PerlText.isBlank(raw) { return .noSpeech }
-    return .text(raw: raw, text: finish(raw))
+    return .text(raw: raw, text: finish(raw, sheet: sheet))
   }
 
   /// `cleanup_raw_transcript`.
-  func cleanRaw(_ text: String) -> String {
+  func cleanRaw(_ text: String, sheet: VocabularySheet? = nil) -> String {
     var out = PerlText.bashCapture(TextCleanup.sanitizeArtifacts(text))
     if settings.fillersEnabled {
-      out = PerlText.bashCapture(TextCleanup.cleanFillers(out))
+      out = PerlText.bashCapture(TextCleanup.cleanFillers(out, words: sheet?.fillers))
       if settings.repeatsFilterEnabled {
         let level = PerlText.perlInt(settings.repeatsLevel)
         out = PerlText.bashCapture(TextCleanup.cleanRepeats(out, level: level))
@@ -104,10 +107,11 @@ public struct TextPipeline: Sendable {
   }
 
   /// `finish_transcript_text`.
-  func finish(_ text: String) -> String {
+  func finish(_ text: String, sheet: VocabularySheet? = nil) -> String {
     var out = text
     if settings.vocabEnabled {
-      out = PerlText.bashCapture(VocabCorrector(configDir: settings.configDir).apply(out))
+      let corrector = sheet.map(VocabCorrector.init(sheet:)) ?? VocabCorrector(configDir: settings.configDir)
+      out = PerlText.bashCapture(corrector.apply(out))
     }
     return PerlText.bashCapture(TextCleanup.normalizeBritishSpelling(out, enabled: settings.britishSpelling))
   }

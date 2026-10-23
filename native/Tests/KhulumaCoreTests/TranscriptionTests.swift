@@ -145,10 +145,10 @@ struct TranscriptionSettingsTests {
     #expect(tooOld.localizedDescription.contains("./install.sh --force"))
 
     let older = try #require(mismatch(AppConfigFixture.json.replacingOccurrences(
-      of: #""app_contract":4"#, with: #""app_contract":3"#)))
-    #expect(older.localizedDescription == "khuluma 0.10.0-dev (contract 3) is older than this Khuluma (contract 4): run ./install.sh --force")
+      of: #""app_contract":5"#, with: #""app_contract":4"#)))
+    #expect(older.localizedDescription == "khuluma 0.10.0-dev (contract 4) is older than this Khuluma (contract 5): run ./install.sh --force")
     let newer = try #require(mismatch(AppConfigFixture.json.replacingOccurrences(
-      of: #""app_contract":4"#, with: #""app_contract":5"#)))
+      of: #""app_contract":5"#, with: #""app_contract":6"#)))
     #expect(newer.localizedDescription.contains("rebuild it with tools/build-khuluma-app.sh"))
     #expect(mismatch(AppConfigFixture.json) == nil)
   }

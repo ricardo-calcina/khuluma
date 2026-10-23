@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Expose dictation cleanup and repetition in Settings, with one vocabulary editor for Fillers, Brands and Other words. Add labelled entry editing, search, Undo, reviewed JSON import and export, validated atomic saves, backups and protection against another agent overwriting a newer file.
+- Make vocabulary.json authoritative after its first save, retaining the earlier text vocab intact. Custom filler phrases replace the built-in list; brands and other words share literal replacement rules. Old text-only editing commands refuse to change an inactive vocab file.
+- Add opt-in `clean.enabled` in config and repetition level 3 for exact adjacent sentences of at least five words. Preserve short emphasis, corrections and grammatical doubles. Narrow filler cleanup to unquoted hesitation sounds so uncertainty and natural wording survive; keep CLI/native cleanup identical.
+- Apply vocabulary spellings before a sentence-ending full stop or ellipsis while preserving filename extensions and hyphenated identifiers.
+- Require matching app/CLI contract 5 so the same take gets the same cleanup on either path.
 - Delete temporary dictation WAVs after history is saved and delete expired audio archives directly, without filling Trash. Keep audio if history saving fails; use an elapsed 48-hour default for audio expiry.
 - Make the Recording mouth rounder and add Settings → Appearance → Menu bar icons. Switch immediately between Cursed speech and Full emblem, remember the choice, and rotate only the centre seal in Full emblem while processing.
 - Slowly rotate the Processing fang seal while work is in flight, including with the menu open. Stop on other states and respect Reduce Motion.
@@ -13,7 +18,7 @@
 - Fit Stats in its normal window without scrolling, move Refresh beside Settings, and put coverage/privacy/update details behind an info button. Keep refresh failures visible in context.
 - Distribute spare window height across the three Stats sections and give milestones a thicker bar whose fill matches total words toward the next target.
 - Add opt-in ElevenLabs Scribe v2 for dictation, file transcription and recovery; keep Parakeet as the local default and keep credentials out of settings JSON and logs.
-- Pin each app CLI request to its expected provider and preserve failed CLI/cloud audio for recovery. App and CLI now require contract 4 together.
+- Pin each app CLI request to its expected provider and preserve failed CLI/cloud audio for recovery. App and CLI use a paired contract (now 5 with vocabulary settings).
 - Add isolated interactive UI previews and light/dark fixtures without starting capture, recovery or a daemon.
 
 ## v0.11.0 — 2026-10-23

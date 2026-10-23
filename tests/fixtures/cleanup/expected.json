@@ -202,63 +202,63 @@
    "fn": "fillers",
    "args": [],
    "input": "um, I mean basically this is fine",
-   "output": "this is fine"
+   "output": "I mean basically this is fine"
   },
   {
    "id": "fillers-002",
    "fn": "fillers",
    "args": [],
    "input": "Umm. so yeah we should go",
-   "output": "we should go"
+   "output": "so yeah we should go"
   },
   {
    "id": "fillers-003",
    "fn": "fillers",
    "args": [],
    "input": "uh uh uhh hmm mhm",
-   "output": ""
+   "output": "hmm mhm"
   },
   {
    "id": "fillers-004",
    "fn": "fillers",
    "args": [],
    "input": "actually this is actuallyish weird",
-   "output": "this is ish weird"
+   "output": "actually this is actuallyish weird"
   },
   {
    "id": "fillers-005",
    "fn": "fillers",
    "args": [],
    "input": "anyways the plan is anyhow fine",
-   "output": "s the plan is fine"
+   "output": "anyways the plan is anyhow fine"
   },
   {
    "id": "fillers-006",
    "fn": "fillers",
    "args": [],
    "input": "like, like, totally like",
-   "output": "like totally like"
+   "output": "like, like, totally like"
   },
   {
    "id": "fillers-007",
    "fn": "fillers",
    "args": [],
    "input": "LIKE LIKE",
-   "output": "like"
+   "output": "LIKE LIKE"
   },
   {
    "id": "fillers-008",
    "fn": "fillers",
    "args": [],
    "input": "I think I guess you know it's fine",
-   "output": "it's fine"
+   "output": "I think I guess you know it's fine"
   },
   {
    "id": "fillers-009",
    "fn": "fillers",
    "args": [],
    "input": "to be honest, to be fair, ok",
-   "output": "ok"
+   "output": "to be honest, to be fair, ok"
   },
   {
    "id": "fillers-010",
@@ -279,7 +279,7 @@
    "fn": "fillers",
    "args": [],
    "input": "er,, err.. ok",
-   "output": ",. ok"
+   "output": "er, err.. ok"
   },
   {
    "id": "fillers-013",
@@ -293,14 +293,14 @@
    "fn": "fillers",
    "args": [],
    "input": "kind of sort of literally obviously",
-   "output": ""
+   "output": "kind of sort of literally obviously"
   },
   {
    "id": "fillers-015",
    "fn": "fillers",
    "args": [],
    "input": "OK so right so alright so",
-   "output": ""
+   "output": "OK so right so alright so"
   },
   {
    "id": "fillers-016",
@@ -314,14 +314,14 @@
    "fn": "fillers",
    "args": [],
    "input": "honestly frankly clearly",
-   "output": " "
+   "output": "honestly frankly clearly"
   },
   {
    "id": "fillers-018",
    "fn": "fillers",
    "args": [],
    "input": "hmm\thmm",
-   "output": ""
+   "output": "hmm hmm"
   },
   {
    "id": "fillers-019",
@@ -335,7 +335,7 @@
    "fn": "fillers",
    "args": [],
    "input": "erm, I mean, you know,",
-   "output": ""
+   "output": "I mean, you know,"
   },
   {
    "id": "fillers-021",
@@ -363,14 +363,14 @@
    "fn": "fillers",
    "args": [],
    "input": "in my opinion I believe I suppose",
-   "output": ""
+   "output": "in my opinion I believe I suppose"
   },
   {
    "id": "fillers-025",
    "fn": "fillers",
    "args": [],
    "input": "but yeah and yeah yeah so",
-   "output": ""
+   "output": "but yeah and yeah yeah so"
   },
   {
    "id": "fillers-026",
@@ -843,7 +843,7 @@
     "1e1"
    ],
    "input": "this this is is fine fine",
-   "output": "this is fine"
+   "output": "this this is is fine fine"
   },
   {
    "id": "repeats-052",
@@ -852,7 +852,7 @@
     "1e1"
    ],
    "input": "go to go to the store",
-   "output": "go to the store"
+   "output": "go to go to the store"
   },
   {
    "id": "repeats-053",
@@ -861,7 +861,7 @@
     "1e1"
    ],
    "input": "I want to I want to go",
-   "output": "I want to go"
+   "output": "I want to I want to go"
   },
   {
    "id": "repeats-054",
@@ -870,7 +870,7 @@
     "1e1"
    ],
    "input": "The the THE",
-   "output": "The"
+   "output": "The the THE"
   },
   {
    "id": "repeats-055",
@@ -879,7 +879,7 @@
     "1e1"
    ],
    "input": "it's it's don't don't",
-   "output": "it's don't"
+   "output": "it's it's don't don't"
   },
   {
    "id": "repeats-056",
@@ -888,7 +888,7 @@
     "1e1"
    ],
    "input": "a a a a",
-   "output": "a"
+   "output": "a a a a"
   },
   {
    "id": "repeats-057",
@@ -897,7 +897,7 @@
     "1e1"
    ],
    "input": "go ahead and go ahead and do it",
-   "output": "go ahead and do it"
+   "output": "go ahead and go ahead and do it"
   },
   {
    "id": "repeats-058",
@@ -915,7 +915,7 @@
     "1e1"
    ],
    "input": "one two one two three",
-   "output": "one two three"
+   "output": "one two one two three"
   },
   {
    "id": "repeats-060",
@@ -1203,7 +1203,7 @@
     "inf"
    ],
    "input": "this this is is fine fine",
-   "output": "this is fine"
+   "output": "this this is is fine fine"
   },
   {
    "id": "repeats-092",
@@ -1212,7 +1212,7 @@
     "inf"
    ],
    "input": "go to go to the store",
-   "output": "go to the store"
+   "output": "go to go to the store"
   },
   {
    "id": "repeats-093",
@@ -1221,7 +1221,7 @@
     "inf"
    ],
    "input": "I want to I want to go",
-   "output": "I want to go"
+   "output": "I want to I want to go"
   },
   {
    "id": "repeats-094",
@@ -1230,7 +1230,7 @@
     "inf"
    ],
    "input": "The the THE",
-   "output": "The"
+   "output": "The the THE"
   },
   {
    "id": "repeats-095",
@@ -1239,7 +1239,7 @@
     "inf"
    ],
    "input": "it's it's don't don't",
-   "output": "it's don't"
+   "output": "it's it's don't don't"
   },
   {
    "id": "repeats-096",
@@ -1248,7 +1248,7 @@
     "inf"
    ],
    "input": "a a a a",
-   "output": "a"
+   "output": "a a a a"
   },
   {
    "id": "repeats-097",
@@ -1257,7 +1257,7 @@
     "inf"
    ],
    "input": "go ahead and go ahead and do it",
-   "output": "go ahead and do it"
+   "output": "go ahead and go ahead and do it"
   },
   {
    "id": "repeats-098",
@@ -1275,7 +1275,7 @@
     "inf"
    ],
    "input": "one two one two three",
-   "output": "one two three"
+   "output": "one two one two three"
   },
   {
    "id": "repeats-100",
@@ -2736,6 +2736,180 @@
    "output": "end and end and end"
   },
   {
+   "id": "hesitations-preserve-intent",
+   "fn": "fillers",
+   "args": [],
+   "input": "Um, I think we should keep it, uh but I believe it needs work.",
+   "output": "I think we should keep it, but I believe it needs work."
+  },
+  {
+   "id": "hesitations-protected",
+   "fn": "fillers",
+   "args": [],
+   "input": "The word \"um\", `uh`, /um/file and um.txt stay.",
+   "output": "The word \"um\", `uh`, /um/file and um.txt stay."
+  },
+  {
+   "id": "hesitations-only",
+   "fn": "fillers",
+   "args": [],
+   "input": "Um, uh, umm, UHH.",
+   "output": ""
+  },
+  {
+   "id": "sentence-exact",
+   "fn": "repeats",
+   "args": [
+    "3"
+   ],
+   "input": "Please use the existing local app. Please use the existing local app. Then check the result.",
+   "output": "Please use the existing local app. Then check the result."
+  },
+  {
+   "id": "sentence-middle",
+   "fn": "repeats",
+   "args": [
+    "3"
+   ],
+   "input": "First check this. Please use the existing local app. Please use the existing local app. Then check the result.",
+   "output": "First check this. Please use the existing local app. Then check the result."
+  },
+  {
+   "id": "sentence-triple",
+   "fn": "repeats",
+   "args": [
+    "3"
+   ],
+   "input": "Please use the existing local app. please use the existing local app. Please use the existing local app.",
+   "output": "Please use the existing local app."
+  },
+  {
+   "id": "sentence-correction",
+   "fn": "repeats",
+   "args": [
+    "3"
+   ],
+   "input": "Please use the existing local app. Please use the newer local app.",
+   "output": "Please use the existing local app. Please use the newer local app."
+  },
+  {
+   "id": "sentence-emphasis",
+   "fn": "repeats",
+   "args": [
+    "3"
+   ],
+   "input": "Do it now. Do it now.",
+   "output": "Do it now. Do it now."
+  },
+  {
+   "id": "sentence-level2",
+   "fn": "repeats",
+   "args": [
+    "2"
+   ],
+   "input": "Please use the existing local app. Please use the existing local app.",
+   "output": "Please use the existing local app. Please use the existing local app."
+  },
+  {
+   "id": "sentence-whitespace",
+   "fn": "repeats",
+   "args": [
+    "3"
+   ],
+   "input": "Please  use the existing local app. Please use\tthe existing local app.",
+   "output": "Please use the existing local app."
+  },
+  {
+   "id": "sentence-unicode",
+   "fn": "repeats",
+   "args": [
+    "3"
+   ],
+   "input": "Please keep the café menu unchanged. Please keep the café menu unchanged.",
+   "output": "Please keep the café menu unchanged."
+  },
+  {
+   "id": "sentence-punctuation",
+   "fn": "repeats",
+   "args": [
+    "3"
+   ],
+   "input": "Please use the existing local app! Please use the existing local app?",
+   "output": "Please use the existing local app! Please use the existing local app?"
+  },
+  {
+   "id": "sentence-different-number",
+   "fn": "repeats",
+   "args": [
+    "3"
+   ],
+   "input": "Please use version 2 for this. Please use version 3 for this.",
+   "output": "Please use version 2 for this. Please use version 3 for this."
+  },
+  {
+   "id": "sentence-quoted",
+   "fn": "repeats",
+   "args": [
+    "3"
+   ],
+   "input": "\"Please use the existing local app.\" \"Please use the existing local app.\"",
+   "output": "\"Please use the existing local app.\" \"Please use the existing local app.\""
+  },
+  {
+   "id": "sentence-unfinished",
+   "fn": "repeats",
+   "args": [
+    "3"
+   ],
+   "input": "Please use the existing local app. Please use the existing local app",
+   "output": "Please use the existing local app. Please use the existing local app"
+  },
+  {
+   "id": "brand-sheet",
+   "fn": "vocab",
+   "args": [
+    "dictation"
+   ],
+   "input": "Kaluma, X code, xcode, PN PM, PNPM, P N P M and pnpm-lock.yaml",
+   "output": "Khuluma, Xcode, Xcode, pnpm, pnpm, pnpm and pnpm-lock.yaml"
+  },
+  {
+   "id": "brand-sentence-punctuation",
+   "fn": "vocab",
+   "args": [
+    "dictation"
+   ],
+   "input": "Pnpm. PN PM. Xcode... Kaluma. pnpm.yaml pnpm-lock.yaml pnpm.日本",
+   "output": "pnpm. pnpm. Xcode... Khuluma. pnpm.yaml pnpm-lock.yaml pnpm.日本"
+  },
+  {
+   "id": "sentence-preserve-grammar",
+   "fn": "repeats",
+   "args": [
+    "3"
+   ],
+   "input": "I had had enough. That is very very good.",
+   "output": "I had had enough. That is very very good."
+  },
+  {
+   "id": "sheet-custom-fillers",
+   "fn": "fillers",
+   "args": [
+    "sheet"
+   ],
+   "input": "Um, ahhh, er open it. Umm stays. The word \"er\" and /er/file stay.",
+   "output": "open it. Umm stays. The word \"er\" and /er/file stay."
+  },
+  {
+   "id": "sheet-vocabulary",
+   "fn": "vocab",
+   "args": [
+    "sheet"
+   ],
+   "input": "Open Kaluma, PN PM and X code. source slash components.",
+   "output": "Open Khuluma, pnpm and Xcode. src/ components."
+  },
+  {
    "id": "fuzz-sanitize-001",
    "fn": "sanitize",
    "args": [],
@@ -3307,7 +3481,7 @@
    "fn": "fillers",
    "args": [],
    "input": "so yeah kind regards1.5. like regards Straße iTerm2uh,, OPEN  AI. Jason's, Straße I mean,open ai , source slash. the the. 1.5 I mean,. ( blank_audio ), ] kind regards. naïveopen\tai, ",
-   "output": "kind regards1.5. like regards Straße iTerm2uh, OPEN AI. Jason's, Straße open ai, source slash. the the. 1.5. ( blank_audio ), ] kind regards. naïveopen ai,"
+   "output": "so yeah kind regards1.5. like regards Straße iTerm2uh, OPEN AI. Jason's, Straße I mean,open ai, source slash. the the. 1.5 I mean,. ( blank_audio ), ] kind regards. naïveopen ai,"
   },
   {
    "id": "fuzz-fillers-003",
@@ -3321,21 +3495,21 @@
    "fn": "fillers",
    "args": [],
    "input": "basically, it's g-p-tit's, er 😀. 日本語 don't don't. cOlOr actuallyish é. anyways Straße. the kind regards ,",
-   "output": "it's g-p-tit's, 😀. 日本語 don't don't. cOlOr ish é. s Straße. the kind regards,"
+   "output": "basically, it's g-p-tit's, er 😀. 日本語 don't don't. cOlOr actuallyish é. anyways Straße. the kind regards,"
   },
   {
    "id": "fuzz-fillers-005",
    "fn": "fillers",
    "args": [],
    "input": ",, teamux \nk8s　 THE like 　, Straße, hmm (. teamux. open\tai go to go to Dr. Smith iTerm2.  the. ",
-   "output": ", teamuxk8s　 THE like 　, Straße, (. teamux. open ai go to go to Dr. Smith iTerm2. the."
+   "output": ", teamuxk8s　 THE like 　, Straße, hmm (. teamux. open ai go to go to Dr. Smith iTerm2. the."
   },
   {
    "id": "fuzz-fillers-006",
    "fn": "fillers",
    "args": [],
    "input": "anyways teamuxcOlOr ;, \u000b OPEN  AI. \r\n zzz , like,anyways. go to go to",
-   "output": "s teamuxcOlOr ;, OPEN AI.zzz , like,s. go to go to"
+   "output": "anyways teamuxcOlOr ;, OPEN AI.zzz , like,anyways. go to go to"
   },
   {
    "id": "fuzz-fillers-007",
@@ -3349,35 +3523,35 @@
    "fn": "fillers",
    "args": [],
    "input": "Dr. Smith,   it'sThe  , cOlOr. you know, api anyways  , .net. ( basically, to be honest. kind regards npm, . like, realized café. ",
-   "output": "Dr. Smith,   it'sThe  , cOlOr. api s  ,.net. (. kind regards npm,. like, realized café."
+   "output": "Dr. Smith,   it'sThe  , cOlOr. you know, api anyways  ,.net. ( basically, to be honest. kind regards npm,. like, realized café."
   },
   {
    "id": "fuzz-fillers-009",
    "fn": "fillers",
    "args": [],
    "input": "basically, kind regards, zzz, zzz like, it's, .. \r\n OPEN  AI. Straße Dr. SmithOPEN  AI hmm uh, .net ...OPEN  AI \u000b, ) c++.  ",
-   "output": "kind regards, zzz, zzz like, it's,..OPEN AI. Straße Dr. SmithOPEN AI.net...OPEN AI, ) c++."
+   "output": "basically, kind regards, zzz, zzz like, it's,..OPEN AI. Straße Dr. SmithOPEN AI hmm.net...OPEN AI, ) c++."
   },
   {
    "id": "fuzz-fillers-010",
    "fn": "fillers",
    "args": [],
    "input": "so yeah like, ..., teamux ..., 日本語 {BLANK - AUDIO} Umm.. open ai open\tai, gpt-4 ? .net. THE. analyze ",
-   "output": "like,..., teamux..., 日本語 {BLANK - AUDIO}. open ai open ai, gpt-4 ?.net. THE. analyze"
+   "output": "so yeah like,..., teamux..., 日本語 {BLANK - AUDIO}. open ai open ai, gpt-4 ?.net. THE. analyze"
   },
   {
    "id": "fuzz-fillers-011",
    "fn": "fillers",
    "args": [],
    "input": "Behavior, a b c d e f g h i. :actuallyſo yeah, ( blank_audio ) g-p-t, (. ",
-   "output": "Behavior, a b c d e f g h i. :ſo yeah, ( blank_audio ) g-p-t, (."
+   "output": "Behavior, a b c d e f g h i. :actuallyſo yeah, ( blank_audio ) g-p-t, (."
   },
   {
    "id": "fuzz-fillers-012",
    "fn": "fillers",
    "args": [],
    "input": "api, node.js hmm. ! naïve    teh .net um, THE source slash, to be honest",
-   "output": "api, node.js ! naïve teh.net THE source slash,"
+   "output": "api, node.js hmm. ! naïve teh.net THE source slash, to be honest"
   },
   {
    "id": "fuzz-fillers-013",
@@ -3391,7 +3565,7 @@
    "fn": "fillers",
    "args": [],
    "input": "open ai COLOR ? npm. centering hmm, \f iTerm2 K8s. OPEN  AI. \fſo yeah uh, A.P.I. npm, iTerm2. a p i ;Dr. Smith api ?you know tmux whisper, ",
-   "output": "open ai COLOR ? npm. centering iTerm2 K8s. OPEN AI. ſo yeah A.P.I. npm, iTerm2. a p i ;Dr. Smith api ?tmux whisper,"
+   "output": "open ai COLOR ? npm. centering hmm, iTerm2 K8s. OPEN AI. ſo yeah A.P.I. npm, iTerm2. a p i ;Dr. Smith api ?you know tmux whisper,"
   },
   {
    "id": "fuzz-fillers-015",
@@ -3419,7 +3593,7 @@
    "fn": "fillers",
    "args": [],
    "input": "so yeah, the the, actually. café Behavior the the[blank], tmux whisper iTerm2, \t foo_bar. actually !.    centering source slash. A.P.I, STRASSE",
-   "output": "the the,. café Behavior the the[blank], tmux whisper iTerm2, foo_bar. !. centering source slash. A.P.I, STRASSE"
+   "output": "so yeah, the the, actually. café Behavior the the[blank], tmux whisper iTerm2, foo_bar. actually !. centering source slash. A.P.I, STRASSE"
   },
   {
    "id": "fuzz-fillers-019",
@@ -3433,7 +3607,7 @@
    "fn": "fillers",
    "args": [],
    "input": "[blank audio] er(. basically, ",
-   "output": "[blank audio] (."
+   "output": "[blank audio] er(. basically,"
   },
   {
    "id": "fuzz-fillers-021",
@@ -3461,7 +3635,7 @@
    "fn": "fillers",
    "args": [],
    "input": "api tmux whisper um. er. \f, I mean, zzz get hub realizedum at saw slash tmux whisper.   at saw slash npm. jason [blank audio] x x xteamux like,. Behavior",
-   "output": "api tmux whisper, zzz get hub realizedum at saw slash tmux whisper. at saw slash npm. jason [blank audio] x x xteamux like,. Behavior"
+   "output": "api tmux whisper er., I mean, zzz get hub realizedum at saw slash tmux whisper. at saw slash npm. jason [blank audio] x x xteamux like,. Behavior"
   },
   {
    "id": "fuzz-fillers-025",
@@ -3475,7 +3649,7 @@
    "fn": "fillers",
    "args": [],
    "input": "to be honest. teh, colorc++ api it's, . ColorsOPEN  AI ). ",
-   "output": ". teh, colorc++ api it's,. ColorsOPEN AI )."
+   "output": "to be honest. teh, colorc++ api it's,. ColorsOPEN AI )."
   },
   {
    "id": "fuzz-fillers-027",
@@ -3489,14 +3663,14 @@
    "fn": "fillers",
    "args": [],
    "input": "don't don't. actually ( blank_audio ) 1.5 g-p-t. Dr. Smith \nteh g-p-t. .net basically,, so yeah, Colors ",
-   "output": "don't don't. ( blank_audio ) 1.5 g-p-t. Dr. Smithteh g-p-t..net, Colors"
+   "output": "don't don't. actually ( blank_audio ) 1.5 g-p-t. Dr. Smithteh g-p-t..net basically, so yeah, Colors"
   },
   {
    "id": "fuzz-fillers-029",
    "fn": "fillers",
    "args": [],
    "input": "don't don't tmux whisper, node.js naïve, Jason's like um actually, k8s. ] um actuallyish . er Behavioré. favorite. ",
-   "output": "don't don't tmux whisper, node.js naïve, Jason's like k8s. ] ish. Behavioré. favorite."
+   "output": "don't don't tmux whisper, node.js naïve, Jason's like actually, k8s. ] actuallyish. er Behavioré. favorite."
   },
   {
    "id": "fuzz-fillers-030",
@@ -3524,28 +3698,28 @@
    "fn": "fillers",
    "args": [],
    "input": "zzz actuallyish open\tai \r\n \r\nlike,, : Dr. SmithI mean,. tmux whisper, so yeah so yeah like, kind regards, ",
-   "output": "zzz ish open ailike, : Dr. SmithI mean,. tmux whisper, like, kind regards,"
+   "output": "zzz actuallyish open ailike, : Dr. SmithI mean,. tmux whisper, so yeah so yeah like, kind regards,"
   },
   {
    "id": "fuzz-fillers-034",
    "fn": "fillers",
    "args": [],
    "input": "at saw slash   thenaïve anyways gpt-4 \r( blank_audio ), go to 　 The. \r\n ...   ( blank_audio )centering um 日本語. ",
-   "output": "at saw slash   thenaïve s gpt-4 ( blank_audio ), go to 　 The.... ( blank_audio )centering 日本語."
+   "output": "at saw slash   thenaïve anyways gpt-4 ( blank_audio ), go to 　 The.... ( blank_audio )centering 日本語."
   },
   {
    "id": "fuzz-fillers-035",
    "fn": "fillers",
    "args": [],
    "input": "naïve1.5, like,wez term so yeah. ",
-   "output": "naïve1.5, like,wez term."
+   "output": "naïve1.5, like,wez term so yeah."
   },
   {
    "id": "fuzz-fillers-036",
    "fn": "fillers",
    "args": [],
    "input": "a p i 😀actuallyish jasonThe ",
-   "output": "a p i 😀ish jasonThe"
+   "output": "a p i 😀actuallyish jasonThe"
   },
   {
    "id": "fuzz-fillers-037",
@@ -3566,7 +3740,7 @@
    "fn": "fillers",
    "args": [],
    "input": "tmux whisper\t x x x   !, ſo yeahwez term, Jason's. ... actually regards to be honest color ,. K8s the the. !, ",
-   "output": "tmux whisper x x x   !, ſo yeahwez term, Jason's.... regards color,. K8s the the. !,"
+   "output": "tmux whisper x x x   !, ſo yeahwez term, Jason's.... actually regards to be honest color,. K8s the the. !,"
   },
   {
    "id": "fuzz-fillers-040",
@@ -3580,7 +3754,7 @@
    "fn": "fillers",
    "args": [],
    "input": "so yeah um the anyways \t realized ], so yeah [ er, é\t, ",
-   "output": "the s realized ], [ é,"
+   "output": "so yeah the anyways realized ], so yeah [ er, é,"
   },
   {
    "id": "fuzz-fillers-042",
@@ -3594,21 +3768,21 @@
    "fn": "fillers",
    "args": [],
    "input": "\tbasically,. I mean, [blank] 　. basically, naïve \r\n like basically, like,, Colors like,[blank audio] 😀. so yeah ( you know k8s. ",
-   "output": ". [blank] 　. naïvelike, Colors like,[blank audio] 😀. ( k8s."
+   "output": "basically,. I mean, [blank] 　. basically, naïvelike basically, like, Colors like,[blank audio] 😀. so yeah ( you know k8s."
   },
   {
    "id": "fuzz-fillers-044",
    "fn": "fillers",
    "args": [],
    "input": "\f at saw slash , {BLANK - AUDIO} é c++ .... . actuallyish open\taiColorsDr. Smith 　. basically,Umm. I mean,. Behavior. hmmactuallyish. zzz tmux whisper ",
-   "output": "at saw slash , {BLANK - AUDIO} é c++..... ish open aiColorsDr. Smith 　.. Behavior. hmmactuallyish. zzz tmux whisper"
+   "output": "at saw slash , {BLANK - AUDIO} é c++..... actuallyish open aiColorsDr. Smith 　. basically,I mean,. Behavior. hmmactuallyish. zzz tmux whisper"
   },
   {
    "id": "fuzz-fillers-045",
    "fn": "fillers",
    "args": [],
    "input": "     . teamux it's like. to be honest, ",
-   "output": ". teamux it's like."
+   "output": ". teamux it's like. to be honest,"
   },
   {
    "id": "fuzz-fillers-046",
@@ -3622,21 +3796,21 @@
    "fn": "fillers",
    "args": [],
    "input": "I mean, source slash wez term   you know naïve ,realized regards. , anyways. like. to be honest centering ",
-   "output": "source slash wez term   naïve,realized regards. , s. like. centering"
+   "output": "I mean, source slash wez term   you know naïve,realized regards. , anyways. like. to be honest centering"
   },
   {
    "id": "fuzz-fillers-048",
    "fn": "fillers",
    "args": [],
    "input": "THE  . I mean,, \r\n. ",
-   "output": "THE  .,."
+   "output": "THE  . I mean,."
   },
   {
    "id": "fuzz-fillers-049",
    "fn": "fillers",
    "args": [],
    "input": "Umm., Behavior. open\taigpt-4  . analyze tmux whisper jason. Colors, OPEN  AI Jason's to be honest. teamux ",
-   "output": ", Behavior. open aigpt-4  . analyze tmux whisper jason. Colors, OPEN AI Jason's. teamux"
+   "output": ", Behavior. open aigpt-4  . analyze tmux whisper jason. Colors, OPEN AI Jason's to be honest. teamux"
   },
   {
    "id": "fuzz-fillers-050",
@@ -3650,14 +3824,14 @@
    "fn": "fillers",
    "args": [],
    "input": "naïve k8swez term The. 　,  . you know 😀. I mean,, Umm.. it's like. the the teamux, like like,, 1.5 regards ",
-   "output": "naïve k8swez term The. 　,  . 😀.,. it's like. the the teamux, like, 1.5 regards"
+   "output": "naïve k8swez term The. 　,  . you know 😀. I mean,. it's like. the the teamux, like like, 1.5 regards"
   },
   {
    "id": "fuzz-fillers-052",
    "fn": "fillers",
    "args": [],
    "input": "color it'snode.js, ſo yeahkind regards. npm uh,. I mean,, [blank audio] actuallyish. like, ",
-   "output": "color it'snode.js, ſo yeahkind regards. npm., [blank audio] ish. like,"
+   "output": "color it'snode.js, ſo yeahkind regards. npm. I mean, [blank audio] actuallyish. like,"
   },
   {
    "id": "fuzz-fillers-053",
@@ -3671,7 +3845,7 @@
    "fn": "fillers",
    "args": [],
    "input": ":to be honest, the COLOR Dr. Smith! STRASSE, )to be honest a b c d e f g h i café node.jsget hubDr. Smith OPEN  AI, . the, iTerm2, favorite zzznpm K8s.   ]. ",
-   "output": ":the COLOR Dr. Smith! STRASSE, )a b c d e f g h i café node.jsget hubDr. Smith OPEN AI,. the, iTerm2, favorite zzznpm K8s.   ]."
+   "output": ":to be honest, the COLOR Dr. Smith! STRASSE, )to be honest a b c d e f g h i café node.jsget hubDr. Smith OPEN AI,. the, iTerm2, favorite zzznpm K8s.   ]."
   },
   {
    "id": "fuzz-fillers-055",
@@ -3685,7 +3859,7 @@
    "fn": "fillers",
    "args": [],
    "input": "The 😀. zzz, wez term [ kind regards, ], ?  . Colors   x x x.  . 1.5 Dr. Smith I mean, wez term to be honest. é \t. ",
-   "output": "The 😀. zzz, wez term [ kind regards, ], ?. Colors x x x.. 1.5 Dr. Smith wez term. é."
+   "output": "The 😀. zzz, wez term [ kind regards, ], ?. Colors x x x.. 1.5 Dr. Smith I mean, wez term to be honest. é."
   },
   {
    "id": "fuzz-fillers-057",
@@ -3699,42 +3873,42 @@
    "fn": "fillers",
    "args": [],
    "input": "iTerm2 a p i er. 　, Umm., OPEN  AI go to cOlOr, you knowCOLOR ]    jason\r 1.5 Umm. a b c d e f g h i, color gpt-4. open ai. ] c++. ",
-   "output": "iTerm2 a p i 　, OPEN AI go to cOlOr, COLOR ] jason 1.5 a b c d e f g h i, color gpt-4. open ai. ] c++."
+   "output": "iTerm2 a p i er. 　, OPEN AI go to cOlOr, you knowCOLOR ] jason 1.5 a b c d e f g h i, color gpt-4. open ai. ] c++."
   },
   {
    "id": "fuzz-fillers-059",
    "fn": "fillers",
    "args": [],
    "input": "kind regards basically, the analyze, ",
-   "output": "kind regards the analyze,"
+   "output": "kind regards basically, the analyze,"
   },
   {
    "id": "fuzz-fillers-060",
    "fn": "fillers",
    "args": [],
    "input": "\r ... get hub go to go to, \r ! ? a p i to be honest ",
-   "output": "... get hub go to go to, ! ? a p i"
+   "output": "... get hub go to go to, ! ? a p i to be honest"
   },
   {
    "id": "fuzz-fillers-061",
    "fn": "fillers",
    "args": [],
    "input": "uh, Jason's \r it'sk8s centering, colorcenteringopen\tai The so yeah. K8s color a b c d e f g h idon't don't like, kind regards. , centering",
-   "output": "Jason's it'sk8s centering, colorcenteringopen ai The. K8s color a b c d e f g h idon't don't like, kind regards. , centering"
+   "output": "Jason's it'sk8s centering, colorcenteringopen ai The so yeah. K8s color a b c d e f g h idon't don't like, kind regards. , centering"
   },
   {
    "id": "fuzz-fillers-062",
    "fn": "fillers",
    "args": [],
    "input": "node.js. ( blank_audio ) The. actuallyish color. ?. ",
-   "output": "node.js. ( blank_audio ) The. ish color. ?."
+   "output": "node.js. ( blank_audio ) The. actuallyish color. ?."
   },
   {
    "id": "fuzz-fillers-063",
    "fn": "fillers",
    "args": [],
    "input": "ſo yeah, don't don't like, ... cOlOr x x xapi Dr. Smith. it's, ? like,. 1.5 COLOR. realized, I mean, ",
-   "output": "ſo yeah, don't don't like,... cOlOr x x xapi Dr. Smith. it's, ? like,. 1.5 COLOR. realized,"
+   "output": "ſo yeah, don't don't like,... cOlOr x x xapi Dr. Smith. it's, ? like,. 1.5 COLOR. realized, I mean,"
   },
   {
    "id": "fuzz-fillers-064",
@@ -3748,7 +3922,7 @@
    "fn": "fillers",
    "args": [],
    "input": "a b c d e f g h i, k8s, go to go to, é. tmux whisperthe. to be honestkind regards 😀teamux wez term, the the \r\n, npm.netopen\tai 😀 ",
-   "output": "a b c d e f g h i, k8s, go to go to, é. tmux whisperthe. kind regards 😀teamux wez term, the the, npm.netopen ai 😀"
+   "output": "a b c d e f g h i, k8s, go to go to, é. tmux whisperthe. to be honestkind regards 😀teamux wez term, the the, npm.netopen ai 😀"
   },
   {
    "id": "fuzz-fillers-066",
@@ -3762,28 +3936,28 @@
    "fn": "fillers",
    "args": [],
    "input": "foo_bar gpt-4, npm actually like,npm c++ so yeah cOlOr. [blank], \n ",
-   "output": "foo_bar gpt-4, npm like,npm c++ cOlOr. [blank],"
+   "output": "foo_bar gpt-4, npm actually like,npm c++ so yeah cOlOr. [blank],"
   },
   {
    "id": "fuzz-fillers-068",
    "fn": "fillers",
    "args": [],
    "input": "you know. 日本語, npm [at saw slash [blank audio]. {BLANK - AUDIO} ; StraßeiTerm2",
-   "output": ". 日本語, npm [at saw slash [blank audio]. {BLANK - AUDIO} ; StraßeiTerm2"
+   "output": "you know. 日本語, npm [at saw slash [blank audio]. {BLANK - AUDIO} ; StraßeiTerm2"
   },
   {
    "id": "fuzz-fillers-069",
    "fn": "fillers",
    "args": [],
    "input": "a p i Straße. wez term 　to be honest source slash. Dr. Smith ) The. anyways. to be honest?, k8s   , uh, A.P.I STRASSE",
-   "output": "a p i Straße. wez term 　source slash. Dr. Smith ) The. s. ?, k8s, A.P.I STRASSE"
+   "output": "a p i Straße. wez term 　to be honest source slash. Dr. Smith ) The. anyways. to be honest?, k8s, A.P.I STRASSE"
   },
   {
    "id": "fuzz-fillers-070",
    "fn": "fillers",
    "args": [],
    "input": "regards. realized. cOlOr   .net [blank] 😀 a b c d e f g h i npmk8s. go to go to Umm.actually x x x, COLOR k8s, ",
-   "output": "regards. realized. cOlOr  .net [blank] 😀 a b c d e f g h i npmk8s. go to go to x x x, COLOR k8s,"
+   "output": "regards. realized. cOlOr  .net [blank] 😀 a b c d e f g h i npmk8s. go to go to Umm.actually x x x, COLOR k8s,"
   },
   {
    "id": "fuzz-fillers-071",
@@ -3804,7 +3978,7 @@
    "fn": "fillers",
    "args": [],
    "input": " jason A.P.I, ) OPEN  AI gpt-4,   \u000b, a b c d e f g h i{BLANK - AUDIO} [blank audio]. ... basically, é \u000b. regards. \r\n \r analyze actually. ",
-   "output": " jason A.P.I, ) OPEN AI gpt-4,  , a b c d e f g h i{BLANK - AUDIO} [blank audio].... é. regards.analyze."
+   "output": " jason A.P.I, ) OPEN AI gpt-4,  , a b c d e f g h i{BLANK - AUDIO} [blank audio].... basically, é. regards.analyze actually."
   },
   {
    "id": "fuzz-fillers-074",
@@ -3818,35 +3992,35 @@
    "fn": "fillers",
    "args": [],
    "input": "basically,",
-   "output": ""
+   "output": "basically,"
   },
   {
    "id": "fuzz-fillers-076",
    "fn": "fillers",
    "args": [],
    "input": "api. actuallyish Straße. centering get hub K8steh. [blank audio]get hub, source slash ( blank_audio ) ( blank_audio ) teamux\r\n. to be honest. tmux whisperiTerm2. : ",
-   "output": "api. ish Straße. centering get hub K8steh. [blank audio]get hub, source slash ( blank_audio ) ( blank_audio ) teamux.. tmux whisperiTerm2. :"
+   "output": "api. actuallyish Straße. centering get hub K8steh. [blank audio]get hub, source slash ( blank_audio ) ( blank_audio ) teamux. to be honest. tmux whisperiTerm2. :"
   },
   {
    "id": "fuzz-fillers-077",
    "fn": "fillers",
    "args": [],
    "input": "😀 ) \r\n a p i, THE teh . anyways analyzego to go to color \f Dr. Smith 😀, ? [blank]wez term, ",
-   "output": "😀 )a p i, THE teh . s analyzego to go to color Dr. Smith 😀, ? [blank]wez term,"
+   "output": "😀 )a p i, THE teh . anyways analyzego to go to color Dr. Smith 😀, ? [blank]wez term,"
   },
   {
    "id": "fuzz-fillers-078",
    "fn": "fillers",
    "args": [],
    "input": ",　.   [. {BLANK - AUDIO}    naïve STRASSE actuallyish COLORfavorite   . Dr. Smith ",
-   "output": ",　.   [. {BLANK - AUDIO} naïve STRASSE ish COLORfavorite. Dr. Smith"
+   "output": ",　.   [. {BLANK - AUDIO} naïve STRASSE actuallyish COLORfavorite. Dr. Smith"
   },
   {
    "id": "fuzz-fillers-079",
    "fn": "fillers",
    "args": [],
    "input": "   \r (.   teh \r npm  .net \u000b, basically,, ",
-   "output": "(. teh npm  .net,"
+   "output": "(. teh npm  .net, basically,"
   },
   {
    "id": "fuzz-fillers-080",
@@ -3859,16 +4033,16 @@
    "id": "fuzz-repeats-001",
    "fn": "repeats",
    "args": [
-    "0"
+    "1"
    ],
    "input": "the the ",
-   "output": "the the "
+   "output": "the "
   },
   {
    "id": "fuzz-repeats-002",
    "fn": "repeats",
    "args": [
-    "0"
+    "1"
    ],
    "input": ". \f, OPEN  AI) \t. \r\n. go to go to, go to I mean,. it's ",
    "output": ". , OPEN AI) .. go to go to, go to I mean,. it's"
@@ -3877,7 +4051,7 @@
    "id": "fuzz-repeats-003",
    "fn": "repeats",
    "args": [
-    "1"
+    "3"
    ],
    "input": "日本語 ... THE, . hmmget hub, Straße actuallyishat saw slash1.5 actually.      like, jason, go to, The ",
    "output": "日本語 ... THE, . hmmget hub, Straße actuallyishat saw slash1.5 actually.   like, jason, go to, The"
@@ -3895,7 +4069,7 @@
    "id": "fuzz-repeats-005",
    "fn": "repeats",
    "args": [
-    "0"
+    "1"
    ],
    "input": "THE. like,. ",
    "output": "THE. like,."
@@ -3904,10 +4078,10 @@
    "id": "fuzz-repeats-006",
    "fn": "repeats",
    "args": [
-    "2"
+    "1"
    ],
    "input": "[blank] gpt-4, go to go to. gpt-4  , source slash The uh,\u000b. source slash. [blank], 日本語 café don't don'tkind regards[, er ",
-   "output": "[blank] gpt-4, go to. gpt-4  , source slash The uh, . source slash. [blank], 日本語 café don't don'tkind regards[, er"
+   "output": "[blank] gpt-4, go to go to. gpt-4  , source slash The uh, . source slash. [blank], 日本語 café don't don'tkind regards[, er"
   },
   {
    "id": "fuzz-repeats-007",
@@ -3915,26 +4089,26 @@
    "args": [
     "2"
    ],
-   "input": "  ) Dr. SmithTHE a p i node.js, node.js a p i, ",
-   "output": "  ) Dr. SmithTHE a p i node.js, node.js a p i,"
+   "input": ":  . \u000b it's, favorite, regards, node.js a p i, wez term The \n, :, it's. Dr. Smithopen\tai, ",
+   "output": ": . it's, favorite, regards, node.js a p i, wez term The, :, it's. Dr. Smithopen ai,"
   },
   {
    "id": "fuzz-repeats-008",
    "fn": "repeats",
    "args": [
-    "2"
+    "3"
    ],
-   "input": "The \n, :, it's. ",
-   "output": "The, :, it's."
+   "input": "! Colors wez term[blank audio] ",
+   "output": "! Colors wez term[blank audio]"
   },
   {
    "id": "fuzz-repeats-009",
    "fn": "repeats",
    "args": [
-    "0"
+    "2"
    ],
-   "input": "open\tai,   ! Colors wez term[blank audio] \n um source slash. realized api. .net    um ",
-   "output": "open ai, ! Colors wez term[blank audio]um source slash. realized api. .net um"
+   "input": "um source slash. realized api. .net    um you know. realized A.P.Ifavorite, go to, ",
+   "output": "um source slash. realized api. .net um you know. realized A.P.Ifavorite, go to,"
   },
   {
    "id": "fuzz-repeats-010",
@@ -3942,44 +4116,44 @@
    "args": [
     "1"
    ],
-   "input": "realized A.P.Ifavorite, go to, jason, ; go to go to    uh,. teamuxopen\tai \t you knowgo to go to um, \r\n, \n foo_bar STRASSE um, ",
-   "output": "realized A.P.Ifavorite, go to, jason, ; go to go to    uh,. teamuxopen ai you knowgo to go to um,,foo_bar STRASSE um,"
+   "input": "go to go to    uh,. teamux",
+   "output": "go to go to    uh,. teamux"
   },
   {
    "id": "fuzz-repeats-011",
    "fn": "repeats",
    "args": [
-    "1"
+    "0"
    ],
-   "input": "Straße",
-   "output": "Straße"
+   "input": "( STRASSE the the a b c d e f g h ijason,. you know( get hub at saw slash Straße　 The, ",
+   "output": "( STRASSE the the a b c d e f g h ijason,. you know( get hub at saw slash Straße　 The,"
   },
   {
    "id": "fuzz-repeats-012",
    "fn": "repeats",
    "args": [
-    "0"
+    "3"
    ],
-   "input": "The, k8s ",
-   "output": "The, k8s"
+   "input": "Colors I mean, , é   ",
+   "output": "Colors I mean, , é"
   },
   {
    "id": "fuzz-repeats-013",
    "fn": "repeats",
    "args": [
-    "0"
+    "1"
    ],
-   "input": "to be honest ;OPEN  AI. THE kind regards   . like, ",
-   "output": "to be honest ;OPEN AI. THE kind regards . like,"
+   "input": "like, The . [blank] Dr. Smith I mean, teamux THE,    ) anyways, ). K8s. a p i. !, ſo yeah. COLOR. \u000b realized  , wez term COLOR日本語. basically,. ",
+   "output": "like, The . [blank] Dr. Smith I mean, teamux THE, ) anyways, ). K8s. a p i. !, ſo yeah. COLOR. realized  , wez term COLOR日本語. basically,."
   },
   {
    "id": "fuzz-repeats-014",
    "fn": "repeats",
    "args": [
-    "1"
+    "3"
    ],
-   "input": ". [blank] Dr. Smith I mean, teamux THE, ",
-   "output": ". [blank] Dr. Smith I mean, teamux THE,"
+   "input": "open\tai. ; STRASSE you know.   node.js 1.5favorite. STRASSE.... you knownode.js apiteamux naïve \u000b ",
+   "output": "open ai. ; STRASSE you know.   node.js 1.5favorite. STRASSE.... you knownode.js apiteamux naïve"
   },
   {
    "id": "fuzz-repeats-015",
@@ -3987,17 +4161,17 @@
    "args": [
     "1"
    ],
-   "input": ") anyways, ). K8s. a p i. !, ſo yeah. COLOR. \u000b realized ",
-   "output": ") anyways, ). K8s. a p i. !, ſo yeah. COLOR. realized"
+   "input": "[blank] STRASSE café x x xa p i \r\n a p i er, A.P.I, \f iTerm2. g-p-t, (a p i {BLANK - AUDIO} at saw slash] [blank]um  [blank] er ( ",
+   "output": "[blank] STRASSE café x xa p ia p i er, A.P.I, iTerm2. g-p-t, (a p i {BLANK - AUDIO} at saw slash] [blank]um  [blank] er ("
   },
   {
    "id": "fuzz-repeats-016",
    "fn": "repeats",
    "args": [
-    "2"
+    "0"
    ],
-   "input": "wez term COLOR日本語. basically,. node.js naïve, wez term analyzecOlOr source slash , realized. \t Dr. Smith　 at saw slash. you knownode.js api",
-   "output": "wez term COLOR日本語. basically,. node.js naïve, wez term analyzecOlOr source slash , realized. Dr. Smith　 at saw slash. you knownode.js api"
+   "input": "uh,. like. \f, don't don't basically,. api K8s Behavior, STRASSEzzz, like ",
+   "output": "uh,. like. , don't don't basically,. api K8s Behavior, STRASSEzzz, like"
   },
   {
    "id": "fuzz-repeats-017",
@@ -4005,8 +4179,8 @@
    "args": [
     "0"
    ],
-   "input": "naïve \u000b gpt-4, ſo yeah1.5 don't don'thmmcolor, naïve, it's",
-   "output": "naïve gpt-4, ſo yeah1.5 don't don'thmmcolor, naïve, it's"
+   "input": " . open ai, ",
+   "output": " . open ai,"
   },
   {
    "id": "fuzz-repeats-018",
@@ -4014,17 +4188,17 @@
    "args": [
     "0"
    ],
-   "input": "The OPEN  AI, OPEN  AIgo to. wez term, get hub \t, analyze anyways] [blank]um  [blank] er ( the the ",
-   "output": "The OPEN AI, OPEN AIgo to. wez term, get hub , analyze anyways] [blank]um  [blank] er ( the the"
+   "input": "go to go to.   ) like, favorite, centering \u000b node.js like,, {BLANK - AUDIO} Umm.. the 　 gpt-4The : A.P.I color regards A.P.I \r zzz so yeah. THE ",
+   "output": "go to go to.   ) like, favorite, centering node.js like,, {BLANK - AUDIO} Umm.. the 　 gpt-4The : A.P.I color regards A.P.I zzz so yeah. THE"
   },
   {
    "id": "fuzz-repeats-019",
    "fn": "repeats",
    "args": [
-    "2"
+    "3"
    ],
-   "input": "like. \f, don't don't basically,. api K8s Behavior, STRASSEzzz, like zzz, wez term actually.net, a b c d e f g h i teamux tmux whisperit's uh, get hub a p i so yeaher, cOlOr ",
-   "output": "like. , don't basically,. api K8s Behavior, STRASSEzzz, like zzz, wez term actually.net, a b c d e f g h i teamux tmux whisperit's uh, get hub a p i so yeaher, cOlOr"
+   "input": "{BLANK - AUDIO} \f actuallyish😀, ? K8s",
+   "output": "{BLANK - AUDIO} actuallyish😀, ? K8s"
   },
   {
    "id": "fuzz-repeats-020",
@@ -4032,35 +4206,35 @@
    "args": [
     "2"
    ],
-   "input": "; 1.5 actuallyishcOlOr. \r\n go to ( blank_audio ), [blank] centering ",
-   "output": "; 1.5 actuallyishcOlOr.go to ( blank_audio ), [blank] centering"
+   "input": "k8s. x x xSTRASSEUmm. , I mean, a b c d e f g h idon't don'thmm 1.5teamux. naïve. [blank audio], analyze, ",
+   "output": "k8s. x xSTRASSEUmm. , I mean, a b c d e f g h idon't don'thmm 1.5teamux. naïve. [blank audio], analyze,"
   },
   {
    "id": "fuzz-repeats-021",
    "fn": "repeats",
    "args": [
-    "0"
+    "3"
    ],
-   "input": "\r zzz so yeah. THE actuallyish {BLANK - AUDIO} \f ",
-   "output": "zzz so yeah. THE actuallyish {BLANK - AUDIO}"
+   "input": "to be honest, Behavior ſo yeah go to   get hub regards. \r\n.  , er open\tai get hubgo to K8s. to be honest. like,. Umm.hmm... The, 😀, [blank audio] centering. like,, ",
+   "output": "to be honest, Behavior ſo yeah go to get hub regards..  , er open ai get hubgo to K8s. to be honest. like,. Umm.hmm... The, 😀, [blank audio] centering. like,,"
   },
   {
    "id": "fuzz-repeats-022",
    "fn": "repeats",
    "args": [
-    "2"
+    "3"
    ],
-   "input": "😀, ? K8sapi, open\tai\f, .net, cafécafé cOlOr go to go to at saw slash a b c d e f g h idon't don'thmm 1.5",
-   "output": "😀, ? K8sapi, open ai , .net, cafécafé cOlOr go to at saw slash a b c d e f g h idon't don'thmm 1.5"
+   "input": "it'sA.P.I  . . jason iTerm2the theſo yeah you know \t. iTerm2. [blank] it's um.  ",
+   "output": "it'sA.P.I . . jason iTerm2the theſo yeah you know . iTerm2. [blank] it's um.  "
   },
   {
    "id": "fuzz-repeats-023",
    "fn": "repeats",
    "args": [
-    "2"
+    "1"
    ],
-   "input": "naïve. [blank audio], analyze, (. to be honest, Behavior ſo yeah go to   get hub regards. \r\n.  , er open\tai get hubgo to K8s. to be honest. like,. Umm.hmm... The, ",
-   "output": "naïve. [blank audio], analyze, (. to be honest, Behavior ſo yeah go to get hub regards..  , er open ai get hubgo to K8s. to be honest. like,. Umm.hmm... The,"
+   "input": "café　, iTerm2. wez term, npm I mean, K8scentering. actuallyish. Straße. COLOR k8s anyways ( 😀 kind regards ]. ",
+   "output": "café　, iTerm2. wez term, npm I mean, K8scentering. actuallyish. Straße. COLOR k8s anyways ( 😀 kind regards ]."
   },
   {
    "id": "fuzz-repeats-024",
@@ -4068,8 +4242,8 @@
    "args": [
     "2"
    ],
-   "input": "[blank audio] centering. like,,   it'sA.P.I  . . jason iTerm2the theſo yeah you know \t. iTerm2. [blank] it's um.  ",
-   "output": "[blank audio] centering. like,, it'sA.P.I . . jason iTerm2the theſo yeah you know . iTerm2. [blank] it's um.  "
+   "input": "like    go to like, ..  . 😀. like,\fum \r\n uh,.   . 日本語 centeringnpm \n A.P.I .net ",
+   "output": "like go to like, ..  . 😀. like, umuh,. . 日本語 centeringnpmA.P.I .net"
   },
   {
    "id": "fuzz-repeats-025",
@@ -4077,8 +4251,8 @@
    "args": [
     "1"
    ],
-   "input": "K8s a p i. wez term. A.P.I. color [blank], \t 1.5 npm1.5 [, ( it's to be honest. ",
-   "output": "K8s a p i. wez term. A.P.I. color [blank], 1.5 npm1.5 [, ( it's to be honest."
+   "input": "Behavior I mean,jason. a b c d e f g h i it's  . \f. Behavior 　 theget hub. to be honest teh   .net. ",
+   "output": "Behavior I mean,jason. a b c d e f g h i it's . . Behavior 　 theget hub. to be honest teh   .net."
   },
   {
    "id": "fuzz-repeats-026",
@@ -4086,53 +4260,53 @@
    "args": [
     "1"
    ],
-   "input": "]. open\tai. color, like    go to like, .. ",
-   "output": "]. open ai. color, like go to like, .."
+   "input": "THE. open ai]café   npm. like, to be honest open\tai x x x, a p i, ( blank_audio ) er\r STRASSE. uh,cOlOr, 　 don't don't kind regards,   \r\n. you know ",
+   "output": "THE. open ai]café   npm. like, to be honest open ai x, a p i, ( blank_audio ) er STRASSE. uh,cOlOr, 　 don't kind regards,. you know"
   },
   {
    "id": "fuzz-repeats-027",
    "fn": "repeats",
    "args": [
-    "1"
+    "3"
    ],
-   "input": "😀. like,\fum \r\n uh,.   . 日本語 centeringnpm \n A.P.I .net node.js. iTerm2, [blank audio]Behavior I mean,jason. a b c d e f g h i it's  . ",
-   "output": "😀. like, umuh,. . 日本語 centeringnpmA.P.I .net node.js. iTerm2, [blank audio]Behavior I mean,jason. a b c d e f g h i it's ."
+   "input": "éI mean,. kind regards, naïve Dr. Smith. regards you know open ai. café zzz realized . Behavior, npmsource slash,   . I mean,favorite, [blank audio] naïve cOlOr ! ",
+   "output": "éI mean,. kind regards, naïve Dr. Smith. regards you know open ai. café zzz realized . Behavior, npmsource slash, . I mean,favorite, [blank audio] naïve cOlOr !"
   },
   {
    "id": "fuzz-repeats-028",
    "fn": "repeats",
    "args": [
-    "1"
+    "2"
    ],
-   "input": "Behavior 　 theget hub. to be honest teh   .net. Colors. THE. open ai]café   npm. like, to be honest open\tai x x x, a p i, ( blank_audio ) er\r ",
-   "output": "Behavior 　 theget hub. to be honest teh   .net. Colors. THE. open ai]café   npm. like, to be honest open ai x, a p i, ( blank_audio ) er"
+   "input": "x x x Colors actuallyish actuallyish, [blank audio], jason zzz regards., c++realized, ",
+   "output": "x Colors actuallyish, [blank audio], jason zzz regards., c++realized,"
   },
   {
    "id": "fuzz-repeats-029",
    "fn": "repeats",
    "args": [
-    "2"
+    "0"
    ],
-   "input": "uh,cOlOr, 　 don't don't kind regards,   \r\n. you know go to go to. éI mean,. kind regards, naïve Dr. Smith. regards you know open ai. café zzz realized . Behavior, ",
-   "output": "uh,cOlOr, 　 don't kind regards,. you know go to. éI mean,. kind regards, naïve Dr. Smith. regards you know open ai. café zzz realized . Behavior,"
+   "input": "x x x. ",
+   "output": "x x x."
   },
   {
    "id": "fuzz-repeats-030",
    "fn": "repeats",
    "args": [
-    "2"
+    "1"
    ],
-   "input": "source slash,   . I mean,favorite, [blank audio] naïve cOlOr ! \n x x x Colors actuallyish actuallyish, [blank audio], ",
-   "output": "source slash, . I mean,favorite, [blank audio] naïve cOlOr !x Colors actuallyish, [blank audio],"
+   "input": "kind regards. \u000b. ;   kind regards Straße .net",
+   "output": "kind regards. . ;   kind regards Straße .net"
   },
   {
    "id": "fuzz-repeats-031",
    "fn": "repeats",
    "args": [
-    "1"
+    "0"
    ],
-   "input": "zzz ",
-   "output": "zzz"
+   "input": "Umm. a b c d e f g h i,  COLOR, node.js, \f The ! a b c d e f g h i ",
+   "output": "Umm. a b c d e f g h i,  COLOR, node.js, The ! a b c d e f g h i"
   },
   {
    "id": "fuzz-repeats-032",
@@ -4140,26 +4314,26 @@
    "args": [
     "1"
    ],
-   "input": "c++, \t x x x, c++ er, 1.5, k8s. Jason's. er kind regards. \u000b. ",
-   "output": "c++, x, c++ er, 1.5, k8s. Jason's. er kind regards. ."
+   "input": "{BLANK - AUDIO} .   open\tai, A.P.I (,   ! so yeahwez term. er [ Umm.  cOlOr, c++   \f. ",
+   "output": "{BLANK - AUDIO} .   open ai, A.P.I (,   ! so yeahwez term. er [ Umm.  cOlOr, c++ ."
   },
   {
    "id": "fuzz-repeats-033",
    "fn": "repeats",
    "args": [
-    "1"
+    "3"
    ],
-   "input": "  ",
-   "output": " "
+   "input": "  é, !. favorite THE, 日本語 get hub \r ,.  . like, go to go to, ! node.js,  , ",
+   "output": "  é, !. favorite THE, 日本語 get hub ,.  . like, go to go to, ! node.js,  ,"
   },
   {
    "id": "fuzz-repeats-034",
    "fn": "repeats",
    "args": [
-    "2"
+    "0"
    ],
-   "input": ").   [blank audio] color, x x x! c++, g-p-tI mean, ( ;, {BLANK - AUDIO} g-p-t \r\n1.5(, ",
-   "output": ").   [blank audio] color, x! c++, g-p-tI mean, ( ;, {BLANK - AUDIO} g-p-t1.5(,"
+   "input": " ? c++, analyzeyou know. to be honest. actually. er   \r\n, THE. you know, at saw slash ",
+   "output": " ? c++, analyzeyou know. to be honest. actually. er  , THE. you know, at saw slash"
   },
   {
    "id": "fuzz-repeats-035",
@@ -4167,71 +4341,71 @@
    "args": [
     "2"
    ],
-   "input": "( blank_audio ) g-p-thmm it's \u000b. npm cOlOr I mean, THE　 open\tai, \t.npm. K8s favorite. open ai ",
-   "output": "( blank_audio ) g-p-thmm it's . npm cOlOr I mean, THE　 open ai, .npm. K8s favorite. open ai"
+   "input": "COLOR g-p-t. , go to g-p-t. at saw slashsource slashkind regards, wez term naïve centering, realizedc++, ]. foo_bar open ai get hub like, !\u000b, it's. node.js   ",
+   "output": "COLOR g-p-t. , go to g-p-t. at saw slashsource slashkind regards, wez term naïve centering, realizedc++, ]. foo_bar open ai get hub like, ! , it's. node.js  "
   },
   {
    "id": "fuzz-repeats-036",
    "fn": "repeats",
    "args": [
-    "2"
+    "0"
    ],
-   "input": "[ K8s. um, go to go toBehavior teamuxtmux whisper ",
-   "output": "[ K8s. um, go to go toBehavior teamuxtmux whisper"
+   "input": "k8s1.5. k8s, STRASSE Behavior ",
+   "output": "k8s1.5. k8s, STRASSE Behavior"
   },
   {
    "id": "fuzz-repeats-037",
    "fn": "repeats",
    "args": [
-    "1"
+    "3"
    ],
-   "input": "x x x like,, x x xregards, 1.5\r",
-   "output": "x like,, x xregards, 1.5"
+   "input": "like. cOlOr, café. er \u000b,  , café",
+   "output": "like. cOlOr, café. er ,  , café"
   },
   {
    "id": "fuzz-repeats-038",
    "fn": "repeats",
    "args": [
-    "0"
+    "3"
    ],
-   "input": "you know, x x x café wez term source slash api realizedUmm.c++ 日本語 \t ",
-   "output": "you know, x x x café wez term source slash api realizedUmm.c++ 日本語"
+   "input": "Umm. g-p-t, , actuallyish, realized get hubbasically, actuallyish theA.P.I",
+   "output": "Umm. g-p-t, , actuallyish, realized get hubbasically, actuallyish theA.P.I"
   },
   {
    "id": "fuzz-repeats-039",
    "fn": "repeats",
    "args": [
-    "2"
+    "3"
    ],
-   "input": "node.js ",
-   "output": "node.js"
+   "input": "Behavior, THE, gpt-4 \r\n npm. centeringStraße.  ,wez term. npm\n. Straße wez term Dr. Smithsource slash don't don't, hmmer npm , api: get hub ",
+   "output": "Behavior, THE, gpt-4npm. centeringStraße.  ,wez term. npm. Straße wez term Dr. Smithsource slash don't don't, hmmer npm , api: get hub"
   },
   {
    "id": "fuzz-repeats-040",
    "fn": "repeats",
    "args": [
-    "2"
+    "3"
    ],
-   "input": "Colors, foo_bar the the color, wez termsource slashkind regards, ",
-   "output": "Colors, foo_bar the color, wez termsource slashkind regards,"
+   "input": "hmm like don't don't k8s Colors 日本語, \r\n日本語. Behavior, open ai. iTerm2, to be honest Behavior er, THEColors, actually, 1.5 ",
+   "output": "hmm like don't don't k8s Colors 日本語,日本語. Behavior, open ai. iTerm2, to be honest Behavior er, THEColors, actually, 1.5"
   },
   {
    "id": "fuzz-repeats-041",
    "fn": "repeats",
    "args": [
-    "2"
+    "3"
    ],
-   "input": "naïve centering, realizedc++, ]. ",
-   "output": "naïve centering, realizedc++, ]."
+   "input": "go to go to COLORthe the ",
+   "output": "go to go to COLORthe the"
   },
   {
    "id": "fuzz-repeats-042",
    "fn": "repeats",
    "args": [
-    "1"
+    "3"
    ],
-   "input": "open ai get hub like, !\u000b, it's. node.js   ",
-   "output": "open ai get hub like, ! , it's. node.js  "
+   "input": "a p i the. 1.5 ",
+   "output": "a p i the. 1.5"
   },
   {
    "id": "fuzz-repeats-043",
@@ -4239,8 +4413,8 @@
    "args": [
     "2"
    ],
-   "input": "k8s1.5. k8s, STRASSE Behavior ",
-   "output": "k8s1.5. k8s, STRASSE Behavior"
+   "input": "日本語 ",
+   "output": "日本語"
   },
   {
    "id": "fuzz-repeats-044",
@@ -4248,119 +4422,92 @@
    "args": [
     "2"
    ],
-   "input": "tmux whisper. anyways like. cOlOr, café. er \u000b,  , café\r\n Umm. g-p-t, , actuallyish, realized get hubbasically, actuallyish theA.P.I",
-   "output": "tmux whisper. anyways like. cOlOr, café. er ,  , caféUmm. g-p-t, , actuallyish, realized get hubbasically, actuallyish theA.P.I"
+   "input": "er \f, THE Dr. Smith ] a p i, don't don'tg-p-t café, node.js get hub Jason's g-p-t Umm., \u000b \t go to go togo to, iTerm2OPEN  AI ( blank_audio ). open\tai, ",
+   "output": "er , THE Dr. Smith ] a p i, don't don'tg-p-t café, node.js get hub Jason's g-p-t Umm., go to go togo to, iTerm2OPEN AI ( blank_audio ). open ai,"
   },
   {
    "id": "fuzz-repeats-045",
    "fn": "repeats",
    "args": [
-    "2"
+    "0"
    ],
-   "input": "source slash a b c d e f g h i ſo yeah. umer. 😀 Straßeregards.  ,wez term. npm\n. Straße ",
-   "output": "source slash a b c d e f g h i ſo yeah. umer. 😀 Straßeregards.  ,wez term. npm. Straße"
+   "input": "  ",
+   "output": ""
   },
   {
    "id": "fuzz-repeats-046",
    "fn": "repeats",
    "args": [
-    "1"
+    "2"
    ],
-   "input": "Dr. Smithsource slash don't don't, hmmer npm , api: get hub 😀, ",
-   "output": "Dr. Smithsource slash don't, hmmer npm , api: get hub 😀,"
+   "input": "you know ;. ]. wez term, \t. Straße, like, ",
+   "output": "you know ;. ]. wez term, . Straße, like,"
   },
   {
    "id": "fuzz-repeats-047",
    "fn": "repeats",
    "args": [
-    "2"
+    "1"
    ],
-   "input": "hmm like don't don't k8s Colors 日本語, \r\n日本語. Behavior, open ai. iTerm2, to be honest Behavior er, THEColors, actually, 1.5 ",
-   "output": "hmm like don't k8s Colors 日本語,日本語. Behavior, open ai. iTerm2, to be honest Behavior er, THEColors, actually, 1.5"
+   "input": ";, : ;, : ",
+   "output": ";, : ;, :"
   },
   {
    "id": "fuzz-repeats-048",
    "fn": "repeats",
    "args": [
-    "1"
+    "3"
    ],
-   "input": "like ;    [blank]actuallyish, to be honest 1.5. ),  日本語 A.P.I, ]. er \f, THE Dr. Smith ",
-   "output": "like ; [blank]actuallyish, to be honest 1.5. ),  日本語 A.P.I, ]. er , THE Dr. Smith"
+   "input": "( teamux, zzz, actually. .net Umm., don't don't cOlOrsource slash Umm., teamux, get hub,  . k8s café open\tai, like actuallyish \n.  . ",
+   "output": "( teamux, zzz, actually. .net Umm., don't don't cOlOrsource slash Umm., teamux, get hub,  . k8s café open ai, like actuallyish.  ."
   },
   {
    "id": "fuzz-repeats-049",
    "fn": "repeats",
    "args": [
-    "0"
+    "2"
    ],
-   "input": "a p i, don't don'tg-p-t café, node.js get hub Jason's g-p-t Umm., \u000b \t go to go to",
-   "output": "a p i, don't don'tg-p-t café, node.js get hub Jason's g-p-t Umm., go to go to"
+   "input": "\r 1.5 \r\n the Behavior :[blank audio], api, a p i, a p i. !ſo yeah The, ?open\tai I mean, the the. ",
+   "output": "1.5the Behavior :[blank audio], api, a p i, a p i. !ſo yeah The, ?open ai I mean, the."
   },
   {
    "id": "fuzz-repeats-050",
    "fn": "repeats",
    "args": [
-    "1"
+    "0"
    ],
-   "input": "iTerm2OPEN  AI ( blank_audio ). open\tai, 日本語. [   actuallyish you know ;. ]. wez term, \t. Straße, like, , ;, : ",
-   "output": "iTerm2OPEN AI ( blank_audio ). open ai, 日本語. [ actuallyish you know ;. ]. wez term, . Straße, like, , ;, :"
+   "input": "\n, the. \r\n ...\u000b. you knowyou know. 😀 ſo yeah1.5. ({BLANK - AUDIO} Colorsregards ;, don't don'tOPEN  AI : analyze, teamux, api ",
+   "output": ", the.... . you knowyou know. 😀 ſo yeah1.5. ({BLANK - AUDIO} Colorsregards ;, don't don'tOPEN AI : analyze, teamux, api"
   },
   {
    "id": "fuzz-repeats-051",
    "fn": "repeats",
    "args": [
-    "1"
+    "0"
    ],
-   "input": ": The, ( teamux, zzz, actually. .net Umm., don't don't cOlOrsource slash Umm., teamux, get hub,  . k8s café open\tai, like actuallyish ",
-   "output": ": The, ( teamux, zzz, actually. .net Umm., don't cOlOrsource slash Umm., teamux, get hub,  . k8s café open ai, like actuallyish"
+   "input": "é. favorite[blank audio]\r, regards Colors. . regards basically, Behavior. open ai actuallyish",
+   "output": "é. favorite[blank audio] , regards Colors. . regards basically, Behavior. open ai actuallyish"
   },
   {
    "id": "fuzz-repeats-052",
    "fn": "repeats",
    "args": [
-    "0"
-   ],
-   "input": " . OPEN  AIa p iUmm.. like( hmm like café ſo yeah. a b c d e f g h i, kind regards, a p i. !ſo yeah The, ?open\tai I mean, the the. .. \n, ",
-   "output": " . OPEN AIa p iUmm.. like( hmm like café ſo yeah. a b c d e f g h i, kind regards, a p i. !ſo yeah The, ?open ai I mean, the the. ..,"
-  },
-  {
-   "id": "fuzz-repeats-053",
-   "fn": "repeats",
-   "args": [
-    "0"
-   ],
-   "input": "\r\n ...\u000b. you knowyou know. 😀 ſo yeah1.5. ({BLANK - AUDIO} Colorsregards ;, don't don'tOPEN  AI : analyze, teamux, api basically, é. favorite[blank audio]\r, ",
-   "output": "... . you knowyou know. 😀 ſo yeah1.5. ({BLANK - AUDIO} Colorsregards ;, don't don'tOPEN AI : analyze, teamux, api basically, é. favorite[blank audio] ,"
-  },
-  {
-   "id": "fuzz-repeats-054",
-   "fn": "repeats",
-   "args": [
-    "0"
-   ],
-   "input": ".netgpt-4 basically, Behavior. open ai actuallyishgpt-4. ",
-   "output": ".netgpt-4 basically, Behavior. open ai actuallyishgpt-4."
-  },
-  {
-   "id": "fuzz-repeats-055",
-   "fn": "repeats",
-   "args": [
-    "0"
+    "1"
    ],
    "input": "{BLANK - AUDIO}  . g-p-t. [blank]　 Behavior STRASSE. [blank] I mean,. iTerm2 naïve \t café STRASSE 😀npm go to go to teamuxactuallyish, \u000b \n, BehaviorDr. Smith, hmm ",
    "output": "{BLANK - AUDIO}  . g-p-t. [blank]　 Behavior STRASSE. [blank] I mean,. iTerm2 naïve café STRASSE 😀npm go to go to teamuxactuallyish,, BehaviorDr. Smith, hmm"
   },
   {
-   "id": "fuzz-repeats-056",
+   "id": "fuzz-repeats-053",
    "fn": "repeats",
    "args": [
-    "0"
+    "1"
    ],
    "input": "Jason's api.net1.5 jason. x x xopen\tai, kind regards. c++source slash. like,, a b c d e f g h i x x x ",
-   "output": "Jason's api.net1.5 jason. x x xopen ai, kind regards. c++source slash. like,, a b c d e f g h i x x x"
+   "output": "Jason's api.net1.5 jason. x xopen ai, kind regards. c++source slash. like,, a b c d e f g h i x"
   },
   {
-   "id": "fuzz-repeats-057",
+   "id": "fuzz-repeats-054",
    "fn": "repeats",
    "args": [
     "0"
@@ -4369,7 +4516,7 @@
    "output": "so yeah um. COLOR  , the the Straßeanalyzeactually actuallyishit'snpm"
   },
   {
-   "id": "fuzz-repeats-058",
+   "id": "fuzz-repeats-055",
    "fn": "repeats",
    "args": [
     "0"
@@ -4378,7 +4525,7 @@
    "output": "node.js. .net Umm. kind regards. umcolor. 1.5, color actuallyish, ."
   },
   {
-   "id": "fuzz-repeats-059",
+   "id": "fuzz-repeats-056",
    "fn": "repeats",
    "args": [
     "0"
@@ -4387,13 +4534,40 @@
    "output": "é ]   A.P.I[, uh,"
   },
   {
+   "id": "fuzz-repeats-057",
+   "fn": "repeats",
+   "args": [
+    "0"
+   ],
+   "input": "gpt-4 x x x. k8s node.js., like get hub node.js(  , COLORthe thenaïve A.P.I .go to go to ",
+   "output": "gpt-4 x x x. k8s node.js., like get hub node.js(  , COLORthe thenaïve A.P.I .go to go to"
+  },
+  {
+   "id": "fuzz-repeats-058",
+   "fn": "repeats",
+   "args": [
+    "0"
+   ],
+   "input": "you know \u000bk8s. [blank audio]   , go to go to regards the the. uh, jason a p i actuallyish favorite",
+   "output": "you know k8s. [blank audio] , go to go to regards the the. uh, jason a p i actuallyish favorite"
+  },
+  {
+   "id": "fuzz-repeats-059",
+   "fn": "repeats",
+   "args": [
+    "1"
+   ],
+   "input": "api. THE actually ",
+   "output": "api. THE actually"
+  },
+  {
    "id": "fuzz-repeats-060",
    "fn": "repeats",
    "args": [
-    "2"
+    "1"
    ],
-   "input": "gpt-4 x x x. k8s node.js., like get hub node.js(  , COLORthe thenaïve A.P.I .go to go to ",
-   "output": "gpt-4 x. k8s node.js., like get hub node.js(  , COLORthe thenaïve A.P.I .go to"
+   "input": "to be honest, \r\n zzz  K8s   ... \r. Umm. cOlOr. analyze",
+   "output": "to be honest,zzz  K8s ... . Umm. cOlOr. analyze"
   },
   {
    "id": "fuzz-repeats-061",
@@ -4401,26 +4575,26 @@
    "args": [
     "1"
    ],
-   "input": "\r\n ",
-   "output": ""
+   "input": "\n, basically,foo_bar ( blank_audio ), um open ai café  \r\n K8s ",
+   "output": ", basically,foo_bar ( blank_audio ), um open ai café  K8s"
   },
   {
    "id": "fuzz-repeats-062",
    "fn": "repeats",
    "args": [
-    "0"
+    "1"
    ],
-   "input": "\r\n, gpt-4 )at saw slash, go to go to regards the the. uh, jason a p i actuallyish favoriteactually api. ",
-   "output": ", gpt-4 )at saw slash, go to go to regards the the. uh, jason a p i actuallyish favoriteactually api."
+   "input": "] the the get hub the. !node.js. ",
+   "output": "] the get hub the. !node.js."
   },
   {
    "id": "fuzz-repeats-063",
    "fn": "repeats",
    "args": [
-    "1"
+    "0"
    ],
-   "input": "actually regards. Colors to be honest, \r\n zzz ",
-   "output": "actually regards. Colors to be honest,zzz"
+   "input": "Umm., tmux whisper, it's, 😀 [ jason　 a b c d e f g h i. \u000bI mean, {BLANK - AUDIO}. Colors.  color café a b c d e f g h i analyze, actuallyit's naïve ",
+   "output": "Umm., tmux whisper, it's, 😀 [ jason　 a b c d e f g h i. I mean, {BLANK - AUDIO}. Colors. color café a b c d e f g h i analyze, actuallyit's naïve"
   },
   {
    "id": "fuzz-repeats-064",
@@ -4428,26 +4602,26 @@
    "args": [
     "1"
    ],
-   "input": "K8s   ... \r. Umm. cOlOr. analyzecOlOr \n, basically,foo_bar ( blank_audio ), um open ai café ",
-   "output": "K8s ... . Umm. cOlOr. analyzecOlOr, basically,foo_bar ( blank_audio ), um open ai café"
+   "input": "\u000b tmux whisper iTerm2, ſo yeah {BLANK - AUDIO} like,, node.jsgo to, ). a b c d e f g h i    get hub   teh, don't don't tmux whisper regards color, jason. gpt-4Colorsopen\tai, \n, regards",
+   "output": "tmux whisper iTerm2, ſo yeah {BLANK - AUDIO} like,, node.jsgo to, ). a b c d e f g h i get hub   teh, don't tmux whisper regards color, jason. gpt-4Colorsopen ai,, regards"
   },
   {
    "id": "fuzz-repeats-065",
    "fn": "repeats",
    "args": [
-    "2"
+    "1"
    ],
-   "input": "\r\n K8s a p i don't don't kind regards the the get hub the. !node.js. analyze, Umm., tmux whisper, it's, ",
-   "output": "K8s a p i don't kind regards the get hub the. !node.js. analyze, Umm., tmux whisper, it's,"
+   "input": "open ai x x x get hub you know um",
+   "output": "open ai x get hub you know um"
   },
   {
    "id": "fuzz-repeats-066",
    "fn": "repeats",
    "args": [
-    "1"
+    "3"
    ],
-   "input": "[ jason　 a b c d e f g h i. \u000bI mean, {BLANK - AUDIO}. Colors. ",
-   "output": "[ jason　 a b c d e f g h i. I mean, {BLANK - AUDIO}. Colors."
+   "input": "café teamux \t iTerm2 naïveum[ zzz ... the STRASSE Straße. like a p i like,, wez term like,centering, you know \r. 日本語 analyze. don't don't, ",
+   "output": "café teamux iTerm2 naïveum[ zzz ... the STRASSE Straße. like a p i like,, wez term like,centering, you know . 日本語 analyze. don't don't,"
   },
   {
    "id": "fuzz-repeats-067",
@@ -4455,83 +4629,47 @@
    "args": [
     "2"
    ],
-   "input": "color café a b c d e f g h i analyze, actuallyit's naïve Dr. Smith wez term]. ?. open\tai, centering : ",
-   "output": "color café a b c d e f g h i analyze, actuallyit's naïve Dr. Smith wez term]. ?. open ai, centering :"
+   "input": "regards, hmm jason, to be honest : um",
+   "output": "regards, hmm jason, to be honest : um"
   },
   {
    "id": "fuzz-repeats-068",
    "fn": "repeats",
    "args": [
-    "2"
+    "3"
    ],
-   "input": "STRASSE a b c d e f g h i iTerm2, [I mean,, the the]. get hub favorite. cOlOr color, jason. gpt-4Colorsopen\tai, \n, regardsrealized open ai x x x ",
-   "output": "STRASSE a b c d e f g h i iTerm2, [I mean,, the]. get hub favorite. cOlOr, jason. gpt-4Colorsopen ai,, regardsrealized open ai x"
+   "input": "é, .actuallyish. zzz zzz gpt-4 日本語 favorite centeringk8s  . actually. open ai ",
+   "output": "é, .actuallyish. zzz zzz gpt-4 日本語 favorite centeringk8s  . actually. open ai"
   },
   {
    "id": "fuzz-repeats-069",
    "fn": "repeats",
    "args": [
-    "0"
-   ],
-   "input": "you know umgo to. café teamux \t iTerm2 naïveum[ ",
-   "output": "you know umgo to. café teamux iTerm2 naïveum["
-  },
-  {
-   "id": "fuzz-repeats-070",
-   "fn": "repeats",
-   "args": [
-    "1"
-   ],
-   "input": "the the anywaysbasically,gpt-4 [blank], The a b c d e f g h i. ? STRASSE a p i so yeah日本語. ",
-   "output": "the anywaysbasically,gpt-4 [blank], The a b c d e f g h i. ? STRASSE a p i so yeah日本語."
-  },
-  {
-   "id": "fuzz-repeats-071",
-   "fn": "repeats",
-   "args": [
-    "1"
-   ],
-   "input": "tmux whisper open\taiit's, hmm jason, to be honest : um",
-   "output": "tmux whisper open aiit's, hmm jason, to be honest : um"
-  },
-  {
-   "id": "fuzz-repeats-072",
-   "fn": "repeats",
-   "args": [
-    "1"
-   ],
-   "input": "é, .actuallyish. zzz zzz gpt-4 日本語 favorite centeringk8s  . actually. open ai ",
-   "output": "é, .actuallyish. zzz gpt-4 日本語 favorite centeringk8s  . actually. open ai"
-  },
-  {
-   "id": "fuzz-repeats-073",
-   "fn": "repeats",
-   "args": [
-    "1"
+    "3"
    ],
    "input": "favorite STRASSE, café ",
    "output": "favorite STRASSE, café"
   },
   {
-   "id": "fuzz-repeats-074",
+   "id": "fuzz-repeats-070",
    "fn": "repeats",
    "args": [
-    "1"
+    "2"
    ],
    "input": "( blank_audio ) teh [blank] tmux whisper  , at saw slash[blank audio] it's foo_bar um!. 😀. c++ x x x, don't don't. Colors gpt-4 ",
    "output": "( blank_audio ) teh [blank] tmux whisper  , at saw slash[blank audio] it's foo_bar um!. 😀. c++ x, don't. Colors gpt-4"
   },
   {
-   "id": "fuzz-repeats-075",
+   "id": "fuzz-repeats-071",
    "fn": "repeats",
    "args": [
-    "1"
+    "2"
    ],
    "input": "Umm., A.P.I. k8s STRASSE {BLANK - AUDIO}.  . [ to be honest The[ like,. er ( blank_audio ) regards : [ hmm ",
    "output": "Umm., A.P.I. k8s STRASSE {BLANK - AUDIO}.  . [ to be honest The[ like,. er ( blank_audio ) regards : [ hmm"
   },
   {
-   "id": "fuzz-repeats-076",
+   "id": "fuzz-repeats-072",
    "fn": "repeats",
    "args": [
     "2"
@@ -4540,22 +4678,58 @@
    "output": ". cOlOr, realized hmm kind regards so yeah tmux whisper, c++ ],"
   },
   {
+   "id": "fuzz-repeats-073",
+   "fn": "repeats",
+   "args": [
+    "0"
+   ],
+   "input": "wez term, color \r Jason's actuallyish. you know Umm. kind regards[blank]1.5 ",
+   "output": "wez term, color Jason's actuallyish. you know Umm. kind regards[blank]1.5"
+  },
+  {
+   "id": "fuzz-repeats-074",
+   "fn": "repeats",
+   "args": [
+    "2"
+   ],
+   "input": "so yeah. ?, [blank audio] you know K8s, teh café K8s at saw slash ",
+   "output": "so yeah. ?, [blank audio] you know K8s, teh café K8s at saw slash"
+  },
+  {
+   "id": "fuzz-repeats-075",
+   "fn": "repeats",
+   "args": [
+    "2"
+   ],
+   "input": "kind regards [blank audio] Jason's. basically, Colors. Umm.　), basically, ), cOlOr  a p icOlOr realized     node.js, get hub 1.5 color",
+   "output": "kind regards [blank audio] Jason's. basically, Colors. Umm.　), basically, ), cOlOr  a p icOlOr realized   node.js, get hub 1.5 color"
+  },
+  {
+   "id": "fuzz-repeats-076",
+   "fn": "repeats",
+   "args": [
+    "3"
+   ],
+   "input": "\n ",
+   "output": ""
+  },
+  {
    "id": "fuzz-repeats-077",
    "fn": "repeats",
    "args": [
-    "1"
+    "0"
    ],
-   "input": "é [. OPEN  AI you knowThe, to be honest at saw slash. you know Umm. kind regards[blank]1.5 actuallyish so yeah. ?, [blank audio] you know K8s, teh ",
-   "output": "é [. OPEN AI you knowThe, to be honest at saw slash. you know Umm. kind regards[blank]1.5 actuallyish so yeah. ?, [blank audio] you know K8s, teh"
+   "input": "... anywayshmm. OPEN  AI 日本語ſo yeah",
+   "output": "... anywayshmm. OPEN AI 日本語ſo yeah"
   },
   {
    "id": "fuzz-repeats-078",
    "fn": "repeats",
    "args": [
-    "1"
+    "3"
    ],
-   "input": "K8s ",
-   "output": "K8s"
+   "input": "Dr. Smith hmm Umm. zzzit's,    Straße Jason's \t analyze \u000b npm",
+   "output": "Dr. Smith hmm Umm. zzzit's,    Straße Jason's analyze npm"
   },
   {
    "id": "fuzz-repeats-079",
@@ -4563,17 +4737,17 @@
    "args": [
     "2"
    ],
-   "input": "teh [blank audio] Jason's. basically, Colors. Umm.　), basically, ), cOlOr  ",
-   "output": "teh [blank audio] Jason's. basically, Colors. Umm.　), basically, ), cOlOr "
+   "input": "café \r\n ",
+   "output": "café"
   },
   {
    "id": "fuzz-repeats-080",
    "fn": "repeats",
    "args": [
-    "2"
+    "3"
    ],
-   "input": "cOlOr realized     node.js, get hub 1.5 color: \n \n ... anywayshmm. OPEN  AI 日本語",
-   "output": "cOlOr realized   node.js, get hub 1.5 color:... anywayshmm. OPEN AI 日本語"
+   "input": "don't don'tit'siTerm2 ( The \n Dr. Smith. é zzz node.js( blank_audio ),  . g-p-t",
+   "output": "don't don'tit'siTerm2 ( TheDr. Smith. é zzz node.js( blank_audio ),  . g-p-t"
   },
   {
    "id": "fuzz-british-001",
@@ -4581,8 +4755,8 @@
    "args": [
     "1"
    ],
-   "input": "you knowDr. Smith hmm Umm. zzzit's,    Straße Jason's \t analyze \u000b npm\r\n ",
-   "output": "you knowDr. Smith hmm Umm. zzzit's,    Straße Jason's \t analyse \u000b npm\r\n "
+   "input": "so yeah( blank_audio ). gpt-4 tmux whisper, I mean, centering a p i ; café. \f  , ( blank_audio )open\tai ſo yeah ſo yeah. go to go to ",
+   "output": "so yeah( blank_audio ). gpt-4 tmux whisper, I mean, centring a p i ; café. \f  , ( blank_audio )open\tai ſo yeah ſo yeah. go to go to "
   },
   {
    "id": "fuzz-british-002",
@@ -4590,8 +4764,8 @@
    "args": [
     "1"
    ],
-   "input": "\r\n Dr. Smith ",
-   "output": "\r\n Dr. Smith "
+   "input": "! a p i source slash 　. actuallyish {BLANK - AUDIO} Dr. Smith k8s g-p-t. hmm analyze ; jason kind regards a p i, 　go to   centering you know go to go to. ",
+   "output": "! a p i source slash 　. actuallyish {BLANK - AUDIO} Dr. Smith k8s g-p-t. hmm analyse ; jason kind regards a p i, 　go to   centring you know go to go to. "
   },
   {
    "id": "fuzz-british-003",
@@ -4599,17 +4773,17 @@
    "args": [
     "0"
    ],
-   "input": "zzzit'siTerm2 ( The \n ",
-   "output": "zzzit'siTerm2 ( The \n "
+   "input": "[blank], jason the the1.5 centering. kind regards... ] wez term STRASSEColors wez term ",
+   "output": "[blank], jason the the1.5 centering. kind regards... ] wez term STRASSEColors wez term "
   },
   {
    "id": "fuzz-british-004",
    "fn": "british",
    "args": [
-    "0"
+    "1"
    ],
-   "input": "é zzz node.js( blank_audio ),  . g-p-t, so yeah( blank_audio ). gpt-4 tmux whisper, I mean, centering a p i ; café. \f  , ( blank_audio )open\tai ſo yeah ",
-   "output": "é zzz node.js( blank_audio ),  . g-p-t, so yeah( blank_audio ). gpt-4 tmux whisper, I mean, centering a p i ; café. \f  , ( blank_audio )open\tai ſo yeah "
+   "input": "jason [blank] a p i THE COLORA.P.I Colors  . Colors . A.P.I, ",
+   "output": "jason [blank] a p i THE COLORA.P.I Colours  . Colours . A.P.I, "
   },
   {
    "id": "fuzz-british-005",
@@ -4617,26 +4791,26 @@
    "args": [
     "1"
    ],
-   "input": "go to go to to be honest. ! a p i source slash 　. actuallyish {BLANK - AUDIO} Dr. Smith k8s g-p-t. hmm analyze ; jason kind regards a p i, 　go to   centering you know ",
-   "output": "go to go to to be honest. ! a p i source slash 　. actuallyish {BLANK - AUDIO} Dr. Smith k8s g-p-t. hmm analyse ; jason kind regards a p i, 　go to   centring you know "
+   "input": " Colors,  Colors. zzz. ! ",
+   "output": " Colours,  Colours. zzz. ! "
   },
   {
    "id": "fuzz-british-006",
    "fn": "british",
    "args": [
-    "0"
+    "1"
    ],
-   "input": "! [blank], jason the the1.5 centering. kind regards... ] wez term STRASSEColors wez term c++ jason [blank] a p i THE COLORA.P.I Colors  . Colors . ",
-   "output": "! [blank], jason the the1.5 centering. kind regards... ] wez term STRASSEColors wez term c++ jason [blank] a p i THE COLORA.P.I Colors  . Colors . "
+   "input": "kind regards. OPEN  AI. teh. I mean,at saw slash . I mean, iTerm2 ",
+   "output": "kind regards. OPEN  AI. teh. I mean,at saw slash . I mean, iTerm2 "
   },
   {
    "id": "fuzz-british-007",
    "fn": "british",
    "args": [
-    "0"
+    "1"
    ],
-   "input": "\t  Colors,  Colors. zzz. ! zzz Behavior. OPEN  AI. teh. I mean,at saw slash . I mean, iTerm2 you knowapi. ,go to go to. ",
-   "output": "\t  Colors,  Colors. zzz. ! zzz Behavior. OPEN  AI. teh. I mean,at saw slash . I mean, iTerm2 you knowapi. ,go to go to. "
+   "input": "api. ,go to go to. x x x. {BLANK - AUDIO} \r\ndon't don'té STRASSE, teamux STRASSE gpt-4. actually. ",
+   "output": "api. ,go to go to. x x x. {BLANK - AUDIO} \r\ndon't don'té STRASSE, teamux STRASSE gpt-4. actually. "
   },
   {
    "id": "fuzz-british-008",
@@ -4644,8 +4818,8 @@
    "args": [
     "0"
    ],
-   "input": "{BLANK - AUDIO} \r\ndon't don'té STRASSE, teamux STRASSE gpt-4. actually. .teh : wez term hmm K8s A.P.I. uh,, THE foo_bar, node.js [blank audio] npm",
-   "output": "{BLANK - AUDIO} \r\ndon't don'té STRASSE, teamux STRASSE gpt-4. actually. .teh : wez term hmm K8s A.P.I. uh,, THE foo_bar, node.js [blank audio] npm"
+   "input": "teh : wez term hmm K8s A.P.I. uh,, THE foo_bar, node.js [blank audio] npmg-p-t. . ",
+   "output": "teh : wez term hmm K8s A.P.I. uh,, THE foo_bar, node.js [blank audio] npmg-p-t. . "
   },
   {
    "id": "fuzz-british-009",
@@ -4653,8 +4827,8 @@
    "args": [
     "0"
    ],
-   "input": ". iTerm2, naïve, Jason's uh,Colors, ]OPEN  AI Colors. naïve a b c d e f g h i cOlOr it's tmux whisper \u000b k8s, you know   uh,, regardscOlOr ",
-   "output": ". iTerm2, naïve, Jason's uh,Colors, ]OPEN  AI Colors. naïve a b c d e f g h i cOlOr it's tmux whisper \u000b k8s, you know   uh,, regardscOlOr "
+   "input": "naïve, Jason's uh,Colors, ]OPEN  AI Colors. naïve a b c d e f g h i cOlOr it's tmux whisper \u000b k8s, you know   uh,, regardscOlOr x x x ",
+   "output": "naïve, Jason's uh,Colors, ]OPEN  AI Colors. naïve a b c d e f g h i cOlOr it's tmux whisper \u000b k8s, you know   uh,, regardscOlOr x x x "
   },
   {
    "id": "fuzz-british-010",
@@ -4662,35 +4836,35 @@
    "args": [
     "1"
    ],
-   "input": "open ailike OPEN  AI. go to go to uh, the, foo_bar at saw slash café cOlOr. ( blank_audio )",
-   "output": "open ailike OPEN  AI. go to go to uh, the, foo_bar at saw slash café colour. ( blank_audio )"
+   "input": "like OPEN  AI. go to go to uh, the, foo_bar at saw slash café cOlOr. ( blank_audio )don't don't,  at saw slash",
+   "output": "like OPEN  AI. go to go to uh, the, foo_bar at saw slash café colour. ( blank_audio )don't don't,  at saw slash"
   },
   {
    "id": "fuzz-british-011",
    "fn": "british",
    "args": [
-    "1"
+    "0"
    ],
-   "input": " at saw slash.  .   ] source slash. A.P.I, , umColors, [blank]. STRASSE like, STRASSE, 　 café g-p-t. teamux ",
-   "output": " at saw slash.  .   ] source slash. A.P.I, , umColors, [blank]. STRASSE like, STRASSE, 　 café g-p-t. teamux "
+   "input": " .   ] ",
+   "output": " .   ] "
   },
   {
    "id": "fuzz-british-012",
    "fn": "british",
    "args": [
-    "1"
+    "0"
    ],
-   "input": "api ",
-   "output": "api "
+   "input": "A.P.I, , umColors, [blank]. STRASSE like, STRASSE, 　 café g-p-t. teamux anyways api don't don'tapi. open\tai ( ſo yeah \r you know. ] ",
+   "output": "A.P.I, , umColors, [blank]. STRASSE like, STRASSE, 　 café g-p-t. teamux anyways api don't don'tapi. open\tai ( ſo yeah \r you know. ] "
   },
   {
    "id": "fuzz-british-013",
    "fn": "british",
    "args": [
-    "1"
+    "0"
    ],
-   "input": "api. open\tai ( ſo yeah \r you know. ] OPEN  AIx x x. npm. a b c d e f g h i wez term. OPEN  AIJason's kind regards ",
-   "output": "api. open\tai ( ſo yeah \r you know. ] OPEN  AIx x x. npm. a b c d e f g h i wez term. OPEN  AIJason's kind regards "
+   "input": "x x x. npm. a b c d e f g h i wez term. OPEN  AIJason's kind regards   .net to be honest foo_bar hmm open\tai. \r\n[blank audio] , ",
+   "output": "x x x. npm. a b c d e f g h i wez term. OPEN  AIJason's kind regards   .net to be honest foo_bar hmm open\tai. \r\n[blank audio] , "
   },
   {
    "id": "fuzz-british-014",
@@ -4698,8 +4872,8 @@
    "args": [
     "1"
    ],
-   "input": ".net to be honest foo_bar hmm open\tai. \r\n[blank audio] ",
-   "output": ".net to be honest foo_bar hmm open\tai. \r\n[blank audio] "
+   "input": "Dr. Smith. um  teh. open\tai   npm, go to go to ",
+   "output": "Dr. Smith. um  teh. open\tai   npm, go to go to "
   },
   {
    "id": "fuzz-british-015",
@@ -4707,8 +4881,8 @@
    "args": [
     "1"
    ],
-   "input": "foo_bar Dr. Smith. um  teh. open\tai   npm, go to go to Colors \t actually npm a p iit's \f color ",
-   "output": "foo_bar Dr. Smith. um  teh. open\tai   npm, go to go to Colours \t actually npm a p iit's \f colour "
+   "input": "\t actually npm a p iit's \f color ",
+   "output": "\t actually npm a p iit's \f colour "
   },
   {
    "id": "fuzz-british-016",
@@ -5131,7 +5305,7 @@
     "cascade"
    ],
    "input": "a b c d e f g h i the go to go to, open\tai tmux whisper. OPEN  AI( blank_audio )actually at saw slash, actually, iTerm2 .... Umm., {BLANK - AUDIO}, go to. ſo yeah, k8s naïve. actuallycolor like go to",
-   "output": "abcdefgh i the go to go to, OpenAI Inc tmux whisper. OpenAI Inc( blank_audio )actually at saw slash, actually, iTerm2 .... Umm., {BLANK - AUDIO}, go to. ſo yeah, Kubernetes naïve. actuallycolor like go to"
+   "output": "abcdefgh i the go to go to, OpenAI Inc tmux whisper. OpenAI Inc( blank_audio )actually at saw slash, actually, iTerm2 .... Umm., {BLANK - AUDIO}, go to. ſo yeah, Kubernetes naive. actuallycolor like go to"
   },
   {
    "id": "fuzz-vocab-003",
@@ -5194,7 +5368,7 @@
     "cascade"
    ],
    "input": "er at saw slash, the. :, [blank audio]foo_bar. zzz. get hub open ai, \t. jason to be honest  A.P.I ",
-   "output": "er at saw slash, the. :, [blank audio]foo_bar. zzz. GitHub OpenAI Inc, . JSON to be honest  API"
+   "output": "er at saw slash, the. :, [blank audio]foo_bar. Zz. GitHub OpenAI Inc, . JSON to be honest  API"
   },
   {
    "id": "fuzz-vocab-010",
@@ -5275,7 +5449,7 @@
     "cascade"
    ],
    "input": "open\tai favorite ]basically,. The go to, c++ um OPEN  AI. \r\n, COLOR. K8s. foo_bar, to be honest. basically, . ",
-   "output": "OpenAI Inc favorite ]basically,. The go to, C++ um OPEN AI. \r\n, COLOR. K8s. foo_bar, to be honest. basically, ."
+   "output": "OpenAI Inc favorite ]basically,. The go to, C++ um OpenAI Inc. \r\n, COLOR. Kubernetes. foo_bar, to be honest. basically, ."
   },
   {
    "id": "fuzz-vocab-019",
@@ -5320,7 +5494,7 @@
     "repo"
    ],
    "input": "x x xc++anyways source slash. \u000b K8s wez term OPEN  AI ; the . ( blank_audio ). ",
-   "output": "x x xc++anyways source slash. \u000b K8s wez term OpenAI ; the . ( blank_audio )."
+   "output": "x x xc++anyways src/. \u000b K8s wez term OpenAI ; the . ( blank_audio )."
   },
   {
    "id": "fuzz-vocab-024",
@@ -5500,7 +5674,7 @@
     "repo"
    ],
    "input": "1.5g-p-t[blank audio]. anyways, \nsource slash OPEN  AI. x x x 日本語, STRASSE. 😀 cOlOr don't don't ",
-   "output": "1.5g-p-t[blank audio]. anyways,\nsrc/ OPEN AI. x x x 日本語, STRASSE. 😀 cOlOr don't don't"
+   "output": "1.5g-p-t[blank audio]. anyways,\nsrc/ OpenAI. x x x 日本語, STRASSE. 😀 cOlOr don't don't"
   },
   {
    "id": "fuzz-vocab-044",
@@ -5509,7 +5683,7 @@
     "cascade"
    ],
    "input": "\r Colors, uh,wez term  . Jason's theI mean,. open\tai. api\n \r go toit's. teamux basically,. {BLANK - AUDIO}.　 naïve; g-p-t!. gpt-4, ",
-   "output": "\r Colors, uh,WezTerm  . JSON's theI mean,. open\tai. API\n\r go toit's. teamux basically,. {BLANK - AUDIO}.　 naive; gpt!. gpt-4,"
+   "output": "\r Colors, uh,WezTerm  . JSON's theI mean,. OpenAI Inc. API\n\r go toit's. teamux basically,. {BLANK - AUDIO}.　 naive; gpt!. gpt-4,"
   },
   {
    "id": "fuzz-vocab-045",
@@ -5527,7 +5701,7 @@
     "cascade"
    ],
    "input": "actually analyzeéat saw slash. basically,COLORuh, ſo yeah ) teh, Dr. Smith, regards. [blank audio]Colors. ( blank_audio )    the thek8s, \r\n to be honest hmm",
-   "output": "actually analyzeéat saw slash. basically,COLORuh, ſo yeah ) the, Dr. Smith, regards. [blank audio]Colors. ( blank_audio ) the thek8s, \r\nto be honest hmm"
+   "output": "actually analyzeéat saw slash. basically,COLORuh, ſo yeah ) the, Dr. Smith, Regards,. [blank audio]Colors. ( blank_audio ) the thek8s, \r\nto be honest hmm"
   },
   {
    "id": "fuzz-vocab-047",
@@ -5545,7 +5719,7 @@
     "cascade"
    ],
    "input": "tmux whisper ! Colors, zzz. wez term color OPEN  AI Behavior, gpt-4",
-   "output": "tmux whisper ! Colors, zzz. WezTerm color OpenAI Inc Behavior, gpt-4"
+   "output": "tmux whisper ! Colors, Zz. WezTerm color OpenAI Inc Behavior, gpt-4"
   },
   {
    "id": "fuzz-vocab-049",
@@ -5635,7 +5809,7 @@
     "cascade"
    ],
    "input": " regards ( centering. it's api Jason's, open ai Behavior. naïve don't don't. \f. open ai open ai. analyze realized A.P.I, ( blank_audio ) basically, cOlOrColors😀, café, \f ",
-   "output": " Regards, ( centering. it's API JSON's, OpenAI Inc Behavior. naive don't don't. \f. OpenAI Inc open ai. analyze realized API, ( blank_audio ) basically, cOlOrColors😀, Café Bar, \f"
+   "output": " Regards, ( centering. it's API JSON's, OpenAI Inc Behavior. naive don't don't. \f. OpenAI Inc OpenAI Inc. analyze realized API, ( blank_audio ) basically, cOlOrColors😀, Café Bar, \f"
   },
   {
    "id": "fuzz-vocab-059",
@@ -5653,7 +5827,7 @@
     "cascade"
    ],
    "input": "Umm.. realized \r\n, Straße.   . actuallyish [ [get hub, basically, 　 ; api. basically, cOlOrI mean,, COLOR go to to be honest  ",
-   "output": "Umm.. realized \r\n, Straße. . actuallyish [ [GitHub, basically, 　 ; api. basically, cOlOrI mean,, COLOR go to to be honest "
+   "output": "Umm.. realized \r\n, Straße. . actuallyish [ [GitHub, basically, 　 ; API. basically, cOlOrI mean,, COLOR go to to be honest "
   },
   {
    "id": "fuzz-vocab-061",
@@ -5680,7 +5854,7 @@
     "repo"
    ],
    "input": "like A.P.I. ) a b c d e f g h i 1.5, api, 　 cOlOr at saw slash. wez term. café, Dr. Smith é, to be honest favorite ]. Straße, . naïve, ",
-   "output": "like API. ) abcdefgh i 1.5, api, 　 cOlOr at saw slash. wez term. café, Dr. Smith é, to be honest favorite ]. Straße, . naïve,"
+   "output": "like API. ) abcdefgh i 1.5, api, 　 cOlOr @src/. wez term. café, Dr. Smith é, to be honest favorite ]. Straße, . naïve,"
   },
   {
    "id": "fuzz-vocab-064",
@@ -5689,7 +5863,7 @@
     "cascade"
    ],
    "input": "(. \f, basically, iTerm2 foo_bar, it's a b c d e f g h i.    node.js npm. é[, zzz kind regards naïve iTerm2 Colors,  a p i anyways Jason's {BLANK - AUDIO} 日本語 ",
-   "output": "(. \f, basically, iTerm2 foo_bar, it'sabcdefg h i. Node.js npm. é[, Zz Kind Regards,, naive iTerm2 Colors,  API anyways JSON's {BLANK - AUDIO} 日本語"
+   "output": "(. \f, basically, iTerm2 foo_bar, it'sabcdefg h i. Node.js pnpm. é[, Zz Kind Regards,, naive iTerm2 Colors,  API anyways JSON's {BLANK - AUDIO} 日本語"
   },
   {
    "id": "fuzz-vocab-065",
@@ -5761,7 +5935,7 @@
     "cascade"
    ],
    "input": "  realized Behavior, iTerm2. actuallyish, (. a p ia b c d e f g h i, teh The {BLANK - AUDIO}  jason. 😀. Behavior centering I mean,. , ). the the ",
-   "output": "  realized Behavior, iTerm2. actuallyish, (. b::c p ia bcdefghi, the The {BLANK - AUDIO}  jason. 😀. Behavior centering I mean,. , ). the"
+   "output": "  realized Behavior, iTerm2. actuallyish, (. b::c p ia bcdefghi, the The {BLANK - AUDIO}  JSON. 😀. Behavior centering I mean,. , ). the"
   },
   {
    "id": "fuzz-vocab-073",
@@ -5779,7 +5953,7 @@
     "cascade"
    ],
    "input": "naïve, ſo yeah, source slash    \n foo_bar. uh,. open ai  go to go to teh er api. api don't don't ſo yeah. foo_bar 😀 teh THE, k8s",
-   "output": "naive, ſo yeah, source slash\nfoo_bar. uh,. OpenAI Inc  go to go to the er api. API don't don't ſo yeah. foo_bar 😀 the THE, Kubernetes"
+   "output": "naive, ſo yeah, source slash\nfoo_bar. uh,. OpenAI Inc  go to go to the er API. API don't don't ſo yeah. foo_bar 😀 the THE, Kubernetes"
   },
   {
    "id": "fuzz-vocab-075",
@@ -5842,7 +6016,7 @@
     "cascade"
    ],
    "input": "Umm. open\tai. :, ! ( {BLANK - AUDIO} I mean, at saw slash.  , 1.5 gpt-4 regards Jason'sum",
-   "output": "Umm. open\tai. :, ! ( {BLANK - AUDIO} I mean, at saw slash.  , 1.5 gpt-4 Regards, JSON'sum"
+   "output": "Umm. OpenAI Inc. :, ! ( {BLANK - AUDIO} I mean, at saw slash.  , 1.5 gpt-4 Regards, JSON'sum"
   },
   {
    "id": "fuzz-vocab-082",
@@ -5887,7 +6061,7 @@
     "cascade"
    ],
    "input": "analyze StraßeUmm.   1.5centering, c++ kind regards. iTerm2 . {BLANK - AUDIO}foo_bar favorite. go to😀 go to like 😀 go to. Dr. Smith( blank_audio ) ",
-   "output": "analyze StraßeUmm. 1.5centering, C++ kind regards. iTerm2 . {BLANK - AUDIO}foo_bar favorite. go to😀 go to like 😀 go to. Dr. Smith( blank_audio )"
+   "output": "analyze StraßeUmm. 1.5centering, C++ Kind Regards,,. iTerm2 . {BLANK - AUDIO}foo_bar favorite. go to😀 go to like 😀 go to. Dr. Smith( blank_audio )"
   },
   {
    "id": "fuzz-vocab-087",
@@ -5896,7 +6070,7 @@
     "cascade"
    ],
    "input": "Straße K8s. \rat saw slash api, ..., a p i ",
-   "output": "Straße K8s. \rat saw slash API, ..., API"
+   "output": "Straße Kubernetes. \rat saw slash API, ..., API"
   },
   {
    "id": "fuzz-vocab-088",
@@ -5905,7 +6079,7 @@
     "cascade"
    ],
    "input": "Straße like. STRASSE. g-p-t caféso yeah   , uh, centering ",
-   "output": "Straße like. STRASSE. gpt Café Barso yeah , uh, centering"
+   "output": "Straße like. Straße. gpt Café Barso yeah , uh, centering"
   },
   {
    "id": "fuzz-vocab-089",
@@ -5941,7 +6115,7 @@
     "cascade"
    ],
    "input": "OPEN  AI Behavior. a b c d e f g h i. .net {BLANK - AUDIO} color STRASSE basically, the. so yeah. get hub like, you know, actually Straße open ai .net, hmm   THE. teh. actually \u000b ",
-   "output": "OpenAI Inc Behavior. abcdefgh i. .NET {BLANK - AUDIO} color Straße basically, the. so yeah. GitHub like, you know, actually Straße OpenAI Inc .NET, hmm THE. teh. actually \u000b"
+   "output": "OpenAI Inc Behavior. abcdefgh i. .NET {BLANK - AUDIO} color Straße basically, the. so yeah. GitHub like, you know, actually Straße OpenAI Inc .NET, hmm THE. the. actually \u000b"
   },
   {
    "id": "fuzz-vocab-093",
@@ -5968,7 +6142,7 @@
     "cascade"
    ],
    "input": "a b c d e f g h i ), Straße, \r\n, npm. open ai, gpt-4 STRASSE [blank]teh, [blank audio] :. [. x x x wez term ſo yeah\r ... npm \n. ",
-   "output": "abcdefgh i ), Straße, \r\n, npm. OpenAI Inc, gpt-4 Straße [blank]the, [blank audio] :. [. x x x WezTerm ſo yeah\r ... pnpm\n."
+   "output": "abcdefgh i ), Straße, \r\n, pnpm. OpenAI Inc, gpt-4 Straße [blank]the, [blank audio] :. [. x x x WezTerm ſo yeah\r ... pnpm\n."
   },
   {
    "id": "fuzz-vocab-096",
@@ -6013,7 +6187,7 @@
     "repo"
    ],
    "input": "teh OPEN  AI. Umm. teh ( blank_audio ) Dr. Smith,, jason anyways",
-   "output": "teh OPEN AI. Umm. teh ( blank_audio ) Dr. Smith,, jason anyways"
+   "output": "teh OpenAI. Umm. teh ( blank_audio ) Dr. Smith,, jason anyways"
   },
   {
    "id": "merge-001",
@@ -8010,6 +8184,120 @@
    "text": "end text"
   },
   {
+   "id": "dictation-config-enabled",
+   "config": "dictation",
+   "env": {},
+   "input": "Um, I think we should use PN PM. I think we should use PN PM. Then open Kaluma in X code.",
+   "settings": {
+    "config_dir": "@config",
+    "clean": "1",
+    "repeats_level": "3",
+    "vocab_clean": "1",
+    "british_spelling": "1",
+    "locale_ctype": "C",
+    "locale_collate": "C"
+   },
+   "status": "ok",
+   "raw_text": "I think we should use PN PM. Then open Kaluma in X code.",
+   "text": "I think we should use pnpm. Then open Khuluma in Xcode."
+  },
+  {
+   "id": "dictation-env-off",
+   "config": "dictation",
+   "env": {
+    "KHULUMA_CLEAN": "0"
+   },
+   "input": "Um, I think we should use PN PM. I think we should use PN PM.",
+   "settings": {
+    "config_dir": "@config",
+    "clean": "0",
+    "repeats_level": "3",
+    "vocab_clean": "1",
+    "british_spelling": "1",
+    "locale_ctype": "C",
+    "locale_collate": "C"
+   },
+   "status": "ok",
+   "raw_text": "Um, I think we should use PN PM. I think we should use PN PM.",
+   "text": "Um, I think we should use pnpm. I think we should use pnpm."
+  },
+  {
+   "id": "dictation-no-speech",
+   "config": "dictation",
+   "env": {},
+   "input": "Um, uh, umm.",
+   "settings": {
+    "config_dir": "@config",
+    "clean": "1",
+    "repeats_level": "3",
+    "vocab_clean": "1",
+    "british_spelling": "1",
+    "locale_ctype": "C",
+    "locale_collate": "C"
+   },
+   "status": "no_speech",
+   "raw_text": "",
+   "text": ""
+  },
+  {
+   "id": "sheet-pipeline",
+   "config": "sheet",
+   "env": {},
+   "input": "Um, I think PN PM works. I think PN PM works. Ahhh, open Kaluma in X code.",
+   "settings": {
+    "config_dir": "@config",
+    "clean": "1",
+    "repeats_level": "3",
+    "vocab_clean": "1",
+    "british_spelling": "1",
+    "locale_ctype": "C",
+    "locale_collate": "C"
+   },
+   "status": "ok",
+   "raw_text": "I think PN PM works. open Kaluma in X code.",
+   "text": "I think pnpm works. open Khuluma in Xcode."
+  },
+  {
+   "id": "sheet-fillers-off",
+   "config": "sheet",
+   "env": {
+    "KHULUMA_CLEAN": "0"
+   },
+   "input": "Um, ahhh, open Kaluma in X code.",
+   "settings": {
+    "config_dir": "@config",
+    "clean": "0",
+    "repeats_level": "3",
+    "vocab_clean": "1",
+    "british_spelling": "1",
+    "locale_ctype": "C",
+    "locale_collate": "C"
+   },
+   "status": "ok",
+   "raw_text": "Um, ahhh, open Kaluma in X code.",
+   "text": "Um, ahhh, open Khuluma in Xcode."
+  },
+  {
+   "id": "sheet-corrections-off",
+   "config": "sheet",
+   "env": {
+    "KHULUMA_VOCAB_CLEAN": "0"
+   },
+   "input": "Um, ahhh, open Kaluma in X code.",
+   "settings": {
+    "config_dir": "@config",
+    "clean": "1",
+    "repeats_level": "3",
+    "vocab_clean": "0",
+    "british_spelling": "1",
+    "locale_ctype": "C",
+    "locale_collate": "C"
+   },
+   "status": "ok",
+   "raw_text": "open Kaluma in X code.",
+   "text": "open Kaluma in X code."
+  },
+  {
    "id": "fuzz-pipeline-001",
    "config": "repo",
    "env": {
@@ -8068,8 +8356,8 @@
     "locale_collate": "C"
    },
    "status": "ok",
-   "raw_text": "cOlOr (go to cOlOr here the. Colors THE word. it's [blank] like. like,! s COLOR [cOlOr] the it's. Behavior the realized (Colors like,? s COLOR...",
-   "text": "colour (go to colour here the. Colours THE word. it's [blank] like. like,! s COLOUR [colour] the it's. Behaviour the realised (Colours like,? s COLOUR..."
+   "raw_text": "cOlOr basically, (go to er cOlOr so yeah here the. Colors THE word. it's [blank] like. like,! anyways COLOR [cOlOr] the it's. Behavior the realized so yeah (actually Colors like,? I mean, anyways COLOR...",
+   "text": "colour basically, (go to er colour so yeah here the. Colours THE word. it's [blank] like. like,! anyways COLOUR [colour] the it's. Behaviour the realised so yeah (actually Colours like,? I mean, anyways COLOUR..."
   },
   {
    "id": "fuzz-pipeline-004",
@@ -8148,8 +8436,8 @@
     "locale_collate": "C"
    },
    "status": "ok",
-   "raw_text": "at saw slash, x foo_bar Jason's cOlOr like. s,. the. Colors 😀, 　 iTerm2.... zzz analyze",
-   "text": "@src/, x foo_bar Jason's colour like. s,. the. Colours 😀, 　 iTerm2.... zzz analyse"
+   "raw_text": "at saw slash, x foo_bar Jason's cOlOr like. anyways,. the. Colors 😀, 　 iTerm2.... zzz analyze",
+   "text": "@src/, x foo_bar Jason's colour like. anyways,. the. Colours 😀, 　 iTerm2.... zzz analyse"
   },
   {
    "id": "fuzz-pipeline-008",
@@ -8250,8 +8538,8 @@
     "locale_collate": "C"
    },
    "status": "ok",
-   "raw_text": "text it's ([blank]? [blank] The? like color analyze ish like, THE don't ish. cOlOr the text cOlOr [blank]... well-known COLOR [[blank] analyze another analyze.. go to.. (word the. THE it's well-known don't... word favorite ? here like color Colors. ish realized it's ! favorite COLOR text THE it's! the] ish go to THE like, [blank] ! it's go to cOlOr ([blank]) color the!",
-   "text": "text it's ([blank]? [blank] The? like colour analyse ish like, THE don't ish. colour the text colour [blank]... well-known COLOUR [[blank] analyse another analyse.. go to.. (word the. THE it's well-known don't... word favourite ? here like colour Colours. ish realised it's ! favourite COLOUR text THE it's! the] ish go to THE like, [blank] ! it's go to colour ([blank]) colour the!"
+   "raw_text": "text it's so yeah ([blank]? to be honest [blank] The? like, like color analyze actuallyish like, THE don't actuallyish. cOlOr the text cOlOr hmm [blank]... well-known COLOR I mean, [[blank] analyze another analyze hmm... go to you know hmm... to be honest (word so yeah hmm actually the basically,. THE it's well-known don't... so yeah word favorite actually ? here like you know to be honest basically, color Colors. actuallyish realized it's er! favorite hmm COLOR text THE it's! hmm you know the] actuallyish go to THE like, [blank] hmm! it's go to basically, er cOlOr ([blank]) color the!",
+   "text": "text it's so yeah ([blank]? to be honest [blank] The? like, like colour analyse actuallyish like, THE don't actuallyish. colour the text colour hmm [blank]... well-known COLOUR I mean, [[blank] analyse another analyse hmm... go to you know hmm... to be honest (word so yeah hmm actually the basically,. THE it's well-known don't... so yeah word favourite actually ? here like you know to be honest basically, colour Colours. actuallyish realised it's er! favourite hmm COLOUR text THE it's! hmm you know the] actuallyish go to THE like, [blank] hmm! it's go to basically, er colour ([blank]) colour the!"
   },
   {
    "id": "fuzz-pipeline-013",
@@ -8290,8 +8578,8 @@
     "locale_collate": "C"
    },
    "status": "ok",
-   "raw_text": "[Colors The it's well-known centering! Behavior it's) ish like it's ) Behavior text analyze! here word [blank] go to THE it's? (the word another The) analyze [go to favorite it's... word text analyze favorite text].",
-   "text": "[Colours The it's well-known centring! Behaviour it's) ish like it's ) Behaviour text analyse! here word [blank] go to THE it's? (the word another The) analyse [go to favourite it's... word text analyse favourite text]."
+   "raw_text": "[hmm Colors The it's well-known centering! Behavior it's) actuallyish like it's ) Behavior text analyze! here word [blank] go to THE it's? (the word another The) analyze [go to favorite it's... word text analyze favorite er text].",
+   "text": "[hmm Colours The it's well-known centring! Behaviour it's) actuallyish like it's ) Behaviour text analyse! here word [blank] go to THE it's? (the word another The) analyse [go to favourite it's... word text analyse favourite er text]."
   },
   {
    "id": "fuzz-pipeline-015",
@@ -8311,8 +8599,8 @@
     "locale_collate": "C"
    },
    "status": "ok",
-   "raw_text": "OPEN AI realized,?naïve color. a p i. at saw slash 日本語, ſo yeahwez term. source slash.",
-   "text": "OpenAI Inc realised,?naive colour. api. at saw slash 日本語, ſo yeahwez term. source slash."
+   "raw_text": "OPEN AI I mean, realized,?naïve color. a p i. at saw slash 日本語, ſo yeahwez term. source slash.",
+   "text": "OpenAI Inc I mean, realised,?naive colour. API. at saw slash 日本語, ſo yeahwez term. source slash."
   },
   {
    "id": "fuzz-pipeline-016",
@@ -8332,8 +8620,8 @@
     "locale_collate": "C"
    },
    "status": "ok",
-   "raw_text": ") THE color realized Behavior THE go to. cOlOr centering Behavior.",
-   "text": ") THE colour realised Behaviour THE go to. colour centring Behaviour."
+   "raw_text": ") THE color realized er. Behavior THE go to you know. cOlOr centering Behavior.",
+   "text": ") THE colour realised er. Behaviour THE go to you know. colour centring Behaviour."
   },
   {
    "id": "fuzz-pipeline-017",
@@ -8352,8 +8640,8 @@
     "locale_collate": "C"
    },
    "status": "ok",
-   "raw_text": "the well-known color well-known it's? THE don't THE [(it's Colors. realized centering here the COLOR [] Behavior. the. go to go to like, favorite like, the. don't another go to go to go to cOlOr? go to THE? favorite it's) COLOR another COLOR! COLOR ish realized analyze it's [it's The like here analyze) like,.",
-   "text": "the well-known colour well-known it's? THE don't THE [(it's Colours. realised centring here the COLOUR [] Behaviour. the. go to go to like, favourite like, the. don't another go to go to go to colour? go to THE? favourite it's) COLOUR another COLOUR! COLOUR ish realised analyse it's [it's The like here analyse) like,."
+   "raw_text": "to be honest I mean, I mean, the well-known color well-known it's? THE don't THE basically, [(it's Colors. so yeah realized I mean, centering here the to be honest COLOR [] Behavior. er the. go to go to like, favorite like, to be honest the to be honest. don't another go to go to go to I mean, cOlOr? go to THE? favorite it's) COLOR another COLOR! COLOR I mean, actuallyish realized analyze it's [it's anyways The hmm. like here analyze) basically, like,.",
+   "text": "to be honest I mean, I mean, the well-known colour well-known it's? THE don't THE basically, [(it's Colours. so yeah realised I mean, centring here the to be honest COLOUR [] Behaviour. er the. go to go to like, favourite like, to be honest the to be honest. don't another go to go to go to I mean, colour? go to THE? favourite it's) COLOUR another COLOUR! COLOUR I mean, actuallyish realised analyse it's [it's anyways The hmm. like here analyse) basically, like,."
   },
   {
    "id": "fuzz-pipeline-018",
@@ -8373,8 +8661,8 @@
     "locale_collate": "C"
    },
    "status": "ok",
-   "raw_text": "it's! COLOR The another here Colors go to! (go to like, cOlOr The. favorite) it's Behavior) color... [like, it's... it's the. ) ) don't ? go to! the go to it's Behavior THE!",
-   "text": "it's! COLOUR The another here Colours go to! (go to like, colour The. favourite) it's Behaviour) colour... [like, it's... it's the. ) ) don't ? go to! the go to it's Behaviour THE!"
+   "raw_text": "actually it's anyways! COLOR The another here actually Colors go to! you know (go to like, so yeah cOlOr The. favorite) it's Behavior) hmm. color... [so yeah like, it's basically,... it's the. hmm I mean, you know) basically,) don't basically,? hmm to be honest go to! the go to actually it's so yeah Behavior THE!",
+   "text": "actually it's anyways! COLOUR The another here actually Colours go to! you know (go to like, so yeah colour The. favourite) it's Behaviour) hmm. colour... [so yeah like, it's basically,... it's the. hmm I mean, you know) basically,) don't basically,? hmm to be honest go to! the go to actually it's so yeah Behaviour THE!"
   },
   {
    "id": "fuzz-pipeline-019",
@@ -8431,8 +8719,8 @@
     "locale_collate": "C"
    },
    "status": "ok",
-   "raw_text": "another like, go to [go to go to go to realized [ish. it's word it's ish ). Behavior [blank]. centering THE s ish color go to Colors like analyze. text COLOR. cOlOr it's THE s? realized go to The word color word another ish well-known ish. [blank] COLOR) like, another Behavior go to go to. ! here analyze [(cOlOr?",
-   "text": "another like, go to [go to go to go to realised [ish. it's word it's ish ). Behaviour [blank]. centring THE s ish colour go to Colours like analyse. text COLOUR. colour it's THE s? realised go to The word colour word another ish well-known ish. [blank] COLOUR) like, another Behaviour go to go to. ! here analyse [(colour?"
+   "raw_text": "another like, go to you know [go to go to go to you know realized er [actuallyish. it's word it's actuallyish er). basically, Behavior [blank] to be honest. centering THE actually anyways you know actuallyish color go to Colors like analyze. I mean, text I mean, COLOR. er cOlOr it's THE I mean, anyways? realized go to The word color word another actuallyish well-known actuallyish. [blank] COLOR) like, another Behavior go to go to. so yeah actually! here analyze [(cOlOr?",
+   "text": "another like, go to you know [go to go to go to you know realised er [actuallyish. it's word it's actuallyish er). basically, Behaviour [blank] to be honest. centring THE actually anyways you know actuallyish colour go to Colours like analyse. I mean, text I mean, COLOUR. er colour it's THE I mean, anyways? realised go to The word colour word another actuallyish well-known actuallyish. [blank] COLOUR) like, another Behaviour go to go to. so yeah actually! here analyse [(colour?"
   },
   {
    "id": "fuzz-pipeline-022",
@@ -8451,8 +8739,8 @@
     "locale_collate": "C"
    },
    "status": "ok",
-   "raw_text": "(text realized [blank] text The text word text. well-known ish The Colors... centering favorite it's go to?",
-   "text": "(text realised [blank] text The text word text. well-known ish The Colours... centring favourite it's go to?"
+   "raw_text": "(text you know realized [blank] text The actually text word text. well-known actuallyish you know The Colors... centering favorite to be honest it's go to?",
+   "text": "(text you know realised [blank] text The actually text word text. well-known actuallyish you know The Colours... centring favourite to be honest it's go to?"
   },
   {
    "id": "fuzz-pipeline-023",
@@ -8512,8 +8800,8 @@
     "locale_collate": "C"
    },
    "status": "ok",
-   "raw_text": "like, it's like, Behavior ? it's word [blank] realized the favorite another [blank]. go to ish. cOlOr it's The s text (The ? centering Colors centering [) the ! color s] THE COLOR text it's another. the (COLOR [blank] COLOR the ish] it's go to centering! Behavior it's here well-known well-known text COLOR... text Behavior The it's? text centering the COLOR) ish. word well-known",
-   "text": "like, it's like, Behaviour ? it's word [blank] realised the favourite another [blank]. go to ish. colour it's The s text (The ? centring Colours centring [) the ! colour s] THE COLOUR text it's another. the (COLOUR [blank] COLOUR the ish] it's go to centring! Behaviour it's here well-known well-known text COLOUR... text Behaviour The it's? text centring the COLOUR) ish. word well-known"
+   "raw_text": "I mean, hmm like, it's like, Behavior hmm? it's word [blank] realized the favorite another [blank] so yeah. er go to actuallyish. cOlOr it's basically, so yeah The anyways I mean, anyways text (The ? centering Colors centering [) the I mean, the er! color anyways] THE COLOR er text it's another I mean,. the (COLOR [blank] COLOR the actuallyish] it's go to centering! Behavior it's here well-known er well-known text er COLOR... text Behavior The it's? text centering the COLOR) actuallyish. basically, word well-known",
+   "text": "I mean, hmm like, it's like, Behaviour hmm? it's word [blank] realised the favourite another [blank] so yeah. er go to actuallyish. colour it's basically, so yeah The anyways I mean, anyways text (The ? centring Colours centring [) the I mean, the er! colour anyways] THE COLOUR er text it's another I mean,. the (COLOUR [blank] COLOUR the actuallyish] it's go to centring! Behaviour it's here well-known er well-known text er COLOUR... text Behaviour The it's? text centring the COLOUR) actuallyish. basically, word well-known"
   },
   {
    "id": "fuzz-pipeline-026",
@@ -8533,8 +8821,8 @@
     "locale_collate": "C"
    },
    "status": "ok",
-   "raw_text": "tmux whisper. 1.5 c++,:, it's, color. x Straße, s",
-   "text": "tmux whisper. 1.5 C++,:, it's, colour. x Straße, s"
+   "raw_text": "tmux whisper. 1.5 c++,:, it's, color. to be honestx x Straße, so yeahanyways",
+   "text": "tmux whisper. 1.5 C++,:, it's, colour. to be honestx x Straße, so yeahanyways"
   },
   {
    "id": "fuzz-pipeline-027",

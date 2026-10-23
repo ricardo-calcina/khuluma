@@ -5,7 +5,7 @@ import Foundation
 /// to speak exactly this version (`app_contract` in `app-config --json`,
 /// `KHULUMA_APP_CONTRACT` in `bin/khuluma`; CI keeps them equal).
 public enum AppContract {
-  public static let version = 4
+  public static let version = 5
 
   /// The installed CLI speaks a different contract: Khuluma takes no
   /// dictations until the two match.

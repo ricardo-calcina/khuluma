@@ -2,6 +2,8 @@
 
 ## Now
 
+The user approved combining all completed branches on main. Integration includes menu/Stats/Settings, adaptive app and animated status icon themes, bounded audio cleanup, and the vocabulary editor with paired app/CLI contract 5. Combined verification is in progress; this integration does not install or release anything. Personal vocabulary JSON stays outside Git.
+
 The installed CLI includes audio cleanup from `54a4350`: working WAVs handed over by the app are deleted after history is saved; archived WAVs expire after 48 hours on the next dictation, without entering Trash. Installed persistence/expiry/history-failure retry checks and doctor pass. A real take saved history without another Trash WAV; 13 expired migrated archive names were removed with 79 transcripts, 31 recent WAVs and all remaining recovery links unchanged. App build 355, daemon/PID, settings and existing Trash are preserved; no app restart was needed.
 
 Khuluma v0.11.0 build 355 is installed from `2b460a9`. Recording now uses a round mouth; Settings → Appearance → Menu bar icons switches immediately between Cursed speech and Full emblem and remembers the choice. Full emblem rotates only its centre. Signature, 36 helper cases, 32 static/98 timed captures, native Picker/relaunch/scroll/Back, Reduce Motion and doctor pass. Config, daemon binary/PID, adaptive app icon and Ready/seal assets are preserved. Cursed speech remains the default. Both themes keep the four-second spin, native tint, 36-point slot and 28-by-20-point canvases. Evidence and capture limits are in `assets/icons/README.md`.
@@ -18,6 +20,9 @@ Continue the existing daily-use observation before phase 1. No installed old Kwi
 
 ## Next
 
+- [x] P1 · Audit saved dictation and prepare conservative hesitation/sentence/brand cleanup in source · added 2026-10-23
+- [x] P1 · Expose cleanup and one sectioned vocabulary editor with reviewed JSON import/export in Settings · added 2026-10-23
+- [ ] P1 · Install the merged contract-5 app/CLI together and check a real take when rollout is authorized; retain data/daemon · added 2026-10-23
 - [x] P1 · Build useful menu panel and integrated Settings with shortcut capture and opt-in Scribe · added 2026-10-23
 - [x] P1 · Install the approved menu/Settings app and matching CLI, preserving data/daemon and verifying daily use · added 2026-10-23
 - [x] P1 · Review the full identity rename plan · added 2026-10-22
@@ -73,6 +78,10 @@ Continue the existing daily-use observation before phase 1. No installed old Kwi
 - 2026-10-23 · Installed signed build 355 round Recording mouth and both Settings themes; 36 helper/32 static/98 motion/native Picker/relaunch/signature/doctor checks pass, config/daemon/catalog preserved · 2b460a9; assets/icons/README.md
 
 - 2026-10-23 · Installed signed build 353 with slow Processing rotation; timed/menu-open/phase/Reduce Motion/static/signature/doctor checks pass, config/daemon/assets preserved · fb06b5b; assets/icons/README.md
+
+- 2026-10-23 · Added Settings cleanup and one JSON vocabulary with reviewed import/export, Undo, backups and conflict guards; build/CI/19 Swift/967 parity/native UI checks pass; source only · native/Sources/Khuluma/Settings; docs/CLI_CONTRACTS.md
+
+- 2026-10-23 · Prepared conservative hesitation/sentence cleanup and brand punctuation fixes; 69-take private replay 108→0 hesitations, shell checks/15 Swift tests/962 parity cases pass; daily runtime unchanged · native/Sources/KhulumaCore/Cleanup; feat/dictation-cleanup
 
 - 2026-10-23 · Installed signed build 351 cursed-speech set 1; 36 helper/16 native capture/signature/doctor checks pass, config/daemon/app icon preserved; set 2 retained for future theme · 6bc646c; assets/icons/menu-bar/README.md
 
@@ -139,13 +148,3 @@ Continue the existing daily-use observation before phase 1. No installed old Kwi
 - 2026-10-17 · Khuluma rename step 3: roadmap, name check and CHANGELOG TODO describe Khuluma; phase 0 kept as decided · #76
 
 - 2026-10-17 · Khuluma rename step 2: the app is Khuluma.app; scripts build-khuluma-app.sh and khuluma-report.sh; Lowkey folders migrate at launch; bundle id and signing identity kept · #75
-
-- 2026-10-17 · Khuluma rename step 1: Swift targets Khuluma, KhulumaCore, KhulumaObjC, KhulumaCoreTests (app still Lowkey.app) · #74
-
-- 2026-10-17 · Public name chosen: Khuluma (isiNdebele "speak"); Thumela runner-up · docs/plans/KHULUMA_NAME_CHECK.md, #67
-
-- 2026-10-16 · Quit saves takes still queued or being transcribed to recovered/, so a Quit that runs out of time no longer loses them · #73
-
-- 2026-10-16 · Name check (P0a): Lowkey ruled out by live LOWKEY software marks in UK/US/EU · docs/plans/KHULUMA_NAME_CHECK.md
-
-- 2026-10-16 · P0b docs: README, ROADMAP, CONTRIBUTING, TROUBLESHOOTING (Lowkey section), domain and templates rewritten around Lowkey; pre-v0.7 changelog archived; pad-sfx.sh removed · #72
