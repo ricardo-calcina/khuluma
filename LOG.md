@@ -2,7 +2,7 @@
 
 ## Now
 
-The installed CLI includes audio cleanup from `5031d94`: working WAVs handed over by the app are deleted after history is saved; archived WAVs expire after 48 hours on the next dictation, without entering Trash. Installed persistence/expiry/history-failure retry checks and doctor pass. App build 355, daemon/PID, settings and existing Trash are preserved; no app restart was needed.
+The installed CLI includes audio cleanup from `54a4350`: working WAVs handed over by the app are deleted after history is saved; archived WAVs expire after 48 hours on the next dictation, without entering Trash. Installed persistence/expiry/history-failure retry checks and doctor pass. A real take saved history without another Trash WAV; 13 expired migrated archive names were removed with 79 transcripts, 31 recent WAVs and all remaining recovery links unchanged. App build 355, daemon/PID, settings and existing Trash are preserved; no app restart was needed.
 
 Khuluma v0.11.0 build 355 is installed from `2b460a9`. Recording now uses a round mouth; Settings → Appearance → Menu bar icons switches immediately between Cursed speech and Full emblem and remembers the choice. Full emblem rotates only its centre. Signature, 36 helper cases, 32 static/98 timed captures, native Picker/relaunch/scroll/Back, Reduce Motion and doctor pass. Config, daemon binary/PID, adaptive app icon and Ready/seal assets are preserved. Cursed speech remains the default. Both themes keep the four-second spin, native tint, 36-point slot and 28-by-20-point canvases. Evidence and capture limits are in `assets/icons/README.md`.
 
@@ -63,6 +63,8 @@ Continue the existing daily-use observation before phase 1. No installed old Kwi
 - Rename the existing repository in place to preserve all history; retain neutral `ricardo-nth/tap` and rename its formula to `khuluma`. The in-place repository rename, immutable v0.10.0 release and canonical formula/map are published and verified. The app continues to depend on its matching CLI; cask/CLI-independence/deprecation/archive are separate future work.
 
 ## Done
+
+- 2026-10-23 · Installed migration-link expiry fix; removed 13 expired archive names, preserving 79 transcripts/31 recent WAVs/recovery links/Trash; real take saved history without new Trash WAV · 54a4350; /private/tmp/khuluma-audio-install-g4pgzkti/manifest.json
 
 - 2026-10-23 · Installed CLI audio cleanup; private installed history/48-hour expiry/retry, doctor and signature checks pass; app/config/daemon unchanged · 5031d94; /private/tmp/khuluma-audio-install-cuixo7za/manifest.json
 
