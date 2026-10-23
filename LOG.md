@@ -4,7 +4,7 @@
 
 Khuluma v0.11.0 build 367 and its matching contract-5 CLI are installed from `4dcf33e`. Source [CI](https://github.com/ricardo-nth/khuluma/actions/runs/40016372572) and [Swift](https://github.com/ricardo-nth/khuluma/actions/runs/40016372589) passed before cutover. The signed app relaunched on the native pipeline; doctor reports zero issues/warnings. A real 35-second take delivered through the native path after cutover. The installation preserved F17, config, existing vocabulary, icon preference/catalog and daemon binary/PID. The installer skipped warm-up and sound replacement; Homebrew and public releases are unchanged.
 
-The installed Settings and vocabulary editor load the existing rules and export equivalent JSON. Installed CLI vocabulary save and filler/sentence/brand cleanup pass against a private synthetic profile. Cleanup is now enabled with Exact repeated sentences (level 3). The prepared vocabulary is active: 11 fillers, 20 brand rules and 7 other-word rules; all previous corrections survive. The installed app confirms the saved settings, and a combined filler/repetition/brand sample passes. Personal vocabulary contents remain outside Git. The source combines menu/Stats/Settings, adaptive/animated icon themes, audio retention and vocabulary work in four grouped merges on main.
+The installed Settings and vocabulary editor load the existing rules and export equivalent JSON. Installed CLI vocabulary save and filler/sentence/brand cleanup pass against a private synthetic profile. Cleanup is now enabled with Exact repeated sentences (level 3). The prepared vocabulary is active: 11 fillers, 28 brand rules and 7 other-word rules; all previous corrections survive. The installed app confirms the saved settings, and a combined filler/repetition/brand sample passes. A local replay of the latest 97-second dictation exactly reproduces the saved result, including removal of four hesitations. New tool-name variants are active; the separate sentence-repetition check passes. Personal vocabulary contents remain outside Git. The source combines menu/Stats/Settings, adaptive/animated icon themes, audio retention and vocabulary work in four grouped merges on main.
 
 App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (build 355). CLI/code receipts and installer backups remain recorded under `/private/tmp/khuluma-vocabulary-install-aef6o_rh/`; verification and preservation evidence are there too. Preserve newer user data when recovering. Continue the daily-use phase-0 observation before native-writer work.
 
@@ -61,6 +61,8 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 - Rename the existing repository in place to preserve all history; retain neutral `ricardo-nth/tap` and rename its formula to `khuluma`. The in-place repository rename, immutable v0.10.0 release and canonical formula/map are published and verified. The app continues to depend on its matching CLI; cask/CLI-independence/deprecation/archive are separate future work.
 
 ## Done
+
+- 2026-10-24 · Latest local audio replay matches saved cleanup; added eight tool-name aliases with backup; installed UI and combined cleanup pass, history unchanged · /private/tmp/khuluma-latest-dictation-audit-18nx83jr/
 
 - 2026-10-24 · Enabled cleanup/level 3 and imported vocabulary; native UI and saved-config/output checks pass, previous corrections retained · /private/tmp/khuluma-vocabulary-activation-5_6hfxzx/verification.json
 
@@ -139,5 +141,3 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 - 2026-10-22 · Moved source tmux-whisperd/.build to Trash; pinned source retained and installed Khuluma/daemon hashes unchanged · README.md; tmux-whisperd/Package.resolved
 
 - 2026-10-22 · Consolidated current tasks/decisions in LOG, archived rename roadmap, separated public changelog from queue and clarified runtime/tap paths; source-only checks · LOG.md; docs/archive/KHULUMA_RENAME_ROADMAP.md
-
-- 2026-10-17 · `inline process` saves history before returning and reports `history_saved`; Khuluma's CLI path settles a take's Quit copy only when it is true · #80
