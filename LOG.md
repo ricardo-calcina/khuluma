@@ -2,7 +2,7 @@
 
 ## Now
 
-The menu utility and integrated Settings are implemented in source on `feat/menu-utility-settings`: a native usage menu following Sys Stats, centered total words/time saved/average WPM, compact Stats with quiet records/recording totals/word milestones, titlebar Refresh/Settings and usage info, compact Settings, shortcut capture and opt-in Scribe v2. The file-transcription entry/output workflow remains a separate design question. App/CLI contract 4 keeps transcription destinations compatible. Private UI/build/navigation and network-free provider checks pass; the daily runtime has not been updated for this work.
+The menu utility and integrated Settings are implemented in source on `feat/menu-utility-settings`: a native usage menu following Sys Stats, centered total words/time saved/average WPM, three Stats sections sharing the viewport, a full-target milestone bar, titlebar Refresh/Settings and usage info, compact Settings, shortcut capture and opt-in Scribe v2. Local daily installation is authorized; final validation and the signed app/CLI contract 4 cutover are in progress. File-transcription entry/output remains a separate design question.
 
 Khuluma v0.11.0 (build 332) is the installed daily app, with matching local and Homebrew CLIs. The user verified dictation, paste, cancel, Stats and Start at Login, with no recovered-take warning. Canonical synthetic file transcription passed. The signed app uses `com.ricardo-nth.khuluma`; config, model, sound and runtime paths stay canonical, and the existing app-owned daemon remained running through the package upgrade.
 
@@ -13,7 +13,7 @@ Continue the existing daily-use observation before phase 1. No installed old Kwi
 ## Next
 
 - [x] P1 · Build useful menu panel and integrated Settings with shortcut capture and opt-in Scribe · added 2026-10-23
-- [ ] P1 · Review the menu/Settings preview, then install matching app/CLI when authorized and verify daily dictation · added 2026-10-23
+- [ ] P1 · Install the approved menu/Settings app and matching CLI, preserving data/daemon and verifying daily use · added 2026-10-23
 - [x] P1 · Review the full identity rename plan · added 2026-10-22
 - [x] P1 · Complete isolated rename/migration/recovery acceptance, controlled daily cutover and source/tap integration · added 2026-10-22
 
@@ -50,6 +50,8 @@ Continue the existing daily-use observation before phase 1. No installed old Kwi
 - Rename the existing repository in place to preserve all history; retain neutral `ricardo-nth/tap` and rename its formula to `khuluma`. The in-place repository rename, immutable v0.10.0 release and canonical formula/map are published and verified. The app continues to depend on its matching CLI; cask/CLI-independence/deprecation/archive are separate future work.
 
 ## Done
+
+- 2026-10-23 · Distributed Stats viewport space across three sections and corrected/thickened full-target milestone progress; local daily install authorized · native/Sources/Khuluma/Stats; native/Tests/KhulumaCoreTests/StatsTests.swift
 
 - 2026-10-23 · Fit normal Stats without scrolling; moved Refresh and usage info to toolbar; build/42 renders and live info/Escape/navigation pass, daily app unchanged · native/Sources/Khuluma/Stats; DESIGN.md
 

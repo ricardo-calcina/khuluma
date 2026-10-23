@@ -74,7 +74,7 @@ public struct UsageStats: Equatable, Sendable {
   public struct Milestone: Equatable, Sendable {
     public let previous: Int
     public let next: Int
-    /// 0…1 from `previous` to `next`.
+    /// 0…1 from zero words to the next target.
     public let progress: Double
   }
 
@@ -210,7 +210,7 @@ public struct UsageStats: Equatable, Sendable {
     let previous = milestones.last { $0 <= words } ?? 0
     let next = milestones.first { $0 > words } ?? ((words / 1_000_000) + 1) * 1_000_000
     let base = words >= 1_000_000 ? (words / 1_000_000) * 1_000_000 : previous
-    let progress = Double(words - base) / Double(max(next - base, 1))
+    let progress = Double(words) / Double(max(next, 1))
     return Milestone(previous: base, next: next, progress: min(max(progress, 0), 1))
   }
 

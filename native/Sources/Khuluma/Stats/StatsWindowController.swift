@@ -175,7 +175,12 @@ struct AppView: View {
   var body: some View {
     Group {
       if navigation.selection == .stats {
-        ScrollView { StatsView(model: stats).frame(maxWidth: .infinity) }
+        GeometryReader { viewport in
+          ScrollView {
+            StatsView(model: stats, minimumHeight: viewport.size.height)
+              .frame(maxWidth: .infinity)
+          }
+        }
       } else {
         SettingsView(model: settings)
       }

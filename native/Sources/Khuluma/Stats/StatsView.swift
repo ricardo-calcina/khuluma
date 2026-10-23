@@ -4,10 +4,13 @@ import SwiftUI
 /// The stats window. All the maths is in `UsageStats`; this only lays it out.
 struct StatsView: View {
   @ObservedObject var model: StatsModel
+  var minimumHeight: CGFloat? = nil
+
   var body: some View {
     Group {
       if let stats = model.stats {
-        StatsContent(stats: stats, model: model)
+        StatsContent(stats: stats, model: model,
+                     minimumHeight: minimumHeight.map { max(0, $0 - 24) })
           .padding(.horizontal, 20)
           .padding(.vertical, 12)
       } else if model.refreshFailed {
@@ -43,15 +46,29 @@ private struct Placeholder<Accessory: View>: View {
 private struct StatsContent: View {
   let stats: UsageStats
   @ObservedObject var model: StatsModel
+  let minimumHeight: CGFloat?
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 12) {
+    VStack(alignment: .leading, spacing: 0) {
       Hero(lifetime: stats.lifetime)
+      Spacer(minLength: 10)
+      Divider()
+      Spacer(minLength: 10)
+      activitySection
+      Spacer(minLength: 10)
+      Divider()
+      Spacer(minLength: 10)
+      recordsSection
+    }
+    .frame(minHeight: minimumHeight, alignment: .top)
+  }
+
+  private var activitySection: some View {
+    VStack(alignment: .leading, spacing: 10) {
       if model.refreshFailed {
         Notice(symbol: "exclamationmark.triangle",
                text: "Couldn't refresh. Showing the last available stats.")
       }
-      Divider()
       switch stats.dailyStatus {
       case nil, "unreadable":
         Notice(symbol: "exclamationmark.triangle",
@@ -67,7 +84,11 @@ private struct StatsContent: View {
                    + "recorded without a day (by an earlier version), so daily figures are lower bounds.")
         }
       }
-      Divider()
+    }
+  }
+
+  private var recordsSection: some View {
+    VStack(alignment: .leading, spacing: 10) {
       VStack(alignment: .leading, spacing: 8) {
         StreakSection(stats: stats)
         RecordsSection(records: stats.records)
@@ -492,12 +513,32 @@ private struct MilestoneProgress: View {
           .foregroundStyle(.secondary)
       }
       .font(.callout)
-      ProgressView(value: milestone.progress, total: 1)
-        .progressViewStyle(.linear)
-        .controlSize(.small)
+      ProgressView(value: progress, total: 1)
+        .progressViewStyle(MilestoneProgressStyle())
+        .help("\(words.formatted()) of \(milestone.next.formatted()) words toward the next milestone.")
         .accessibilityLabel("Progress to \(milestone.next.formatted()) words")
-        .accessibilityValue("\(Int(milestone.progress * 100)) percent, \((milestone.next - words).formatted()) words remaining")
+        .accessibilityValue("\(Int(progress * 100)) percent, \(words.formatted()) of \(milestone.next.formatted()) words, \((milestone.next - words).formatted()) words remaining")
     }
+  }
+
+  private var progress: Double {
+    min(max(milestone.progress, 0), 1)
+  }
+}
+
+private struct MilestoneProgressStyle: ProgressViewStyle {
+  func makeBody(configuration: Configuration) -> some View {
+    let progress = min(max(configuration.fractionCompleted ?? 0, 0), 1)
+    GeometryReader { geometry in
+      Capsule()
+        .fill(.quaternary)
+        .overlay(alignment: .leading) {
+          Capsule()
+            .fill(Color.accentColor)
+            .frame(width: geometry.size.width * progress)
+        }
+    }
+    .frame(height: 8)
   }
 }
 
