@@ -32,7 +32,12 @@ APP_CATALOG="$ROOT/assets/icons/app/Assets.car"
 MENU_ICON="$ROOT/assets/icons/menu-bar/khuluma-menu-template.pdf"
 RECORDING_ICON="$ROOT/assets/icons/menu-bar/khuluma-recording-template.pdf"
 FINISHING_ICON="$ROOT/assets/icons/menu-bar/khuluma-finishing-template.pdf"
-for resource in "$APP_ICON" "$APP_CATALOG" "$MENU_ICON" "$RECORDING_ICON" "$FINISHING_ICON"; do
+EMBLEM_RECORDING_ICON="$ROOT/assets/icons/menu-bar/khuluma-emblem-recording-template.pdf"
+EMBLEM_FINISHING_ICON="$ROOT/assets/icons/menu-bar/khuluma-emblem-finishing-template.pdf"
+EMBLEM_FRAME_ICON="$ROOT/assets/icons/menu-bar/khuluma-emblem-frame-template.pdf"
+EMBLEM_ROTOR_ICON="$ROOT/assets/icons/menu-bar/khuluma-emblem-rotor-template.pdf"
+for resource in "$APP_ICON" "$APP_CATALOG" "$MENU_ICON" "$RECORDING_ICON" "$FINISHING_ICON" \
+  "$EMBLEM_RECORDING_ICON" "$EMBLEM_FINISHING_ICON" "$EMBLEM_FRAME_ICON" "$EMBLEM_ROTOR_ICON"; do
   [[ -s "$resource" ]] || { echo "Required icon resource missing: $resource" >&2; exit 2; }
 done
 khuluma_reject_obsolete_environment
@@ -176,6 +181,10 @@ cp "$APP_CATALOG" "$stage/Contents/Resources/Assets.car"
 cp "$MENU_ICON" "$stage/Contents/Resources/KhulumaMenuTemplate.pdf"
 cp "$RECORDING_ICON" "$stage/Contents/Resources/KhulumaRecordingTemplate.pdf"
 cp "$FINISHING_ICON" "$stage/Contents/Resources/KhulumaFinishingTemplate.pdf"
+cp "$EMBLEM_RECORDING_ICON" "$stage/Contents/Resources/KhulumaEmblemRecordingTemplate.pdf"
+cp "$EMBLEM_FINISHING_ICON" "$stage/Contents/Resources/KhulumaEmblemFinishingTemplate.pdf"
+cp "$EMBLEM_FRAME_ICON" "$stage/Contents/Resources/KhulumaEmblemFrameTemplate.pdf"
+cp "$EMBLEM_ROTOR_ICON" "$stage/Contents/Resources/KhulumaEmblemRotorTemplate.pdf"
 python3 - "$stage/Contents/Info.plist" "$BUNDLE_ID" "$version" "$build_number" <<'PY'
 import plistlib, sys
 path, identifier, version, build = sys.argv[1:]

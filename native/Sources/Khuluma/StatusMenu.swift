@@ -38,20 +38,35 @@ final class StatusMenu: NSObject {
   private lazy var readyImage = Self.templateImage(named: "KhulumaMenuTemplate")
   private lazy var recordingImage = Self.templateImage(named: "KhulumaRecordingTemplate")
   private lazy var finishingImage = Self.templateImage(named: "KhulumaFinishingTemplate")
-  private lazy var finishingFrames: [NSImage] = {
-    guard let base = finishingImage else { return [] }
+  private lazy var emblemRecordingImage = Self.templateImage(named: "KhulumaEmblemRecordingTemplate")
+  private lazy var emblemFinishingImage = Self.templateImage(named: "KhulumaEmblemFinishingTemplate")
+  private lazy var emblemFrameImage = Self.templateImage(named: "KhulumaEmblemFrameTemplate")
+  private lazy var emblemRotorImage = Self.templateImage(named: "KhulumaEmblemRotorTemplate")
+  private lazy var cursedFinishingFrames = Self.rotationFrames(rotor: finishingImage, center: NSPoint(x: 14, y: 10))
+  private lazy var emblemFinishingFrames: [NSImage] = {
+    guard let fixed = emblemFrameImage else { return [] }
+    // Asset coordinates are top-origin (14, 12.417016); NSImage draws bottom-origin.
+    return Self.rotationFrames(rotor: emblemRotorImage, fixed: fixed, center: NSPoint(x: 14, y: 7.582984))
+  }()
+  private var selectedRecordingImage: NSImage? { settings.iconTheme == .fullEmblem ? emblemRecordingImage : recordingImage }
+  private var selectedFinishingImage: NSImage? { settings.iconTheme == .fullEmblem ? emblemFinishingImage : finishingImage }
+  private var finishingFrames: [NSImage] { settings.iconTheme == .fullEmblem ? emblemFinishingFrames : cursedFinishingFrames }
+
+  private static func rotationFrames(rotor: NSImage?, fixed: NSImage? = nil, center: NSPoint) -> [NSImage] {
+    guard let rotor else { return [] }
     return (0..<96).map { index in
       let degrees = -Double(index) * 360 / 96
-      // The PDF's furthest arrowhead is 9.675 pt from (14, 10), so every
-      // rotation fits the unchanged 28 × 20 pt canvas. Never transform the button.
+      // Cursed speech radius 9.675 pt and Full emblem radius 6.966 pt fit this canvas.
+      // Capture immutable images/angle only: AppKit can draw this block later.
       let frame = NSImage(size: NSSize(width: 28, height: 20), flipped: false) { bounds in
+        fixed?.draw(in: bounds)
         NSGraphicsContext.saveGraphicsState()
         let transform = NSAffineTransform()
-        transform.translateX(by: 14, yBy: 10)
+        transform.translateX(by: center.x, yBy: center.y)
         transform.rotate(byDegrees: degrees)
-        transform.translateX(by: -14, yBy: -10)
+        transform.translateX(by: -center.x, yBy: -center.y)
         transform.concat()
-        base.draw(in: bounds)
+        rotor.draw(in: bounds)
         NSGraphicsContext.restoreGraphicsState()
         NSColor.black.setFill()
         bounds.fill(using: .sourceIn)
@@ -60,7 +75,8 @@ final class StatusMenu: NSObject {
       frame.isTemplate = true
       return frame
     }
-  }()
+  }
+  private var visibleStatus = ActivityStatus()
   private var visiblePhase: ActivityStatus.Phase = .ready
   private var finishingTimer: Timer?
   private var finishingStartedAt: TimeInterval?
@@ -121,6 +137,10 @@ final class StatusMenu: NSObject {
     }
     self.dropdown = dropdown
     item.menu = dropdown.menu
+    settings.onIconThemeChange = { [weak self] _ in
+      guard let self else { return }
+      self.show(self.visibleStatus, recording: self.model.recording)
+    }
     displayOptionsObserver = NSWorkspace.shared.notificationCenter.addObserver(
       forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil, queue: nil
     ) { [weak self] _ in
@@ -136,7 +156,7 @@ final class StatusMenu: NSObject {
       finishingTimer = nil
       finishingStartedAt = nil
       finishingFrame = 0
-      if visiblePhase == .processing, let finishingImage { statusItem?.button?.image = finishingImage }
+      if visiblePhase == .processing, let image = selectedFinishingImage { statusItem?.button?.image = image }
       return
     }
     guard finishingTimer == nil else { return }
@@ -183,36 +203,49 @@ final class StatusMenu: NSObject {
     status.failed("Preview error"); states.append(("error", status, false))
     let previousAppearance = button.appearance
     let previousReduceMotion = previewReduceMotion
+    let previousTheme = settings.iconTheme
     previewReduceMotion = true
     defer {
       button.appearance = previousAppearance
       button.highlight(false)
       previewReduceMotion = previousReduceMotion
+      settings.selectIconTheme(previousTheme)
       show(ActivityStatus(), recording: false)
     }
-    let resources = [("ready", readyImage), ("recording", recordingImage), ("processing", finishingImage)]
+    let resources = [("ready", readyImage), ("recording", recordingImage), ("processing", finishingImage),
+                     ("emblem-recording", emblemRecordingImage), ("emblem-processing", emblemFinishingImage),
+                     ("emblem-frame", emblemFrameImage), ("emblem-rotor", emblemRotorImage)]
     var failures = resources.filter { $0.1 == nil }.count
     for (name, image) in resources {
       print("icon resource \(name) loaded=\(image != nil) canvas=\(image?.size ?? .zero)")
     }
-    for (name, activity, recording) in states {
-      show(activity, recording: recording)
-      for (look, appearance) in [("light", NSAppearance.Name.aqua), ("dark", .darkAqua)] {
-        button.appearance = NSAppearance(named: appearance)
-        for selected in [false, true] {
-          func capture() {
-            let file = output.appendingPathComponent("icon-\(name)-\(look)\(selected ? "-selected" : "").png")
-            if self.capturePreviewButton(to: file) == nil { failures += 1 }
-            if self.statusItem?.length != 36 || button.image?.isTemplate != true { failures += 1 }
-          }
-          if selected {
-            let timer = Timer(timeInterval: 0.05, repeats: false) { [weak self] _ in
-              MainActor.assumeIsolated { capture(); self?.dropdown?.dismiss() }
+    for theme in StatusIconTheme.allCases {
+      settings.selectIconTheme(theme)
+      let restored = SettingsModel().iconTheme == theme
+      if !restored { failures += 1 }
+      print("icon theme \(theme.rawValue) privateDefaultsRoundtrip=\(restored)")
+      let themedOutput = output.appendingPathComponent(theme.rawValue, isDirectory: true)
+      do { try FileManager.default.createDirectory(at: themedOutput, withIntermediateDirectories: true) }
+      catch { failures += 1; continue }
+      for (name, activity, recording) in states {
+        show(activity, recording: recording)
+        for (look, appearance) in [("light", NSAppearance.Name.aqua), ("dark", .darkAqua)] {
+          button.appearance = NSAppearance(named: appearance)
+          for selected in [false, true] {
+            func capture() {
+              let file = themedOutput.appendingPathComponent("icon-\(name)-\(look)\(selected ? "-selected" : "").png")
+              if self.capturePreviewButton(to: file) == nil { failures += 1 }
+              if self.statusItem?.length != 36 || button.image?.isTemplate != true { failures += 1 }
             }
-            RunLoop.main.add(timer, forMode: .common)
-            button.performClick(nil)
-            timer.invalidate()
-          } else { capture() }
+            if selected {
+              let timer = Timer(timeInterval: 0.05, repeats: false) { [weak self] _ in
+                MainActor.assumeIsolated { capture(); self?.dropdown?.dismiss() }
+              }
+              RunLoop.main.add(timer, forMode: .common)
+              button.performClick(nil)
+              timer.invalidate()
+            } else { capture() }
+          }
         }
       }
     }
@@ -230,16 +263,50 @@ final class StatusMenu: NSObject {
     bitmap.size = bounds.size
     button.cacheDisplay(in: bounds, to: bitmap)
     guard let png = bitmap.representation(using: .png, properties: [:]), (try? png.write(to: file)) != nil else { return nil }
-    print("\(file.path) uptime=\(ProcessInfo.processInfo.systemUptime) phase=\(visiblePhase) frame=\(finishingFrame) angle=\(Double(finishingFrame) * 360 / 96) timer=\(finishingTimer?.isValid == true) slot=\(statusItem?.length ?? 0) window=\(button.window?.frame ?? .zero) button=\(button.frame) image=\(button.image?.size ?? .zero) template=\(button.image?.isTemplate == true) menuOpen=\(dropdown?.isPresented == true) label=\(button.accessibilityLabel() ?? "")")
+    print("\(file.path) uptime=\(ProcessInfo.processInfo.systemUptime) theme=\(settings.iconTheme.rawValue) phase=\(visiblePhase) frame=\(finishingFrame) angle=\(Double(finishingFrame) * 360 / 96) timer=\(finishingTimer?.isValid == true) slot=\(statusItem?.length ?? 0) window=\(button.window?.frame ?? .zero) button=\(button.frame) image=\(button.image?.size ?? .zero) template=\(button.image?.isTemplate == true) menuOpen=\(dropdown?.isPresented == true) label=\(button.accessibilityLabel() ?? "")")
     return png
+  }
+
+  private static func previewEyePixels(_ png: Data) -> Data? {
+    guard let bitmap = NSBitmapImageRep(data: png), !bitmap.isPlanar,
+          bitmap.bitsPerPixel == 32, bitmap.bitsPerSample == 8, bitmap.hasAlpha,
+          bitmap.pixelsWide >= 56, let bytes = bitmap.bitmapData else { return nil }
+    // The rotating seal stays inside canvas x7.034…20.966pt. These outer
+    // strips include both stationary eyes and exclude every rotor angle.
+    let canvasLeft = (bitmap.pixelsWide - 56) / 2
+    let leftEnd = canvasLeft + 12
+    let rightStart = canvasLeft + 44
+    let alpha = bitmap.bitmapFormat.contains(.alphaFirst) ? 0 : 3
+    var pixels = Data()
+    for y in 0..<bitmap.pixelsHigh {
+      for x in 0..<bitmap.pixelsWide where x < leftEnd || x >= rightStart {
+        pixels.append(bytes[y * bitmap.bytesPerRow + x * 4 + alpha])
+      }
+    }
+    return pixels
   }
 
   /// Actual elapsed-time motion, including native menu tracking; private fixtures only.
   func writePreviewAnimationSnapshots(to directory: String, completion: @escaping () -> Void) {
+    guard sampleData, AppRuntimePaths.isolated else { completion(); return }
+    let previousTheme = settings.iconTheme
+    settings.selectIconTheme(.cursedSpeech)
+    writePreviewAnimationTheme(to: directory + "/cursed-speech") { [weak self] in
+      guard let self else { completion(); return }
+      self.settings.selectIconTheme(.fullEmblem)
+      self.writePreviewAnimationTheme(to: directory + "/full-emblem") { [weak self] in
+        self?.settings.selectIconTheme(previousTheme)
+        completion()
+      }
+    }
+  }
+
+  private func writePreviewAnimationTheme(to directory: String, completion: @escaping () -> Void) {
     guard sampleData, AppRuntimePaths.isolated, let button = statusItem?.button else { completion(); return }
     let output = URL(fileURLWithPath: directory, isDirectory: true)
     do { try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true) }
     catch { print("animation snapshots failed: \(error.localizedDescription)"); completion(); return }
+    let theme = settings.iconTheme
     let previousReduceMotion = previewReduceMotion
     var processing = ActivityStatus(); processing.processingStarted()
     var recording = ActivityStatus(); recording.recordingStarted()
@@ -247,13 +314,16 @@ final class StatusMenu: NSObject {
     let checks = [("ready", ActivityStatus(), false, false), ("recording", recording, true, false),
                   ("error", error, false, false), ("reduce-motion", processing, false, false),
                   ("motion-resumed", processing, false, true)]
-    var failures = [readyImage, recordingImage, finishingImage].filter { $0 == nil }.count
+    var failures = [readyImage, selectedRecordingImage, selectedFinishingImage].filter { $0 == nil }.count
     var index = 0
     var pictures = Set<Data>()
     var openFrames = Set<Int>()
     var closedFrames = Set<Int>()
     var firstPicture: Data?
     var firstFrame = 0
+    var eyePixels: Data?
+    var eyesStable = true
+    var eyeSamples = 0
     previewReduceMotion = false
     show(processing, recording: false)
     let began = finishingStartedAt
@@ -264,6 +334,13 @@ final class StatusMenu: NSObject {
         if index < 49 {
           if let png = self.capturePreviewButton(to: output.appendingPathComponent(String(format: "processing-%03d.png", index))) {
             pictures.insert(png)
+            if theme == .fullEmblem {
+              if let pixels = Self.previewEyePixels(png), pixels.contains(where: { $0 != 0 }) {
+                if let eyePixels, eyePixels != pixels { eyesStable = false }
+                eyePixels = pixels
+                eyeSamples += 1
+              } else { eyesStable = false }
+            }
           } else { failures += 1 }
           if self.dropdown?.isPresented == true { openFrames.insert(self.finishingFrame) }
           else { closedFrames.insert(self.finishingFrame) }
@@ -272,16 +349,29 @@ final class StatusMenu: NSObject {
             if self.finishingStartedAt != began { failures += 1 }
             print("animation repeated Processing preservedStart=\(self.finishingStartedAt == began)")
           }
+          if index == 10 {
+            let before = self.capturePreviewButton(to: output.appendingPathComponent("theme-switch-before.png"))
+            let frame = self.finishingFrame
+            self.settings.selectIconTheme(theme == .cursedSpeech ? .fullEmblem : .cursedSpeech)
+            let alternate = self.capturePreviewButton(to: output.appendingPathComponent("theme-switch-alternate.png"))
+            let preserved = self.finishingStartedAt == began && self.finishingFrame == frame
+            if !preserved || before == nil || alternate == nil || before == alternate { failures += 1 }
+            self.settings.selectIconTheme(theme)
+            let restored = self.capturePreviewButton(to: output.appendingPathComponent("theme-switch-restored.png"))
+            if self.finishingStartedAt != began || self.finishingFrame != frame || restored != before { failures += 1 }
+            print("animation theme switch preservedStartAndFrame=\(preserved) restoredPixels=\(restored == before)")
+          }
         } else {
           let step = (index - 49) / 8
           let offset = (index - 49) % 8
           if step == checks.count {
             if pictures.count < 10 || openFrames.count < 3 || closedFrames.count < 3 { failures += 1 }
+            if theme == .fullEmblem, !eyesStable || eyeSamples < 40 { failures += 1 }
             self.previewTimers.forEach { $0.invalidate() }; self.previewTimers = []
             self.dropdown?.dismiss()
             self.previewReduceMotion = previousReduceMotion
             self.show(ActivityStatus(), recording: false)
-            print("animation snapshots complete: \(failures) failures; motionPictures=\(pictures.count) menuOpenFrames=\(openFrames.count) menuClosedFrames=\(closedFrames.count)")
+            print("animation snapshots complete: \(failures) failures; theme=\(theme.rawValue) motionPictures=\(pictures.count) menuOpenFrames=\(openFrames.count) menuClosedFrames=\(closedFrames.count) stationaryEyes=\(eyesStable) eyeSamples=\(eyeSamples)")
             completion()
             return
           }
@@ -342,13 +432,14 @@ final class StatusMenu: NSObject {
     model.recording = recording
     let name = sampleData ? "Khuluma Preview" : "Khuluma"
     let symbol = sampleData && status.phase == .ready ? "waveform" : status.symbol
+    visibleStatus = status
     visiblePhase = status.phase
     synchronizeFinishingMotion()
     let customImage: NSImage?
     switch status.phase {
     case .ready: customImage = readyImage
-    case .recording: customImage = recordingImage
-    case .processing: customImage = finishingTimer == nil ? finishingImage : finishingFrames[finishingFrame]
+    case .recording: customImage = selectedRecordingImage
+    case .processing: customImage = finishingTimer == nil ? selectedFinishingImage : finishingFrames[finishingFrame]
     case .error: customImage = nil
     }
     let image = customImage ?? NSImage(systemSymbolName: symbol, accessibilityDescription: name)

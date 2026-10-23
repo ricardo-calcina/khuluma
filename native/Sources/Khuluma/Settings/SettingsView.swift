@@ -45,6 +45,17 @@ struct SettingsView: View {
       } header: { Text("Transcription") }
 
       Section {
+        Picker("Menu bar icons", selection: Binding(get: { model.iconTheme }, set: model.selectIconTheme)) {
+          ForEach(StatusIconTheme.allCases, id: \.self) { theme in
+            Text(theme.title).tag(theme)
+          }
+        }
+        .help("Changes immediately, including during dictation.")
+        Text("Both use the same Ready emblem. Full emblem keeps the symbol visible while recording and processing.")
+          .font(.caption).foregroundStyle(.secondary)
+      } header: { Text("Appearance") }
+
+      Section {
         Toggle("Start at login", isOn: Binding(
           get: { model.loginStatus == .enabled || model.loginStatus == .requiresApproval },
           set: { _ in model.onToggleLogin(); model.loginStatus = LoginItem.status }))
@@ -71,7 +82,7 @@ struct SettingsView: View {
       } header: { Text("Diagnostics") }
 
       if model.recording {
-        Label("Settings are available when dictation finishes.", systemImage: "mic.fill")
+        Label("Dictation controls are available when dictation finishes.", systemImage: "mic.fill")
           .font(.callout)
       }
       if let message = model.message {

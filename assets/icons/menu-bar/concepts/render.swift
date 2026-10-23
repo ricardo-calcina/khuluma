@@ -3,12 +3,17 @@ import AppKit
 import CoreGraphics
 import Foundation
 
-// Design previews only. Reads the approved Ready PDF; never builds or installs an app.
+// Vector assets and previews only. Reads Ready unchanged; never builds or installs an app.
 let output = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
 let readyPDF = NSImage(contentsOf: output.deletingLastPathComponent().appendingPathComponent("khuluma-menu-template.pdf"))!
 
 enum Glyph: String, CaseIterable {
     case ready, speaking, sealing, emblemSpeaking = "emblem-speaking", emblemSealing = "emblem-sealing"
+    case emblemFrame = "emblem-frame", emblemRotor = "emblem-rotor"
+}
+let productionOnly = CommandLine.arguments.dropFirst() == ["--production"]
+guard CommandLine.arguments.count == 1 || productionOnly else {
+    fputs("Usage: render.swift [--production]\n",stderr); exit(2)
 }
 
 func line(_ points: [NSPoint], width: CGFloat = 1.3) {
@@ -46,34 +51,45 @@ func seal() {
     triangle([.init(x: 6.2,y: 10.8),.init(x: 9.9,y: 13.2),.init(x: 5.6,y: 14.8)])
     teeth()
 }
-func emblem(_ speaking: Bool) {
-    NSGraphicsContext.saveGraphicsState()
-    let t = NSAffineTransform(); t.translateX(by: 1.143,yBy: 1); t.scale(by: 0.25714); t.concat()
+func emblemFrameArtwork() {
     line([.init(x: 24.4,y: 24),.init(x: 32.2,y: 29)],width: 5.5)
     line([.init(x: 75.6,y: 24),.init(x: 67.8,y: 29)],width: 5.5)
     for x: CGFloat in [15,85] {
         ellipse(.init(x: x-13,y: 2,width: 26,height: 26),width: 3.8)
         NSBezierPath(ovalIn: .init(x: x-4.8,y: 10.2,width: 9.6,height: 9.6)).fill()
     }
-    if speaking {
-        let mouth = NSBezierPath(ovalIn: .init(x: 26.5,y: 20.9,width: 47,height: 47))
-        mouth.windingRule = .evenOdd
-        triangle([.init(x: 36,y: 29),.init(x: 42,y: 26),.init(x: 45,y: 40)],into: mouth)
-        triangle([.init(x: 58,y: 26),.init(x: 64,y: 29),.init(x: 55,y: 40)],into: mouth)
-        triangle([.init(x: 36,y: 59.8),.init(x: 42,y: 62.8),.init(x: 45,y: 48.8)],into: mouth)
-        triangle([.init(x: 58,y: 62.8),.init(x: 64,y: 59.8),.init(x: 55,y: 48.8)],into: mouth)
-        mouth.fill()
-    } else {
-        let inner = NSAffineTransform(); inner.translateX(by: 10.8,yBy: 16.4); inner.scale(by: 2.8); inner.concat()
-        seal()
-    }
+}
+func emblemTransform(_ draw: () -> Void) {
+    NSGraphicsContext.saveGraphicsState()
+    let t = NSAffineTransform(); t.translateX(by: 1.143,yBy: 1); t.scale(by: 0.25714); t.concat()
+    draw()
     NSGraphicsContext.restoreGraphicsState()
+}
+func emblemRotorArtwork() {
+    let inner = NSAffineTransform(); inner.translateX(by: 10.8,yBy: 16.4); inner.scale(by: 2.8); inner.concat()
+    seal()
+}
+func emblem(_ speaking: Bool) {
+    emblemTransform {
+        emblemFrameArtwork()
+        if speaking {
+            let mouth = NSBezierPath(ovalIn: .init(x: 26.5,y: 20.9,width: 47,height: 47))
+            mouth.windingRule = .evenOdd
+            triangle([.init(x: 36,y: 29),.init(x: 42,y: 26),.init(x: 45,y: 40)],into: mouth)
+            triangle([.init(x: 58,y: 26),.init(x: 64,y: 29),.init(x: 55,y: 40)],into: mouth)
+            triangle([.init(x: 36,y: 59.8),.init(x: 42,y: 62.8),.init(x: 45,y: 48.8)],into: mouth)
+            triangle([.init(x: 58,y: 62.8),.init(x: 64,y: 59.8),.init(x: 55,y: 48.8)],into: mouth)
+            mouth.fill()
+        } else {
+            emblemRotorArtwork()
+        }
+    }
 }
 func artwork(_ glyph: Glyph) {
     switch glyph {
     case .ready: readyPDF.draw(in: .init(x: 0,y: 0,width: 28,height: 20))
     case .speaking:
-        ellipse(.init(x: 8.5,y: 1.65,width: 11,height: 16.7),width: 1.3)
+        ellipse(.init(x: 6.75,y: 2.75,width: 14.5,height: 14.5),width: 1.3)
         teeth()
         for reflect in [false,true] {
             NSGraphicsContext.saveGraphicsState()
@@ -85,6 +101,8 @@ func artwork(_ glyph: Glyph) {
     case .sealing: seal()
     case .emblemSpeaking: emblem(true)
     case .emblemSealing: emblem(false)
+    case .emblemFrame: emblemTransform { emblemFrameArtwork() }
+    case .emblemRotor: emblemTransform { emblemRotorArtwork() }
     }
 }
 func drawGlyph(_ glyph: Glyph, in rect: NSRect, tint: NSColor) {
@@ -120,7 +138,10 @@ func centered(_ value: String, _ cx: CGFloat, _ y: CGFloat, _ size: CGFloat, wei
     text(value,cx-width/2,y,size,weight: weight,hex: hex)
 }
 
-for glyph in Glyph.allCases where glyph != .ready {
+// --production leaves the approved Ready, Finishing and full-emblem references
+// byte-identical while refreshing the corrected Recording and animation layers.
+let exportGlyphs: [Glyph] = productionOnly ? [.speaking,.emblemFrame,.emblemRotor] : Glyph.allCases.filter { $0 != .ready }
+for glyph in exportGlyphs {
     for scale in [1,2] {
         try png(glyph.rawValue + (scale == 2 ? "@2x" : "") + ".png",width: 28,height: 20,scale: scale) {
             drawGlyph(glyph,in: .init(x: 0,y: 0,width: 28,height: 20),tint: .black)
@@ -132,6 +153,17 @@ for glyph in Glyph.allCases where glyph != .ready {
     NSGraphicsContext.saveGraphicsState(); NSGraphicsContext.current = NSGraphicsContext(cgContext: pdf,flipped: true)
     NSColor.black.set(); artwork(glyph)
     NSGraphicsContext.restoreGraphicsState(); pdf.endPDFPage(); pdf.closePDF()
+}
+
+let productionAssets = output.deletingLastPathComponent()
+for (source,destination) in [
+    ("speaking.pdf","khuluma-recording-template.pdf"),
+    ("emblem-speaking.pdf","khuluma-emblem-recording-template.pdf"),
+    ("emblem-sealing.pdf","khuluma-emblem-finishing-template.pdf"),
+    ("emblem-frame.pdf","khuluma-emblem-frame-template.pdf"),
+    ("emblem-rotor.pdf","khuluma-emblem-rotor-template.pdf")
+] {
+    try Data(contentsOf: output.appendingPathComponent(source)).write(to: productionAssets.appendingPathComponent(destination))
 }
 
 try png("status-options.png",width: 780,height: 850) {
@@ -167,4 +199,4 @@ try png("status-options.png",width: 780,height: 850) {
     text("Vector concepts · light/dark 18 pt previews at 2× Retina · no animation shown",34,798,10,hex: 0x67685F)
     text("Preview only · the installed app is unchanged",34,816,10,hex: 0x67685F)
 }
-print("Wrote four vector PDF concepts, 1×/2× PNGs and status-options.png to \(output.path)")
+print("Wrote \(exportGlyphs.count) vector PDF concepts, 1×/2× PNGs, production copies and status-options.png to \(output.path)")

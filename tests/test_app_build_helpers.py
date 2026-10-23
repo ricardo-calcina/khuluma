@@ -166,6 +166,10 @@ def main() -> int:
     (template / "repo/assets/icons/menu-bar/khuluma-menu-template.pdf").write_bytes(b"MOCK VECTOR PDF\n")
     (template / "repo/assets/icons/menu-bar/khuluma-recording-template.pdf").write_bytes(b"MOCK RECORDING VECTOR PDF\n")
     (template / "repo/assets/icons/menu-bar/khuluma-finishing-template.pdf").write_bytes(b"MOCK FINISHING VECTOR PDF\n")
+    (template / "repo/assets/icons/menu-bar/khuluma-emblem-recording-template.pdf").write_bytes(b"MOCK EMBLEM RECORDING PDF\n")
+    (template / "repo/assets/icons/menu-bar/khuluma-emblem-finishing-template.pdf").write_bytes(b"MOCK EMBLEM FINISHING PDF\n")
+    (template / "repo/assets/icons/menu-bar/khuluma-emblem-frame-template.pdf").write_bytes(b"MOCK EMBLEM FRAME PDF\n")
+    (template / "repo/assets/icons/menu-bar/khuluma-emblem-rotor-template.pdf").write_bytes(b"MOCK EMBLEM ROTOR PDF\n")
     shutil.copy2(source_script, template / "repo/tools/build-khuluma-app.source.sh")
     instrumentation_from = "  LSREGISTER=" + LSREGISTER
     instrumentation_to = '  LSREGISTER="$GATE_MOCK_LSREGISTER"'
@@ -300,6 +304,10 @@ def main() -> int:
         assert (output / "Contents/Resources/KhulumaMenuTemplate.pdf").read_bytes() == b"MOCK VECTOR PDF\n", "menu template missing or changed"
         assert (output / "Contents/Resources/KhulumaRecordingTemplate.pdf").read_bytes() == b"MOCK RECORDING VECTOR PDF\n", "recording template missing or changed"
         assert (output / "Contents/Resources/KhulumaFinishingTemplate.pdf").read_bytes() == b"MOCK FINISHING VECTOR PDF\n", "finishing template missing or changed"
+        assert (output / "Contents/Resources/KhulumaEmblemRecordingTemplate.pdf").read_bytes() == b"MOCK EMBLEM RECORDING PDF\n", "emblem recording missing or changed"
+        assert (output / "Contents/Resources/KhulumaEmblemFinishingTemplate.pdf").read_bytes() == b"MOCK EMBLEM FINISHING PDF\n", "emblem finishing missing or changed"
+        assert (output / "Contents/Resources/KhulumaEmblemFrameTemplate.pdf").read_bytes() == b"MOCK EMBLEM FRAME PDF\n", "emblem frame missing or changed"
+        assert (output / "Contents/Resources/KhulumaEmblemRotorTemplate.pdf").read_bytes() == b"MOCK EMBLEM ROTOR PDF\n", "emblem rotor missing or changed"
         signatures = [event for event in events if event["command"] == "codesign" and event["args"][0] == "--force"]
         assert len(signatures) == 1 and signatures[0]["args"][signatures[0]["args"].index("--sign") + 1] == HASH_A, "signing did not select exact hash"
         assert list((root / "tmp").glob("khuluma-app-build.*")), "build workspace was not retained"

@@ -2,8 +2,9 @@
 
 ## Unreleased
 
+- Make the Recording mouth rounder and add Settings → Appearance → Menu bar icons. Switch immediately between Cursed speech and Full emblem, remember the choice, and rotate only the centre seal in Full emblem while processing.
 - Slowly rotate the Processing fang seal while work is in flight, including with the menu open. Stop on other states and respect Reduce Motion.
-- Replace the Recording microphone with a cursed-speech mouth and the Processing waveform with a fang seal. Keep the Ready emblem, native tinting, stable menu bar width and existing delivery timing. Preserve the alternative full-emblem artwork for a possible future theme.
+- Replace the Recording microphone with a cursed-speech mouth and the Processing waveform with a fang seal. Keep the Ready emblem, native tinting, stable menu bar width and existing delivery timing.
 - Add the raised Khuluma app icon with automatic light/dark artwork on macOS 26 and an 18-point menu glyph. Keep native light/dark/selected menu tinting and preserve recording, processing and error feedback in a stable-width slot.
 - Replace the command-list menu with a wide native menu showing centered total words, estimated time saved and average WPM, with a compact icon footer. Let macOS handle placement, repeat-click and outside-click dismissal, and give the three action icons hover and keyboard focus feedback. Show warnings only when attention is needed.
 - Keep Stats as the home window and open compact Settings through a native titlebar gear, with key-press shortcut capture, model selection, auto-send, sounds, login and diagnostics controls.

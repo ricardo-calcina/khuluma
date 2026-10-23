@@ -2,9 +2,9 @@
 
 ## Now
 
-Khuluma v0.11.0 build 353 is installed from `fb06b5b`. The Processing fang seal rotates clockwise once every four seconds, including while the native menu is open; Ready/Recording/Error stay static. Reduce Motion pauses/resumes through workspace notifications. Signature, 49 timed motion captures, 16 static captures, phase/Reduce Motion checks and doctor pass. Config, daemon binary/PID and all five icon resources are unchanged. The 36-point slot and 28-by-20-point custom canvases remain stable. Cached button captures do not verify selected background material. Reproduction and evidence are in `assets/icons/README.md`.
+The rounder Recording mouth and Settings → Appearance → Menu bar icons are implemented for local installation. Cursed speech remains the default; Full emblem retains its side rings and rotates only the centre while Processing. Changes apply immediately and persist in app preferences. Both themes preserve the four-second spin, Reduce Motion, native tint, fixed 36-point slot and 28-by-20-point canvas. Helper checks pass; native build, rendered Settings, motion and installed health verification are next. Build 353 remains installed until that cutover.
 
-Cursed-speech set 2, which keeps the full emblem during Recording/Finishing, is retained with its renderer and previews at `assets/icons/menu-bar/concepts/`. A possible future Settings theme control is separate work. Phase timing, delivery, overlap priority and error handling are unchanged. The raised app icon still uses the compiled native catalog; its Finder light/dark switching was verified in build 347. General appearance remains Auto and icon style Dark → Auto; the approved temporary public build branch is removed.
+Both cursed-speech sets and their renderer remain at `assets/icons/menu-bar/concepts/`. Phase timing, delivery, overlap priority and error handling are unchanged. The raised app icon still uses the compiled native catalog; its Finder light/dark switching was verified in build 347. General appearance remains Auto and icon style Dark → Auto; the approved temporary public build branch is removed.
 
 The menu utility and integrated Settings from build 340 remain in the installed icon update, with the matching local CLI (contract 4). Stats uses three sections across the viewport, with an accurate full-target milestone bar, toolbar utilities and compact Settings. File-transcription entry/output remains a separate design question.
 
@@ -36,7 +36,7 @@ Continue the existing daily-use observation before phase 1. No installed old Kwi
 - [ ] P2 · Review the existing file-transcription entry/output flow before choosing a drag target · added 2026-10-23
 - [x] P2 · Choose and install cursed-speech set 1 Recording/Finishing replacements; preserve set 2 · added 2026-10-23
 - [x] P2 · Slowly rotate the Processing fang seal, including menu tracking and Reduce Motion stop/resume · added 2026-10-23
-- [ ] P2 · Consider a Settings theme switch for retained set 2 full-emblem status glyphs · added 2026-10-23
+- [ ] P2 · Install and verify rounder Recording mouth and immediate Settings switch between both status icon themes · added 2026-10-23
 - [ ] P2 · Lowkey ideas parked from 3c, only with evidence: config file watcher, warm mic/pre-roll · added 2026-10-16
 - [ ] P2 · Phase 2 after CLI independence: Developer ID signing/notarization, versioned app distribution and khuluma cask; Settings, History, Transcribe File and bundled agent CLI; verify fresh-Mac permissions and file transcription · added 2026-10-22
 - [ ] P2 · Decide the future signed-app cask/update approach before phase 2 distribution; paid membership/domain require separate authorization · added 2026-10-22
