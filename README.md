@@ -147,6 +147,7 @@ khuluma bench 20                # stage timings of recent takes
 ```
 
 - **History** keeps transcripts for `history.retention_days` (7 by default).
+- **Audio:** with `debug.keep_logs` enabled, successful takes keep their working WAV until history is saved, then delete it directly. A separate audio archive remains for `history.audio_retention_days` (2 by default). On the next dictation, archives older than the configured retention period (48 hours by default) are deleted directly to free storage. Failed history writes keep the handed-over working audio for retry. With debug audio disabled, native transcription uses temporary WAVs without an audio archive.
 - **Usage** is a separate, transcript-free tally of delivered dictations that survives history pruning. It started when the feature was installed and doesn't backfill. Daily buckets started with v0.10.0.
 - **The time-saved figure** is an estimate. It assumes a typing speed (`KHULUMA_HISTORY_TYPING_WPM`, 40 by default), and changing it recalculates the estimate without touching the recorded totals.
 

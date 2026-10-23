@@ -1481,16 +1481,20 @@ run_inline_record_usage_retry_round() {
   local bench_rows
   bench_rows="$(wc -l <"$KHULUMA_CONFIG_DIR/history/bench.tsv" | tr -d ' ')"
   chmod 500 "$KHULUMA_CONFIG_DIR/history"
-  printf '%s' '{"take_id":"t-hist","status":"ok","delivered":true,"raw_text":"f g","text":"f g","record_ms":700}' \
+  printf 'RIFF failed-history audio' >"$KHULUMA_TMPDIR/khuluma-history-retry.wav"
+  printf '{"take_id":"t-hist","status":"ok","delivered":true,"raw_text":"f g","text":"f g","record_ms":700,"wav_path":"%s"}' "$KHULUMA_TMPDIR/khuluma-history-retry.wav" \
     | "$KHULUMA_BIN" inline record --json >"$CASE_DIR/hist-1.json" 2>/dev/null
   chmod 700 "$KHULUMA_CONFIG_DIR/history"
   assert_file_contains "inline_record_history_failed" "$CASE_DIR/hist-1.json" '"history_saved": false'
+  [[ -f "$KHULUMA_TMPDIR/khuluma-history-retry.wav" ]] || fail "inline_record_history_failed_keeps_audio"
+  pass "inline_record_history_failed_keeps_audio"
   if grep -qxF t-hist "$cache/recorded-takes"; then fail "inline_record_history_failed_not_final"; fi
   pass "inline_record_history_failed_not_final"
   history_files="$(ls "$KHULUMA_CONFIG_DIR/history"/*.json 2>/dev/null | wc -l | tr -d ' ')"
-  printf '%s' '{"take_id":"t-hist","status":"ok","delivered":true,"raw_text":"f g","text":"f g","record_ms":700}' \
+  printf '{"take_id":"t-hist","status":"ok","delivered":true,"raw_text":"f g","text":"f g","record_ms":700,"wav_path":"%s"}' "$KHULUMA_TMPDIR/khuluma-history-retry.wav" \
     | "$KHULUMA_BIN" inline record --json >"$CASE_DIR/hist-2.json"
   assert_file_contains "inline_record_history_retried" "$CASE_DIR/hist-2.json" '"history_saved": true'
+  assert_path_absent "inline_record_history_retried_deletes_audio" "$KHULUMA_TMPDIR/khuluma-history-retry.wav"
   assert_equals "inline_record_history_retry_saved" "$(ls "$KHULUMA_CONFIG_DIR/history"/*.json | wc -l | tr -d ' ')" "$((history_files + 1))"
   assert_equals "inline_record_history_retry_one_bench_row" "$(wc -l <"$KHULUMA_CONFIG_DIR/history/bench.tsv" | tr -d ' ')" "$((bench_rows + 1))"
   assert_equals "inline_record_history_retry_usage_once" \
@@ -1766,10 +1770,13 @@ PYEOF
   assert_contains "inline_record_no_speech_bench" "$(tail -n 1 "$KHULUMA_CONFIG_DIR/history/bench.tsv")" $'\tno_speech\t'
 
   # [debug] keep_logs: the handed-over WAV is archived and removed.
-  printf 'RIFF fake wav' >"$CASE_DIR/take-padded.wav"
+  printf 'RIFF fake wav' >"$KHULUMA_TMPDIR/khuluma-padded.wav"
   printf '{"take_id":"t-keep","status":"ok","delivered":true,"raw_text":"k","text":"k","wav_path":"%s"}' \
-    "$CASE_DIR/take-padded.wav" | KHULUMA_KEEP_LOGS=1 "$KHULUMA_BIN" inline record --json >/dev/null
-  assert_path_absent "inline_record_keep_logs_wav_moved" "$CASE_DIR/take-padded.wav"
+    "$KHULUMA_TMPDIR/khuluma-padded.wav" | KHULUMA_KEEP_LOGS=1 "$KHULUMA_BIN" inline record --json >"$CASE_DIR/record-keep.json"
+  assert_file_contains "inline_record_keep_logs_history_saved" "$CASE_DIR/record-keep.json" '"history_saved": true'
+  assert_path_absent "inline_record_keep_logs_wav_deleted" "$KHULUMA_TMPDIR/khuluma-padded.wav"
+  if find "$KHULUMA_TEST_RECOVERY_ROOT" -name '*khuluma-padded.wav' | grep -q .; then fail "inline_record_wav_not_trashed"; fi
+  pass "inline_record_wav_not_trashed"
   ls "$KHULUMA_CONFIG_DIR/history/inline-debug/"*t-keep.wav >/dev/null 2>&1 || fail "inline_record_keep_logs_archive_wav"
   pass "inline_record_keep_logs_archive_wav"
   ls "$KHULUMA_CONFIG_DIR/history/inline-debug/"*t-keep.meta >/dev/null 2>&1 || fail "inline_record_keep_logs_archive_meta"
