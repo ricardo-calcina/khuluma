@@ -35,7 +35,7 @@ func writePNG(_ image: CGImage, to url: URL) throws {
     guard CGImageDestinationFinalize(destination) else { throw IconError.invalid("Cannot finish \(url.path)") }
 }
 
-func renderedIcon(_ source: CGImage, size: Int) throws -> CGImage {
+func renderedIcon(_ source: CGImage, size: Int, catalog: Bool = false) throws -> CGImage {
     guard source.width == 1254, source.height == 1254 else {
         throw IconError.invalid("Approved artwork must remain 1254 × 1254")
     }
@@ -45,7 +45,10 @@ func renderedIcon(_ source: CGImage, size: Int) throws -> CGImage {
     let crop = CGRect(x: 94, y: 92, width: 1066, height: 1048)
     guard let tile = source.cropping(to: crop) else { throw IconError.invalid("Artwork crop failed") }
     let c = context(size, size)
-    let side = CGFloat(size) * 824 / 1024
+    // Legacy ICNS needs its own macOS canvas inset. A native .icon catalog
+    // supplies that container, so its image layer must reach the canvas edges.
+    // Both exports retain the same approved raster crop, mask and materials.
+    let side = catalog ? CGFloat(size) : CGFloat(size) * 824 / 1024
     let inset = (CGFloat(size) - side) / 2
     let tileRect = CGRect(x: inset, y: inset, width: side, height: side)
     c.interpolationQuality = .high
@@ -162,6 +165,8 @@ func preview(_ images: [CGImage], to url: URL) throws {
 func export() throws {
     let temporary = fm.temporaryDirectory.appendingPathComponent("khuluma-icon-export-\(UUID().uuidString)", isDirectory: true)
     try fm.createDirectory(at: temporary, withIntermediateDirectories: true)
+    let catalogAssets = root.appendingPathComponent("assets/icons/AppIcon.icon/Assets", isDirectory: true)
+    try fm.createDirectory(at: catalogAssets, withIntermediateDirectories: true)
     var fullSize: [CGImage] = []
     for appearance in ["Light", "Dark"] {
         let source = try readImage(output.appendingPathComponent("raised-\(appearance.lowercased())-preview.png"))
@@ -177,6 +182,8 @@ func export() throws {
         let image = try renderedIcon(source, size: 1024)
         fullSize.append(image)
         try writePNG(image, to: output.appendingPathComponent("Khuluma-\(appearance).png"))
+        let catalogImage = try renderedIcon(source, size: 1024, catalog: true)
+        try writePNG(catalogImage, to: catalogAssets.appendingPathComponent("Khuluma-\(appearance).png"))
         try convertIconset(iconset, to: output.appendingPathComponent("Khuluma-\(appearance).icns"))
     }
     let light = try Data(contentsOf: output.appendingPathComponent("Khuluma-Light.icns"))
@@ -185,6 +192,7 @@ func export() throws {
     try preview(fullSize, to: output.appendingPathComponent("export-preview.png"))
     print("Exported light/dark PNG and ICNS, with a nested dark variant in Khuluma.icns.")
     print("The ordinary light fallback is independent of system dark-icon support.")
+    print("Exported full-bleed native catalog layers from the same approved raster crop.")
     print("Intermediate iconsets retained at \(temporary.path)")
 }
 

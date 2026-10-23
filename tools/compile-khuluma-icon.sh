@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Compile only the macOS 26+ icon catalog. Never build or modify an app bundle.
-# The approved PNGs are embedded unchanged, with explicit default/dark images.
+# Full-bleed derivatives of the approved artwork use explicit default/dark images.
+# Reproduce them with tools/make-khuluma-icons.swift: the same source raster crop
+# and mask as the legacy exports, without their 100px canvas inset. The native
+# catalog supplies that outer container; copying legacy PNGs here nests two tiles.
 # Schema references (structure only; no third-party artwork is included):
 # https://github.com/OpenSC2K/OpenSC2K/blob/7b38850dc0520279f60023e7ad41fc461c118f0a/game/assets/icons/OpenSC2K.icon/icon.json
 # https://github.com/insidegui/AssetCatalogTinkerer/blob/f5208620695b1eec451d6943beeb4ac1bfd37c63/Resources/AppIconV5.icon/icon.json
@@ -42,10 +45,11 @@ xcode_major="$(printf '%s\n' "$xcode_version" | sed -n 's/^Xcode \([0-9][0-9]*\)
   exit 2
 }
 
-# Detect accidental artwork drift without requiring an image-processing library.
-python3 - "$SOURCE" "$ROOT/assets/icons/app" <<'PY'
+# Check declared layer names and native input dimensions without an image library.
+# Artwork remains reproducible from raised-*-preview.png via the native exporter.
+python3 - "$SOURCE" <<'PY'
 import json, pathlib, struct, sys
-source, approved = map(pathlib.Path, sys.argv[1:])
+source = pathlib.Path(sys.argv[1])
 document = json.loads((source / "icon.json").read_text())
 layer = document["groups"][0]["layers"][0]
 assert layer["image-name-specializations"] == [
@@ -55,10 +59,10 @@ assert layer["image-name-specializations"] == [
 for appearance in ("Light", "Dark"):
     name = f"Khuluma-{appearance}.png"
     artwork = (source / "Assets" / name).read_bytes()
-    assert artwork == (approved / name).read_bytes(), f"Artwork drift: {name}"
     assert artwork[:8] == b"\x89PNG\r\n\x1a\n", f"Invalid PNG: {name}"
+    assert artwork[12:16] == b"IHDR", f"Missing PNG header: {name}"
     assert struct.unpack(">II", artwork[16:24]) == (1024, 1024), f"Expected 1024px: {name}"
-print("Validated unchanged approved 1024px light/dark artwork.")
+print("Validated declared 1024px light/dark catalog artwork.")
 PY
 
 mkdir "$OUT"
