@@ -2,28 +2,19 @@
 
 ## Now
 
-All approved work is integrated on main in four grouped merges: menu/Stats/Settings, adaptive app and animated status icons, bounded audio cleanup, and dictation cleanup with the vocabulary editor. Combined shell CI, the full native build and 164 Swift tests, cleanup fixtures, 36 app helpers, 44 light/dark renders and native editing/Undo/JSON export/theme switching pass. App/CLI contract 5 must roll out together. This merge does not install an app/CLI or publish a release; the existing daily build 355 and contract-4 CLI remain in place. Personal vocabulary JSON stays outside Git.
+Khuluma v0.11.0 build 367 and its matching contract-5 CLI are installed from `4dcf33e`. Source [CI](https://github.com/ricardo-nth/khuluma/actions/runs/40016372572) and [Swift](https://github.com/ricardo-nth/khuluma/actions/runs/40016372589) passed before cutover. The signed app relaunched on the native pipeline; doctor reports zero issues/warnings. A real 35-second take delivered through the native path after cutover. F17, config, existing vocabulary, icon preference/catalog and daemon binary/PID are preserved. The installer skipped warm-up and sound replacement; Homebrew and public releases are unchanged.
 
-The installed CLI includes audio cleanup from `54a4350`: working WAVs handed over by the app are deleted after history is saved; archived WAVs expire after 48 hours on the next dictation, without entering Trash. Installed persistence/expiry/history-failure retry checks and doctor pass. A real take saved history without another Trash WAV; 13 expired migrated archive names were removed with 79 transcripts, 31 recent WAVs and all remaining recovery links unchanged. App build 355, daemon/PID, settings and existing Trash are preserved; no app restart was needed.
+The installed Settings and vocabulary editor load the existing rules and export equivalent JSON. Installed CLI vocabulary save and filler/sentence/brand cleanup pass against a private synthetic profile. Cleanup remains off with the prior repetition setting; the prepared personal import JSON stays outside Git until imported. The source combines menu/Stats/Settings, adaptive/animated icon themes, audio retention and vocabulary work in four grouped merges on main.
 
-Khuluma v0.11.0 build 355 is installed from `2b460a9`. Recording now uses a round mouth; Settings → Appearance → Menu bar icons switches immediately between Cursed speech and Full emblem and remembers the choice. Full emblem rotates only its centre. Signature, 36 helper cases, 32 static/98 timed captures, native Picker/relaunch/scroll/Back, Reduce Motion and doctor pass. Config, daemon binary/PID, adaptive app icon and Ready/seal assets are preserved. Cursed speech remains the default. Both themes keep the four-second spin, native tint, 36-point slot and 28-by-20-point canvases. Evidence and capture limits are in `assets/icons/README.md`.
-
-Both cursed-speech sets and their renderer remain at `assets/icons/menu-bar/concepts/`. Phase timing, delivery, overlap priority and error handling are unchanged. The raised app icon still uses the compiled native catalog; its Finder light/dark switching was verified in build 347. General appearance remains Auto and icon style Dark → Auto; the approved temporary public build branch is removed.
-
-The menu utility and integrated Settings from build 340 remain in the installed icon update, with the matching local CLI (contract 4). Stats uses three sections across the viewport, with an accurate full-target milestone bar, toolbar utilities and compact Settings. File-transcription entry/output remains a separate design question.
-
-The user confirmed build 340 menu toggling, dictation and Control-Escape cancellation. Live Stats matches the CLI. F17, Parakeet, canonical data/config/model/sound paths, signing identity and the running daemon were preserved. The Homebrew keg and public release remain unchanged; build 340 and older code/receipt backups are retained for recovery.
-
-Canonical-only compatibility removal is complete in source #85 and homebrew-tap#7. The immutable source archive matched Git; shell/native checks, pinned bootstrap, both three-scenario hosted package QA runs and the targeted local Brew upgrade passed. Old kegs, the previous app/local code and all data/recovery material remain retained. The completed identity migration is recorded in [its archived outcome](docs/plans/archive/KHULUMA_IDENTITY_RENAME.md).
-
-Continue the existing daily-use observation before phase 1. No installed old KwikCut executable was found in the bounded standard locations checked; recheck any future installed artifact before use. VPS website work is separate. No fresh-account, forced permission-denial/regrant, logout/reboot or package-uninstall trial is claimed.
+App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (build 355). CLI/code receipts and installer backups remain recorded under `/private/tmp/khuluma-vocabulary-install-aef6o_rh/`; verification and preservation evidence are there too. Preserve newer user data when recovering. Continue the daily-use phase-0 observation before native-writer work.
 
 ## Next
 
 - [x] P1 · Combine the approved menu, icon, audio and vocabulary branches on main; verify the integrated source · added 2026-10-24
 - [x] P1 · Audit saved dictation and prepare conservative hesitation/sentence/brand cleanup in source · added 2026-10-23
 - [x] P1 · Expose cleanup and one sectioned vocabulary editor with reviewed JSON import/export in Settings · added 2026-10-23
-- [ ] P1 · Install the merged contract-5 app/CLI together and check a real take when rollout is authorized; retain data/daemon · added 2026-10-23
+- [x] P1 · Install the merged contract-5 app/CLI together after CI; verify Settings/editor, export, health and preserved daemon · added 2026-10-23
+- [x] P1 · Confirm a real delivered take from installed build 367 on the contract-5 native pipeline · added 2026-10-24
 - [x] P1 · Build useful menu panel and integrated Settings with shortcut capture and opt-in Scribe · added 2026-10-23
 - [x] P1 · Install the approved menu/Settings app and matching CLI, preserving data/daemon and verifying daily use · added 2026-10-23
 - [x] P1 · Review the full identity rename plan · added 2026-10-22
@@ -69,6 +60,8 @@ Continue the existing daily-use observation before phase 1. No installed old Kwi
 - Rename the existing repository in place to preserve all history; retain neutral `ricardo-nth/tap` and rename its formula to `khuluma`. The in-place repository rename, immutable v0.10.0 release and canonical formula/map are published and verified. The app continues to depend on its matching CLI; cask/CLI-independence/deprecation/archive are separate future work.
 
 ## Done
+
+- 2026-10-24 · Installed signed build367/contract-5 CLI after hosted CI; installed editor/export/private cleanup/doctor and real native take pass; config/vocab/daemon preserved · 4dcf33e; /private/tmp/khuluma-vocabulary-install-aef6o_rh/
 
 - 2026-10-24 · Combined four approved branches; full CI/164 Swift/36 helper/44 render/native editor-export-theme checks pass; daily runtime unchanged · 4064293, ef6866c, f83b614, 89eb00b
 
@@ -147,5 +140,3 @@ Continue the existing daily-use observation before phase 1. No installed old Kwi
 - 2026-10-17 · `inline process` saves history before returning and reports `history_saved`; Khuluma's CLI path settles a take's Quit copy only when it is true · #80
 
 - 2026-10-17 · Modes removed: one global vocab (default keeps the base path rules, code spellings dropped), `migrate-modes [--skip]` archives old modes, auto-paragraphs gone; app contract 3; this Mac migrated with --skip code · #78
-
-- 2026-10-17 · Khuluma rename step 3: roadmap, name check and CHANGELOG TODO describe Khuluma; phase 0 kept as decided · #76
