@@ -92,6 +92,12 @@ enum StatsSnapshot {
       ("30-days", StatsModel(stats: fullStats, updatedAt: updated, rangeDays: 30)),
       ("incomplete", StatsModel(
         stats: UsageStats(report: report(today: today, trackedDays: 20, untracked: 12), today: today), updatedAt: updated)),
+      ("unreadable", StatsModel(
+        stats: UsageStats(report: report(today: today, trackedDays: 75, untracked: 0, status: "unreadable"),
+                          today: today), updatedAt: updated)),
+      ("lifetime-only", StatsModel(
+        stats: UsageStats(report: report(today: today, trackedDays: 75, untracked: 0, status: nil),
+                          today: today), updatedAt: updated)),
       ("not-started", StatsModel(
         stats: UsageStats(report: report(today: today, trackedDays: 0, untracked: 0, status: "not_started"), today: today),
         updatedAt: updated)),

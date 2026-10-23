@@ -53,7 +53,7 @@ System body, callout and caption styles carry controls and explanations. Semibol
 
 MenuPanel owns the 400-point panel width, 16-point horizontal and 12-point vertical content insets, and 10-point row gap. A quiet All time caption replaces the product heading. Three equal, centered columns show Total words, Time saved and Average WPM. A single divider separates three icon actions: open the app, Settings and Quit. The footer uses 12-point horizontal and 4-point vertical padding. Model and shortcut belong only in Settings. Warnings and recovery actions expand the panel only when applicable.
 
-StatsWindowController owns the native unified compact toolbar: a trailing 13-point gear in a 28-by-24-point small native button on Stats, leading Back on Settings. No content-level tabs or navigation header. The window starts at 560 by 634 points and can resize down to 560 by 420. Stats uses equal centered lifetime figures above Activity, a quiet streak row and coverage/footer information. There is no awards table, milestone celebration or secondary totals block. Its 560-point layout sits in a bounded ScrollView. Settings uses the native grouped Form and its system scrolling. Both destinations remain reachable in a short window.
+StatsWindowController owns the native unified compact toolbar: a trailing 13-point gear in a 28-by-24-point small native button on Stats, leading Back on Settings. No content-level tabs or navigation header. The window starts at 560 by 634 points and can resize down to 560 by 420. Stats uses equal centered lifetime figures above Activity, a quiet current streak line, a compact dated records list, recording totals and a slim word milestone bar. Records show best day, longest take and longest streak without trophy icons, New badges or competitive framing. Recording time clearly separates all-time and today. Its 560-point layout sits in a bounded ScrollView. Settings uses the native grouped Form and its system scrolling. Both destinations remain reachable in a short window.
 
 ## Elevation & Depth
 
@@ -93,12 +93,12 @@ No decorative animation. The transient panel opens without animation. Existing S
 
 ### Content and data visualization
 
-Use words the person controls: model, shortcut, sounds, Start at Login, diagnostic logs. Both summaries use lifetime totals. Time saved is visibly approximate and retains signed values if dictation took longer than the typing estimate; help explains the configured typing speed and full delivery time. Average WPM includes recording pauses. Missing values show a dash, never fabricated zero usage. Daily activity and streak remain separate from lifetime figures. Existing Stats math and coverage explanations remain authoritative.
+Use words the person controls: model, shortcut, sounds, Start at Login, diagnostic logs. Both summaries use lifetime totals. Time saved is visibly approximate and retains signed values if dictation took longer than the typing estimate; help explains the configured typing speed and full delivery time. Average WPM includes recording pauses. Recording time measures audio from delivered dictations, not estimated time saved. Records cover all stored daily history, independently of the selected Activity range; missing or partial daily coverage remains explicit. Missing values show a dash, never fabricated zero usage. Daily activity and streak remain separate from lifetime figures. Milestones use lifetime word totals and a quiet inline acknowledgement when a newly reached target is observed. Existing Stats math and coverage explanations remain authoritative.
 
 ## Do's and Don'ts
 
 - Do keep configuration details in Settings and the menu focused on glanceable usage.
-- Do keep Stats focused on the three lifetime figures, daily activity and streak; use the native titlebar for secondary navigation.
+- Do give the three lifetime figures priority, with activity, records and word progress underneath; use the native titlebar for secondary navigation.
 - Do keep recovery actions reachable whenever a recording needs attention.
 - Don't display routine readiness or local daemon internals as permanent menu rows.
 - Don't treat a successful config write as evidence of a live cloud transcription.

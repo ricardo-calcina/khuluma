@@ -61,9 +61,14 @@ private struct StatsContent: View {
                  text: "\(stats.untrackedDeliveries.formatted()) dictation\(stats.untrackedDeliveries == 1 ? " was" : "s were") "
                    + "recorded without a day (by an earlier version), so daily figures are lower bounds.")
         }
-        Divider()
-        StreakSection(stats: stats)
       }
+      Divider()
+      StreakSection(stats: stats)
+      RecordsSection(records: stats.records)
+      Divider()
+      RecordingTime(stats: stats)
+      MilestoneProgress(milestone: stats.milestone, words: stats.lifetime.words,
+                        reached: model.celebrating)
       Footer(stats: stats, model: model)
     }
   }
@@ -379,39 +384,115 @@ private struct Legend: View {
   }
 }
 
-// MARK: - Streak
+// MARK: - Records and recording time
 
 private struct StreakSection: View {
   let stats: UsageStats
 
   var body: some View {
-    let streak = stats.streak
-    VStack(alignment: .leading, spacing: 5) {
-      HStack(alignment: .firstTextBaseline, spacing: 8) {
-        Label(streakTitle, systemImage: "flame")
-          .font(.callout.weight(.medium))
-          .monospacedDigit()
-        Spacer()
-        if streak.best > 0 {
-          Text("Best \(streak.best) day\(streak.best == 1 ? "" : "s")")
-            .font(.callout)
-            .monospacedDigit()
-            .foregroundStyle(.secondary)
-        }
-      }
-      if streak.pendingToday {
-        Text("Dictate today to make it \(streak.current + 1)")
-          .font(.callout)
-          .foregroundStyle(.secondary)
+    HStack(alignment: .firstTextBaseline, spacing: 8) {
+      Text(stats.coverageComplete ? "Current streak" : "Recorded streak")
+        .foregroundStyle(.secondary)
+      Spacer()
+      Text(stats.hasDaily ? "\(stats.streak.current) day\(stats.streak.current == 1 ? "" : "s")" : "–")
+        .monospacedDigit()
+    }
+    .font(.callout)
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .accessibilityElement(children: .combine)
+  }
+}
+
+private struct RecordsSection: View {
+  let records: UsageStats.Records
+
+  var body: some View {
+    Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 10) {
+      row("Best day", record: records.bestDay,
+          help: "Most words in a recorded day, across all daily stats.") { "\($0.formatted()) words" }
+      row("Longest take", record: records.longestTake,
+          help: "Longest single recording, including pauses, across all daily stats.") { Format.duration(ms: $0) }
+      row("Longest streak", record: records.longestStreak,
+          help: "Longest run of recorded days. The date is the last day of that run.") {
+        "\($0) day\($0 == 1 ? "" : "s")"
       }
     }
-    .frame(maxWidth: .infinity, alignment: .leading)
+    .font(.callout)
   }
 
-  private var streakTitle: String {
-    let days = stats.streak.current
-    let label = stats.coverageComplete ? "streak" : "recorded streak"
-    return "\(days)-day \(label)"
+  private func row(_ title: String, record: UsageStats.Record?, help: String,
+                   value: (Int) -> String) -> some View {
+    let amount = record.map { value($0.value) } ?? "–"
+    let date = record.map { $0.date.noon.formatted(date: .abbreviated, time: .omitted) } ?? "–"
+    return GridRow {
+      Text(title)
+        .foregroundStyle(.secondary)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .help(help)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(title)
+        .accessibilityValue(record == nil ? "No recorded value" : "\(amount), \(date)")
+      Text(amount)
+        .monospacedDigit()
+        .gridColumnAlignment(.trailing)
+        .accessibilityHidden(true)
+      Text(date)
+        .foregroundStyle(.secondary)
+        .gridColumnAlignment(.trailing)
+        .accessibilityHidden(true)
+    }
+  }
+}
+
+private struct RecordingTime: View {
+  let stats: UsageStats
+
+  var body: some View {
+    HStack(alignment: .firstTextBaseline, spacing: 12) {
+      Text("Recording time").foregroundStyle(.secondary)
+      Spacer(minLength: 0)
+      Text("All time \(Format.duration(ms: stats.lifetime.recordingMs))")
+        .monospacedDigit()
+      Text("Today \(today)")
+        .monospacedDigit()
+    }
+    .font(.callout)
+    .help("Time spent recording successful dictations, including pauses. Today requires daily stats.")
+    .accessibilityElement(children: .combine)
+  }
+
+  private var today: String {
+    stats.hasDaily ? Format.duration(ms: stats.todayRecordingMs) : "–"
+  }
+}
+
+// MARK: - Word milestone
+
+private struct MilestoneProgress: View {
+  let milestone: UsageStats.Milestone
+  let words: Int
+  let reached: Int?
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 7) {
+      if let reached {
+        Text("\(reached.formatted()) words reached")
+          .font(.callout.weight(.medium))
+      }
+      HStack(alignment: .firstTextBaseline) {
+        Text("Next milestone: \(milestone.next.formatted()) words")
+        Spacer()
+        Text("\((milestone.next - words).formatted()) to go")
+          .monospacedDigit()
+          .foregroundStyle(.secondary)
+      }
+      .font(.callout)
+      ProgressView(value: milestone.progress, total: 1)
+        .progressViewStyle(.linear)
+        .controlSize(.small)
+        .accessibilityLabel("Progress to \(milestone.next.formatted()) words")
+        .accessibilityValue("\(Int(milestone.progress * 100)) percent, \((milestone.next - words).formatted()) words remaining")
+    }
   }
 }
 
