@@ -16,7 +16,7 @@ def delete_audio(path, directories, temporary=False):
         return
     roots = {Path(directory).resolve() for directory in directories if directory}
     if (target.parent.resolve() not in roots or not stat.S_ISREG(info.st_mode)
-            or info.st_uid != os.getuid() or info.st_nlink != 1):
+            or info.st_uid != os.getuid() or (temporary and info.st_nlink != 1)):
         raise ValueError('refusing audio cleanup outside an owned regular file: ' + str(target))
     name_ok = (re.fullmatch(r'khuluma-[A-Za-z0-9.-]+\.wav|khuluma-app-take\.[A-Za-z0-9]+', target.name)
                if temporary else target.suffix == '.wav')
@@ -24,6 +24,8 @@ def delete_audio(path, directories, temporary=False):
         name_ok = re.fullmatch(r'khuluma-tail-rescue\.[A-Za-z0-9]+', target.parent.name)
     if not name_ok:
         raise ValueError('refusing non-audio cleanup target: ' + str(target))
+    # Expiring an archive name is safe even when migration recovery retains
+    # another hard link: unlinking this name leaves that recovery copy intact.
     # This is the explicit audio-lifetime policy, separate from recoverable
     # cleanup of transcripts, user files, installations and test directories.
     target.unlink()

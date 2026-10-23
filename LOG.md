@@ -66,7 +66,7 @@ Continue the existing daily-use observation before phase 1. No installed old Kwi
 
 - 2026-10-23 · Installed CLI audio cleanup; private installed history/48-hour expiry/retry, doctor and signature checks pass; app/config/daemon unchanged · 5031d94; /private/tmp/khuluma-audio-install-cuixo7za/manifest.json
 
-- 2026-10-23 · Audio cleanup saves history before deleting working WAVs; archive expiry uses 48 hours without Trash; 292 flow/provider/4 deletion-boundary checks pass · bin/khuluma-lib/audio_cleanup.py
+- 2026-10-23 · Audio cleanup saves history before deleting working WAVs; archive expiry uses 48 hours without Trash; 292 flow/provider/5 deletion-boundary checks pass · bin/khuluma-lib/audio_cleanup.py
 
 - 2026-10-23 · Installed signed build 355 round Recording mouth and both Settings themes; 36 helper/32 static/98 motion/native Picker/relaunch/signature/doctor checks pass, config/daemon/catalog preserved · 2b460a9; assets/icons/README.md
 

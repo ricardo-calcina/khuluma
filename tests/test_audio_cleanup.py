@@ -42,6 +42,15 @@ class AudioCleanupTests(unittest.TestCase):
         self.assertFalse(wav.exists())
         audio.delete_audio(wav, [self.root], temporary=True)  # replay is harmless
 
+    def test_expiry_keeps_migration_recovery_hardlink(self):
+        wav = self.wav('expired.wav')
+        recovery = self.root / 'migration-recovery.keep'
+        os.link(wav, recovery)
+        os.utime(wav, (time.time() - 49 * 3600,) * 2)
+        audio.prune(self.root, 2)
+        self.assertFalse(wav.exists())
+        self.assertEqual(recovery.read_bytes(), b'RIFF test audio')
+
     def test_cli_scratch_audio_is_deleted(self):
         for name in ('khuluma-app-take.ABC123', 'khuluma-tail-pad.ABC123.wav', 'khuluma-prime.ABC123.wav'):
             wav = self.wav(name)
