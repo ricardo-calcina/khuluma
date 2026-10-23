@@ -74,7 +74,7 @@ hotkey = "ctrl+option+space"   # e.g. "cmd+shift+d", "f13"
 supervise_daemon = true        # keep the Parakeet daemon warm (launch, wake, recording start)
 ```
 
-The compact menu panel shows today's words and dictations, your streak, the current model and dictation shortcut. Recording, processing, warm-up and error notices appear when needed. **Open Khuluma** opens the full window; click the model, shortcut or gear to open **Settings**.
+The compact, arrowless menu panel shows today's words and dictations and your streak. Click the menu icon again to close it. Recording, processing, warm-up and error notices appear when needed. The window icon opens Stats; the gear in the menu or window title bar opens **Settings**. Back returns to Stats. Command-comma also opens Settings.
 
 **Settings** records a new shortcut from a key press and controls the transcription provider, auto-send, sounds, Start at Login and diagnostic logging. Open Log, Open Config and Reload Settings live there. Scribe reads `ELEVENLABS_API_KEY` from the environment or a literal `export ELEVENLABS_API_KEY=...` in your `.zshrc` (including `ZDOTDIR` and `~/.config/zsh`). It never executes the interactive shell or displays the key. Selecting Scribe applies to dictation, saved-recording recovery and file transcription; Parakeet remains the default.
 
@@ -91,7 +91,7 @@ khuluma target origin|current      # the app in front at the start of recording,
 khuluma sound start|stop|process|error on|off
 ```
 
-The **Stats** tab shows lifetime words, words per minute, the estimated time saved against typing (always labelled as an estimate, at 40 wpm by default), a 30/60/90-day activity heatmap, your streak and your bests. It reads `khuluma usage --json --days all`, which holds counts and durations only, never what you said.
+**Stats** shows lifetime words, words per minute, the estimated time saved against typing (always labelled as an estimate, at 40 wpm by default), a 30/60/90-day activity heatmap, your streak and your bests. It reads `khuluma usage --json --days all`, which holds counts and durations only, never what you said.
 
 **Logs:** `~/Library/Logs/Khuluma/app.log` has one `take:` line per take (path, outcome, timings; no text). `tools/khuluma-report.sh` summarises it: outcomes, fallback and failure rates, and where the time goes.
 

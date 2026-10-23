@@ -13,7 +13,7 @@ typography:
 rounded:
   DEFAULT: 8px
 spacing:
-  menu-inset: 18px
+  menu-inset: 16px
   menu-gap: 14px
   stats-inset: 20px
 components:
@@ -29,7 +29,7 @@ components:
 
 ### Creative North Star
 
-A small Mac utility you open for an answer and close immediately. The distinctive element is a wide, three-column daily readout, paired with the actual dictation shortcut and current model.
+A small Mac utility you open for an answer and close immediately. A shallow, arrowless daily readout leads to the original Stats view. Settings is a secondary destination behind a native titlebar gear. Precision and familiar Mac behavior carry the identity.
 
 ### Product context and register
 
@@ -43,21 +43,21 @@ A small Mac utility you open for an answer and close immediately. The distinctiv
 
 ## Colors
 
-Use primary and secondary text, windowBackgroundColor, quaternary dividers, system accent for charts and selection, and orange with a text warning for recoverable problems. The operating system owns exact values, dark mode, increased contrast and control focus colors. No hardcoded hex palette.
+Use primary and secondary text, native menu material, windowBackgroundColor, quaternary dividers and system accent for charts and selection. Warnings use a labelled symbol and legible primary text. The operating system owns exact values, dark mode, increased contrast, reduced transparency and control focus colors. No hardcoded hex palette.
 
 ## Typography
 
-System body, callout and caption styles carry controls and explanations. Rounded, semibold 25-point numerals carry compact usage; the existing Stats figures use rounded 26-point bold type. Monospaced digits prevent count movement. Shortcut text is monospaced. Keep sentence case for actions.
+System body, callout and caption styles carry controls and explanations. Semibold 24-point system numerals carry compact usage; the original Stats figures keep their rounded 26-point bold type. Monospaced digits prevent count movement. Keep sentence case for actions.
 
 ## Layout
 
-MenuPanel owns the 440-point panel width, 18-point inset and 14-point row gap. Three equal metric columns are separated by native dividers. Model and shortcut controls share one row. Footer contains Open Khuluma, Settings and Quit. Warnings and recovery actions expand the panel only when applicable.
+MenuPanel owns the 400-point panel width, 16-point inset and 14-point row gap. A quiet Today caption replaces the product heading. Three aligned metric columns show words, dictations and streak provisionally; the final metric choice remains open. A single divider separates three icon actions: open the app, Settings and Quit. Model and shortcut belong only in Settings. Warnings and recovery actions expand the panel only when applicable.
 
-AppView owns a 600-point minimum width, segmented Stats/Settings navigation and a 460-point minimum height. Stats keeps its established 560-point content width inside its own ScrollView. Settings uses the native grouped Form and its system scrolling. The window starts at 600 by 670 points and can resize; either tab's long content remains reachable.
+StatsWindowController owns the native unified compact toolbar: trailing gear on Stats, leading Back on Settings. No content-level tabs or navigation header. The window starts at the original Stats content size, 560 by 634 points, and can resize down to 560 by 420. Stats retains its established 560-point layout in a bounded ScrollView. Settings uses the native grouped Form and its system scrolling. Both destinations remain reachable in a short window.
 
 ## Elevation & Depth
 
-The native transient NSPopover supplies anchoring, dismissal and depth. The main window uses the system background and grouped form surfaces. Avoid extra shadows or nested floating cards.
+StatusDropdownController hosts one SwiftUI view inside an NSMenuItem and assigns its NSMenu to the status item, following the working Sys Stats implementation. macOS owns the glass, corners, shadow, position and tracking. There is no pointer, custom gap, window positioning or mouse monitor. Click the icon to open, click it again or elsewhere to close, and Escape dismisses. Native placement takes priority over forced centering. The main window uses system chrome and grouped form surfaces.
 
 ## Shapes
 
@@ -71,11 +71,11 @@ Use native disabled, focus, pressed, selected and hover states. Loading uses a s
 
 ### Buttons and actions
 
-Native bordered buttons for model and shortcut, borderless footer controls, text buttons in Settings. Icon-only controls have accessible labels and help. Quit stays separate from Open Khuluma. Recovery/discard actions retain their existing deliberate app flow.
+Native titlebar toolbar items, icon-only menu footer controls and native form controls. Menu icons have a 32-by-28-point target, semantic hover and pressed surfaces, and a keyboard focus outline. The shortcut recorder is a compact key button; capture instructions appear while recording. Icon-only controls have accessible labels and help. Quit stays separate from opening the app. Recovery/discard actions retain their existing deliberate app flow.
 
 ### Navigation and data display
 
-AppView owns segmented Stats/Settings navigation. StatusMenu owns the transient menu panel. StatsModel owns usage loading and observes the ledger only while either surface is open; it has no polling loop. Opening model or shortcut goes to Settings. Escape and Command-W close the main window.
+Stats is the home destination. Its gear and Command-comma open Settings; Back, Command-left-bracket or Escape return to Stats. Command-W closes either destination; Escape on Stats closes the window. StatusMenu and its isolated preview share the native menu container. StatsModel observes the ledger only while a surface is open; it has no polling loop. Menu updates and size invalidation use common run loop modes so they continue during menu tracking.
 
 ### Forms and overlays
 
@@ -85,7 +85,7 @@ Choosing ElevenLabs is explicit, with an audio-upload and usage-credit notice vi
 
 ### Iconography
 
-SF Symbols only. The menu icon communicates recording, processing or error. The idle microphone needs no textual Ready line. Model/shortcut remain text-labelled.
+SF Symbols only. The menu icon communicates recording, processing or error. The idle microphone needs no textual Ready line. Gear and Back use standard Mac toolbar placement and accessible names.
 
 ### Motion
 
@@ -97,7 +97,8 @@ Use words the person controls: model, shortcut, sounds, Start at Login, diagnost
 
 ## Do's and Don'ts
 
-- Do keep the current shortcut and actual effective model visible together.
+- Do keep configuration details in Settings and the menu focused on glanceable usage.
+- Do preserve the original Stats layout and use the native titlebar for secondary navigation.
 - Do keep recovery actions reachable whenever a recording needs attention.
 - Don't display routine readiness or local daemon internals as permanent menu rows.
 - Don't treat a successful config write as evidence of a live cloud transcription.

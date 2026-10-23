@@ -41,9 +41,10 @@ final class StatsModel: ObservableObject {
   private var windowOpen = false
   private var menuOpen = false
   private var watcher: DispatchSourceFileSystemObject?
+  private var watchGeneration = 0
   private var watchedPath: String?
   private var ledgerSignature: FileSignature?
-  private var debounce: DispatchWorkItem?
+  private var debounce: Timer?
   private var observers: [(NotificationCenter, NSObjectProtocol)] = []
 
   init(source: @escaping () -> Source) {
@@ -115,7 +116,7 @@ final class StatsModel: ObservableObject {
   private func endObserving() {
     open = false
     refresh.invalidate()
-    debounce?.cancel()
+    debounce?.invalidate()
     debounce = nil
     stopWatching()
     for (center, token) in observers {
@@ -147,9 +148,13 @@ final class StatsModel: ObservableObject {
       let path = Self.ledgerPath(config)
       let before = FileSignature(path: path)
       let result = Result { try cli.usage() }
-      DispatchQueue.main.async {
-        self?.finished(result, generation: generation, ledger: path, before: before)
+      // Menus track in their own run loop mode, without draining the main queue.
+      RunLoop.main.perform(inModes: [.common]) { [weak self] in
+        MainActor.assumeIsolated {
+          self?.finished(result, generation: generation, ledger: path, before: before)
+        }
       }
+      CFRunLoopWakeUp(CFRunLoopGetMain())
     }
   }
 
@@ -207,10 +212,18 @@ final class StatsModel: ObservableObject {
       Log.write("stats: cannot watch \(directory) (errno \(errno)); refresh with the button")
       return
     }
+    let generation = watchGeneration
     let source = DispatchSource.makeFileSystemObjectSource(
-      fileDescriptor: fd, eventMask: [.write, .rename, .delete, .extend, .attrib, .link], queue: .main)
+      fileDescriptor: fd, eventMask: [.write, .rename, .delete, .extend, .attrib, .link], queue: queue)
     source.setEventHandler { [weak self] in
-      MainActor.assumeIsolated { self?.ledgerEvent() }
+      RunLoop.main.perform(inModes: [.common]) { [weak self] in
+        MainActor.assumeIsolated {
+          // A canceled watcher can already have an event queued for delivery.
+          guard let self, self.watchGeneration == generation else { return }
+          self.ledgerEvent()
+        }
+      }
+      CFRunLoopWakeUp(CFRunLoopGetMain())
     }
     source.setCancelHandler { close(fd) }
     watcher = source
@@ -222,6 +235,7 @@ final class StatsModel: ObservableObject {
   }
 
   private func stopWatching() {
+    watchGeneration &+= 1
     watcher?.cancel()
     watcher = nil
     watchedPath = nil
@@ -235,12 +249,15 @@ final class StatsModel: ObservableObject {
     guard signature != ledgerSignature else { return }
     ledgerSignature = signature
     let delay = refresh.delayForChange(at: ProcessInfo.processInfo.systemUptime)
-    debounce?.cancel()
-    let work = DispatchWorkItem { [weak self] in
-      MainActor.assumeIsolated { self?.reload() }
+    debounce?.invalidate()
+    let timer = Timer(timeInterval: delay, repeats: false) { [weak self] _ in
+      MainActor.assumeIsolated {
+        self?.debounce = nil
+        self?.reload()
+      }
     }
-    debounce = work
-    DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
+    debounce = timer
+    RunLoop.main.add(timer, forMode: .common)
   }
 }
 

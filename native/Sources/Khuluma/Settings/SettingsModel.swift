@@ -19,18 +19,6 @@ final class SettingsModel: ObservableObject {
 
   var editable: Bool { config != nil && !saving && !recording }
   var provider: String { config?.transcription.provider ?? "parakeet" }
-  var modelTitle: String {
-    guard let config else { return "Loading model…" }
-    if provider == "elevenlabs" { return "Scribe v2" }
-    if provider != "parakeet" { return "Unknown model" }
-    let version = config.transcription.modelVersion ?? "v3"
-    return "Parakeet \(version)"
-  }
-  var hotkeyTitle: String {
-    guard let value = config?.hotkey else { return "–" }
-    return (try? HotkeySpec.parse(value).display) ?? value
-  }
-
   func adopt(_ config: AppConfig) { self.config = config }
 
   func save(_ key: String, _ value: String) {

@@ -8,42 +8,44 @@ struct SettingsView: View {
   var body: some View {
     Form {
       Section {
-        LabeledContent("Dictation shortcut") {
+        LabeledContent("Shortcut") {
           ShortcutRecorder(value: model.config?.hotkey ?? "", isEnabled: model.editable,
                            onCapture: { model.save("app.hotkey", $0) },
                            onRecordingChange: model.onShortcutRecordingChange)
+            .fixedSize()
         }
-        Text("Press once to start, then again to finish. Control–Escape cancels a recording.")
-          .font(.caption).foregroundStyle(.secondary)
-        Toggle("Paste and send automatically", isOn: setting("inline.autosend", model.config?.inline.autosend ?? false))
+        .help("Click to record a shortcut. Press it once to start dictation, then again to finish. Control–Escape cancels dictation.")
+        Toggle("Auto-send", isOn: setting("inline.autosend", model.config?.inline.autosend ?? false))
           .disabled(!model.editable)
-        Toggle("Play dictation sounds", isOn: setting("audio.sounds.enabled", model.config?.soundsEnabled ?? true))
+          .help("Paste the transcript, then send it with your configured send key.")
+        Toggle("Sounds", isOn: setting("audio.sounds.enabled", model.config?.soundsEnabled ?? true))
           .disabled(!model.editable)
+          .help("Play sounds during dictation.")
       } header: { Text("Dictation") }
 
       Section {
-        Picker("Transcription model", selection: Binding(get: { model.provider }, set: { model.save("transcription.provider", $0) })) {
+        Picker("Model", selection: Binding(get: { model.provider }, set: { model.save("transcription.provider", $0) })) {
           Text(localModelTitle).tag("parakeet")
-          Text("ElevenLabs Scribe v2 · Cloud").tag("elevenlabs")
+          Text("ElevenLabs Scribe v2").tag("elevenlabs")
         }
         .disabled(!model.editable)
         if model.provider == "elevenlabs" {
-          Label(model.config?.transcription.keyAvailable == true ? "API key found" : "API key not found", systemImage: "key")
-            .font(.callout)
+          LabeledContent("API key") {
+            Label(model.config?.transcription.keyAvailable == true ? "Available" : "Missing",
+                  systemImage: model.config?.transcription.keyAvailable == true ? "checkmark.circle" : "exclamationmark.triangle")
+              .foregroundStyle(.secondary)
+          }
           if model.config?.transcription.keyAvailable != true {
-            Text("Export ELEVENLABS_API_KEY in your shell settings, then choose Reload Settings.")
+            Text("Export ELEVENLABS_API_KEY in your shell, then click Reload Settings below.")
               .font(.caption).foregroundStyle(.secondary)
           }
-        } else {
-          Label("Transcribed on this Mac", systemImage: "desktopcomputer")
-            .font(.callout).foregroundStyle(.secondary)
         }
-        Text("Parakeet works on this Mac. Choosing Scribe sends new and recovered recordings to ElevenLabs and uses your credits. Scribe needs an internet connection.")
+        Text("Scribe uploads new and recovered recordings to ElevenLabs and uses your credits. Internet required.")
           .font(.caption).foregroundStyle(.secondary)
-      } header: { Text("Model") }
+      } header: { Text("Transcription") }
 
       Section {
-        Toggle("Start at Login", isOn: Binding(
+        Toggle("Start at login", isOn: Binding(
           get: { model.loginStatus == .enabled || model.loginStatus == .requiresApproval },
           set: { _ in model.onToggleLogin(); model.loginStatus = LoginItem.status }))
           .disabled(AppRuntimePaths.isolated || model.preview)
@@ -53,22 +55,23 @@ struct SettingsView: View {
       } header: { Text("Startup") }
 
       Section {
-        Toggle("Keep diagnostic files", isOn: setting("debug.keep_logs", model.config?.transcription.keepLogs ?? false))
+        Toggle("Diagnostic logging", isOn: setting("debug.keep_logs", model.config?.transcription.keepLogs ?? false))
           .disabled(!model.editable)
-        Text("Keeps recording audio and debug files for troubleshooting. Audio follows your history retention settings.")
+        Text("Keeps recording audio and debug files. Audio follows your history retention settings.")
           .font(.caption).foregroundStyle(.secondary)
         HStack {
           Button("Open Log") { model.onOpenLog() }
+            .help("Open Khuluma’s diagnostic log. Usage stats contain counts and durations, never dictated text.")
           Button("Open Config") { model.onOpenConfig() }.disabled(model.config == nil)
+            .help("Open the configuration file for advanced settings.")
           Spacer()
           Button("Reload Settings") { model.onReload() }.disabled(model.saving)
+            .help("Read changes to your configuration and shell environment.")
         }
-        Text("Usage stats contain counts and durations, never your dictated text.")
-          .font(.caption).foregroundStyle(.secondary)
       } header: { Text("Diagnostics") }
 
       if model.recording {
-        Label("Finish dictating and let processing complete before changing settings.", systemImage: "mic.fill")
+        Label("Settings are available when dictation finishes.", systemImage: "mic.fill")
           .font(.callout)
       }
       if let message = model.message {

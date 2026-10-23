@@ -755,7 +755,6 @@ final class AppController: NSObject, NSApplicationDelegate {
       }
     } catch {
       pendingHotkey = nil
-      menu.showHotkey("Hotkey: invalid (\(config.hotkey))" + (hotkey.binding.map { ", still \($0.display)" } ?? ""))
       fail("hotkey \"\(config.hotkey)\": \(error)")
     }
   }
@@ -800,11 +799,9 @@ final class AppController: NSObject, NSApplicationDelegate {
   private func registerHotkey(_ spec: HotkeySpec) -> Bool {
     do {
       try hotkey.register(spec)
-      menu.showHotkey("Hotkey: \(spec.display)")
       return true
     } catch {
       let kept = hotkey.binding.map { "; keeping \($0.display)" } ?? ""
-      menu.showHotkey("Hotkey: \(hotkey.binding?.display ?? "none") (\(spec.display) unavailable)")
       fail("\(error.localizedDescription)\(kept)")
       return false
     }

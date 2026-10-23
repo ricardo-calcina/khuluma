@@ -32,7 +32,6 @@ enum StatsSnapshot {
       let full = examples[1].1
       for state in ["normal", "loading", "error", "recording"] {
         let menu = MenuModel()
-        menu.hotkey = local.hotkeyTitle
         let stats: StatsModel
         switch state {
         case "loading": stats = StatsModel(stats: nil, updatedAt: nil)
@@ -46,18 +45,19 @@ enum StatsSnapshot {
           menu.recording = true
         }
         save("menu-\(state)", view: AnyView(MenuPanel(
-          model: menu, stats: stats, settings: local, openStats: {}, openSettings: {}, action: { _ in })), width: 440)
+          model: menu, stats: stats, settings: local, openStats: {}, openSettings: {}, action: { _ in })
+          .background(Color(nsColor: .windowBackgroundColor))), width: 400)
       }
       for (name, model) in [("local", local), ("cloud", cloud), ("key-missing", missingKey)] {
-        save("settings-\(name)", view: AnyView(SettingsView(model: model)), width: 600, height: 670)
+        save("settings-\(name)", view: AnyView(SettingsView(model: model)), width: 560, height: 634)
       }
       let navigation = AppNavigation()
       save("app-stats", view: AnyView(AppView(stats: full, settings: local, navigation: navigation)),
-           width: 600, height: 670)
+           width: 560, height: 634)
       let settingsNavigation = AppNavigation()
       settingsNavigation.selection = .settings
       save("app-settings", view: AnyView(AppView(stats: full, settings: cloud, navigation: settingsNavigation)),
-           width: 600, height: 670)
+           width: 560, height: 634)
     } catch {
       FileHandle.standardError.write(Data("UI fixture failed: \(error.localizedDescription)\n".utf8))
       failures += 1
@@ -216,13 +216,11 @@ private struct UISettingsFixture {
 /// `-KhulumaUIPreview YES` provides the real controls with fixture data and
 /// in-memory settings. No AppController, recorder, hotkey or runtime is made.
 @MainActor
-final class UIPreviewController: NSObject, NSApplicationDelegate, NSPopoverDelegate {
+final class UIPreviewController: NSObject, NSApplicationDelegate {
   private let stats = StatsSnapshot.fixtures(updated: CivilDate("2026-10-14")!.noon)[1].1
   private var fixture = UISettingsFixture()
   private let settings = SettingsModel()
-  private let menu = MenuModel()
-  private let popover = NSPopover()
-  private var statusItem: NSStatusItem?
+  private lazy var menu = StatusMenu(stats: stats, settings: settings, sampleData: true)
   private var appWindow: StatsWindowController?
 
   func applicationDidFinishLaunching(_ notification: Notification) {
@@ -230,42 +228,21 @@ final class UIPreviewController: NSObject, NSApplicationDelegate, NSPopoverDeleg
     settings.loginStatus = .notRegistered
     do { settings.adopt(try fixture.config()) }
     catch { NSApp.terminate(nil); return }
-    menu.hotkey = settings.hotkeyTitle
     settings.onSave = { [weak self] key, value in self?.save(key, value: value) }
     settings.onReload = { [weak self] in self?.settings.message = "Preview settings reloaded from memory." }
     settings.onOpenLog = { [weak self] in self?.settings.message = "Preview: diagnostic logs are disabled." }
     settings.onOpenConfig = { [weak self] in self?.settings.message = "Preview settings are kept in memory." }
     settings.onToggleLogin = { [weak self] in self?.settings.message = "Preview: Start at Login stays off." }
-    let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-    statusItem = item
-    item.button?.image = NSImage(systemSymbolName: "waveform", accessibilityDescription: "Khuluma Preview")
-    item.button?.image?.isTemplate = true
-    item.button?.toolTip = "Khuluma Preview · sample data"
-    item.button?.target = self
-    item.button?.action = #selector(togglePanel)
-    popover.behavior = .transient
-    popover.animates = false
-    popover.delegate = self
-    popover.contentViewController = NSHostingController(rootView: VStack(spacing: 0) {
-      Text("PREVIEW · SAMPLE DATA").font(.caption2.weight(.medium)).foregroundStyle(.secondary).padding(.top, 12)
-      MenuPanel(model: menu, stats: stats, settings: settings,
-                openStats: { [weak self] in self?.showWindow(settings: false) },
-                openSettings: { [weak self] in self?.showWindow(settings: true) },
-                action: { action in if case .quit = action { NSApp.terminate(nil) } })
-    })
-    if UserDefaults.standard.bool(forKey: "KhulumaPreviewMenu") { togglePanel() }
-    else { showWindow(settings: false) }
-  }
-
-  @objc private func togglePanel() {
-    if popover.isShown { popover.performClose(nil); return }
-    guard let button = statusItem?.button else { return }
-    popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
-    popover.contentViewController?.view.window?.makeKey()
+    menu.onShowStats = { [weak self] in self?.showWindow(settings: false) }
+    menu.onShowSettings = { [weak self] in self?.showWindow(settings: true) }
+    menu.install()
+    showWindow(settings: false)
+    if UserDefaults.standard.bool(forKey: "KhulumaPreviewMenu") {
+      DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in self?.menu.showPreviewMenu() }
+    }
   }
 
   private func showWindow(settings selected: Bool) {
-    popover.performClose(nil)
     let controller = appWindow ?? StatsWindowController(model: stats, settings: settings)
     appWindow = controller
     controller.window?.title = "Khuluma Preview · Sample Data"
@@ -276,7 +253,6 @@ final class UIPreviewController: NSObject, NSApplicationDelegate, NSPopoverDeleg
     do {
       try fixture.save(key, value: value)
       settings.adopt(try fixture.config())
-      menu.hotkey = settings.hotkeyTitle
       settings.finished()
       settings.message = "Preview setting saved in memory."
     } catch { settings.finished(error: error.localizedDescription) }

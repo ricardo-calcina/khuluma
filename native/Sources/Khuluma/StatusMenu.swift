@@ -6,7 +6,6 @@ import SwiftUI
 /// Only exceptional status takes space in the menu's normal compact layout.
 final class MenuModel: ObservableObject {
   @Published var activity: String?
-  @Published var hotkey = "–"
   @Published var configWarning: String?
   @Published var recovered: String?
   @Published var canShowRecovered = false
@@ -18,8 +17,8 @@ final class MenuModel: ObservableObject {
   @Published var recording = false
 }
 
-/// A transient utility panel anchored to the status item.
-final class StatusMenu: NSObject, NSPopoverDelegate {
+/// A native status menu containing the compact SwiftUI utility view.
+final class StatusMenu: NSObject {
   var onCancelRecording: () -> Void = {}
   var onRetryTimedOut: () -> Void = {}
   var onPasteRetried: () -> Void = {}
@@ -31,14 +30,16 @@ final class StatusMenu: NSObject, NSPopoverDelegate {
   var onWillOpen: () -> Void = {}
 
   private var statusItem: NSStatusItem?
-  private let popover = NSPopover()
+  private var dropdown: StatusDropdownController?
   private let model: MenuModel
   private let stats: StatsModel
   private let settings: SettingsModel
+  private let sampleData: Bool
 
-  init(stats: StatsModel, settings: SettingsModel) {
+  init(stats: StatsModel, settings: SettingsModel, sampleData: Bool = false) {
     self.stats = stats
     self.settings = settings
+    self.sampleData = sampleData
     model = MenuModel()
     super.init()
   }
@@ -46,35 +47,37 @@ final class StatusMenu: NSObject, NSPopoverDelegate {
   func install() {
     let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     statusItem = item
-    item.button?.target = self
-    item.button?.action = #selector(togglePanel)
-    item.button?.toolTip = "Khuluma"
-    popover.behavior = .transient
-    popover.animates = false
-    popover.delegate = self
-    popover.contentViewController = NSHostingController(rootView: MenuPanel(
+    item.button?.toolTip = sampleData ? "Khuluma Preview · sample data" : "Khuluma"
+    item.button?.setAccessibilityLabel(sampleData ? "Khuluma Preview" : "Khuluma")
+    let dropdown = StatusDropdownController()
+    let hosting = StatusMenuHostingView(rootView: MenuPanel(
       model: model, stats: stats, settings: settings,
       openStats: { [weak self] in self?.perform { self?.onShowStats() } },
       openSettings: { [weak self] in self?.perform { self?.onShowSettings() } },
-      action: { [weak self] action in self?.perform { self?.run(action) } }))
+      action: { [weak self] action in self?.perform { self?.run(action) } }, sampleData: sampleData))
+    hosting.onSizeChange = { [weak dropdown] in dropdown?.fitToContent() }
+    dropdown.setContent(hosting)
+    dropdown.onOpen = { [weak self] in
+      guard let self else { return }
+      self.onWillOpen()
+      MainActor.assumeIsolated { self.stats.menuOpened() }
+    }
+    dropdown.onClose = { [weak self] in
+      MainActor.assumeIsolated { self?.stats.menuClosed() }
+    }
+    self.dropdown = dropdown
+    item.menu = dropdown.menu
     show(ActivityStatus(), recording: false)
   }
 
-  @objc private func togglePanel() {
-    if popover.isShown { popover.performClose(nil); return }
-    guard let button = statusItem?.button else { return }
-    onWillOpen()
-    MainActor.assumeIsolated { stats.menuOpened() }
-    popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
-    popover.contentViewController?.view.window?.makeKey()
-  }
-
-  func popoverDidClose(_ notification: Notification) {
-    MainActor.assumeIsolated { stats.menuClosed() }
+  /// Exercise AppKit's normal menu opening in the isolated UI fixture.
+  func showPreviewMenu() {
+    guard sampleData else { return }
+    statusItem?.button?.performClick(nil)
   }
 
   private func perform(_ action: () -> Void) {
-    popover.performClose(nil)
+    dropdown?.dismiss()
     action()
   }
 
@@ -93,12 +96,12 @@ final class StatusMenu: NSObject, NSPopoverDelegate {
   func show(_ status: ActivityStatus, recording: Bool) {
     model.activity = status.phase == .ready ? nil : status.title
     model.recording = recording
-    let image = NSImage(systemSymbolName: status.symbol, accessibilityDescription: "Khuluma")
+    let symbol = sampleData && status.phase == .ready ? "waveform" : status.symbol
+    let image = NSImage(systemSymbolName: symbol, accessibilityDescription: sampleData ? "Khuluma Preview" : "Khuluma")
     image?.isTemplate = true
     statusItem?.button?.image = image
   }
 
-  func showHotkey(_ title: String) { model.hotkey = title.replacingOccurrences(of: "Hotkey: ", with: "") }
   func showConfigWarning(_ title: String?) { model.configWarning = title }
   func showRecovered(_ title: String, action: Bool) {
     model.recovered = title
@@ -121,19 +124,18 @@ struct MenuPanel: View {
   var openStats: () -> Void
   var openSettings: () -> Void
   var action: (MenuAction) -> Void
+  var sampleData = false
+  @FocusState private var focusedFooter: FooterAction?
+
+  private enum FooterAction: Hashable { case app, settings, quit }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 14) {
-      HStack {
-        Label("Khuluma", systemImage: "waveform").font(.headline)
-        Spacer()
-        Text("Today").font(.callout).foregroundStyle(.secondary)
-      }
+      Text(sampleData ? "Today · Preview" : "Today")
+        .font(.caption).foregroundStyle(.secondary)
       HStack(spacing: 20) {
         metric("Words", value: todayWords)
-        Divider()
         metric("Dictations", value: todayDictations)
-        Divider()
         metric("Streak", value: stats.stats.map { "\($0.streak.current) day\($0.streak.current == 1 ? "" : "s")" } ?? "–")
       }
       .fixedSize(horizontal: false, vertical: true)
@@ -141,36 +143,32 @@ struct MenuPanel: View {
         Label(stats.stats == nil ? "Couldn't load stats. Open Khuluma to retry." : "Couldn't refresh. Showing the last stats.",
               systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.secondary)
       }
-      Divider()
-      HStack(spacing: 12) {
-        Button(action: openSettings) {
-          Label(settings.modelTitle, systemImage: settings.provider == "elevenlabs" ? "cloud" : "desktopcomputer")
-        }
-        .help("Change transcription model")
-        Spacer(minLength: 0)
-        Button(action: openSettings) { Text(model.hotkey).monospaced() }
-          .help("Change dictation shortcut")
-      }
-      .buttonStyle(.bordered)
-      .controlSize(.small)
       notices
       Divider()
-      HStack {
-        Button(action: openStats) { Label("Open Khuluma", systemImage: "macwindow") }
+      HStack(spacing: 8) {
+        Button(action: openStats) { Image(systemName: "macwindow") }
+          .accessibilityLabel("Open Khuluma").help("Open Khuluma")
           .keyboardShortcut("o")
+          .focused($focusedFooter, equals: .app)
+          .buttonStyle(MenuIconButtonStyle(focused: focusedFooter == .app))
         Spacer()
         Button(action: openSettings) { Image(systemName: "gearshape") }
           .accessibilityLabel("Settings").help("Settings")
           .keyboardShortcut(",")
+          .focused($focusedFooter, equals: .settings)
+          .buttonStyle(MenuIconButtonStyle(focused: focusedFooter == .settings))
         Button { action(.quit) } label: { Image(systemName: "power") }
           .accessibilityLabel("Quit Khuluma").help("Quit Khuluma")
           .keyboardShortcut("q")
+          .focused($focusedFooter, equals: .quit)
+          .buttonStyle(MenuIconButtonStyle(focused: focusedFooter == .quit))
       }
-      .buttonStyle(.borderless)
+      .font(.system(size: 13))
+      .foregroundStyle(.primary)
+      .focusEffectDisabled()
     }
-    .padding(18)
-    .frame(width: 440)
-    .background(Color(nsColor: .windowBackgroundColor))
+    .padding(16)
+    .frame(width: 400)
   }
 
   private var todayWords: String {
@@ -184,7 +182,7 @@ struct MenuPanel: View {
 
   private func metric(_ title: String, value: String) -> some View {
     VStack(alignment: .leading, spacing: 3) {
-      Text(value).font(.system(size: 25, weight: .semibold, design: .rounded)).monospacedDigit().lineLimit(1)
+      Text(value).font(.system(size: 24, weight: .semibold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
       Text(title).font(.caption).foregroundStyle(.secondary)
     }
     .frame(maxWidth: .infinity, alignment: .leading)
@@ -209,5 +207,41 @@ struct MenuPanel: View {
     if let text = model.paste { Button(text) { action(.paste) } }
     if let text = model.discard { Button(text) { action(.discard) } }
     if let text = model.unsaved { Button(text) { action(.discardUnsaved) } }
+  }
+}
+
+private struct MenuIconButtonStyle: ButtonStyle {
+  var focused: Bool
+
+  func makeBody(configuration: Configuration) -> some View {
+    Surface(configuration: configuration, focused: focused)
+  }
+
+  private struct Surface: View {
+    let configuration: ButtonStyleConfiguration
+    let focused: Bool
+    // Keep source previews compatible with the Command Line Tools.
+    @StateObject private var hover = Hover()
+
+    var body: some View {
+      configuration.label
+        .frame(width: 32, height: 28)
+        .contentShape(RoundedRectangle(cornerRadius: 5))
+        .background {
+          RoundedRectangle(cornerRadius: 5)
+            .fill(configuration.isPressed
+                  ? Color(nsColor: .tertiaryLabelColor)
+                  : (hover.active ? Color(nsColor: .quaternaryLabelColor) : .clear))
+        }
+        .overlay {
+          RoundedRectangle(cornerRadius: 5)
+            .stroke(focused ? Color(nsColor: .keyboardFocusIndicatorColor) : .clear, lineWidth: 2)
+        }
+        .onHover { hover.active = $0 }
+    }
+
+    private final class Hover: ObservableObject {
+      @Published var active = false
+    }
   }
 }

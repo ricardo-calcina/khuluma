@@ -2,41 +2,47 @@ import AppKit
 import SwiftUI
 import KhulumaCore
 
-/// The one stats window, kept for reuse. Khuluma has no main menu (it's a
-/// menu-bar app), so Escape and ⌘W are handled by the window itself.
+/// Stats is the home screen. Settings lives behind the native toolbar gear.
 @MainActor
-final class StatsWindowController: NSWindowController, NSWindowDelegate {
+final class StatsWindowController: NSWindowController, NSWindowDelegate, NSToolbarDelegate {
   private let model: StatsModel
   private let navigation = AppNavigation()
+  private static let settingsItem = NSToolbarItem.Identifier("Khuluma.Settings")
+  private static let backItem = NSToolbarItem.Identifier("Khuluma.Back")
 
   init(model: StatsModel, settings: SettingsModel) {
     self.model = model
     let window = StatsWindow(
-      contentRect: NSRect(x: 0, y: 0, width: 600, height: 670),
+      contentRect: NSRect(x: 0, y: 0, width: 560, height: 634),
       styleMask: [.titled, .closable, .miniaturizable, .resizable],
       backing: .buffered, defer: false)
     window.title = "Khuluma"
     window.isReleasedWhenClosed = false
-    let hosting = NSHostingController(rootView: AppView(stats: model, settings: settings, navigation: navigation))
-    window.contentViewController = hosting
-    window.setContentSize(NSSize(width: 600, height: 670))
-    window.contentMinSize = NSSize(width: 600, height: 460)
+    window.contentViewController = NSHostingController(rootView: AppView(
+      stats: model, settings: settings, navigation: navigation))
+    window.setContentSize(NSSize(width: 560, height: 634))
+    window.contentMinSize = NSSize(width: 560, height: 420)
     window.center()
-    // AppKit frame autosave uses the app's standard defaults domain rather
-    // than our isolated suite. A fixture instance must not write daily state.
     if !AppRuntimePaths.isolated { window.setFrameAutosaveName("KhulumaStats") }
     window.appearance = Self.forcedAppearance
     super.init(window: window)
     window.delegate = self
+    let toolbar = NSToolbar(identifier: "Khuluma.Main")
+    toolbar.delegate = self
+    toolbar.displayMode = .iconOnly
+    toolbar.allowsUserCustomization = false
+    toolbar.autosavesConfiguration = false
+    window.toolbarStyle = .unifiedCompact
+    window.toolbar = toolbar
+    window.onSettings = { [weak self] in self?.openSettings() }
+    window.onBack = { [weak self] in self?.backToStats() }
+    navigation.onChange = { [weak self] in self?.updateChrome() }
+    updateChrome()
   }
 
   @available(*, unavailable)
-  required init?(coder: NSCoder) {
-    fatalError("init(coder:) is not used")
-  }
+  required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
 
-  /// `-KhulumaStatsAppearance light|dark` forces the window's appearance, to
-  /// check both without changing the system setting.
   static var forcedAppearance: NSAppearance? {
     switch AppRuntimePaths.defaults.string(forKey: "KhulumaStatsAppearance") {
     case "light": return NSAppearance(named: .aqua)
@@ -50,24 +56,60 @@ final class StatsWindowController: NSWindowController, NSWindowDelegate {
     NSApp.activate()
     showWindow(nil)
     window?.makeKeyAndOrderFront(nil)
-    // Not left to becoming key: activation can be refused, and the window
-    // then shows without ever becoming key.
     model.windowOpened()
   }
 
-  func windowDidBecomeKey(_ notification: Notification) {
-    model.windowBecameKey()
+  @objc private func openSettings() { navigation.selection = .settings }
+  @objc private func backToStats() { navigation.selection = .stats }
+
+  private func updateChrome() {
+    guard let window = window as? StatsWindow, let toolbar = window.toolbar else { return }
+    let settings = navigation.selection == .settings
+    window.showingSettings = settings
+    window.title = settings ? "Settings" : "Khuluma"
+    // The preview must stay visibly distinct from the daily app.
+    if AppRuntimePaths.isolated {
+      window.title = settings ? "Settings · Preview" : "Khuluma Preview · Sample Data"
+    }
+    let desired: [NSToolbarItem.Identifier] = settings
+      ? [Self.backItem, .flexibleSpace] : [.flexibleSpace, Self.settingsItem]
+    guard toolbar.items.map(\.itemIdentifier) != desired else { return }
+    for index in toolbar.items.indices.reversed() { toolbar.removeItem(at: index) }
+    for (index, identifier) in desired.enumerated() { toolbar.insertItem(withItemIdentifier: identifier, at: index) }
   }
 
-  func windowWillClose(_ notification: Notification) {
-    model.windowClosed()
+  func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+    [Self.backItem, .flexibleSpace, Self.settingsItem]
   }
+
+  func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+    [.flexibleSpace, Self.settingsItem]
+  }
+
+  func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier identifier: NSToolbarItem.Identifier,
+               willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
+    guard identifier == Self.settingsItem || identifier == Self.backItem else { return nil }
+    let item = NSToolbarItem(itemIdentifier: identifier)
+    let settings = identifier == Self.settingsItem
+    item.label = settings ? "Settings" : "Back"
+    item.toolTip = settings ? "Settings (⌘,)" : "Back to Stats (⌘[)"
+    item.image = NSImage(systemSymbolName: settings ? "gearshape" : "chevron.left",
+                         accessibilityDescription: settings ? "Settings" : "Back to Stats")
+    item.target = self
+    item.isNavigational = !settings
+    item.action = settings ? #selector(openSettings) : #selector(backToStats)
+    return item
+  }
+
+  func windowDidBecomeKey(_ notification: Notification) { model.windowBecameKey() }
+  func windowWillClose(_ notification: Notification) { model.windowClosed() }
 }
 
 @MainActor
 final class AppNavigation: ObservableObject {
   enum Page { case stats, settings }
-  @Published var selection: Page = .stats
+  @Published var selection: Page = .stats { didSet { onChange() } }
+  var onChange: () -> Void = {}
 }
 
 struct AppView: View {
@@ -76,36 +118,36 @@ struct AppView: View {
   @ObservedObject var navigation: AppNavigation
 
   var body: some View {
-    VStack(spacing: 0) {
-      Picker("Khuluma", selection: $navigation.selection) {
-        Text("Stats").tag(AppNavigation.Page.stats)
-        Text("Settings").tag(AppNavigation.Page.settings)
-      }
-      .pickerStyle(.segmented).labelsHidden().frame(width: 240).padding(16)
-      Divider()
+    Group {
       if navigation.selection == .stats {
-        ScrollView {
-          StatsView(model: stats).frame(maxWidth: .infinity)
-        }
+        ScrollView { StatsView(model: stats).frame(maxWidth: .infinity) }
       } else {
         SettingsView(model: settings)
       }
     }
-    .frame(minWidth: 600, minHeight: 460)
+    .frame(minWidth: 560, minHeight: 420)
     .background(Color(nsColor: .windowBackgroundColor))
   }
 }
 
 private final class StatsWindow: NSWindow {
+  var onSettings: () -> Void = {}
+  var onBack: () -> Void = {}
+  var showingSettings = false
+
   override func cancelOperation(_ sender: Any?) {
-    performClose(sender)
+    if showingSettings { onBack() } else { performClose(sender) }
   }
 
   override func performKeyEquivalent(with event: NSEvent) -> Bool {
     let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-    if flags == .command, event.charactersIgnoringModifiers == "w" {
-      performClose(nil)
-      return true
+    if flags == .command {
+      switch event.charactersIgnoringModifiers {
+      case "w": performClose(nil); return true
+      case ",": onSettings(); return true
+      case "[" where showingSettings: onBack(); return true
+      default: break
+      }
     }
     return super.performKeyEquivalent(with: event)
   }

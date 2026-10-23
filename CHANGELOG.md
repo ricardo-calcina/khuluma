@@ -2,8 +2,8 @@
 
 ## Unreleased
 
-- Replace the command-list menu with a wide usage panel showing today's words, dictations, streak, model and shortcut; show readiness warnings only when attention is needed.
-- Expand the Stats window into Stats and Settings tabs, with key-press shortcut capture, model selection, auto-send, sounds, login and diagnostics controls.
+- Replace the command-list menu with a wide native menu showing today's words, dictations and streak. Let macOS handle placement, repeat-click and outside-click dismissal, and give the three action icons hover and keyboard focus feedback. Show warnings only when attention is needed.
+- Keep Stats as the home window and open compact Settings through a native titlebar gear, with key-press shortcut capture, model selection, auto-send, sounds, login and diagnostics controls.
 - Add opt-in ElevenLabs Scribe v2 for dictation, file transcription and recovery; keep Parakeet as the local default and keep credentials out of settings JSON and logs.
 - Pin each app CLI request to its expected provider and preserve failed CLI/cloud audio for recovery. App and CLI now require contract 4 together.
 - Add isolated interactive UI previews and light/dark fixtures without starting capture, recovery or a daemon.

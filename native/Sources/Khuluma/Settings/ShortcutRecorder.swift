@@ -44,7 +44,7 @@ struct ShortcutRecorder: NSViewRepresentable {
 
 private final class ShortcutRecorderControl: NSStackView {
   private let button = ShortcutRecorderButton()
-  private let hint = NSTextField(wrappingLabelWithString: "Modifiers or an F-key. Esc cancels.")
+  private let hint = NSTextField(wrappingLabelWithString: "")
   private var value = ""
   private var isRecording = false
   private var eventMonitor: Any?
@@ -55,7 +55,7 @@ private final class ShortcutRecorderControl: NSStackView {
   init() {
     super.init(frame: .zero)
     orientation = .vertical
-    alignment = .leading
+    alignment = .trailing
     spacing = 5
 
     button.bezelStyle = .rounded
@@ -67,7 +67,9 @@ private final class ShortcutRecorderControl: NSStackView {
     button.onFocusLost = { [weak self] in self?.cancelRecording() }
     button.heightAnchor.constraint(greaterThanOrEqualToConstant: 28).isActive = true
     addArrangedSubview(button)
+    button.widthAnchor.constraint(equalTo: widthAnchor).isActive = true
 
+    hint.isHidden = true
     hint.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
     hint.textColor = .secondaryLabelColor
     hint.maximumNumberOfLines = 2
@@ -80,7 +82,7 @@ private final class ShortcutRecorderControl: NSStackView {
 
   required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-  override var intrinsicContentSize: NSSize { NSSize(width: 260, height: 61) }
+  override var intrinsicContentSize: NSSize { NSSize(width: 160, height: hint.isHidden ? 28 : 61) }
 
   deinit {
     if let eventMonitor { NSEvent.removeMonitor(eventMonitor) }
@@ -173,7 +175,7 @@ private final class ShortcutRecorderControl: NSStackView {
       NotificationCenter.default.removeObserver(windowObserver)
       self.windowObserver = nil
     }
-    setHint("Modifiers or an F-key. Esc cancels.")
+    setHint("")
     updateTitle()
     // Applying a shortcut comes first, so a caller restoring its global
     // monitor on false can use the newly selected binding.
@@ -183,16 +185,19 @@ private final class ShortcutRecorderControl: NSStackView {
 
   private func updateTitle() {
     let display = (try? HotkeySpec.parse(value).display) ?? value
-    button.title = isRecording ? "Press a shortcut…" : "\(display)  ·  Record shortcut"
+    button.title = isRecording ? "Press a shortcut…" : (display.isEmpty ? "Record shortcut…" : display)
+    button.toolTip = isRecording ? "Press your shortcut. Escape cancels." : "Click to record a new shortcut. Use modifiers or an F-key."
     button.setAccessibilityValue(isRecording ? "Recording shortcut" : display)
     button.setAccessibilityHelp(isRecording ? "Press your shortcut, or Escape to cancel." : "Activate to record a new shortcut.")
   }
 
   private func setHint(_ text: String, isError: Bool = false) {
     hint.stringValue = text
+    hint.isHidden = text.isEmpty
     hint.toolTip = text
     hint.textColor = isError ? .systemRed : .secondaryLabelColor
     hint.setAccessibilityValue(text)
+    invalidateIntrinsicContentSize()
   }
 }
 
