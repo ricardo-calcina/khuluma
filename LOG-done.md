@@ -2,6 +2,8 @@
 
 ## Done
 
+- 2026-10-16 · Raycast scripts, `integrations` doctor/repair and the `swiftbar` stub removed · #66
+
 - 2026-10-16 · Finished plans moved to docs/plans/archive/ · #65
 
 - 2026-10-16 · P0b review done; dropping tmux flow, CLI capture, LLM post-processing, silence trim, chunking; Lowkey to require its matching CLI · roadmap P0b
