@@ -4,7 +4,7 @@ Ricardo selected the 18-point Ready glyph and cursed-speech status set 1 on 2026
 
 The template is black and clear only: macOS supplies the tint for light, dark and selected states. Four bold fang marks on each arc preserve the mouth at menu bar size. The app icon's raised finish is reserved for the larger app icon.
 
-The [cursed speech comparison](concepts/README.md) preserves both sets. Set 1 is selected for production; set 2's full-emblem vectors remain available for a possible future theme setting. No theme control or animation is added in this change.
+The [cursed speech comparison](concepts/README.md) preserves both sets. Set 1 is selected for production; set 2's full-emblem vectors remain available for a possible future theme setting. No theme control is added now.
 
 - `khuluma-menu-template.pdf`: vector template on a 28 × 20 pt canvas, with an 18 pt glyph.
 - `khuluma-recording-template.pdf`: approved set 1 speaking mouth, bundled as `KhulumaRecordingTemplate.pdf`.
@@ -17,4 +17,4 @@ Rerun the renderer from this folder with `swift render.swift`. It only writes th
 
 The Recording and Finishing production PDFs are exact copies of `concepts/speaking.pdf` and `concepts/sealing.pdf`. `concepts/render.swift` reproduces those drawings and the retained set 2 assets. After rendering, promote the selected PDFs with `cp concepts/speaking.pdf khuluma-recording-template.pdf` and `cp concepts/sealing.pdf khuluma-finishing-template.pdf` from this folder. The existing Ready renderer and PDF stay unchanged.
 
-Finishing maps to the existing Processing phase through transcription, paste and optional send-key events. A newer take can start while an earlier one processes. This change replaces artwork only; it does not alter delivery, phase priority, accessibility labels or error handling.
+Finishing maps to the existing Processing phase through transcription, paste and optional send-key events. The seal rotates clockwise once every four seconds while that phase is visible. StatusMenu caches rotated black-and-clear template frames and updates only the button image using a common-mode timer, including while the menu tracks. Repeated Processing updates preserve the rotation's start time. Ready, Recording, Error and Reduce Motion use static images; the motion timer stops when it is no longer needed. A newer take can start while an earlier one processes. Delivery, phase priority, accessibility labels and error handling are unchanged.

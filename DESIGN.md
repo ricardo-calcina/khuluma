@@ -95,11 +95,11 @@ The bundle stages the compiled `Assets.car` and declares `CFBundleIconName=AppIc
 
 The native menu uses `assets/icons/menu-bar/khuluma-menu-template.pdf`, `khuluma-recording-template.pdf` and `khuluma-finishing-template.pdf`: black-and-clear 28-by-20-point canvases with artwork up to 18 points tall. StatusMenu caches the three PDFs and owns the fixed 36-point slot, template tint and accessible status label. Ready keeps the approved brand glyph; Recording uses a speaking fanged mouth with voice strokes; Processing/Finishing uses two turning arcs around fang marks. Errors retain the existing status symbol. macOS supplies light/dark/selected tint. Raised shading belongs only in the app icon.
 
-Ricardo selected status set 1 on 2026-10-23. Both source sets remain in `assets/icons/menu-bar/concepts/`; set 2 retains the full emblem and changes its centre, reserved for a possible future theme setting. No theme control or animation is added now. Finishing is a visual name for the existing processing/delivery interval, including paste and optional send-key events. Phase timing, overlapping-take priority, labels and error handling stay unchanged.
+Ricardo selected status set 1 on 2026-10-23. Both source sets remain in `assets/icons/menu-bar/concepts/`; set 2 retains the full emblem and changes its centre, reserved for a possible future theme setting. No theme control is added now. Finishing is a visual name for the existing processing/delivery interval, including paste and optional send-key events. Phase timing, overlapping-take priority, labels and error handling stay unchanged.
 
 ### Motion
 
-No decorative animation. The transient panel opens without animation. Existing Stats numeric transitions respect Reduce Motion.
+The Processing fang seal rotates slowly clockwise, one revolution every four seconds, as functional work-in-progress feedback. Only the glyph rotates inside the fixed canvas; the native button and selected background stay still. A timer in common run loop modes keeps it moving while the native menu is open. Rotation uses elapsed monotonic time, so repeated Processing updates do not restart it. Ready, Recording and Error remain static; leaving Processing stops its timer immediately. Reduce Motion keeps the canonical seal still and reacts to preference changes. Existing Stats numeric transitions also respect Reduce Motion. The transient panel opens without animation; no decorative motion is added.
 
 ### Content and data visualization
 
