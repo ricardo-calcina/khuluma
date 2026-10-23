@@ -68,6 +68,8 @@ DIAGNOSTICS:
 TEXT CLEANUP:
   khuluma repeats            # show repeat cleanup level
   khuluma repeats 0|1|2|3    # set repeat cleanup level
+  khuluma vocab-sheet show --json  # portable vocabulary and revision
+  khuluma vocab-sheet save --json  # validated replacement from stdin
 
 SOUNDS:
   khuluma sound              # show sound settings
@@ -181,6 +183,7 @@ case "$cmd" in
   version|--version|config) SKIP_INITIAL_CONFIG_LOAD=1; KHULUMA_READ_ONLY_STARTUP=1 ;;
   doctor|status|changelog) KHULUMA_READ_ONLY_STARTUP=1 ;;
 esac
+if [[ "$cmd" == "vocab-sheet" && "${2:-}" != "save" ]]; then KHULUMA_READ_ONLY_STARTUP=1; fi
 if [[ "$cmd" == "config" && ( "${2:-}" == "repair" || "${3:-}" == "repair" ) ]]; then KHULUMA_READ_ONLY_STARTUP=0; fi
 if [[ "$cmd" == "transcribe" ]]; then
   [[ $# -gt 1 ]] || die "usage: khuluma transcribe <file|->... [options]"
@@ -204,7 +207,7 @@ fi
 
 # Clean filler words from text (uses perl for case-insensitive)
 clean_fillers() {
-  khuluma_lib_clean_fillers
+  khuluma_lib_clean_fillers "$KHULUMA_CONFIG_DIR"
 }
 
 # Clean stutters/repeats (configurable; avoids code-ish tokens like iTerm2, foo_bar, gpt-4, paths)
@@ -240,6 +243,9 @@ apply_vocab_corrections() {
 # Usage: cleanup_raw_transcript <text>; txt="$CLEANUP_TEXT"
 cleanup_raw_transcript() {
   local txt="$1"
+  if [[ -e "$KHULUMA_CONFIG_DIR/vocabulary.json" || -L "$KHULUMA_CONFIG_DIR/vocabulary.json" ]]; then
+    python3 "$KHULUMA_INTERNAL_LIB_DIR/vocabulary.py" "$KHULUMA_CONFIG_DIR" show >/dev/null || return $?
+  fi
   txt="$(printf "%s" "$txt" | sanitize_transcript_artifacts)"
   if [[ "${KHULUMA_CLEAN:-${CFG_CLEAN_ENABLED:-0}}" == "1" ]]; then
     txt="$(printf "%s" "$txt" | clean_fillers)"
@@ -3773,6 +3779,14 @@ manage_vocab() {
   local subcmd="${1:-}"
   shift 2>/dev/null || true
 
+  if [[ -e "$KHULUMA_CONFIG_DIR/vocabulary.json" ]]; then
+    case "$subcmd" in
+      ""|show) cat "$KHULUMA_CONFIG_DIR/vocabulary.json" ;;
+      *) die "Vocabulary uses vocabulary.json. Edit it in Settings or use vocab-sheet show/save --json; the old text vocab is retained but inactive." ;;
+    esac
+    return
+  fi
+
   case "$subcmd" in
     add)
       [[ "$#" -gt 0 ]] || die "usage: khuluma vocab add \"wrong::right\" [\"a::b\" ...]"
@@ -4122,6 +4136,10 @@ case "$cmd" in
   send-mode|send_mode|sendmode) set_inline_send_mode "${2:-}" ;;
   target|paste_target) set_paste_target "${2:-}" ;;
   vocab) manage_vocab "${2:-}" "${@:3}" ;;
+  vocab-sheet)
+    [[ $# -eq 3 && "$3" == "--json" && ( "$2" == "show" || "$2" == "save" || "$2" == "validate" ) ]] || die "usage: khuluma vocab-sheet show|save|validate --json"
+    python3 "$KHULUMA_INTERNAL_LIB_DIR/vocabulary.py" "$KHULUMA_CONFIG_DIR" "$2"
+    ;;
   mode) die "modes were removed in v0.11: every take uses $KHULUMA_CONFIG_DIR/vocab (khuluma vocab). Old modes/*/vocab entries are folded in by: khuluma migrate-modes" ;;
   migrate-modes) migrate_modes "${@:2}" ;;
   history) manage_history "${@:2}" ;;

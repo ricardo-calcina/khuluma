@@ -57,6 +57,19 @@ struct CLIBridge {
     return try AppContract.decodeAppConfig(data)
   }
 
+  func vocabulary() throws -> VocabularySnapshot {
+    try JSONDecoder().decode(VocabularySnapshot.self, from: run(["vocab-sheet", "show", "--json"], timeout: 15))
+  }
+
+  func saveVocabulary(_ snapshot: VocabularySnapshot) throws -> VocabularySnapshot {
+    try JSONDecoder().decode(VocabularySnapshot.self, from: run(
+      ["vocab-sheet", "save", "--json"], timeout: 15, input: try JSONEncoder().encode(snapshot)))
+  }
+
+  func validateVocabulary(_ data: Data) throws -> VocabularySheet {
+    try VocabularySheet.decode(run(["vocab-sheet", "validate", "--json"], timeout: 15, input: data))
+  }
+
   /// `--defer-usage`: the CLI doesn't count the take; the caller records
   /// usage once it has delivered.
   func process(wav: URL, app: String?, recordMs: Int, startupMs: Int, startedAtEpochMs: Int,

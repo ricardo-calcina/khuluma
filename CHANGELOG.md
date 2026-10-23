@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Expose dictation cleanup and repetition in Settings, with one vocabulary editor for Fillers, Brands and Other words. Add labelled entry editing, search, Undo, reviewed JSON import and export, validated atomic saves, backups and protection against another agent overwriting a newer file.
+- Make vocabulary.json authoritative after its first save, retaining the earlier text vocab intact. Custom filler phrases replace the built-in list; brands and other words share literal replacement rules. Old text-only editing commands refuse to change an inactive vocab file.
 - Add opt-in `clean.enabled` in config and repetition level 3 for exact adjacent sentences of at least five words. Preserve short emphasis, corrections and grammatical doubles. Narrow filler cleanup to unquoted hesitation sounds so uncertainty and natural wording survive; keep CLI/native cleanup identical.
 - Apply vocabulary spellings before a sentence-ending full stop or ellipsis while preserving filename extensions and hyphenated identifiers.
 - Require matching app/CLI contract 5 so the same take gets the same cleanup on either path.

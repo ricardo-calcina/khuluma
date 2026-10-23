@@ -149,6 +149,18 @@ final class AppController: NSObject, NSApplicationDelegate {
     }
     settingsModel.onToggleLogin = { [weak self] in self?.toggleStartAtLogin() }
     settingsModel.onSave = { [weak self] key, value in self?.saveSetting(key, value: value) }
+    settingsModel.onLoadVocabulary = { [weak self] in
+      guard let cli = self?.cli else { throw CLIBridge.BridgeError.notInstalled }
+      return try cli.vocabulary()
+    }
+    settingsModel.onSaveVocabulary = { [weak self] snapshot in
+      guard let cli = self?.cli else { throw CLIBridge.BridgeError.notInstalled }
+      return try cli.saveVocabulary(snapshot)
+    }
+    settingsModel.onValidateVocabulary = { [weak self] data in
+      guard let cli = self?.cli else { throw CLIBridge.BridgeError.notInstalled }
+      return try cli.validateVocabulary(data)
+    }
     settingsModel.onShortcutRecordingChange = { [weak self] recording in
       guard let self else { return }
       if recording { self.hotkey.unregister() }
@@ -1036,6 +1048,8 @@ final class AppController: NSObject, NSApplicationDelegate {
           case "inline.autosend": matches = config.inline.autosend == (value == "true")
           case "audio.sounds.enabled": matches = config.soundsEnabled == (value == "true")
           case "debug.keep_logs": matches = config.transcription.keepLogs == (value == "true")
+          case "clean.enabled": matches = config.cleanup.clean == (value == "true" ? "1" : "0")
+          case "clean.repeats_level": matches = config.cleanup.repeatsLevel == value
           default: matches = true
           }
           self.settingsModel.finished(error: matches ? nil : "Saved, but an environment override keeps the current value. Update the override and reload Settings.")

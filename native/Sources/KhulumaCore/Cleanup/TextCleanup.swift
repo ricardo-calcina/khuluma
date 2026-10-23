@@ -58,11 +58,21 @@ public enum TextCleanup {
   /// Removes hesitation sounds, preserving hedges and quoted words.
   /// Like the Perl, it also folds each line
   /// break into the following text (`a\nb` becomes `ab`).
-  public static func cleanFillers(_ text: String) -> String {
-    PerlText.byteMode(text) { bytes in
+  public static func cleanFillers(_ text: String, words: [String]? = nil) -> String {
+    var rules = fillerRules
+    if let words {
+      let phrases = words.sorted { $0.utf8.count > $1.utf8.count }.map {
+        NSRegularExpression.escapedPattern(for: PerlText.byteView($0.utf8))
+      }
+      let pattern = phrases.isEmpty ? "(?!)" : phrases.joined(separator: "|")
+      rules[0] = (ICURegex(
+        #"(?<![\w./@'"`-])(?:"# + pattern + #")(?![\w/@'"`-]|\.[A-Za-z0-9])[,.]?"# + "\(s)*",
+        caseInsensitive: true), "")
+    }
+    return PerlText.byteMode(text) { bytes in
       PerlText.eachLine(bytes) { line in
         var out = line
-        for (rule, template) in fillerRules {
+        for (rule, template) in rules {
           out = rule.replaceAll(out, template: template)
         }
         out = leadingSpace.replaceFirst(out, template: "")

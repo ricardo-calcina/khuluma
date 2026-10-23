@@ -106,7 +106,9 @@ struct CleanupParityTests {
       let actual: String
       switch item.fn {
       case "sanitize": actual = TextCleanup.sanitizeArtifacts(item.input)
-      case "fillers": actual = TextCleanup.cleanFillers(item.input)
+      case "fillers":
+        let words = arg0.isEmpty ? nil : try VocabularySheet.load(configDir: Self.configPath(arg0))?.fillers
+        actual = TextCleanup.cleanFillers(item.input, words: words)
       case "repeats":
         // khuluma_lib_clean_repeats defaults an empty level to 1.
         actual = TextCleanup.cleanRepeats(item.input, level: PerlText.perlInt(arg0.isEmpty ? "1" : arg0))

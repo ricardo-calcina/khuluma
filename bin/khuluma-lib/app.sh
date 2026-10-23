@@ -133,9 +133,13 @@ app_settings() {
         [[ -d "$(expand_path "$value")" ]] || die "model path must be an existing directory"
       fi
       ;;
-    debug.keep_logs|inline.autosend|audio.sounds.enabled)
+    debug.keep_logs|inline.autosend|audio.sounds.enabled|clean.enabled)
       type="bool"
       [[ "$value" == "true" || "$value" == "false" || "$value" == "1" || "$value" == "0" ]] || die "setting value must be true or false"
+      ;;
+    clean.repeats_level)
+      type="int"
+      [[ "$value" =~ ^[0-3]$ ]] || die "repeat cleanup level must be 0, 1, 2 or 3"
       ;;
     app.hotkey)
       python3 - "$value" <<'PYEOF' || die "invalid hotkey; use a modifier and key, or F1–F20"

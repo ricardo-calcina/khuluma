@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "fillers": ["um", "umm", "ummm", "uh", "uhh", "uhhh", "erm", "er", "ahhh"],
+  "brands": [
+    {"heard": "Kaluma", "write": "Khuluma"},
+    {"heard": "khuluma", "write": "Khuluma"},
+    {"heard": "PN PM", "write": "pnpm"},
+    {"heard": "pnpm", "write": "pnpm"},
+    {"heard": "X code", "write": "Xcode"},
+    {"heard": "xcode", "write": "Xcode"}
+  ],
+  "words": [{"heard": "source slash", "write": "src/"}]
+}

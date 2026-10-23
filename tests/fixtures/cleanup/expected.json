@@ -2892,6 +2892,24 @@
    "output": "I had had enough. That is very very good."
   },
   {
+   "id": "sheet-custom-fillers",
+   "fn": "fillers",
+   "args": [
+    "sheet"
+   ],
+   "input": "Um, ahhh, er open it. Umm stays. The word \"er\" and /er/file stay.",
+   "output": "open it. Umm stays. The word \"er\" and /er/file stay."
+  },
+  {
+   "id": "sheet-vocabulary",
+   "fn": "vocab",
+   "args": [
+    "sheet"
+   ],
+   "input": "Open Kaluma, PN PM and X code. source slash components.",
+   "output": "Open Khuluma, pnpm and Xcode. src/ components."
+  },
+  {
    "id": "fuzz-sanitize-001",
    "fn": "sanitize",
    "args": [],
@@ -8220,6 +8238,64 @@
    "status": "no_speech",
    "raw_text": "",
    "text": ""
+  },
+  {
+   "id": "sheet-pipeline",
+   "config": "sheet",
+   "env": {},
+   "input": "Um, I think PN PM works. I think PN PM works. Ahhh, open Kaluma in X code.",
+   "settings": {
+    "config_dir": "@config",
+    "clean": "1",
+    "repeats_level": "3",
+    "vocab_clean": "1",
+    "british_spelling": "1",
+    "locale_ctype": "C",
+    "locale_collate": "C"
+   },
+   "status": "ok",
+   "raw_text": "I think PN PM works. open Kaluma in X code.",
+   "text": "I think pnpm works. open Khuluma in Xcode."
+  },
+  {
+   "id": "sheet-fillers-off",
+   "config": "sheet",
+   "env": {
+    "KHULUMA_CLEAN": "0"
+   },
+   "input": "Um, ahhh, open Kaluma in X code.",
+   "settings": {
+    "config_dir": "@config",
+    "clean": "0",
+    "repeats_level": "3",
+    "vocab_clean": "1",
+    "british_spelling": "1",
+    "locale_ctype": "C",
+    "locale_collate": "C"
+   },
+   "status": "ok",
+   "raw_text": "Um, ahhh, open Kaluma in X code.",
+   "text": "Um, ahhh, open Khuluma in Xcode."
+  },
+  {
+   "id": "sheet-corrections-off",
+   "config": "sheet",
+   "env": {
+    "KHULUMA_VOCAB_CLEAN": "0"
+   },
+   "input": "Um, ahhh, open Kaluma in X code.",
+   "settings": {
+    "config_dir": "@config",
+    "clean": "1",
+    "repeats_level": "3",
+    "vocab_clean": "0",
+    "british_spelling": "1",
+    "locale_ctype": "C",
+    "locale_collate": "C"
+   },
+   "status": "ok",
+   "raw_text": "open Kaluma in X code.",
+   "text": "open Kaluma in X code."
   },
   {
    "id": "fuzz-pipeline-001",

@@ -2731,6 +2731,22 @@
     "3"
    ],
    "input": "I had had enough. That is very very good."
+  },
+  {
+   "id": "sheet-custom-fillers",
+   "fn": "fillers",
+   "args": [
+    "sheet"
+   ],
+   "input": "Um, ahhh, er open it. Umm stays. The word \"er\" and /er/file stay."
+  },
+  {
+   "id": "sheet-vocabulary",
+   "fn": "vocab",
+   "args": [
+    "sheet"
+   ],
+   "input": "Open Kaluma, PN PM and X code. source slash components."
   }
  ],
  "pipeline": [
@@ -2921,6 +2937,28 @@
    "config": "dictation",
    "env": {},
    "input": "Um, uh, umm."
+  },
+  {
+   "id": "sheet-pipeline",
+   "config": "sheet",
+   "env": {},
+   "input": "Um, I think PN PM works. I think PN PM works. Ahhh, open Kaluma in X code."
+  },
+  {
+   "id": "sheet-fillers-off",
+   "config": "sheet",
+   "env": {
+    "KHULUMA_CLEAN": "0"
+   },
+   "input": "Um, ahhh, open Kaluma in X code."
+  },
+  {
+   "id": "sheet-corrections-off",
+   "config": "sheet",
+   "env": {
+    "KHULUMA_VOCAB_CLEAN": "0"
+   },
+   "input": "Um, ahhh, open Kaluma in X code."
   }
  ]
 }

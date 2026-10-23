@@ -38,7 +38,7 @@ while IFS=$'\x1f' read -r idx fn a1 a2 _end; do
   out="$work/out/$idx"
   case "$fn" in
     sanitize) khuluma_lib_sanitize_transcript_artifacts <"$in" >"$out" ;;
-    fillers) khuluma_lib_clean_fillers <"$in" >"$out" ;;
+    fillers) khuluma_lib_clean_fillers "$a1" <"$in" >"$out" ;;
     repeats) khuluma_lib_clean_repeats "$a1" <"$in" >"$out" ;;
     british) khuluma_lib_normalize_british_spelling "$a1" <"$in" >"$out" ;;
     vocab) khuluma_lib_apply_vocab_corrections "$a1" <"$in" >"$out" ;;
@@ -170,7 +170,7 @@ def run_stage_cases(cases, work):
             with open(os.path.join(work, "in", str(idx)), "w", encoding="utf-8", newline="") as f:
                 f.write(case["input"])
             args = list(case["args"]) + ["", ""]
-            if case["fn"] == "vocab":
+            if case["fn"] == "vocab" or (case["fn"] == "fillers" and args[0]):
                 args[0] = config_path(args[0])
             manifest.write("\x1f".join([str(idx), case["fn"], args[0], args[1], "END"]) + "\n")
     env = {"PATH": "/usr/bin:/bin", "LC_ALL": "C", "HOME": work}

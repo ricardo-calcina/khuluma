@@ -51,6 +51,7 @@ enum StatsSnapshot {
       for (name, model) in [("local", local), ("cloud", cloud), ("key-missing", missingKey)] {
         save("settings-\(name)", view: AnyView(SettingsView(model: model)), width: 560, height: 634)
       }
+      save("vocabulary", view: AnyView(VocabularyView(settings: local)), width: 560, height: 660)
       let navigation = AppNavigation()
       save("app-stats", view: AnyView(AppView(stats: full, settings: local, navigation: navigation)),
            width: 560, height: 634)
@@ -198,6 +199,7 @@ private struct UISettingsFixture {
     model.adopt(try config())
     model.onOpenLog = { [weak model] in model?.message = "Preview: diagnostic logs are disabled." }
     model.onOpenConfig = { [weak model] in model?.message = "Preview settings are kept in memory." }
+    installPreviewVocabulary(model)
     return model
   }
 
@@ -211,6 +213,8 @@ private struct UISettingsFixture {
       set("transcription", key: "provider", value: value)
     case "inline.autosend": set("inline", key: "autosend", value: value == "true")
     case "debug.keep_logs": set("transcription", key: "keep_logs", value: value == "true")
+    case "clean.enabled": set("cleanup", key: "clean", value: value == "true" ? "1" : "0")
+    case "clean.repeats_level": set("cleanup", key: "repeats_level", value: value)
     case "audio.sounds.enabled":
       values["sounds_enabled"] = value == "true"
       var sounds = values["sounds"] as! [String: [String: Any]]
@@ -247,6 +251,7 @@ final class UIPreviewController: NSObject, NSApplicationDelegate {
     settings.onOpenLog = { [weak self] in self?.settings.message = "Preview: diagnostic logs are disabled." }
     settings.onOpenConfig = { [weak self] in self?.settings.message = "Preview settings are kept in memory." }
     settings.onToggleLogin = { [weak self] in self?.settings.message = "Preview: Start at Login stays off." }
+    installPreviewVocabulary(settings)
     menu.onShowStats = { [weak self] in self?.showWindow(settings: false) }
     menu.onShowSettings = { [weak self] in self?.showWindow(settings: true) }
     menu.install()
@@ -280,5 +285,22 @@ final class UIPreviewController: NSObject, NSApplicationDelegate {
       settings.finished()
       settings.message = "Preview setting saved in memory."
     } catch { settings.finished(error: error.localizedDescription) }
+  }
+}
+
+/// Sample vocabulary remains in memory, including saves, reloads and imports.
+private func installPreviewVocabulary(_ settings: SettingsModel) {
+  final class Store {
+    var snapshot = VocabularySnapshot(document: VocabularySheet(
+      fillers: VocabularySheet.defaults.fillers,
+      brands: [.init(heard: "Kaluma", write: "Khuluma"), .init(heard: "PN PM", write: "pnpm"),
+               .init(heard: "X code", write: "Xcode")],
+      words: [.init(heard: "core ml", write: "CoreML")]), revision: "preview")
+  }
+  let store = Store()
+  settings.onLoadVocabulary = { store.snapshot }
+  settings.onSaveVocabulary = { snapshot in
+    store.snapshot = snapshot
+    return snapshot
   }
 }

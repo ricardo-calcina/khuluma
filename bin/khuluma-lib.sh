@@ -26,8 +26,19 @@ khuluma_lib_expand_sound_path() {
 
 # Remove hesitation sounds, preserving hedges, corrections and quoted words.
 khuluma_lib_clean_fillers() {
-  perl -pe '
-    s/(?<![\w.\/@\x27"`-])\b(?:um+|uh+|erm)\b(?![\w\/@\x27"`-]|\.[A-Za-z0-9])[,.]?\s*//gi;
+  KHULUMA_FILLER_SHEET="${1:-}/vocabulary.json" perl -pe '
+    BEGIN {
+      $hesitations = "um+|uh+|erm";
+      if (-f $ENV{KHULUMA_FILLER_SHEET}) {
+        require JSON::PP; require Encode;
+        open(my $fh, "<:raw", $ENV{KHULUMA_FILLER_SHEET}) or die "Cannot read vocabulary: $!";
+        local $/; my $sheet = JSON::PP::decode_json(<$fh>); close($fh);
+        die "Invalid vocabulary fillers" unless ref($sheet->{fillers}) eq "ARRAY";
+        my @words = sort { length($b) <=> length($a) } @{$sheet->{fillers}};
+        $hesitations = @words ? join("|", map { quotemeta(Encode::encode_utf8($_)) } @words) : "(?!)";
+      }
+    }
+    s/(?<![\w.\/@\x27"`-])(?:$hesitations)(?![\w\/@\x27"`-]|\.[A-Za-z0-9])[,.]?\s*//gi;
     s/\s+/ /g;
     s/^ //; s/ $//;
     s/ ,/,/g; s/ \././g; s/,,/,/g;
@@ -133,7 +144,11 @@ khuluma_lib_apply_vocab_corrections() {
   local vocab_file="$config_dir/vocab"
   local files=()
 
-  [[ -f "$vocab_file" ]] && files+=("$vocab_file")
+  if [[ -f "$config_dir/vocabulary.json" ]]; then
+    files+=("$config_dir/vocabulary.json")
+  elif [[ -f "$vocab_file" ]]; then
+    files+=("$vocab_file")
+  fi
 
   if [[ "${#files[@]}" -eq 0 ]]; then
     cat
@@ -198,6 +213,11 @@ khuluma_lib_apply_vocab_corrections() {
         next unless -f $path;
         open(my $fh, "<:encoding(UTF-8)", $path) or next;
         my @path_rules = ();
+        if ($path =~ m{/vocabulary[.]json$}) {
+          require JSON::PP;
+          local $/; my $sheet = JSON::PP->new->decode(<$fh>);
+          @path_rules = map { [$_->{heard}, $_->{write}] } (@{$sheet->{brands}}, @{$sheet->{words}});
+        } else {
         while (my $line = <$fh>) {
           chomp($line);
           $line =~ s/^\s+//;
@@ -220,6 +240,7 @@ khuluma_lib_apply_vocab_corrections() {
           next if $left eq "" || $right eq "";
 
           push(@path_rules, [$left, $right]);
+        }
         }
         close($fh);
 

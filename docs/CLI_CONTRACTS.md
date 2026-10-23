@@ -80,8 +80,8 @@ These commands are safe to build integrations on:
     Contract 4 adds app settings writes and explicit provider selection. It
     prevents an older app from ignoring the selected cloud provider and
     continuing to invoke the local daemon.
-    Contract 5 keeps the native and CLI hesitation, sentence-repetition and
-    vocabulary punctuation rules in step. Install the app and CLI together;
+    Contract 5 keeps the native and CLI hesitation, sentence-repetition,
+    portable vocabulary and punctuation rules in step. Install the app and CLI together;
     an older app would otherwise apply different cleanup to the same take.
   - `cleanup.clean` resolves `KHULUMA_CLEAN` first, then `[clean] enabled`
     (false by default). `cleanup.repeats_level` keeps its string shape; level
@@ -102,11 +102,42 @@ These commands are safe to build integrations on:
     `swift_parakeet.model_path` (an existing directory, or empty to use model
     discovery), and `swift_parakeet.model_version` (`v2`, `v3`, or empty for
     inference). Hotkeys accept a modifier and key, or F1–F20.
-  - Editable switches: `debug.keep_logs`, `inline.autosend`, and
-    `audio.sounds.enabled`; values must be `true`, `false`, `1`, or `0`.
+  - Editable switches: `debug.keep_logs`, `inline.autosend`,
+    `audio.sounds.enabled` and `clean.enabled`; values must be `true`,
+    `false`, `1`, or `0`. `clean.repeats_level` accepts integers 0–3.
   - Unknown keys, invalid values, and malformed TOML fail without replacing
     the config. Successful writes preserve config symlinks and unrelated
     settings through the existing atomic TOML writer.
+- `khuluma vocab-sheet show --json` (app/agent integration)
+  - Returns `{ "document": <vocabulary>, "revision": "<sha256>" }` without
+    writing config or vocabulary. The document has `schema_version: 1`,
+    `fillers` (literal strings), `brands` and `words` (arrays of
+    `{ "heard": "...", "write": "..." }`). No unknown fields, duplicate
+    heard phrases, control characters, empty strings or unsupported versions
+    are accepted. The limits are 1 MB, 5,000 total entries and 200 Unicode
+    scalars per phrase. Case-insensitive heard phrases must be unique across
+    all sections.
+  - Reads `vocabulary.json` when present. Otherwise it exposes the retained
+    text `vocab` as Other words alongside the initial hesitation list, without
+    converting or replacing any files. Conflicting/invalid text rules must be
+    corrected explicitly before first save.
+- `khuluma vocab-sheet validate --json` (app/agent integration)
+  - Reads an exported document on stdin, validates the entire file and returns
+    the normalized document. Does not write files. Duplicate JSON keys are
+    rejected, including keys that would otherwise silently replace earlier data.
+- `khuluma vocab-sheet save --json` (app/agent integration)
+  - Reads the `document`/`revision` envelope on stdin. Under the vocabulary
+    lock, checks the revision from `show`, validates the document and atomically
+    publishes `vocabulary.json`, returning a fresh envelope. Stale revisions,
+    invalid documents and symlink destinations fail without replacing the file.
+    A first save leaves the old text `vocab` intact and inactive. Subsequent
+    changes back up the exact previous JSON bytes under `vocabulary-backups/`.
+    New files and backups use mode 0600. Re-saving an identical document is a
+    no-op. Revision tokens are opaque; do not derive them from exported JSON.
+  - Export/import files contain only the document, not the envelope. The app
+    stages imported content for review, then supplies the current revision
+    when Save Changes is chosen. On conflict it retains the draft for export
+    and reload, with no force-overwrite fallback.
 - `khuluma inline process <wav> --json [--defer-usage] [--expected-provider parakeet|elevenlabs]` (app integration)
   - `--expected-provider` rejects a changed provider before transcription with
     exit status 2. The app passes the provider captured for the take, so a

@@ -16,6 +16,7 @@ done
 echo "Syntax checks passed."
 
 ./tests/test_lib.sh
+python3 tests/test_vocabulary.py
 ./tests/test_version.sh
 ./tests/test_identity_cli.sh
 ./tests/test_cli.sh
