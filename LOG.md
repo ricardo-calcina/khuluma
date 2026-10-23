@@ -2,7 +2,7 @@
 
 ## Now
 
-The user approved combining all completed branches on main. Integration includes menu/Stats/Settings, adaptive app and animated status icon themes, bounded audio cleanup, and the vocabulary editor with paired app/CLI contract 5. Combined verification is in progress; this integration does not install or release anything. Personal vocabulary JSON stays outside Git.
+All approved work is integrated on main in four grouped merges: menu/Stats/Settings, adaptive app and animated status icons, bounded audio cleanup, and dictation cleanup with the vocabulary editor. Combined shell CI, the full native build and 164 Swift tests, cleanup fixtures, 36 app helpers, 44 light/dark renders and native editing/Undo/JSON export/theme switching pass. App/CLI contract 5 must roll out together. This merge does not install an app/CLI or publish a release; the existing daily build 355 and contract-4 CLI remain in place. Personal vocabulary JSON stays outside Git.
 
 The installed CLI includes audio cleanup from `54a4350`: working WAVs handed over by the app are deleted after history is saved; archived WAVs expire after 48 hours on the next dictation, without entering Trash. Installed persistence/expiry/history-failure retry checks and doctor pass. A real take saved history without another Trash WAV; 13 expired migrated archive names were removed with 79 transcripts, 31 recent WAVs and all remaining recovery links unchanged. App build 355, daemon/PID, settings and existing Trash are preserved; no app restart was needed.
 
@@ -20,6 +20,7 @@ Continue the existing daily-use observation before phase 1. No installed old Kwi
 
 ## Next
 
+- [x] P1 · Combine the approved menu, icon, audio and vocabulary branches on main; verify the integrated source · added 2026-10-24
 - [x] P1 · Audit saved dictation and prepare conservative hesitation/sentence/brand cleanup in source · added 2026-10-23
 - [x] P1 · Expose cleanup and one sectioned vocabulary editor with reviewed JSON import/export in Settings · added 2026-10-23
 - [ ] P1 · Install the merged contract-5 app/CLI together and check a real take when rollout is authorized; retain data/daemon · added 2026-10-23
@@ -68,6 +69,8 @@ Continue the existing daily-use observation before phase 1. No installed old Kwi
 - Rename the existing repository in place to preserve all history; retain neutral `ricardo-nth/tap` and rename its formula to `khuluma`. The in-place repository rename, immutable v0.10.0 release and canonical formula/map are published and verified. The app continues to depend on its matching CLI; cask/CLI-independence/deprecation/archive are separate future work.
 
 ## Done
+
+- 2026-10-24 · Combined four approved branches; full CI/164 Swift/36 helper/44 render/native editor-export-theme checks pass; daily runtime unchanged · 4064293, ef6866c, f83b614, 89eb00b
 
 - 2026-10-23 · Installed migration-link expiry fix; removed 13 expired archive names, preserving 79 transcripts/31 recent WAVs/recovery links/Trash; real take saved history without new Trash WAV · 54a4350; /private/tmp/khuluma-audio-install-g4pgzkti/manifest.json
 
@@ -146,5 +149,3 @@ Continue the existing daily-use observation before phase 1. No installed old Kwi
 - 2026-10-17 · Modes removed: one global vocab (default keeps the base path rules, code spellings dropped), `migrate-modes [--skip]` archives old modes, auto-paragraphs gone; app contract 3; this Mac migrated with --skip code · #78
 
 - 2026-10-17 · Khuluma rename step 3: roadmap, name check and CHANGELOG TODO describe Khuluma; phase 0 kept as decided · #76
-
-- 2026-10-17 · Khuluma rename step 2: the app is Khuluma.app; scripts build-khuluma-app.sh and khuluma-report.sh; Lowkey folders migrate at launch; bundle id and signing identity kept · #75
