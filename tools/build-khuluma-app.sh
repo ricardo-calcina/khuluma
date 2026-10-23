@@ -30,7 +30,9 @@ done
 APP_ICON="$ROOT/assets/icons/app/Khuluma.icns"
 APP_CATALOG="$ROOT/assets/icons/app/Assets.car"
 MENU_ICON="$ROOT/assets/icons/menu-bar/khuluma-menu-template.pdf"
-for resource in "$APP_ICON" "$APP_CATALOG" "$MENU_ICON"; do
+RECORDING_ICON="$ROOT/assets/icons/menu-bar/khuluma-recording-template.pdf"
+FINISHING_ICON="$ROOT/assets/icons/menu-bar/khuluma-finishing-template.pdf"
+for resource in "$APP_ICON" "$APP_CATALOG" "$MENU_ICON" "$RECORDING_ICON" "$FINISHING_ICON"; do
   [[ -s "$resource" ]] || { echo "Required icon resource missing: $resource" >&2; exit 2; }
 done
 khuluma_reject_obsolete_environment
@@ -172,6 +174,8 @@ cp "$binary" "$stage/Contents/MacOS/Khuluma"
 cp "$APP_ICON" "$stage/Contents/Resources/Khuluma.icns"
 cp "$APP_CATALOG" "$stage/Contents/Resources/Assets.car"
 cp "$MENU_ICON" "$stage/Contents/Resources/KhulumaMenuTemplate.pdf"
+cp "$RECORDING_ICON" "$stage/Contents/Resources/KhulumaRecordingTemplate.pdf"
+cp "$FINISHING_ICON" "$stage/Contents/Resources/KhulumaFinishingTemplate.pdf"
 python3 - "$stage/Contents/Info.plist" "$BUNDLE_ID" "$version" "$build_number" <<'PY'
 import plistlib, sys
 path, identifier, version, build = sys.argv[1:]

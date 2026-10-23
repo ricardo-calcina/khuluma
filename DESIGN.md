@@ -87,15 +87,15 @@ Choosing ElevenLabs is explicit, with an audio-upload and usage-credit notice vi
 
 ### Iconography
 
-Interface controls use SF Symbols. The menu icon communicates recording, processing or error. The idle glyph needs no textual Ready line. Gear and Back use standard Mac toolbar placement and accessible names.
+Interface controls use SF Symbols. The menu icon uses custom cursed-speech templates for Ready, Recording and Processing, with the existing SF Symbol for error. The idle glyph needs no textual Ready line. Gear and Back use standard Mac toolbar placement and accessible names.
 
 The app icon uses the selected raised Inumaki-inspired direction: black enamel on ivory for light appearance, ivory enamel on charcoal for dark. The compact silhouette keeps a central mouth, two raised rings with solid pupils and short diagonal connections. Approved artwork and legacy production exports live in `assets/icons/app/`; `tools/make-khuluma-icons.swift` applies a shared raster crop and rounded mask. Legacy PNG/ICNS exports include the native canvas inset. `assets/icons/AppIcon.icon/Assets/` uses full-canvas derivatives so Icon Composer supplies that outer container once. Explicit default/dark raster specializations retain the approved raised materials; additional glass, specular, shadow and translucency effects are disabled.
 
 The bundle stages the compiled `Assets.car` and declares `CFBundleIconName=AppIcon` for macOS 26+ appearance selection, alongside the ICNS fallback. `tools/compile-khuluma-icon.sh` and the icon-only workflow compile and verify the catalog with Xcode 26+. Installed build 347 renders the full-canvas artwork cleanly and switches correctly in Finder between light and dark, with icon style Dark → Auto. General appearance remains Auto. Reproduction and artifact provenance live in `assets/icons/README.md` and `assets/icons/app/catalog-build.json`.
 
-The native menu uses `assets/icons/menu-bar/khuluma-menu-template.pdf`: a black-and-clear 28-by-20-point canvas with an 18-point glyph. StatusMenu owns the fixed 36-point slot, template tint and accessible status label. Ready uses the brand glyph; recording, processing and error retain their status symbols. macOS supplies light/dark/selected tint. Raised shading belongs only in the app icon.
+The native menu uses `assets/icons/menu-bar/khuluma-menu-template.pdf`, `khuluma-recording-template.pdf` and `khuluma-finishing-template.pdf`: black-and-clear 28-by-20-point canvases with artwork up to 18 points tall. StatusMenu caches the three PDFs and owns the fixed 36-point slot, template tint and accessible status label. Ready keeps the approved brand glyph; Recording uses a speaking fanged mouth with voice strokes; Processing/Finishing uses two turning arcs around fang marks. Errors retain the existing status symbol. macOS supplies light/dark/selected tint. Raised shading belongs only in the app icon.
 
-Unselected status exploration lives in `assets/icons/menu-bar/concepts/`. Both sets preserve the exact Ready emblem. One uses a separate speaking mouth and turning fang seal; the other retains the full emblem and changes its centre. Preview labels call the existing processing/delivery interval Finishing. These assets are not bundled, and no installed status behavior or symbol has changed.
+Ricardo selected status set 1 on 2026-10-23. Both source sets remain in `assets/icons/menu-bar/concepts/`; set 2 retains the full emblem and changes its centre, reserved for a possible future theme setting. No theme control or animation is added now. Finishing is a visual name for the existing processing/delivery interval, including paste and optional send-key events. Phase timing, overlapping-take priority, labels and error handling stay unchanged.
 
 ### Motion
 

@@ -35,13 +35,17 @@ final class StatusMenu: NSObject {
   private let stats: StatsModel
   private let settings: SettingsModel
   private let sampleData: Bool
-  private lazy var readyImage: NSImage? = {
-    guard let url = Bundle.main.url(forResource: "KhulumaMenuTemplate", withExtension: "pdf"),
+  private lazy var readyImage = Self.templateImage(named: "KhulumaMenuTemplate")
+  private lazy var recordingImage = Self.templateImage(named: "KhulumaRecordingTemplate")
+  private lazy var finishingImage = Self.templateImage(named: "KhulumaFinishingTemplate")
+
+  private static func templateImage(named name: String) -> NSImage? {
+    guard let url = Bundle.main.url(forResource: name, withExtension: "pdf"),
           let image = NSImage(contentsOf: url) else { return nil }
     image.size = NSSize(width: 28, height: 20)
     image.isTemplate = true
     return image
-  }()
+  }
 
   init(stats: StatsModel, settings: SettingsModel, sampleData: Bool = false) {
     self.stats = stats
@@ -102,8 +106,11 @@ final class StatusMenu: NSObject {
       button.highlight(false)
       show(ActivityStatus(), recording: false)
     }
-    var failures = readyImage == nil ? 1 : 0
-    print("icon resource loaded=\(readyImage != nil) canvas=\(readyImage?.size ?? .zero)")
+    let resources = [("ready", readyImage), ("recording", recordingImage), ("processing", finishingImage)]
+    var failures = resources.filter { $0.1 == nil }.count
+    for (name, image) in resources {
+      print("icon resource \(name) loaded=\(image != nil) canvas=\(image?.size ?? .zero)")
+    }
     for (name, activity, recording) in states {
       show(activity, recording: recording)
       for (look, appearance) in [("light", NSAppearance.Name.aqua), ("dark", .darkAqua)] {
@@ -161,8 +168,14 @@ final class StatusMenu: NSObject {
     model.recording = recording
     let name = sampleData ? "Khuluma Preview" : "Khuluma"
     let symbol = sampleData && status.phase == .ready ? "waveform" : status.symbol
-    let image = status.phase == .ready ? readyImage ?? NSImage(systemSymbolName: symbol, accessibilityDescription: name)
-      : NSImage(systemSymbolName: symbol, accessibilityDescription: name)
+    let customImage: NSImage?
+    switch status.phase {
+    case .ready: customImage = readyImage
+    case .recording: customImage = recordingImage
+    case .processing: customImage = finishingImage
+    case .error: customImage = nil
+    }
+    let image = customImage ?? NSImage(systemSymbolName: symbol, accessibilityDescription: name)
     image?.isTemplate = true
     statusItem?.button?.image = image
     statusItem?.button?.setAccessibilityLabel("\(name) · \(status.title)")

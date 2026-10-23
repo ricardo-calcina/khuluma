@@ -164,6 +164,8 @@ def main() -> int:
     (template / "repo/assets/icons/app/Khuluma.icns").write_bytes(b"MOCK ICNS RESOURCE\n")
     (template / "repo/assets/icons/app/Assets.car").write_bytes(b"MOCK CAR RESOURCE\n")
     (template / "repo/assets/icons/menu-bar/khuluma-menu-template.pdf").write_bytes(b"MOCK VECTOR PDF\n")
+    (template / "repo/assets/icons/menu-bar/khuluma-recording-template.pdf").write_bytes(b"MOCK RECORDING VECTOR PDF\n")
+    (template / "repo/assets/icons/menu-bar/khuluma-finishing-template.pdf").write_bytes(b"MOCK FINISHING VECTOR PDF\n")
     shutil.copy2(source_script, template / "repo/tools/build-khuluma-app.source.sh")
     instrumentation_from = "  LSREGISTER=" + LSREGISTER
     instrumentation_to = '  LSREGISTER="$GATE_MOCK_LSREGISTER"'
@@ -296,6 +298,8 @@ def main() -> int:
         assert (output / "Contents/Resources/Khuluma.icns").read_bytes() == b"MOCK ICNS RESOURCE\n", "app icon missing or changed"
         assert (output / "Contents/Resources/Assets.car").read_bytes() == b"MOCK CAR RESOURCE\n", "adaptive icon catalog missing or changed"
         assert (output / "Contents/Resources/KhulumaMenuTemplate.pdf").read_bytes() == b"MOCK VECTOR PDF\n", "menu template missing or changed"
+        assert (output / "Contents/Resources/KhulumaRecordingTemplate.pdf").read_bytes() == b"MOCK RECORDING VECTOR PDF\n", "recording template missing or changed"
+        assert (output / "Contents/Resources/KhulumaFinishingTemplate.pdf").read_bytes() == b"MOCK FINISHING VECTOR PDF\n", "finishing template missing or changed"
         signatures = [event for event in events if event["command"] == "codesign" and event["args"][0] == "--force"]
         assert len(signatures) == 1 and signatures[0]["args"][signatures[0]["args"].index("--sign") + 1] == HASH_A, "signing did not select exact hash"
         assert list((root / "tmp").glob("khuluma-app-build.*")), "build workspace was not retained"
