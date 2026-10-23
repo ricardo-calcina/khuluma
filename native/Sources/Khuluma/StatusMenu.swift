@@ -125,67 +125,62 @@ struct MenuPanel: View {
   var openSettings: () -> Void
   var action: (MenuAction) -> Void
   var sampleData = false
-  @FocusState private var focusedFooter: FooterAction?
-
-  private enum FooterAction: Hashable { case app, settings, quit }
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 14) {
-      Text(sampleData ? "Today · Preview" : "Today")
-        .font(.caption).foregroundStyle(.secondary)
-      HStack(spacing: 20) {
-        metric("Words", value: todayWords)
-        metric("Dictations", value: todayDictations)
-        metric("Streak", value: stats.stats.map { "\($0.streak.current) day\($0.streak.current == 1 ? "" : "s")" } ?? "–")
+    VStack(alignment: .leading, spacing: 0) {
+      VStack(alignment: .leading, spacing: 10) {
+        Text(sampleData ? "All time · Preview" : "All time")
+          .font(.caption).foregroundStyle(.secondary)
+          .frame(maxWidth: .infinity)
+        HStack(spacing: 12) {
+          metric("Total words", value: stats.stats.map { $0.lifetime.words.formatted() } ?? "–")
+          metric("Time saved", value: timeSaved)
+            .help("Estimated time saved compared with typing at \(stats.stats?.lifetime.typingWPM ?? 40) words per minute, including delivery time.")
+          metric("Average WPM", value: stats.stats?.lifetime.wordsPerMinute.map { $0.formatted() } ?? "–")
+            .help("Words per minute of recording, including pauses.")
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        if stats.refreshFailed {
+          Label(stats.stats == nil ? "Couldn't load stats. Open Khuluma to retry." : "Couldn't refresh. Showing the last stats.",
+                systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.secondary)
+        }
+        notices
       }
-      .fixedSize(horizontal: false, vertical: true)
-      if stats.refreshFailed {
-        Label(stats.stats == nil ? "Couldn't load stats. Open Khuluma to retry." : "Couldn't refresh. Showing the last stats.",
-              systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.secondary)
-      }
-      notices
+      .padding(.horizontal, 16)
+      .padding(.vertical, 12)
       Divider()
       HStack(spacing: 8) {
         Button(action: openStats) { Image(systemName: "macwindow") }
           .accessibilityLabel("Open Khuluma").help("Open Khuluma")
           .keyboardShortcut("o")
-          .focused($focusedFooter, equals: .app)
-          .buttonStyle(MenuIconButtonStyle(focused: focusedFooter == .app))
         Spacer()
         Button(action: openSettings) { Image(systemName: "gearshape") }
           .accessibilityLabel("Settings").help("Settings")
           .keyboardShortcut(",")
-          .focused($focusedFooter, equals: .settings)
-          .buttonStyle(MenuIconButtonStyle(focused: focusedFooter == .settings))
         Button { action(.quit) } label: { Image(systemName: "power") }
           .accessibilityLabel("Quit Khuluma").help("Quit Khuluma")
           .keyboardShortcut("q")
-          .focused($focusedFooter, equals: .quit)
-          .buttonStyle(MenuIconButtonStyle(focused: focusedFooter == .quit))
       }
-      .font(.system(size: 13))
+      .font(.system(size: 12))
       .foregroundStyle(.primary)
-      .focusEffectDisabled()
+      .buttonStyle(MenuIconButtonStyle())
+      .padding(.horizontal, 12)
+      .padding(.vertical, 4)
     }
-    .padding(16)
     .frame(width: 400)
   }
 
-  private var todayWords: String {
-    guard let value = stats.stats else { return "–" }
-    return value.hasDaily ? value.todayWords.formatted() : "–"
-  }
-  private var todayDictations: String {
-    guard let value = stats.stats else { return "–" }
-    return value.hasDaily ? value.todayDictations.formatted() : "–"
+  private var timeSaved: String {
+    guard let lifetime = stats.stats?.lifetime, lifetime.words > 0 else { return "–" }
+    return Format.savedTime(ms: lifetime.estimatedSavedMs)
   }
 
   private func metric(_ title: String, value: String) -> some View {
-    VStack(alignment: .leading, spacing: 3) {
-      Text(value).font(.system(size: 24, weight: .semibold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
+    VStack(spacing: 5) {
       Text(title).font(.caption).foregroundStyle(.secondary)
+      Text(value).font(.system(size: 22, weight: .semibold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
     }
-    .frame(maxWidth: .infinity, alignment: .leading)
+    .frame(maxWidth: .infinity)
     .accessibilityElement(children: .combine)
   }
 
@@ -211,31 +206,24 @@ struct MenuPanel: View {
 }
 
 private struct MenuIconButtonStyle: ButtonStyle {
-  var focused: Bool
-
   func makeBody(configuration: Configuration) -> some View {
-    Surface(configuration: configuration, focused: focused)
+    Surface(configuration: configuration)
   }
 
   private struct Surface: View {
     let configuration: ButtonStyleConfiguration
-    let focused: Bool
     // Keep source previews compatible with the Command Line Tools.
     @StateObject private var hover = Hover()
 
     var body: some View {
       configuration.label
-        .frame(width: 32, height: 28)
+        .frame(width: 28, height: 24)
         .contentShape(RoundedRectangle(cornerRadius: 5))
         .background {
           RoundedRectangle(cornerRadius: 5)
             .fill(configuration.isPressed
                   ? Color(nsColor: .tertiaryLabelColor)
                   : (hover.active ? Color(nsColor: .quaternaryLabelColor) : .clear))
-        }
-        .overlay {
-          RoundedRectangle(cornerRadius: 5)
-            .stroke(focused ? Color(nsColor: .keyboardFocusIndicatorColor) : .clear, lineWidth: 2)
         }
         .onHover { hover.active = $0 }
     }

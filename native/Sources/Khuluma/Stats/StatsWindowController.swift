@@ -98,6 +98,22 @@ final class StatsWindowController: NSWindowController, NSWindowDelegate, NSToolb
     item.target = self
     item.isNavigational = !settings
     item.action = settings ? #selector(openSettings) : #selector(backToStats)
+    if settings {
+      let button = NSButton(image: item.image!, target: self, action: #selector(openSettings))
+      button.image = item.image?.withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 13, weight: .regular))
+      button.imageScaling = .scaleNone
+      button.bezelStyle = .texturedRounded
+      button.controlSize = .small
+      button.showsBorderOnlyWhileMouseInside = true
+      button.toolTip = item.toolTip
+      button.setAccessibilityLabel("Settings")
+      button.translatesAutoresizingMaskIntoConstraints = false
+      NSLayoutConstraint.activate([
+        button.widthAnchor.constraint(equalToConstant: 28),
+        button.heightAnchor.constraint(equalToConstant: 24),
+      ])
+      item.view = button
+    }
     return item
   }
 

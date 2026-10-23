@@ -14,7 +14,7 @@ rounded:
   DEFAULT: 8px
 spacing:
   menu-inset: 16px
-  menu-gap: 14px
+  menu-gap: 10px
   stats-inset: 20px
 components:
   button: {}
@@ -29,7 +29,7 @@ components:
 
 ### Creative North Star
 
-A small Mac utility you open for an answer and close immediately. A shallow, arrowless daily readout leads to the original Stats view. Settings is a secondary destination behind a native titlebar gear. Precision and familiar Mac behavior carry the identity.
+A small Mac utility you open for an answer and close immediately. A shallow, arrowless lifetime readout leads to a quiet Stats window with the same three figures and daily activity. Settings is a secondary destination behind a small native titlebar gear. Precision and familiar Mac behavior carry the identity.
 
 ### Product context and register
 
@@ -47,13 +47,13 @@ Use primary and secondary text, native menu material, windowBackgroundColor, qua
 
 ## Typography
 
-System body, callout and caption styles carry controls and explanations. Semibold 24-point system numerals carry compact usage; the original Stats figures keep their rounded 26-point bold type. Monospaced digits prevent count movement. Keep sentence case for actions.
+System body, callout and caption styles carry controls and explanations. Semibold 22-point system numerals carry compact usage; Stats uses 28-point semibold figures. Monospaced digits prevent count movement. Keep sentence case for actions.
 
 ## Layout
 
-MenuPanel owns the 400-point panel width, 16-point inset and 14-point row gap. A quiet Today caption replaces the product heading. Three aligned metric columns show words, dictations and streak provisionally; the final metric choice remains open. A single divider separates three icon actions: open the app, Settings and Quit. Model and shortcut belong only in Settings. Warnings and recovery actions expand the panel only when applicable.
+MenuPanel owns the 400-point panel width, 16-point horizontal and 12-point vertical content insets, and 10-point row gap. A quiet All time caption replaces the product heading. Three equal, centered columns show Total words, Time saved and Average WPM. A single divider separates three icon actions: open the app, Settings and Quit. The footer uses 12-point horizontal and 4-point vertical padding. Model and shortcut belong only in Settings. Warnings and recovery actions expand the panel only when applicable.
 
-StatsWindowController owns the native unified compact toolbar: trailing gear on Stats, leading Back on Settings. No content-level tabs or navigation header. The window starts at the original Stats content size, 560 by 634 points, and can resize down to 560 by 420. Stats retains its established 560-point layout in a bounded ScrollView. Settings uses the native grouped Form and its system scrolling. Both destinations remain reachable in a short window.
+StatsWindowController owns the native unified compact toolbar: a trailing 13-point gear in a 28-by-24-point small native button on Stats, leading Back on Settings. No content-level tabs or navigation header. The window starts at 560 by 634 points and can resize down to 560 by 420. Stats uses equal centered lifetime figures above Activity, a quiet streak row and coverage/footer information. There is no awards table, milestone celebration or secondary totals block. Its 560-point layout sits in a bounded ScrollView. Settings uses the native grouped Form and its system scrolling. Both destinations remain reachable in a short window.
 
 ## Elevation & Depth
 
@@ -71,7 +71,7 @@ Use native disabled, focus, pressed, selected and hover states. Loading uses a s
 
 ### Buttons and actions
 
-Native titlebar toolbar items, icon-only menu footer controls and native form controls. Menu icons have a 32-by-28-point target, semantic hover and pressed surfaces, and a keyboard focus outline. The shortcut recorder is a compact key button; capture instructions appear while recording. Icon-only controls have accessible labels and help. Quit stays separate from opening the app. Recovery/discard actions retain their existing deliberate app flow.
+Native titlebar toolbar items, icon-only menu footer controls and native form controls. Menu icons have a 28-by-24-point target, semantic hover and pressed surfaces, and native keyboard focus feedback. Opening the menu clears automatic initial button focus. The shortcut recorder is a compact key button; capture instructions appear while recording. Icon-only controls have accessible labels and help. Quit stays separate from opening the app. Recovery/discard actions retain their existing deliberate app flow.
 
 ### Navigation and data display
 
@@ -93,12 +93,12 @@ No decorative animation. The transient panel opens without animation. Existing S
 
 ### Content and data visualization
 
-Use words the person controls: model, shortcut, sounds, Start at Login, diagnostic logs. Today means local calendar day. A missing daily ledger shows a dash, never fabricated zero usage. Streak is labelled separately from today's values. Existing Stats math and coverage explanations remain authoritative.
+Use words the person controls: model, shortcut, sounds, Start at Login, diagnostic logs. Both summaries use lifetime totals. Time saved is visibly approximate and retains signed values if dictation took longer than the typing estimate; help explains the configured typing speed and full delivery time. Average WPM includes recording pauses. Missing values show a dash, never fabricated zero usage. Daily activity and streak remain separate from lifetime figures. Existing Stats math and coverage explanations remain authoritative.
 
 ## Do's and Don'ts
 
 - Do keep configuration details in Settings and the menu focused on glanceable usage.
-- Do preserve the original Stats layout and use the native titlebar for secondary navigation.
+- Do keep Stats focused on the three lifetime figures, daily activity and streak; use the native titlebar for secondary navigation.
 - Do keep recovery actions reachable whenever a recording needs attention.
 - Don't display routine readiness or local daemon internals as permanent menu rows.
 - Don't treat a successful config write as evidence of a live cloud transcription.
