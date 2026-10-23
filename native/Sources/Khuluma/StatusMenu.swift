@@ -35,6 +35,13 @@ final class StatusMenu: NSObject {
   private let stats: StatsModel
   private let settings: SettingsModel
   private let sampleData: Bool
+  private lazy var readyImage: NSImage? = {
+    guard let url = Bundle.main.url(forResource: "KhulumaMenuTemplate", withExtension: "pdf"),
+          let image = NSImage(contentsOf: url) else { return nil }
+    image.size = NSSize(width: 28, height: 20)
+    image.isTemplate = true
+    return image
+  }()
 
   init(stats: StatsModel, settings: SettingsModel, sampleData: Bool = false) {
     self.stats = stats
@@ -45,7 +52,9 @@ final class StatusMenu: NSObject {
   }
 
   func install() {
-    let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+    // The 28-point artwork canvas needs side padding; keep activity states in
+    // the same slot so neighbouring menu items never move during a take.
+    let item = NSStatusBar.system.statusItem(withLength: 36)
     statusItem = item
     item.button?.toolTip = sampleData ? "Khuluma Preview · sample data" : "Khuluma"
     item.button?.setAccessibilityLabel(sampleData ? "Khuluma Preview" : "Khuluma")
@@ -96,10 +105,14 @@ final class StatusMenu: NSObject {
   func show(_ status: ActivityStatus, recording: Bool) {
     model.activity = status.phase == .ready ? nil : status.title
     model.recording = recording
+    let name = sampleData ? "Khuluma Preview" : "Khuluma"
     let symbol = sampleData && status.phase == .ready ? "waveform" : status.symbol
-    let image = NSImage(systemSymbolName: symbol, accessibilityDescription: sampleData ? "Khuluma Preview" : "Khuluma")
+    let image = status.phase == .ready ? readyImage ?? NSImage(systemSymbolName: symbol, accessibilityDescription: name)
+      : NSImage(systemSymbolName: symbol, accessibilityDescription: name)
     image?.isTemplate = true
     statusItem?.button?.image = image
+    statusItem?.button?.setAccessibilityLabel("\(name) · \(status.title)")
+    statusItem?.button?.toolTip = "\(name) · \(status.title)" + (sampleData ? " · sample data" : "")
   }
 
   func showConfigWarning(_ title: String?) { model.configWarning = title }

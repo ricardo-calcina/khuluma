@@ -2,6 +2,8 @@
 
 ## Now
 
+Shipping the selected raised light/dark app icon and 18-point menu glyph. Production exports and bundle resources are prepared; helper regression checks pass and the isolated signed preview is building. Local installation is authorized; live appearance and menu checks remain.
+
 The menu utility and integrated Settings are installed locally: Khuluma v0.11.0 build 340 and the matching local CLI (contract 4), from `6a48abb` on `feat/menu-utility-settings`. Stats uses three sections across the viewport, with an accurate full-target milestone bar, toolbar utilities and compact Settings. File-transcription entry/output remains a separate design question.
 
 The user confirmed menu toggling, dictation and Control-Escape cancellation work; custom menu-icon artwork is being handled in another session. Live Stats matches the CLI and doctor reports no issues or warnings. F17, Parakeet, canonical data/config/model/sound paths, signing identity and the running daemon were preserved. The Homebrew keg and public release remain unchanged; build 332 and matching local code/receipt backups are retained for recovery.
@@ -18,7 +20,7 @@ Continue the existing daily-use observation before phase 1. No installed old Kwi
 - [x] P1 · Complete isolated rename/migration/recovery acceptance, controlled daily cutover and source/tap integration · added 2026-10-22
 
 - [ ] P1 · Before phase 2: search UKIPO and EUIPO by hand for KHULUMA; register khuluma.app · added 2026-10-17
-- [ ] P1 · Khuluma app icon: the bundle has none yet (Dock, Finder, Login Items, System Settings show a blank icon); a menu-bar glyph to match · added 2026-10-17
+- [ ] P1 · Package selected raised light/dark icon artwork for automatic appearance; review matching menu template; bundle still has no icon · added 2026-10-17
 - [ ] P1 · Join the Apple Developer Program before phase 2 · added 2026-10-15
 - [ ] P1 · Phase 0 gate: a week of daily use, then `tools/khuluma-report.sh` gates still met · added 2026-10-17
 - [ ] P1 · Phase 1 step 1: native usage ledger and history writer, proven against the CLI with shared fixtures (removes `inline record`) · added 2026-10-17
@@ -54,6 +56,8 @@ Continue the existing daily-use observation before phase 1. No installed old Kwi
 ## Done
 
 - 2026-10-23 · Installed signed build 340 and matching local contract-4 CLI from 6a48abb; CI/17 stats tests/42 renders/doctor pass, user confirmed menu/dictation/cancel; daemon/data preserved · native/Sources/Khuluma/Stats; local recovery .khuluma-live.qBasYG
+
+- 2026-10-23 · Saved selected raised light/dark icon previews and rendered menu template; adaptive packaging still open · assets/icons/README.md
 
 - 2026-10-23 · Distributed Stats viewport space across three sections and corrected/thickened full-target milestone progress; local daily install authorized · native/Sources/Khuluma/Stats; native/Tests/KhulumaCoreTests/StatsTests.swift
 

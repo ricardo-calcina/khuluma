@@ -159,8 +159,10 @@ def main() -> int:
     run = Path(tempfile.mkdtemp(prefix="khuluma-app-helpers-", dir=Path(tempfile.gettempdir()).resolve())).resolve()
     run.chmod(0o700)
     template = run / "template"
-    for relative in ("repo/tools", "repo/bin/khuluma-lib", "repo/native/App", "mock-bin"):
+    for relative in ("repo/tools", "repo/bin/khuluma-lib", "repo/native/App", "repo/assets/icons/app", "repo/assets/icons/menu-bar", "mock-bin"):
         (template / relative).mkdir(parents=True, exist_ok=True)
+    (template / "repo/assets/icons/app/Khuluma.icns").write_bytes(b"MOCK ICNS RESOURCE\n")
+    (template / "repo/assets/icons/menu-bar/khuluma-menu-template.pdf").write_bytes(b"MOCK VECTOR PDF\n")
     shutil.copy2(source_script, template / "repo/tools/build-khuluma-app.source.sh")
     instrumentation_from = "  LSREGISTER=" + LSREGISTER
     instrumentation_to = '  LSREGISTER="$GATE_MOCK_LSREGISTER"'
@@ -288,6 +290,9 @@ def main() -> int:
         assert data["CFBundleIdentifier"] == "com.ricardo-nth.khuluma", "wrong bundle ID"
         assert data["CFBundleShortVersionString"] == "fixture-0.11.0", "wrong source version"
         assert data["CFBundleVersion"] == "4242", "wrong fixture build number"
+        assert data["CFBundleIconFile"] == "Khuluma.icns", "app icon not declared"
+        assert (output / "Contents/Resources/Khuluma.icns").read_bytes() == b"MOCK ICNS RESOURCE\n", "app icon missing or changed"
+        assert (output / "Contents/Resources/KhulumaMenuTemplate.pdf").read_bytes() == b"MOCK VECTOR PDF\n", "menu template missing or changed"
         signatures = [event for event in events if event["command"] == "codesign" and event["args"][0] == "--force"]
         assert len(signatures) == 1 and signatures[0]["args"][signatures[0]["args"].index("--sign") + 1] == HASH_A, "signing did not select exact hash"
         assert list((root / "tmp").glob("khuluma-app-build.*")), "build workspace was not retained"
