@@ -7,20 +7,20 @@ import KhulumaCore
 @MainActor
 final class StatsWindowController: NSWindowController, NSWindowDelegate {
   private let model: StatsModel
+  private let navigation = AppNavigation()
 
-  init(model: StatsModel) {
+  init(model: StatsModel, settings: SettingsModel) {
     self.model = model
     let window = StatsWindow(
-      contentRect: NSRect(x: 0, y: 0, width: 560, height: 640),
-      styleMask: [.titled, .closable, .miniaturizable],
+      contentRect: NSRect(x: 0, y: 0, width: 600, height: 670),
+      styleMask: [.titled, .closable, .miniaturizable, .resizable],
       backing: .buffered, defer: false)
-    window.title = "Khuluma Stats"
+    window.title = "Khuluma"
     window.isReleasedWhenClosed = false
-    // The window takes the content's height, so nothing scrolls.
-    let hosting = NSHostingController(rootView: StatsView(model: model))
-    hosting.sizingOptions = [.preferredContentSize]
+    let hosting = NSHostingController(rootView: AppView(stats: model, settings: settings, navigation: navigation))
     window.contentViewController = hosting
-    window.setContentSize(NSSize(width: 560, height: 560))
+    window.setContentSize(NSSize(width: 600, height: 670))
+    window.contentMinSize = NSSize(width: 600, height: 460)
     window.center()
     // AppKit frame autosave uses the app's standard defaults domain rather
     // than our isolated suite. A fixture instance must not write daily state.
@@ -45,7 +45,8 @@ final class StatsWindowController: NSWindowController, NSWindowDelegate {
     }
   }
 
-  func show() {
+  func show(settings: Bool = false) {
+    navigation.selection = settings ? .settings : .stats
     NSApp.activate()
     showWindow(nil)
     window?.makeKeyAndOrderFront(nil)
@@ -60,6 +61,38 @@ final class StatsWindowController: NSWindowController, NSWindowDelegate {
 
   func windowWillClose(_ notification: Notification) {
     model.windowClosed()
+  }
+}
+
+@MainActor
+final class AppNavigation: ObservableObject {
+  enum Page { case stats, settings }
+  @Published var selection: Page = .stats
+}
+
+struct AppView: View {
+  @ObservedObject var stats: StatsModel
+  @ObservedObject var settings: SettingsModel
+  @ObservedObject var navigation: AppNavigation
+
+  var body: some View {
+    VStack(spacing: 0) {
+      Picker("Khuluma", selection: $navigation.selection) {
+        Text("Stats").tag(AppNavigation.Page.stats)
+        Text("Settings").tag(AppNavigation.Page.settings)
+      }
+      .pickerStyle(.segmented).labelsHidden().frame(width: 240).padding(16)
+      Divider()
+      if navigation.selection == .stats {
+        ScrollView {
+          StatsView(model: stats).frame(maxWidth: .infinity)
+        }
+      } else {
+        SettingsView(model: settings)
+      }
+    }
+    .frame(minWidth: 600, minHeight: 460)
+    .background(Color(nsColor: .windowBackgroundColor))
   }
 }
 

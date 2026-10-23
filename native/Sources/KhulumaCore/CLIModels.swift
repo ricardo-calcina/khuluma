@@ -5,7 +5,7 @@ import Foundation
 /// to speak exactly this version (`app_contract` in `app-config --json`,
 /// `KHULUMA_APP_CONTRACT` in `bin/khuluma`; CI keeps them equal).
 public enum AppContract {
-  public static let version = 3
+  public static let version = 4
 
   /// The installed CLI speaks a different contract: Khuluma takes no
   /// dictations until the two match.
@@ -77,6 +77,9 @@ public struct AppConfig: Decodable, Equatable, Sendable {
   public let cliVersion: String
   public let hotkey: String
   public let sounds: [String: Sound]
+  private let declaredSoundsEnabled: Bool?
+  /// The global sound switch, independent of missing or disabled events.
+  public var soundsEnabled: Bool { declaredSoundsEnabled ?? true }
   public let inline: Inline
   /// Text cleanup settings for the native TextPipeline.
   public let cleanup: CleanupSettings
@@ -129,6 +132,7 @@ public struct AppConfig: Decodable, Equatable, Sendable {
     case cliVersion = "cli_version"
     case hotkey
     case sounds
+    case declaredSoundsEnabled = "sounds_enabled"
     case inline
     case cleanup
     case transcription
@@ -139,6 +143,7 @@ public struct AppConfig: Decodable, Equatable, Sendable {
 
   /// Why Khuluma must not keep the daemon warm, or nil if it may.
   public var supervisionBlocker: String? {
+    guard transcription.provider == "parakeet" else { return "cloud transcription selected" }
     guard pipeline.supervise else { return "[app] supervise_daemon = false" }
     guard transcription.modelPath?.isEmpty == false else { return "no Parakeet model path" }
     return nil

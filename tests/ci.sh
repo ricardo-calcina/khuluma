@@ -19,6 +19,7 @@ echo "Syntax checks passed."
 ./tests/test_version.sh
 ./tests/test_identity_cli.sh
 ./tests/test_cli.sh
+./tests/test_providers.sh
 ./tests/test_regression.sh
 ./tests/test_flow_parity.sh
 ./tests/test_install.sh

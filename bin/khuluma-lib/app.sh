@@ -68,7 +68,8 @@ PYEOF
 # inline transcription would use them. Numeric env overrides stay raw strings
 # so the app can apply the CLI's exact parsing (and fall back when unsure).
 app_transcription_settings_json() {
-  local model_path model_version="" ffmpeg_ok="0" keep_logs="0" tail_rescue="0"
+  local model_path model_version="" ffmpeg_ok="0" keep_logs="0" tail_rescue="0" provider="parakeet"
+  [[ "$(resolve_transcribe_backend)" != "elevenlabs" ]] || provider="elevenlabs"
   model_path="$(resolve_swift_parakeet_model_path 2>/dev/null || true)"
   [[ -n "$model_path" ]] && model_version="$(resolve_swift_parakeet_model_version "$model_path")"
   command -v ffmpeg >/dev/null 2>&1 && command -v ffprobe >/dev/null 2>&1 && ffmpeg_ok="1"
@@ -76,6 +77,8 @@ app_transcription_settings_json() {
   bool_is_on "${KHULUMA_SWIFT_PARAKEET_TAIL_RESCUE:-1}" && tail_rescue="1"
 
   APPTR_SOCKET="$(resolve_swift_parakeet_socket_path)" \
+  APPTR_PROVIDER="$provider" \
+  APPTR_KEY_AVAILABLE="$(elevenlabs_key_available)" \
   APPTR_MODEL_PATH="$model_path" \
   APPTR_MODEL_VERSION="$model_version" \
   APPTR_MODEL_LABEL="$(current_transcribe_model_label)" \
@@ -93,6 +96,8 @@ import json, os
 e = os.environ
 flag = lambda name: e[name] == "1"
 print(json.dumps({
+    "provider": e["APPTR_PROVIDER"],
+    "key_available": e["APPTR_KEY_AVAILABLE"] == "true",
     "socket_path": e["APPTR_SOCKET"],
     "model_path": e["APPTR_MODEL_PATH"] or None,
     "model_version": e["APPTR_MODEL_VERSION"] or None,
@@ -110,12 +115,54 @@ print(json.dumps({
 PYEOF
 }
 
+# A narrow app-owned write contract. The existing writer preserves unrelated
+# TOML values and symlinks, refuses invalid files, and replaces atomically.
+app_settings() {
+  [[ $# -eq 4 && "$1" == "set" && "$4" == "--json" ]] || die "usage: khuluma app-settings set <key> <value> --json"
+  local key="$2" value="$3" type="string"
+  case "$key" in
+    transcription.provider)
+      [[ "$value" == "parakeet" || "$value" == "elevenlabs" ]] || die "provider must be parakeet or elevenlabs"
+      ;;
+    swift_parakeet.model_version)
+      [[ -z "$value" || "$value" == "v2" || "$value" == "v3" ]] || die "model version must be v2 or v3"
+      ;;
+    swift_parakeet.model_path)
+      [[ "$value" != *$'\n'* && "$value" != *$'\r'* ]] || die "model path must be a single line"
+      if [[ -n "$value" ]]; then
+        [[ -d "$(expand_path "$value")" ]] || die "model path must be an existing directory"
+      fi
+      ;;
+    debug.keep_logs|inline.autosend|audio.sounds.enabled)
+      type="bool"
+      [[ "$value" == "true" || "$value" == "false" || "$value" == "1" || "$value" == "0" ]] || die "setting value must be true or false"
+      ;;
+    app.hotkey)
+      python3 - "$value" <<'PYEOF' || die "invalid hotkey; use a modifier and key, or F1–F20"
+import sys
+parts = [p.strip().lower() for p in sys.argv[1].split("+")]
+modifiers = {"ctrl", "control", "⌃", "option", "opt", "alt", "⌥", "shift", "⇧", "cmd", "command", "⌘"}
+keys = set("abcdefghijklmnopqrstuvwxyz0123456789`-=[]\\;',./") | {"grave", "space", "return", "enter", "tab", "escape", "esc", "delete", "backspace", "left", "right", "down", "up"}
+functions = {f"f{i}" for i in range(1, 21)}
+pressed = [p for p in parts if p not in modifiers]
+valid = len(pressed) == 1 and (pressed[0] in functions or (pressed[0] in keys and len(parts) > 1))
+raise SystemExit(0 if valid else 1)
+PYEOF
+      ;;
+    *) die "setting is not editable through the app" ;;
+  esac
+  config_set "$key" "$type" "$value"
+  config_load
+  app_config_json --json
+}
+
 # khuluma app-config --json
 app_config_json() {
   [[ "${1:-}" == "--json" || -z "${1:-}" ]] || die "usage: khuluma app-config --json"
   need python3
   eval "$(app_delivery_settings_env)"
-  local event
+  local event supervise="${KHULUMA_APP_SUPERVISE_DAEMON:-${CFG_APP_SUPERVISE_DAEMON:-1}}"
+  [[ "$(resolve_transcribe_backend)" != "elevenlabs" ]] || supervise="0"
   local -a sound_env=()
   for event in start stop process error cancel; do
     sound_env+=("APPCFG_SOUND_${event}_PATH=$(khuluma_sound_path "$event" 2>/dev/null || true)")
@@ -130,6 +177,7 @@ app_config_json() {
     APPCFG_CLI_VERSION="$KHULUMA_CLI_VERSION" \
     APPCFG_APP_CONTRACT="$KHULUMA_APP_CONTRACT" \
     APPCFG_HOTKEY="${KHULUMA_APP_HOTKEY:-${CFG_APP_HOTKEY:-ctrl+option+space}}" \
+    APPCFG_SOUNDS_ENABLED="${CFG_AUDIO_SOUNDS_ENABLED:-1}" \
     APPCFG_AUTOSEND="$APP_AUTOSEND" \
     APPCFG_SEND_MODE="$APP_SEND_MODE" \
     APPCFG_PASTE_TARGET="$APP_PASTE_TARGET" \
@@ -140,7 +188,7 @@ app_config_json() {
     APPCFG_TRANSCRIPTION_JSON="$(app_transcription_settings_json)" \
     APPCFG_CONFIG_ERROR="${CFG_CONFIG_PARSE_ERROR:-}" \
     APPCFG_CONFIG_SOURCE="${CFG_CONFIG_SOURCE:-file}" \
-    APPCFG_SUPERVISE_DAEMON="${KHULUMA_APP_SUPERVISE_DAEMON:-${CFG_APP_SUPERVISE_DAEMON:-1}}" \
+    APPCFG_SUPERVISE_DAEMON="$supervise" \
     APPCFG_USAGE_PATH="$(usage_summary_file)" \
     python3 - <<'PYEOF'
 import json, os
@@ -156,6 +204,7 @@ print(json.dumps({
     "cli_version": e["APPCFG_CLI_VERSION"],
     "app_contract": int(e["APPCFG_APP_CONTRACT"]),
     "hotkey": e["APPCFG_HOTKEY"],
+    "sounds_enabled": flag("APPCFG_SOUNDS_ENABLED"),
     "sounds": sounds,
     "inline": {
         "autosend": flag("APPCFG_AUTOSEND"),
@@ -180,7 +229,8 @@ PYEOF
 }
 
 # khuluma inline process <wav> [--app NAME] [--record-ms N]
-#   [--startup-ms N] [--started-at-ms EPOCH_MS] [--defer-usage] --json
+#   [--startup-ms N] [--started-at-ms EPOCH_MS] [--defer-usage]
+#   [--expected-provider parakeet|elevenlabs] --json
 # --defer-usage (what Khuluma always passes): don't count the take in the
 # usage ledger; the caller records it with `inline record` (usage_only) once
 # it has actually delivered the text.
@@ -189,7 +239,7 @@ PYEOF
 # progress goes to the log, never stdout. The caller owns the WAV file.
 # history_saved is true only when the take's history entry is on disk.
 inline_process_json() {
-  local wav="" app="" record_ms="0" startup_ms="0" started_at_ms="" defer_usage="0"
+  local wav="" app="" record_ms="0" startup_ms="0" started_at_ms="" defer_usage="0" expected_provider=""
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --json) ;;
@@ -198,12 +248,18 @@ inline_process_json() {
       --startup-ms) [[ $# -ge 2 ]] || die "inline process: --startup-ms requires a value"; startup_ms="$2"; shift ;;
       --started-at-ms) [[ $# -ge 2 ]] || die "inline process: --started-at-ms requires a value"; started_at_ms="$2"; shift ;;
       --defer-usage) defer_usage="1" ;;
+      --expected-provider)
+        [[ $# -ge 2 && ( "$2" == "parakeet" || "$2" == "elevenlabs" ) ]] || die "inline process: --expected-provider requires parakeet or elevenlabs"
+        expected_provider="$2"; shift ;;
       -*) die "inline process: unknown option: $1" ;;
       *) [[ -z "$wav" ]] || die "inline process: only one WAV file"; wav="$1" ;;
     esac
     shift
   done
   [[ -n "$wav" ]] || die "usage: khuluma inline process <wav> [--app NAME] [--record-ms N] --json"
+  if [[ -n "$expected_provider" && "$expected_provider" != "${CFG_TRANSCRIPTION_PROVIDER:-parakeet}" ]]; then
+    die "transcription provider changed; reload Settings and retry the saved recording"
+  fi
   [[ -f "$wav" ]] || die "inline process: not a file: $wav"
   [[ "$record_ms" =~ ^[0-9]+$ ]] || record_ms=0
   [[ "$startup_ms" =~ ^[0-9]+$ ]] || startup_ms=0
@@ -258,7 +314,9 @@ for part in e.get("APPPROC_TIMINGS", "").split():
     key, _, value = part.partition("=")
     if value.isdigit():
         timings[key] = int(value)
-message = None if ok else (next((l for l in reversed(lines) if not l.startswith("⏳")), None) or "processing failed")
+message = None if ok else (next((l for l in lines if l.startswith("ElevenLabs ")), None)
+                          or next((l for l in reversed(lines) if not l.startswith("⏳")), None)
+                          or "processing failed")
 print(json.dumps({
     "ok": ok,
     "status": status,

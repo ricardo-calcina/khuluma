@@ -2,6 +2,8 @@
 
 ## Now
 
+The menu utility and integrated Settings are implemented in source on `feat/menu-utility-settings`: compact daily usage, shortcut capture, model selection and opt-in Scribe v2. App/CLI contract 4 keeps transcription destinations compatible. Private UI fixtures and network-free provider checks pass; the daily runtime has not been updated for this work.
+
 Khuluma v0.11.0 (build 332) is the installed daily app, with matching local and Homebrew CLIs. The user verified dictation, paste, cancel, Stats and Start at Login, with no recovered-take warning. Canonical synthetic file transcription passed. The signed app uses `com.ricardo-nth.khuluma`; config, model, sound and runtime paths stay canonical, and the existing app-owned daemon remained running through the package upgrade.
 
 Canonical-only compatibility removal is complete in source #85 and homebrew-tap#7. The immutable source archive matched Git; shell/native checks, pinned bootstrap, both three-scenario hosted package QA runs and the targeted local Brew upgrade passed. Old kegs, the previous app/local code and all data/recovery material remain retained. The completed identity migration is recorded in [its archived outcome](docs/plans/archive/KHULUMA_IDENTITY_RENAME.md).
@@ -10,6 +12,8 @@ Continue the existing daily-use observation before phase 1. No installed old Kwi
 
 ## Next
 
+- [x] P1 · Build useful menu panel and integrated Settings with shortcut capture and opt-in Scribe · added 2026-10-23
+- [ ] P1 · Review the menu/Settings preview, then install matching app/CLI when authorized and verify daily dictation · added 2026-10-23
 - [x] P1 · Review the full identity rename plan · added 2026-10-22
 - [x] P1 · Complete isolated rename/migration/recovery acceptance, controlled daily cutover and source/tap integration · added 2026-10-22
 
@@ -44,6 +48,8 @@ Continue the existing daily-use observation before phase 1. No installed old Kwi
 - Rename the existing repository in place to preserve all history; retain neutral `ricardo-nth/tap` and rename its formula to `khuluma`. The in-place repository rename, immutable v0.10.0 release and canonical formula/map are published and verified. The app continues to depend on its matching CLI; cask/CLI-independence/deprecation/archive are separate future work.
 
 ## Done
+
+- 2026-10-23 · Added usage menu, Settings, shortcut capture and opt-in Scribe; source/UI/provider checks passed, daily app unchanged · native/Sources/Khuluma/Settings; tests/test_providers.sh
 
 - 2026-10-23 · Shipped canonical-only v0.11.0; app/local/Brew checks passed, data and recovery intact · #85; homebrew-tap#7; v0.11.0
 

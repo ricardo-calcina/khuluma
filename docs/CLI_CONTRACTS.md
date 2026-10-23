@@ -66,7 +66,7 @@ These commands are safe to build integrations on:
     `full_elapsed_ms`, `longest_recording_ms`, `most_words`. Only these
     validated numbers are emitted.
 - `khuluma app-config --json` (app integration)
-  - Khuluma's settings: hotkey, sounds, inline delivery, cleanup,
+  - Khuluma's settings: hotkey, global `sounds_enabled`, event sounds, inline delivery, cleanup,
     transcription, `pipeline.supervise`, `config` (source and error) and
     `usage.summary_path`. `app_contract` is an integer that changes whenever
     Khuluma and the CLI must change together; Khuluma takes no dictation from a
@@ -77,7 +77,34 @@ These commands are safe to build integrations on:
     `cleanup.long_paragraph_min_words` from here, and `mode` from
     `inline process --json` and `inline cleanup --json` (which no longer takes
     `--app`).
-- `khuluma inline process <wav> --json [--defer-usage]` (app integration)
+    Contract 4 adds app settings writes and explicit provider selection. It
+    prevents an older app from ignoring the selected cloud provider and
+    continuing to invoke the local daemon.
+  - `sounds_enabled` is the master sound switch. It is independent of each
+    event's effective `sounds.<event>.enabled` value.
+  - `transcription.provider` is `parakeet` (the default, local) or
+    `elevenlabs` (an explicit cloud selection using Scribe v2).
+    `transcription.key_available` reports credential presence without exposing
+    its value. Cloud selection sets `pipeline.supervise` to false because it
+    does not use the local Parakeet daemon.
+- `khuluma app-settings set <key> <value> --json` (app integration)
+  - Saves one allowlisted setting, then returns the full, freshly resolved
+    `app-config` object. Environment overrides still take precedence, so the
+    returned effective value can differ from the saved value.
+  - Editable strings: `app.hotkey`, `transcription.provider`,
+    `swift_parakeet.model_path` (an existing directory, or empty to use model
+    discovery), and `swift_parakeet.model_version` (`v2`, `v3`, or empty for
+    inference). Hotkeys accept a modifier and key, or F1–F20.
+  - Editable switches: `debug.keep_logs`, `inline.autosend`, and
+    `audio.sounds.enabled`; values must be `true`, `false`, `1`, or `0`.
+  - Unknown keys, invalid values, and malformed TOML fail without replacing
+    the config. Successful writes preserve config symlinks and unrelated
+    settings through the existing atomic TOML writer.
+- `khuluma inline process <wav> --json [--defer-usage] [--expected-provider parakeet|elevenlabs]` (app integration)
+  - `--expected-provider` rejects a changed provider before transcription with
+    exit status 2. The app passes the provider captured for the take, so a
+    queued local take cannot silently switch to a cloud upload after a
+    settings change. An invalid or missing flag value also exits 2.
   - `--defer-usage` leaves the take out of the
     usage ledger (`usage_deferred: true`); the caller records it after
     delivering with `inline record` and `usage_only: true`. Take ids are
@@ -100,7 +127,10 @@ These commands are safe to build integrations on:
 These are useful but not yet promised as stable contracts:
 
 - `khuluma transcribe <file>... --format json`
-  - One JSON object per input, newline-delimited: `file`, `text`, `audio_duration_ms`, `processing_ms`, `model`, `engine`. `text` is the raw Parakeet transcript with no dictation cleanup. `audio_duration_ms` is `null` when the duration cannot be probed. Stdin input reports `file: "stdin"`. Exit status is non-zero if any input fails; successful inputs are still emitted.
+  - One JSON object per input, newline-delimited: `file`, `text`, `audio_duration_ms`, `processing_ms`, `model`, `engine`. `text` is the raw provider transcript with no dictation cleanup. `audio_duration_ms` is `null` when the duration cannot be probed. Stdin input reports `file: "stdin"`. Exit status is non-zero if any input fails; successful inputs are still emitted.
+  - The explicit `transcription.provider` setting selects the same provider
+    for files and inline processing. ElevenLabs records use
+    `model: "scribe_v2"` and `engine: "elevenlabs"`.
   - File transcripts are not deliveries: they never appear in `history` or `usage`.
 - `khuluma finder install|remove|status`
   - Human-readable management of the Finder Quick Action (`~/Library/Services/Transcribe with Khuluma.workflow`).
@@ -114,10 +144,22 @@ These are useful but not yet promised as stable contracts:
 - Text output may be refined more freely, but it should keep command cross-links visible where useful.
 - Prefer `next_commands` or `more_detail` when a caller needs a recommended follow-up path.
 
+ElevenLabs credentials resolve from `ELEVENLABS_API_KEY` (or the existing
+`ELEVEN_LABS_API_KEY` alias), then a literal exported assignment in the
+configured zshrc locations. The canonical name wins when both are present
+in the environment or the same rc/private pair.
+An explicitly sourced `.zshrc.private` sibling is also supported through
+`zsh_private_env="${ZDOTDIR:-$HOME}/.zshrc.private"` and
+`source "$zsh_private_env"` (including literal HOME/ZDOTDIR equivalents).
+Lookup follows only that conventional sibling, one level deep. The
+credential reader parses text and never executes either file. API keys are not
+included in settings JSON, command arguments, diagnostics, or logs. Failed
+cloud requests do not return remote response bodies as transcript text.
+
 
 ## Identity migration and diagnostic schema
 
-The executable is `khuluma`. v0.11.0 removes the `tmux-whisper` command and legacy doctor JSON adapter; doctor schema 2 is the supported diagnostic object. Normal execution rejects obsolete `DICTATE_*` and Lowkey signing overrides before writes; use `KHULUMA_*` names. Help/version/default probes remain nonmutating. App contract 3 alone is not canonical identity proof: the app also checks the nonmutating version identity probe and effective config root.
+The executable is `khuluma`. v0.11.0 removes the `tmux-whisper` command and legacy doctor JSON adapter; doctor schema 2 is the supported diagnostic object. Normal execution rejects obsolete `DICTATE_*` and Lowkey signing overrides before writes; use `KHULUMA_*` names. Help/version/default probes remain nonmutating. An app contract number alone is not canonical identity proof: the app also checks the nonmutating version identity probe and effective config root.
 
 `khuluma doctor --json` has `schema_version: 2` and neutral `install_sanity` keys `cli_binary`, `daemon_source`, `daemon_binary` and `daemon_socket`. Other command JSON/wire/data formats stay unchanged. Historical receipts are parsed as data and retain their actual original source URLs/commits.
 

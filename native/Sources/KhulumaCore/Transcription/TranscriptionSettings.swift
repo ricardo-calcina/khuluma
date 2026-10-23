@@ -5,6 +5,10 @@ import Foundation
 /// are parsed with the CLI's own rules; anything bash would read differently
 /// (leading zeros are octal in `(( ))`) sends the take to the CLI instead.
 public struct TranscriptionSettings: Codable, Equatable, Sendable {
+  /// The explicit transcription destination; cloud is always opt-in.
+  public var provider: String
+  /// Presence only. Credentials never cross app-config or enter logs.
+  public var keyAvailable: Bool
   public var socketPath: String
   public var modelPath: String?
   public var modelVersion: String?
@@ -27,8 +31,11 @@ public struct TranscriptionSettings: Codable, Equatable, Sendable {
     socketPath: String, modelPath: String?, modelVersion: String? = "v3", modelLabel: String = "parakeet",
     language: String = "en", tailPadMs: String = "500", tailRescue: Bool = true, tailRescueMs: String = "",
     tailRescueMinMs: String = "", keepLogs: Bool = false,
-    ffmpeg: Bool = true, timeoutSeconds: String = "600", processingDir: String = TakeMarker.defaultDirectory
+    ffmpeg: Bool = true, timeoutSeconds: String = "600", processingDir: String = TakeMarker.defaultDirectory,
+    provider: String = "parakeet", keyAvailable: Bool = false
   ) {
+    self.provider = provider
+    self.keyAvailable = keyAvailable
     self.socketPath = socketPath
     self.modelPath = modelPath
     self.modelVersion = modelVersion
@@ -45,6 +52,8 @@ public struct TranscriptionSettings: Codable, Equatable, Sendable {
   }
 
   enum CodingKeys: String, CodingKey {
+    case provider
+    case keyAvailable = "key_available"
     case socketPath = "socket_path"
     case modelPath = "model_path"
     case modelVersion = "model_version"
@@ -60,9 +69,30 @@ public struct TranscriptionSettings: Codable, Equatable, Sendable {
     case processingDir = "processing_dir"
   }
 
+  public init(from decoder: Decoder) throws {
+    let values = try decoder.container(keyedBy: CodingKeys.self)
+    provider = try values.decodeIfPresent(String.self, forKey: .provider) ?? "parakeet"
+    keyAvailable = try values.decodeIfPresent(Bool.self, forKey: .keyAvailable) ?? false
+    socketPath = try values.decode(String.self, forKey: .socketPath)
+    modelPath = try values.decodeIfPresent(String.self, forKey: .modelPath)
+    modelVersion = try values.decodeIfPresent(String.self, forKey: .modelVersion)
+    modelLabel = try values.decode(String.self, forKey: .modelLabel)
+    language = try values.decode(String.self, forKey: .language)
+    tailPadMs = try values.decode(String.self, forKey: .tailPadMs)
+    tailRescue = try values.decode(Bool.self, forKey: .tailRescue)
+    tailRescueMs = try values.decode(String.self, forKey: .tailRescueMs)
+    tailRescueMinMs = try values.decode(String.self, forKey: .tailRescueMinMs)
+    keepLogs = try values.decode(Bool.self, forKey: .keepLogs)
+    ffmpeg = try values.decode(Bool.self, forKey: .ffmpeg)
+    timeoutSeconds = try values.decode(String.self, forKey: .timeoutSeconds)
+    processingDir = try values.decode(String.self, forKey: .processingDir)
+  }
+
   /// Why this configuration needs the CLI path, or nil if the native path
   /// reproduces it.
   public var cliReason: String? {
+    if provider == "elevenlabs" { return "ElevenLabs Scribe uses the CLI" }
+    if provider != "parakeet" { return "unsupported transcription provider" }
     if modelPath?.isEmpty ?? true { return "no Parakeet model path" }
     if !ffmpeg { return "ffmpeg/ffprobe missing (the CLI skips padding)" }
     if tailPad == nil || rescueMs == nil || rescueMinMs == nil { return "a numeric override bash would read as octal" }

@@ -219,7 +219,8 @@ final class TakePipeline {
       try WAVEncoder.encode(samples: samples).write(to: wav, options: [.atomic])
       chmod(wav.path, 0o600)
       let result = try cli.process(wav: wav, app: appName, recordMs: recordMs,
-                                   startupMs: take.startupMs, startedAtEpochMs: take.startedEpochMs)
+                                   startupMs: take.startupMs, startedAtEpochMs: take.startedEpochMs,
+                                   expectedProvider: config?.transcription.provider ?? "parakeet")
       processedAt = monotonicMs()
       guard result.ok else {
         logTake(result.status == "no_speech" ? "no_speech" : "failed") { line in

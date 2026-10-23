@@ -1,5 +1,13 @@
 # Khuluma changelog
 
+## Unreleased
+
+- Replace the command-list menu with a wide usage panel showing today's words, dictations, streak, model and shortcut; show readiness warnings only when attention is needed.
+- Expand the Stats window into Stats and Settings tabs, with key-press shortcut capture, model selection, auto-send, sounds, login and diagnostics controls.
+- Add opt-in ElevenLabs Scribe v2 for dictation, file transcription and recovery; keep Parakeet as the local default and keep credentials out of settings JSON and logs.
+- Pin each app CLI request to its expected provider and preserve failed CLI/cloud audio for recovery. App and CLI now require contract 4 together.
+- Add isolated interactive UI previews and light/dark fixtures without starting capture, recovery or a daemon.
+
 ## v0.11.0 — 2026-10-23
 
 - Remove the `tmux-whisper` command and legacy doctor JSON adapter. Use `khuluma` and doctor schema 2.

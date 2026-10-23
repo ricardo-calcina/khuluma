@@ -18,6 +18,9 @@ repeats_level = 1
 retention_days = 7
 audio_retention_days = 2
 
+[transcription]
+provider = "parakeet"
+
 [swift_parakeet]
 model_path = ""
 model_version = ""
@@ -96,6 +99,8 @@ def read_config(p):
     value = lookup(data, key)
     if value is not None and not isinstance(value, bool):
       raise InvalidConfig(f"{key} must be true or false, not {value!r}")
+  if lookup(data, "transcription.provider") not in (None, "parakeet", "elevenlabs"):
+    raise InvalidConfig("transcription.provider must be parakeet or elevenlabs")
   return raw, data
 
 def publish(raw):
@@ -188,6 +193,7 @@ out = {
   "CFG_AUDIO_SOUNDS_CANCEL_ENABLED": "1" if b(get("audio.sounds.cancel_enabled", True), True) else "0",
   "CFG_HISTORY_RETENTION_DAYS": str(get("history.retention_days", "7")),
   "CFG_HISTORY_AUDIO_RETENTION_DAYS": str(get("history.audio_retention_days", "2")),
+  "CFG_TRANSCRIPTION_PROVIDER": str(get("transcription.provider", "parakeet")),
   "CFG_SWIFT_PARAKEET_MODEL_PATH": str(get("swift_parakeet.model_path", "")),
   "CFG_SWIFT_PARAKEET_MODEL_VERSION": str(get("swift_parakeet.model_version", "")),
   "CFG_SWIFT_PARAKEET_SOCKET_PATH": str(get("swift_parakeet.socket_path", "")),

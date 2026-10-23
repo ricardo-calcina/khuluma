@@ -25,18 +25,21 @@ final class StatsModel: ObservableObject {
   /// once while it stays open.
   @Published private(set) var celebrating: Int?
   @Published var rangeDays: Int {
-    didSet { AppRuntimePaths.defaults.set(rangeDays, forKey: Self.rangeKey) }
+    didSet { if !fixture { AppRuntimePaths.defaults.set(rangeDays, forKey: Self.rangeKey) } }
   }
 
   /// Whether Activity also charts words per day. On unless turned off.
   @Published var showWordsPerDay: Bool {
-    didSet { AppRuntimePaths.defaults.set(showWordsPerDay, forKey: Self.wordsKey) }
+    didSet { if !fixture { AppRuntimePaths.defaults.set(showWordsPerDay, forKey: Self.wordsKey) } }
   }
 
   private let source: () -> Source
+  private let fixture: Bool
   private let queue = DispatchQueue(label: "khuluma.stats", qos: .utility)
   private var refresh = StatsRefresh()
   private var open = false
+  private var windowOpen = false
+  private var menuOpen = false
   private var watcher: DispatchSourceFileSystemObject?
   private var watchedPath: String?
   private var ledgerSignature: FileSignature?
@@ -45,24 +48,44 @@ final class StatsModel: ObservableObject {
 
   init(source: @escaping () -> Source) {
     self.source = source
+    fixture = false
     let stored = AppRuntimePaths.defaults.integer(forKey: Self.rangeKey)
     rangeDays = Self.ranges.contains(stored) ? stored : 30
     showWordsPerDay = AppRuntimePaths.defaults.object(forKey: Self.wordsKey) as? Bool ?? true
   }
 
   /// Fixed content, for snapshots.
-  init(stats: UsageStats, updatedAt: Date, rangeDays: Int = 30, celebrating: Int? = nil) {
+  init(stats: UsageStats?, updatedAt: Date?, rangeDays: Int = 30, celebrating: Int? = nil,
+       refreshFailed: Bool = false) {
     source = { Source(cli: nil, config: nil) }
+    fixture = true
     self.stats = stats
     self.updatedAt = updatedAt
     self.rangeDays = rangeDays
     showWordsPerDay = true
     self.celebrating = celebrating
+    self.refreshFailed = refreshFailed
   }
 
   // MARK: - Window lifecycle
 
   func windowOpened() {
+    windowOpen = true
+    beginObserving()
+  }
+
+  func menuOpened() {
+    menuOpen = true
+    beginObserving()
+  }
+
+  func menuClosed() {
+    menuOpen = false
+    if !windowOpen { endObserving() }
+  }
+
+  private func beginObserving() {
+    guard !fixture else { return }
     guard !open else { return reload() }
     open = true
     let centers = [NotificationCenter.default, NSWorkspace.shared.notificationCenter]
@@ -85,6 +108,11 @@ final class StatsModel: ObservableObject {
   }
 
   func windowClosed() {
+    windowOpen = false
+    if !menuOpen { endObserving() }
+  }
+
+  private func endObserving() {
     open = false
     refresh.invalidate()
     debounce?.cancel()
@@ -100,7 +128,7 @@ final class StatsModel: ObservableObject {
   // MARK: - Loading
 
   func reload() {
-    guard open, let generation = refresh.request() else { return }
+    guard !fixture, open, let generation = refresh.request() else { return }
     load(generation)
   }
 

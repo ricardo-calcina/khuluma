@@ -208,9 +208,14 @@ manage_transcribe() {
 
   need ffmpeg
   need python3
-  local model_path
+  local model_path backend
+  backend="$(resolve_transcribe_backend)"
   model_path="$(resolve_swift_parakeet_model_path 2>/dev/null || true)"
-  [[ -n "$model_path" ]] || die "no local Parakeet model found. Expected under $DEFAULT_SWIFT_PARAKEET_MODELS_DIR or set swift_parakeet.model_path"
+  if [[ "$backend" == "swift_parakeet" ]]; then
+    [[ -n "$model_path" ]] || die "no local Parakeet model found. Expected under $DEFAULT_SWIFT_PARAKEET_MODELS_DIR or set swift_parakeet.model_path"
+  elif [[ "$(elevenlabs_key_available)" != "true" ]]; then
+    die "ElevenLabs API key unavailable. Export ELEVENLABS_API_KEY in your shell settings, then reload Settings."
+  fi
 
   local work_dir
   work_dir="$(mktemp -d "${TMPDIR:-/tmp}/khuluma-transcribe.XXXXXX")" || die "transcribe: cannot create a temporary directory"
@@ -227,7 +232,7 @@ manage_transcribe() {
   # clearly instead of as a failure of the first file.
   local socket_path
   socket_path="$(resolve_swift_parakeet_socket_path)"
-  if ! swift_parakeet_ping "$socket_path" >/dev/null 2>&1; then
+  if [[ "$backend" == "swift_parakeet" ]] && ! swift_parakeet_ping "$socket_path" >/dev/null 2>&1; then
     transcribe_file_log "Starting the Parakeet daemon (the first run after an install can take a few minutes)..."
     if ! ensure_swift_parakeet_daemon "$socket_path"; then
       if grep -q "error: Build failed" "$TRANSCRIBE_LOG" 2>/dev/null; then
@@ -302,7 +307,12 @@ manage_transcribe() {
     started_ms="$(now_ms)"
     KHULUMA_LAST_BACKEND_ENGINE=""
     KHULUMA_LAST_BACKEND_MODEL=""
-    if ! text="$(KHULUMA_SWIFT_PARAKEET_TIMEOUT_SECONDS="$timeout_s" \
+    if [[ "$backend" == "elevenlabs" ]]; then
+      text="$(transcribe_elevenlabs_cli "$wav" "${KHULUMA_LANGUAGE:-en}")" || {
+        echo "khuluma: transcription failed: $label" >&2
+        failures=$((failures + 1)); continue
+      }
+    elif ! text="$(KHULUMA_SWIFT_PARAKEET_TIMEOUT_SECONDS="$timeout_s" \
       KHULUMA_SWIFT_PARAKEET_TAIL_RESCUE="$tail_rescue" \
       transcribe_swift_parakeet_tail_rescue_cli "$wav" "${KHULUMA_LANGUAGE:-en}" "file")"; then
       echo "khuluma: transcription failed: $label (see $TRANSCRIBE_LOG)" >&2
@@ -319,7 +329,7 @@ manage_transcribe() {
 
     if [[ "$format" == "json" ]]; then
       record="$(transcribe_file_json_record "$label" "$text" "$duration_ms" "$elapsed_ms" \
-        "${KHULUMA_LAST_BACKEND_MODEL:-$(basename "$model_path")}" "${KHULUMA_LAST_BACKEND_ENGINE:-swift_parakeet}")"
+        "${KHULUMA_LAST_BACKEND_MODEL:-$(current_transcribe_model_label)}" "${KHULUMA_LAST_BACKEND_ENGINE:-$backend}")"
     else
       record="$text"
     fi
