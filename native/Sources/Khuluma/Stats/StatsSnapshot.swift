@@ -250,6 +250,25 @@ final class UIPreviewController: NSObject, NSApplicationDelegate {
     menu.onShowStats = { [weak self] in self?.showWindow(settings: false) }
     menu.onShowSettings = { [weak self] in self?.showWindow(settings: true) }
     menu.install()
+    if let directory = UserDefaults.standard.string(forKey: "KhulumaPreviewAnimationSnapshots") {
+      let timer = Timer(timeInterval: 0.25, repeats: false) { [weak self] _ in
+        MainActor.assumeIsolated {
+          self?.menu.writePreviewAnimationSnapshots(to: directory) { NSApp.terminate(nil) }
+        }
+      }
+      RunLoop.main.add(timer, forMode: .common)
+      return
+    }
+    if let directory = UserDefaults.standard.string(forKey: "KhulumaPreviewIconSnapshots") {
+      let timer = Timer(timeInterval: 0.25, repeats: false) { [weak self] _ in
+        MainActor.assumeIsolated {
+          self?.menu.writePreviewIconSnapshots(to: directory)
+          NSApp.terminate(nil)
+        }
+      }
+      RunLoop.main.add(timer, forMode: .common)
+      return
+    }
     showWindow(settings: false)
     if UserDefaults.standard.bool(forKey: "KhulumaPreviewMenu") {
       DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in self?.menu.showPreviewMenu() }

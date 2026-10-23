@@ -81,17 +81,25 @@ Stats is the home destination. Its gear and Command-comma open Settings; Back, C
 
 ### Forms and overlays
 
-SettingsModel owns authoritative config, save-in-progress and inline save/error feedback. CLIBridge writes through the CLI's validated settings command; the UI never writes TOML itself. Saves are immediate and reversible; disable relevant controls while saving or recording. Native Picker owns its popup geometry, focus, keyboard selection and collision behavior. Native Form owns field layout and scrollbars. ShortcutRecorder owns physical key capture, Escape cancellation, Tab navigation and local event-monitor cleanup.
+SettingsModel owns authoritative config, save-in-progress and inline save/error feedback. CLIBridge writes through the CLI's validated settings command; the UI never writes TOML itself. Saves are immediate and reversible; disable dictation controls while saving or recording. The Appearance picker stays available and stores its app-only theme in the existing preferences domain. Native Picker owns its popup geometry, focus, keyboard selection and collision behavior. Native Form owns field layout and scrollbars. ShortcutRecorder owns physical key capture, Escape cancellation, Tab navigation and local event-monitor cleanup.
 
 Choosing ElevenLabs is explicit, with an audio-upload and usage-credit notice visible before selection. Parakeet remains the default. Key availability is shown without exposing the credential. No automatic fallback uploads audio to another provider.
 
 ### Iconography
 
-SF Symbols only. The menu icon communicates recording, processing or error. The idle microphone needs no textual Ready line. Gear and Back use standard Mac toolbar placement and accessible names.
+Interface controls use SF Symbols. The menu icon uses custom cursed-speech templates for Ready, Recording and Processing, with the existing SF Symbol for error. The idle glyph needs no textual Ready line. Gear and Back use standard Mac toolbar placement and accessible names.
+
+The app icon uses the selected raised Inumaki-inspired direction: black enamel on ivory for light appearance, ivory enamel on charcoal for dark. The compact silhouette keeps a central mouth, two raised rings with solid pupils and short diagonal connections. Approved artwork and legacy production exports live in `assets/icons/app/`; `tools/make-khuluma-icons.swift` applies a shared raster crop and rounded mask. Legacy PNG/ICNS exports include the native canvas inset. `assets/icons/AppIcon.icon/Assets/` uses full-canvas derivatives so Icon Composer supplies that outer container once. Explicit default/dark raster specializations retain the approved raised materials; additional glass, specular, shadow and translucency effects are disabled.
+
+The bundle stages the compiled `Assets.car` and declares `CFBundleIconName=AppIcon` for macOS 26+ appearance selection, alongside the ICNS fallback. `tools/compile-khuluma-icon.sh` and the icon-only workflow compile and verify the catalog with Xcode 26+. Build 347 verified the full-canvas artwork and Finder light/dark switching. Routine menu updates reuse that verified catalog. Icon style is Dark → Auto and general appearance remains Auto. Reproduction and artifact provenance live in `assets/icons/README.md` and `assets/icons/app/catalog-build.json`.
+
+The native menu uses black-and-clear 28-by-20-point PDF canvases with artwork up to 18 points tall. StatusMenu caches both themes and owns the fixed 36-point slot, template tint and accessible status label. Ready keeps the approved brand glyph in both themes. Cursed speech uses a round, 14.5-point fanged mouth with voice strokes for Recording and two turning arcs around fang marks for Processing/Finishing. Full emblem keeps the side rings and changes the centre for those states. Errors retain the existing status symbol. macOS supplies light/dark/selected tint. Raised shading belongs only in the app icon.
+
+Settings → Appearance → Menu bar icons switches immediately between Cursed speech (the default, set 1) and Full emblem (set 2), including during Recording or Processing. The choice persists across launches without changing CLI configuration. Both source sets remain in `assets/icons/menu-bar/concepts/`. Finishing is a visual name for the existing processing/delivery interval, including paste and optional send-key events. Phase timing, overlapping-take priority, labels and error handling stay unchanged.
 
 ### Motion
 
-No decorative animation. The transient panel opens without animation. Existing Stats numeric transitions respect Reduce Motion.
+The Processing fang seal rotates slowly clockwise, one revolution every four seconds, as functional work-in-progress feedback. Cursed speech rotates the seal; Full emblem rotates only the central seal while its two side rings and connectors stay fixed. The native button and selected background stay still. A timer in common run loop modes keeps it moving while the native menu is open. Rotation uses elapsed monotonic time, so repeated Processing updates and theme switches do not restart it. Ready, Recording and Error remain static; leaving Processing stops its timer immediately. Reduce Motion keeps each theme's canonical seal still and reacts to preference changes. Existing Stats numeric transitions also respect Reduce Motion. The transient panel opens without animation; no decorative motion is added.
 
 ### Content and data visualization
 

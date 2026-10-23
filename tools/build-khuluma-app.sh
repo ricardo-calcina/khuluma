@@ -27,6 +27,19 @@ while [[ $# -gt 0 ]]; do
   esac
   shift
 done
+APP_ICON="$ROOT/assets/icons/app/Khuluma.icns"
+APP_CATALOG="$ROOT/assets/icons/app/Assets.car"
+MENU_ICON="$ROOT/assets/icons/menu-bar/khuluma-menu-template.pdf"
+RECORDING_ICON="$ROOT/assets/icons/menu-bar/khuluma-recording-template.pdf"
+FINISHING_ICON="$ROOT/assets/icons/menu-bar/khuluma-finishing-template.pdf"
+EMBLEM_RECORDING_ICON="$ROOT/assets/icons/menu-bar/khuluma-emblem-recording-template.pdf"
+EMBLEM_FINISHING_ICON="$ROOT/assets/icons/menu-bar/khuluma-emblem-finishing-template.pdf"
+EMBLEM_FRAME_ICON="$ROOT/assets/icons/menu-bar/khuluma-emblem-frame-template.pdf"
+EMBLEM_ROTOR_ICON="$ROOT/assets/icons/menu-bar/khuluma-emblem-rotor-template.pdf"
+for resource in "$APP_ICON" "$APP_CATALOG" "$MENU_ICON" "$RECORDING_ICON" "$FINISHING_ICON" \
+  "$EMBLEM_RECORDING_ICON" "$EMBLEM_FINISHING_ICON" "$EMBLEM_FRAME_ICON" "$EMBLEM_ROTOR_ICON"; do
+  [[ -s "$resource" ]] || { echo "Required icon resource missing: $resource" >&2; exit 2; }
+done
 khuluma_reject_obsolete_environment
 command -v python3 >/dev/null 2>&1 || { echo "python3 is required" >&2; exit 2; }
 OUT="$(python3 -c 'import os,sys; print(os.path.abspath(os.path.expanduser(sys.argv[1])))' "$OUT")"
@@ -163,11 +176,20 @@ binary="$stage_root/swift-build/release/Khuluma"
 [[ -x "$binary" ]] || { echo "Build did not produce $binary" >&2; exit 1; }
 mkdir -p "$stage/Contents/MacOS" "$stage/Contents/Resources"
 cp "$binary" "$stage/Contents/MacOS/Khuluma"
+cp "$APP_ICON" "$stage/Contents/Resources/Khuluma.icns"
+cp "$APP_CATALOG" "$stage/Contents/Resources/Assets.car"
+cp "$MENU_ICON" "$stage/Contents/Resources/KhulumaMenuTemplate.pdf"
+cp "$RECORDING_ICON" "$stage/Contents/Resources/KhulumaRecordingTemplate.pdf"
+cp "$FINISHING_ICON" "$stage/Contents/Resources/KhulumaFinishingTemplate.pdf"
+cp "$EMBLEM_RECORDING_ICON" "$stage/Contents/Resources/KhulumaEmblemRecordingTemplate.pdf"
+cp "$EMBLEM_FINISHING_ICON" "$stage/Contents/Resources/KhulumaEmblemFinishingTemplate.pdf"
+cp "$EMBLEM_FRAME_ICON" "$stage/Contents/Resources/KhulumaEmblemFrameTemplate.pdf"
+cp "$EMBLEM_ROTOR_ICON" "$stage/Contents/Resources/KhulumaEmblemRotorTemplate.pdf"
 python3 - "$stage/Contents/Info.plist" "$BUNDLE_ID" "$version" "$build_number" <<'PY'
 import plistlib, sys
 path, identifier, version, build = sys.argv[1:]
 with open(path, "wb") as handle:
-    plistlib.dump({"CFBundleIdentifier": identifier, "CFBundleName": "Khuluma", "CFBundleDisplayName": "Khuluma", "CFBundleExecutable": "Khuluma", "CFBundlePackageType": "APPL", "CFBundleShortVersionString": version, "CFBundleVersion": build, "CFBundleInfoDictionaryVersion": "6.0", "LSMinimumSystemVersion": "14.0", "LSUIElement": True, "NSHighResolutionCapable": True, "NSMicrophoneUsageDescription": "Khuluma records your voice while dictation is active. Parakeet transcribes on this Mac; audio is sent to ElevenLabs only when you choose Scribe."}, handle)
+    plistlib.dump({"CFBundleIdentifier": identifier, "CFBundleName": "Khuluma", "CFBundleDisplayName": "Khuluma", "CFBundleExecutable": "Khuluma", "CFBundleIconFile": "Khuluma.icns", "CFBundleIconName": "AppIcon", "CFBundlePackageType": "APPL", "CFBundleShortVersionString": version, "CFBundleVersion": build, "CFBundleInfoDictionaryVersion": "6.0", "LSMinimumSystemVersion": "14.0", "LSUIElement": True, "NSHighResolutionCapable": True, "NSMicrophoneUsageDescription": "Khuluma records your voice while dictation is active. Parakeet transcribes on this Mac; audio is sent to ElevenLabs only when you choose Scribe."}, handle)
 PY
 plutil -lint "$stage/Contents/Info.plist" >/dev/null
 codesign --force --options runtime --timestamp=none --keychain "$KEYCHAIN" \

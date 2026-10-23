@@ -1,0 +1,39 @@
+name: Icon catalog
+
+on:
+  push:
+    branches:
+      - build/icon-catalog
+    paths:
+      - assets/icons/AppIcon.icon/**
+      - assets/icons/app/Khuluma-Light.png
+      - assets/icons/app/Khuluma-Dark.png
+      - tools/compile-khuluma-icon.sh
+      - .github/workflows/icons.yml
+
+permissions:
+  contents: read
+
+jobs:
+  compile-icon:
+    runs-on: macos-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout icon source
+        uses: actions/checkout@v4
+        with:
+          clean: false
+          persist-credentials: false
+
+      - name: Compile and verify icon only
+        run: bash tools/compile-khuluma-icon.sh --out "$RUNNER_TEMP/khuluma-icon-catalog"
+
+      - name: Retain compiled catalog
+        uses: actions/upload-artifact@v4
+        with:
+          name: khuluma-icon-catalog
+          path: |
+            ${{ runner.temp }}/khuluma-icon-catalog/Assets.car
+            ${{ runner.temp }}/khuluma-icon-catalog/partial-info.plist
+          if-no-files-found: error
+          retention-days: 1
