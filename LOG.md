@@ -2,7 +2,7 @@
 
 ## Now
 
-The rounder Recording mouth and Settings → Appearance → Menu bar icons are implemented for local installation. Cursed speech remains the default; Full emblem retains its side rings and rotates only the centre while Processing. Changes apply immediately and persist in app preferences. Both themes preserve the four-second spin, Reduce Motion, native tint, fixed 36-point slot and 28-by-20-point canvas. Helper checks pass; native build, rendered Settings, motion and installed health verification are next. Build 353 remains installed until that cutover.
+Khuluma v0.11.0 build 355 is installed from `2b460a9`. Recording now uses a round mouth; Settings → Appearance → Menu bar icons switches immediately between Cursed speech and Full emblem and remembers the choice. Full emblem rotates only its centre. Signature, 36 helper cases, 32 static/98 timed captures, native Picker/relaunch/scroll/Back, Reduce Motion and doctor pass. Config, daemon binary/PID, adaptive app icon and Ready/seal assets are preserved. Cursed speech remains the default. Both themes keep the four-second spin, native tint, 36-point slot and 28-by-20-point canvases. Evidence and capture limits are in `assets/icons/README.md`.
 
 Both cursed-speech sets and their renderer remain at `assets/icons/menu-bar/concepts/`. Phase timing, delivery, overlap priority and error handling are unchanged. The raised app icon still uses the compiled native catalog; its Finder light/dark switching was verified in build 347. General appearance remains Auto and icon style Dark → Auto; the approved temporary public build branch is removed.
 
@@ -36,7 +36,7 @@ Continue the existing daily-use observation before phase 1. No installed old Kwi
 - [ ] P2 · Review the existing file-transcription entry/output flow before choosing a drag target · added 2026-10-23
 - [x] P2 · Choose and install cursed-speech set 1 Recording/Finishing replacements; preserve set 2 · added 2026-10-23
 - [x] P2 · Slowly rotate the Processing fang seal, including menu tracking and Reduce Motion stop/resume · added 2026-10-23
-- [ ] P2 · Install and verify rounder Recording mouth and immediate Settings switch between both status icon themes · added 2026-10-23
+- [x] P2 · Install and verify rounder Recording mouth and immediate Settings switch between both status icon themes · added 2026-10-23
 - [ ] P2 · Lowkey ideas parked from 3c, only with evidence: config file watcher, warm mic/pre-roll · added 2026-10-16
 - [ ] P2 · Phase 2 after CLI independence: Developer ID signing/notarization, versioned app distribution and khuluma cask; Settings, History, Transcribe File and bundled agent CLI; verify fresh-Mac permissions and file transcription · added 2026-10-22
 - [ ] P2 · Decide the future signed-app cask/update approach before phase 2 distribution; paid membership/domain require separate authorization · added 2026-10-22
@@ -47,7 +47,7 @@ Continue the existing daily-use observation before phase 1. No installed old Kwi
 
 ## Decisions
 
-- Status animation recovery: `/Users/admin/Applications/.khuluma-app.xMyT3X/previous.app` retains signed build 351; current motion/static QA is at `/private/tmp/khuluma-motion-qa.111SY7/`. `.khuluma-app.atWD6N/previous.app` retains build 347, `.khuluma-app.LYC8GT/previous.app` build 342 and `.khuluma-app.LYfteh/previous.app` build 340. Earlier status/app-icon QA remains at `/private/tmp/khuluma-status-qa.suYfJ3/` and `/private/tmp/khuluma-icons-qa.bhadKs/`. Preserve newer user data when recovering.
+- Icon/theme recovery: `/Users/admin/Applications/.khuluma-app.74v7dj/previous.app` retains signed build 353; current QA is at `/private/tmp/khuluma-themes-qa.RxaJYA/`. `.khuluma-app.xMyT3X/previous.app` retains build 351, `.khuluma-app.atWD6N/previous.app` build 347, `.khuluma-app.LYC8GT/previous.app` build 342 and `.khuluma-app.LYfteh/previous.app` build 340. Earlier motion/status/app-icon QA remains under `/private/tmp/khuluma-{motion,status,icons}-qa.*` as recorded in `assets/icons/README.md`. Preserve newer user data when recovering.
 
 - Local menu/Settings cutover recovery: `/Users/admin/Applications/.khuluma-live.qBasYG/previous.app` retains build 332; `code-manifest.json` and code backups retain the matching prior local CLI/receipt. Preserve newer usage/history when recovering.
 
@@ -61,6 +61,8 @@ Continue the existing daily-use observation before phase 1. No installed old Kwi
 - Rename the existing repository in place to preserve all history; retain neutral `ricardo-nth/tap` and rename its formula to `khuluma`. The in-place repository rename, immutable v0.10.0 release and canonical formula/map are published and verified. The app continues to depend on its matching CLI; cask/CLI-independence/deprecation/archive are separate future work.
 
 ## Done
+
+- 2026-10-23 · Installed signed build 355 round Recording mouth and both Settings themes; 36 helper/32 static/98 motion/native Picker/relaunch/signature/doctor checks pass, config/daemon/catalog preserved · 2b460a9; assets/icons/README.md
 
 - 2026-10-23 · Installed signed build 353 with slow Processing rotation; timed/menu-open/phase/Reduce Motion/static/signature/doctor checks pass, config/daemon/assets preserved · fb06b5b; assets/icons/README.md
 
@@ -139,5 +141,3 @@ Continue the existing daily-use observation before phase 1. No installed old Kwi
 - 2026-10-16 · Name check (P0a): Lowkey ruled out by live LOWKEY software marks in UK/US/EU · docs/plans/KHULUMA_NAME_CHECK.md
 
 - 2026-10-16 · P0b docs: README, ROADMAP, CONTRIBUTING, TROUBLESHOOTING (Lowkey section), domain and templates rewritten around Lowkey; pre-v0.7 changelog archived; pad-sfx.sh removed · #72
-
-- 2026-10-16 · Lowkey's AppController split into TakePipeline, TakePersister, StatusMenu, LoginItem; menu status is a tested LowkeyCore type · #71
