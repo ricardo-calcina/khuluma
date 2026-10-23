@@ -2,9 +2,9 @@
 
 ## Now
 
-Khuluma v0.11.0 build 347 is installed from `646be9b`, with the raised adaptive app icon and 18-point menu glyph. Finder verified clean light/dark switching in the installed bundle; general appearance is Auto and icon style is Dark → Auto. The catalog compiled successfully in the approved temporary public build, and that branch is removed. Signature, 36 helper regressions, 16 native button renders and doctor pass; config, daemon binary and PID are unchanged. Native menu captures prove stable space and open/dismiss behavior; their cached button images do not verify selected background material. Reproduction and evidence are in `assets/icons/README.md`.
+Khuluma v0.11.0 build 351 is installed from `6bc646c`, with cursed-speech status set 1: the existing Ready emblem, speaking mouth for Recording and fang seal for Processing/Finishing. Signature, 36 helper regressions, 16 native button captures and doctor pass; config, daemon binary/PID, Ready glyph and adaptive app catalog are unchanged. The 36-point slot and all three 28-by-20-point custom canvases remain stable. Native menu captures prove open/dismiss behavior; their cached button images do not verify selected background material. Reproduction and evidence are in `assets/icons/README.md`.
 
-Cursed-speech Recording/Finishing previews are at `assets/icons/menu-bar/concepts/`; the two sets preserve Ready and are awaiting a choice. The preview does not change the installed app or state logic.
+Cursed-speech set 2, which keeps the full emblem during Recording/Finishing, is retained with its renderer and previews at `assets/icons/menu-bar/concepts/`. A possible future Settings theme control is separate work. Phase timing, delivery, overlap priority and error handling are unchanged. The raised app icon still uses the compiled native catalog; its Finder light/dark switching was verified in build 347. General appearance remains Auto and icon style Dark → Auto; the approved temporary public build branch is removed.
 
 The menu utility and integrated Settings from build 340 remain in the installed icon update, with the matching local CLI (contract 4). Stats uses three sections across the viewport, with an accurate full-target milestone bar, toolbar utilities and compact Settings. File-transcription entry/output remains a separate design question.
 
@@ -34,7 +34,8 @@ Continue the existing daily-use observation before phase 1. No installed old Kwi
 - [ ] P2 · Stats stage 3 ideas (not committed): weeks view, wpm trend, typing_wpm config, time of day, opt-in per-app · added 2026-10-16
 - [x] P2 · Use total words, estimated time saved and average WPM in the menu and Stats summary · added 2026-10-23
 - [ ] P2 · Review the existing file-transcription entry/output flow before choosing a drag target · added 2026-10-23
-- [ ] P2 · Choose cursed-speech status glyphs from two 18 pt preview sets, then implement Recording/Finishing replacements · added 2026-10-23
+- [x] P2 · Choose and install cursed-speech set 1 Recording/Finishing replacements; preserve set 2 · added 2026-10-23
+- [ ] P2 · Consider a Settings theme switch for retained set 2 full-emblem status glyphs · added 2026-10-23
 - [ ] P2 · Lowkey ideas parked from 3c, only with evidence: config file watcher, warm mic/pre-roll · added 2026-10-16
 - [ ] P2 · Phase 2 after CLI independence: Developer ID signing/notarization, versioned app distribution and khuluma cask; Settings, History, Transcribe File and bundled agent CLI; verify fresh-Mac permissions and file transcription · added 2026-10-22
 - [ ] P2 · Decide the future signed-app cask/update approach before phase 2 distribution; paid membership/domain require separate authorization · added 2026-10-22
@@ -45,7 +46,7 @@ Continue the existing daily-use observation before phase 1. No installed old Kwi
 
 ## Decisions
 
-- Icon update recovery: `/Users/admin/Applications/.khuluma-app.LYC8GT/previous.app` retains signed build 342; `.khuluma-app.LYfteh/previous.app` retains build 340. QA and native render evidence stay at `/private/tmp/khuluma-icons-qa.bhadKs/`. Preserve newer user data when recovering.
+- Status glyph recovery: `/Users/admin/Applications/.khuluma-app.atWD6N/previous.app` retains signed build 347. Current QA and native captures stay at `/private/tmp/khuluma-status-qa.suYfJ3/`; earlier app-icon QA is at `/private/tmp/khuluma-icons-qa.bhadKs/`. `.khuluma-app.LYC8GT/previous.app` retains build 342 and `.khuluma-app.LYfteh/previous.app` retains build 340. Preserve newer user data when recovering.
 
 - Local menu/Settings cutover recovery: `/Users/admin/Applications/.khuluma-live.qBasYG/previous.app` retains build 332; `code-manifest.json` and code backups retain the matching prior local CLI/receipt. Preserve newer usage/history when recovering.
 
@@ -59,6 +60,8 @@ Continue the existing daily-use observation before phase 1. No installed old Kwi
 - Rename the existing repository in place to preserve all history; retain neutral `ricardo-nth/tap` and rename its formula to `khuluma`. The in-place repository rename, immutable v0.10.0 release and canonical formula/map are published and verified. The app continues to depend on its matching CLI; cask/CLI-independence/deprecation/archive are separate future work.
 
 ## Done
+
+- 2026-10-23 · Installed signed build 351 cursed-speech set 1; 36 helper/16 native capture/signature/doctor checks pass, config/daemon/app icon preserved; set 2 retained for future theme · 6bc646c; assets/icons/menu-bar/README.md
 
 - 2026-10-23 · Rendered two cursed-speech Recording/Finishing sets with exact Ready glyph, enlarged detail and light/dark 18 pt strips; previews only, runtime unchanged · assets/icons/menu-bar/concepts/
 
@@ -137,5 +140,3 @@ Continue the existing daily-use observation before phase 1. No installed old Kwi
 - 2026-10-16 · Lowkey's AppController split into TakePipeline, TakePersister, StatusMenu, LoginItem; menu status is a tested LowkeyCore type · #71
 
 - 2026-10-16 · LLM post-processing, silence trim and bash chunking removed (with budget, replay, bench-matrix, mode prompts); app contract 2 · #70
-
-- 2026-10-16 · tmux flow and CLI recording removed (start/stop/toggle, tmux, keybind, devices, watch, debug, logs); Lowkey records, the CLI is its back end · #69
