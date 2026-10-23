@@ -33,7 +33,7 @@ extension TakePipeline {
     guard let (transcription, cleanup, modelPath) = config.native,
           DaemonClient(socketPath: transcription.socketPath).status(timeout: 1)?
             .holds(path: modelPath, version: transcription.modelVersion ?? "v3") == true else {
-      return retranscribeWithCLI(entry)
+      return retranscribeWithCLI(entry, provider: config.transcription.provider)
     }
     let samples: [Float]
     do {
@@ -64,7 +64,7 @@ extension TakePipeline {
     record.transcribeMs = Int(monotonicMs() - startedAt)
     switch TextPipeline(settings: cleanup).process(transcript: transcript) {
     case .needsCLI:
-      return retranscribeWithCLI(entry)
+      return retranscribeWithCLI(entry, provider: config.transcription.provider)
     case .noSpeech:
       record.status = "no_speech"
       persister.persist(record)
@@ -79,11 +79,12 @@ extension TakePipeline {
 
   /// `inline process` on the kept WAV (it records history itself; usage
   /// waits until the retried text is pasted).
-  private func retranscribeWithCLI(_ entry: TimedOutTakes.Entry) -> RetryOutcome {
+  private func retranscribeWithCLI(_ entry: TimedOutTakes.Entry, provider: String) -> RetryOutcome {
     let info = entry.info
     do {
       let result = try cli.process(wav: entry.wav, app: info.app, recordMs: info.recordMs,
-                                   startupMs: info.startupMs, startedAtEpochMs: info.startedAtMs)
+                                   startupMs: info.startupMs, startedAtEpochMs: info.startedAtMs,
+                                   expectedProvider: provider)
       guard result.ok else {
         if result.status == "no_speech" {
           timedOut.remove(entry)

@@ -5,7 +5,7 @@ import Foundation
 /// parts of it with `replacingOccurrences`.
 enum AppConfigFixture {
   static let json = #"""
-  {"schema_version":1,"app_contract":3,"cli_version":"0.10.0-dev","hotkey":"ctrl+option+space",
+  {"schema_version":1,"app_contract":4,"cli_version":"0.10.0-dev","hotkey":"ctrl+option+space",
    "sounds":{"start":{"enabled":true,"path":"/s/start.wav"},"cancel":{"enabled":false,"path":null}},
    "inline":{"autosend":true,"send_mode":"enter","paste_target":"current","process_sound":true,"activate_delay_ms":90,"send_delay_ms":35},
    "cleanup":{"config_dir":"/c","clean":"0","repeats_level":"1","vocab_clean":"1","british_spelling":"1",

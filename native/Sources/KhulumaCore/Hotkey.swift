@@ -35,6 +35,51 @@ public struct HotkeySpec: Equatable, Sendable {
     }
   }
 
+  public enum CaptureError: Error, Equatable, CustomStringConvertible {
+    case unsupportedKeyCode(UInt32)
+    case unsupportedModifiers(UInt32)
+    case reservedShortcut(String)
+
+    public var description: String {
+      switch self {
+      case .unsupportedKeyCode:
+        return "That key cannot be used as a shortcut. Try another key."
+      case .unsupportedModifiers:
+        return "Use Control, Option, Shift or Command with your shortcut."
+      case .reservedShortcut(let display):
+        return "\(display) is reserved. Choose another shortcut."
+      }
+    }
+  }
+
+  /// Serializes a physical keyboard event to the same portable config syntax
+  /// accepted by `parse`. Keyboard-layout text can differ from its physical
+  /// key, so capture uses virtual key codes rather than event characters.
+  public static func configText(keyCode: UInt32, carbonModifiers: UInt32) throws -> String {
+    let supportedModifiers = controlMask | optionMask | shiftMask | commandMask
+    guard carbonModifiers & ~supportedModifiers == 0 else {
+      throw CaptureError.unsupportedModifiers(carbonModifiers & ~supportedModifiers)
+    }
+    guard let key = canonicalKeys[keyCode] else {
+      throw CaptureError.unsupportedKeyCode(keyCode)
+    }
+    var parts: [String] = []
+    if carbonModifiers & controlMask != 0 { parts.append("ctrl") }
+    if carbonModifiers & optionMask != 0 { parts.append("option") }
+    if carbonModifiers & shiftMask != 0 { parts.append("shift") }
+    if carbonModifiers & commandMask != 0 { parts.append("cmd") }
+    parts.append(key)
+    let text = parts.joined(separator: "+")
+    let spec = try parse(text)
+    // Ctrl+Escape cancels a take. Keep standard app close/quit shortcuts
+    // available while a settings window is open, including their variants.
+    if (keyCode == 53 && carbonModifiers == controlMask)
+      || (carbonModifiers & commandMask != 0 && (keyCode == 12 || keyCode == 13)) {
+      throw CaptureError.reservedShortcut(spec.display)
+    }
+    return text
+  }
+
   public static func parse(_ text: String) throws -> HotkeySpec {
     let parts = text
       .lowercased()
@@ -82,6 +127,13 @@ public struct HotkeySpec: Equatable, Sendable {
     122, 120, 99, 118, 96, 97, 98, 100, 101, 109, 103, 111,
     105, 107, 113, 106, 64, 79, 80, 90,
   ]
+
+  private static let canonicalKeys: [UInt32: String] = {
+    let aliases: Set<String> = ["enter", "esc", "backspace", "`"]
+    return Dictionary(uniqueKeysWithValues: keyCodes.compactMap { name, key in
+      aliases.contains(name) ? nil : (key.code, name)
+    })
+  }()
 
   // ANSI virtual key codes (HIToolbox/Events.h).
   static let keyCodes: [String: (code: UInt32, label: String)] = {

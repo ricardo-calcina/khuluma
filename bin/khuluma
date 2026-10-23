@@ -27,7 +27,7 @@ KHULUMA_CLI_VERSION="0.11.0"
 # Khuluma refuses takes unless its own contract number (AppContract.version
 # in native/Sources/KhulumaCore/CLIModels.swift) is the same: bump
 # both together whenever either side needs the other to change.
-KHULUMA_APP_CONTRACT=3
+KHULUMA_APP_CONTRACT=4
 
 usage() {
   cat <<'EOF'
@@ -48,6 +48,7 @@ FILES:
 
 NATIVE APP BACK-END (used by the menu-bar app):
   khuluma app-config --json           # hotkey, sounds, delivery settings
+  khuluma app-settings set <key> <value> --json # save an app setting and return effective settings
   khuluma inline process <wav> --json # inline pipeline without paste (app delivers)
 
 DIAGNOSTICS:
@@ -573,6 +574,7 @@ preferred_table_order = [
   "audio.sounds",
   "clean",
   "history",
+  "transcription",
   "whisper",
   "swift_parakeet",
   "inline",
@@ -585,6 +587,7 @@ preferred_key_order = {
   "audio.sounds": ["cancel", "cancel_enabled", "enabled", "error", "error_enabled", "process", "process_enabled", "start", "start_enabled", "stop", "stop_enabled"],
   "clean": ["repeats_level"],
   "history": ["retention_days", "audio_retention_days"],
+  "transcription": ["provider"],
   "whisper": ["models_dir", "backend", "model", "threads", "beam_size", "best_of", "vad", "vad_model", "vad_threshold", "vad_min_speech_ms", "vad_min_silence_ms", "vad_speech_pad_ms"],
   "swift_parakeet": ["model_path", "model_version", "socket_path"],
   "inline": ["autosend", "process_sound", "paste_target", "send_mode"],
@@ -1394,7 +1397,19 @@ log_transcribe_event() {
 }
 
 resolve_transcribe_backend() {
-  printf "%s\n" "swift_parakeet"
+  case "${CFG_TRANSCRIPTION_PROVIDER:-parakeet}" in
+    parakeet) printf "%s\n" "swift_parakeet" ;;
+    elevenlabs) printf "%s\n" "elevenlabs" ;;
+    *) die "unsupported transcription provider; choose parakeet or elevenlabs" ;;
+  esac
+}
+
+elevenlabs_key_available() {
+  python3 "$KHULUMA_INTERNAL_LIB_DIR/providers.py" available
+}
+
+transcribe_elevenlabs_cli() {
+  python3 "$KHULUMA_INTERNAL_LIB_DIR/providers.py" transcribe "$1" "${2:-en}"
 }
 
 resolve_swift_parakeet_socket_path() {
@@ -1453,6 +1468,10 @@ resolve_swift_parakeet_model_version() {
 }
 
 current_transcribe_model_label() {
+  if [[ "$(resolve_transcribe_backend)" == "elevenlabs" ]]; then
+    printf "%s\n" "scribe_v2"
+    return 0
+  fi
   local model_path=""
   model_path="$(resolve_swift_parakeet_model_path 2>/dev/null || true)"
   if [[ -n "$model_path" ]]; then
@@ -2559,6 +2578,11 @@ warmup_json() {
   local model_path model_version socket_path response shell_vars src lock failed_at
   RESP_GENERATION="" RESP_PID="" RESP_VERSION="" RESP_MODEL_LOADED_PATH="" RESP_MODEL_LOADED_VERSION=""
   WARMUP_JSON_MODEL_PATH="" WARMUP_JSON_MODEL_VERSION="" WARMUP_JSON_DURATION_MS=""
+  if [[ "$(resolve_transcribe_backend)" == "elevenlabs" ]]; then
+    WARMUP_JSON_SOCKET=""
+    warmup_json_emit unavailable cloud_provider "ElevenLabs Scribe is selected; no local model needs warming"
+    return 0
+  fi
   socket_path="$(resolve_swift_parakeet_socket_path)"
   WARMUP_JSON_SOCKET="$socket_path"
 
@@ -2657,6 +2681,11 @@ warmup_backend() {
     return 0
   fi
 
+  if [[ "$(resolve_transcribe_backend)" == "elevenlabs" ]]; then
+    echo "Warmup: skipped (ElevenLabs Scribe is selected)"
+    return 0
+  fi
+
   for arg in "$@"; do
     case "$arg" in
       --best-effort) best_effort="1" ;;
@@ -2712,8 +2741,12 @@ transcribe_audio() {
   local txt=""
   local transcribe_rc=0
 
-  maybe_pad_transcribe_tail_inplace "$wav"
   requested_backend="$(resolve_transcribe_backend)"
+  if [[ "$requested_backend" == "elevenlabs" ]]; then
+    transcribe_elevenlabs_cli "$wav" "$language"
+    return $?
+  fi
+  maybe_pad_transcribe_tail_inplace "$wav"
   KHULUMA_LAST_BACKEND_ENGINE=""
   KHULUMA_LAST_BACKEND_MODEL=""
   set +e
@@ -4068,6 +4101,7 @@ case "$cmd" in
   bench) bench "${@:2}" ;;
   changelog) changelog ;;
   config) manage_config "${2:-}" "${@:3}" ;;
+  app-settings) app_settings "${@:2}" ;;
   status) status "${@:2}" ;;
   inline)
     case "${2:-}" in

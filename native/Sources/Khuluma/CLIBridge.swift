@@ -52,12 +52,18 @@ struct CLIBridge {
     }
   }
 
+  func setSetting(_ key: String, value: String) throws -> AppConfig {
+    let data = try run(["app-settings", "set", key, value, "--json"], timeout: 15)
+    return try AppContract.decodeAppConfig(data)
+  }
+
   /// `--defer-usage`: the CLI doesn't count the take; the caller records
   /// usage once it has delivered.
-  func process(wav: URL, app: String?, recordMs: Int, startupMs: Int, startedAtEpochMs: Int) throws -> ProcessResult {
+  func process(wav: URL, app: String?, recordMs: Int, startupMs: Int, startedAtEpochMs: Int,
+               expectedProvider: String = "parakeet") throws -> ProcessResult {
     var args = ["inline", "process", wav.path, "--json", "--defer-usage",
                 "--record-ms", String(recordMs), "--startup-ms", String(startupMs),
-                "--started-at-ms", String(startedAtEpochMs)]
+                "--started-at-ms", String(startedAtEpochMs), "--expected-provider", expectedProvider]
     if let app, !app.isEmpty {
       args += ["--app", app]
     }

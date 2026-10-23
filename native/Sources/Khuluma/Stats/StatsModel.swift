@@ -25,44 +25,68 @@ final class StatsModel: ObservableObject {
   /// once while it stays open.
   @Published private(set) var celebrating: Int?
   @Published var rangeDays: Int {
-    didSet { AppRuntimePaths.defaults.set(rangeDays, forKey: Self.rangeKey) }
+    didSet { if !fixture { AppRuntimePaths.defaults.set(rangeDays, forKey: Self.rangeKey) } }
   }
 
   /// Whether Activity also charts words per day. On unless turned off.
   @Published var showWordsPerDay: Bool {
-    didSet { AppRuntimePaths.defaults.set(showWordsPerDay, forKey: Self.wordsKey) }
+    didSet { if !fixture { AppRuntimePaths.defaults.set(showWordsPerDay, forKey: Self.wordsKey) } }
   }
 
   private let source: () -> Source
+  private let fixture: Bool
   private let queue = DispatchQueue(label: "khuluma.stats", qos: .utility)
   private var refresh = StatsRefresh()
   private var open = false
+  private var windowOpen = false
+  private var menuOpen = false
   private var watcher: DispatchSourceFileSystemObject?
+  private var watchGeneration = 0
   private var watchedPath: String?
   private var ledgerSignature: FileSignature?
-  private var debounce: DispatchWorkItem?
+  private var debounce: Timer?
   private var observers: [(NotificationCenter, NSObjectProtocol)] = []
 
   init(source: @escaping () -> Source) {
     self.source = source
+    fixture = false
     let stored = AppRuntimePaths.defaults.integer(forKey: Self.rangeKey)
     rangeDays = Self.ranges.contains(stored) ? stored : 30
     showWordsPerDay = AppRuntimePaths.defaults.object(forKey: Self.wordsKey) as? Bool ?? true
   }
 
   /// Fixed content, for snapshots.
-  init(stats: UsageStats, updatedAt: Date, rangeDays: Int = 30, celebrating: Int? = nil) {
+  init(stats: UsageStats?, updatedAt: Date?, rangeDays: Int = 30, celebrating: Int? = nil,
+       refreshFailed: Bool = false) {
     source = { Source(cli: nil, config: nil) }
+    fixture = true
     self.stats = stats
     self.updatedAt = updatedAt
     self.rangeDays = rangeDays
     showWordsPerDay = true
     self.celebrating = celebrating
+    self.refreshFailed = refreshFailed
   }
 
   // MARK: - Window lifecycle
 
   func windowOpened() {
+    windowOpen = true
+    beginObserving()
+  }
+
+  func menuOpened() {
+    menuOpen = true
+    beginObserving()
+  }
+
+  func menuClosed() {
+    menuOpen = false
+    if !windowOpen { endObserving() }
+  }
+
+  private func beginObserving() {
+    guard !fixture else { return }
     guard !open else { return reload() }
     open = true
     let centers = [NotificationCenter.default, NSWorkspace.shared.notificationCenter]
@@ -85,9 +109,14 @@ final class StatsModel: ObservableObject {
   }
 
   func windowClosed() {
+    windowOpen = false
+    if !menuOpen { endObserving() }
+  }
+
+  private func endObserving() {
     open = false
     refresh.invalidate()
-    debounce?.cancel()
+    debounce?.invalidate()
     debounce = nil
     stopWatching()
     for (center, token) in observers {
@@ -100,7 +129,7 @@ final class StatsModel: ObservableObject {
   // MARK: - Loading
 
   func reload() {
-    guard open, let generation = refresh.request() else { return }
+    guard !fixture, open, let generation = refresh.request() else { return }
     load(generation)
   }
 
@@ -119,9 +148,13 @@ final class StatsModel: ObservableObject {
       let path = Self.ledgerPath(config)
       let before = FileSignature(path: path)
       let result = Result { try cli.usage() }
-      DispatchQueue.main.async {
-        self?.finished(result, generation: generation, ledger: path, before: before)
+      // Menus track in their own run loop mode, without draining the main queue.
+      RunLoop.main.perform(inModes: [.common]) { [weak self] in
+        MainActor.assumeIsolated {
+          self?.finished(result, generation: generation, ledger: path, before: before)
+        }
       }
+      CFRunLoopWakeUp(CFRunLoopGetMain())
     }
   }
 
@@ -179,10 +212,18 @@ final class StatsModel: ObservableObject {
       Log.write("stats: cannot watch \(directory) (errno \(errno)); refresh with the button")
       return
     }
+    let generation = watchGeneration
     let source = DispatchSource.makeFileSystemObjectSource(
-      fileDescriptor: fd, eventMask: [.write, .rename, .delete, .extend, .attrib, .link], queue: .main)
+      fileDescriptor: fd, eventMask: [.write, .rename, .delete, .extend, .attrib, .link], queue: queue)
     source.setEventHandler { [weak self] in
-      MainActor.assumeIsolated { self?.ledgerEvent() }
+      RunLoop.main.perform(inModes: [.common]) { [weak self] in
+        MainActor.assumeIsolated {
+          // A canceled watcher can already have an event queued for delivery.
+          guard let self, self.watchGeneration == generation else { return }
+          self.ledgerEvent()
+        }
+      }
+      CFRunLoopWakeUp(CFRunLoopGetMain())
     }
     source.setCancelHandler { close(fd) }
     watcher = source
@@ -194,6 +235,7 @@ final class StatsModel: ObservableObject {
   }
 
   private func stopWatching() {
+    watchGeneration &+= 1
     watcher?.cancel()
     watcher = nil
     watchedPath = nil
@@ -207,12 +249,15 @@ final class StatsModel: ObservableObject {
     guard signature != ledgerSignature else { return }
     ledgerSignature = signature
     let delay = refresh.delayForChange(at: ProcessInfo.processInfo.systemUptime)
-    debounce?.cancel()
-    let work = DispatchWorkItem { [weak self] in
-      MainActor.assumeIsolated { self?.reload() }
+    debounce?.invalidate()
+    let timer = Timer(timeInterval: delay, repeats: false) { [weak self] _ in
+      MainActor.assumeIsolated {
+        self?.debounce = nil
+        self?.reload()
+      }
     }
-    debounce = work
-    DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
+    debounce = timer
+    RunLoop.main.add(timer, forMode: .common)
   }
 }
 

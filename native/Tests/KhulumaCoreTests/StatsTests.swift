@@ -194,12 +194,22 @@ struct UsageStatsTests {
     #expect(UsageStats.milestone(words: 0) == UsageStats.Milestone(previous: 0, next: 1_000, progress: 0))
     #expect(UsageStats.milestone(words: 24_306).next == 25_000)
     #expect(UsageStats.milestone(words: 24_306).previous == 10_000)
-    #expect(UsageStats.milestone(words: 2_400_000) == UsageStats.Milestone(previous: 2_000_000, next: 3_000_000, progress: 0.4))
+    #expect(UsageStats.milestone(words: 2_400_000) == UsageStats.Milestone(previous: 2_000_000, next: 3_000_000, progress: 0.8))
     // First open with existing totals: nothing to celebrate.
     #expect(UsageStats.milestoneCrossed(words: 24_306, lastSeen: nil) == nil)
     // Several crossed between openings: only the highest.
     #expect(UsageStats.milestoneCrossed(words: 52_000, lastSeen: 24_306) == 50_000)
     #expect(UsageStats.milestoneCrossed(words: 26_000, lastSeen: 25_100) == nil)
+  }
+
+  @Test func milestoneFillMatchesTheDisplayedWordTarget() {
+    let milestone = UsageStats.milestone(words: 51_213)
+    #expect(milestone.next == 100_000)
+    #expect(milestone.next - 51_213 == 48_787)
+    #expect(abs(milestone.progress - 0.51213) < 0.00001)
+    #expect(UsageStats.milestone(words: 99_999).progress > 0.999)
+    #expect(UsageStats.milestone(words: 100_000).next == 250_000)
+    #expect(UsageStats.milestone(words: 100_000).progress == 0.4)
   }
 }
 

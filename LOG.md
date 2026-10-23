@@ -2,7 +2,9 @@
 
 ## Now
 
-Khuluma v0.11.0 (build 332) is the installed daily app, with matching local and Homebrew CLIs. The user verified dictation, paste, cancel, Stats and Start at Login, with no recovered-take warning. Canonical synthetic file transcription passed. The signed app uses `com.ricardo-nth.khuluma`; config, model, sound and runtime paths stay canonical, and the existing app-owned daemon remained running through the package upgrade.
+The menu utility and integrated Settings are installed locally: Khuluma v0.11.0 build 340 and the matching local CLI (contract 4), from `6a48abb` on `feat/menu-utility-settings`. Stats uses three sections across the viewport, with an accurate full-target milestone bar, toolbar utilities and compact Settings. File-transcription entry/output remains a separate design question.
+
+The user confirmed menu toggling, dictation and Control-Escape cancellation work; custom menu-icon artwork is being handled in another session. Live Stats matches the CLI and doctor reports no issues or warnings. F17, Parakeet, canonical data/config/model/sound paths, signing identity and the running daemon were preserved. The Homebrew keg and public release remain unchanged; build 332 and matching local code/receipt backups are retained for recovery.
 
 Canonical-only compatibility removal is complete in source #85 and homebrew-tap#7. The immutable source archive matched Git; shell/native checks, pinned bootstrap, both three-scenario hosted package QA runs and the targeted local Brew upgrade passed. Old kegs, the previous app/local code and all data/recovery material remain retained. The completed identity migration is recorded in [its archived outcome](docs/plans/archive/KHULUMA_IDENTITY_RENAME.md).
 
@@ -10,6 +12,8 @@ Continue the existing daily-use observation before phase 1. No installed old Kwi
 
 ## Next
 
+- [x] P1 · Build useful menu panel and integrated Settings with shortcut capture and opt-in Scribe · added 2026-10-23
+- [x] P1 · Install the approved menu/Settings app and matching CLI, preserving data/daemon and verifying daily use · added 2026-10-23
 - [x] P1 · Review the full identity rename plan · added 2026-10-22
 - [x] P1 · Complete isolated rename/migration/recovery acceptance, controlled daily cutover and source/tap integration · added 2026-10-22
 
@@ -23,7 +27,9 @@ Continue the existing daily-use observation before phase 1. No installed old Kwi
 - [x] P2 · Remove old command/env/app compatibility after canonical-only caller and daily-app checks · added 2026-10-23
 - [x] P2 · Align formula updater and intact source/tap siblings at khuluma and homebrew-tap · added 2026-10-22
 - [ ] P2 · Skip auto-send for one take: hold a key (Shift or similar, to decide) so the take pastes without pressing Enter; auto-send stays the default · added 2026-10-17
-- [ ] P2 · Stats stage 3 ideas (not committed): weeks view, wpm trend, longest take, typing_wpm config, streak line, time of day, opt-in per-app · added 2026-10-16
+- [ ] P2 · Stats stage 3 ideas (not committed): weeks view, wpm trend, typing_wpm config, time of day, opt-in per-app · added 2026-10-16
+- [x] P2 · Use total words, estimated time saved and average WPM in the menu and Stats summary · added 2026-10-23
+- [ ] P2 · Review the existing file-transcription entry/output flow before choosing a drag target · added 2026-10-23
 - [ ] P2 · Lowkey ideas parked from 3c, only with evidence: config file watcher, warm mic/pre-roll · added 2026-10-16
 - [ ] P2 · Phase 2 after CLI independence: Developer ID signing/notarization, versioned app distribution and khuluma cask; Settings, History, Transcribe File and bundled agent CLI; verify fresh-Mac permissions and file transcription · added 2026-10-22
 - [ ] P2 · Decide the future signed-app cask/update approach before phase 2 distribution; paid membership/domain require separate authorization · added 2026-10-22
@@ -33,6 +39,8 @@ Continue the existing daily-use observation before phase 1. No installed old Kwi
 - [ ] P3 · Deferred separate labs: voxtral-inline API/realtime dictation and faster-whisper-tool batch/subtitle/offline exploration; only after core reliability is stable · added 2026-10-22
 
 ## Decisions
+
+- Local menu/Settings cutover recovery: `/Users/admin/Applications/.khuluma-live.qBasYG/previous.app` retains build 332; `code-manifest.json` and code backups retain the matching prior local CLI/receipt. Preserve newer usage/history when recovering.
 
 - Prefer canonical-only interfaces. v0.11.0 removed ordinary old command/environment/app compatibility after concrete caller and daily-workflow checks, superseding the former 30-day identity wait. Preserve data, historical releases, explicit recovery and wrong-profile/competing-writer refusals. The completed per-file removal plan remains in Git at `8da982b:LOG.md`; source #85 records implementation.
 - Recovery on this Mac remains under `/Users/admin/Documents/Codex/2026-10-22/all-right-next-i-want-to/work/`: `khuluma-live-cutover/`, `khuluma-implementation-evidence/local-brew-recovery-3kf3c92v/` and `khuluma-compat-2026-10-23/`. The committed data manifest is `~/.config/khuluma/.migration/rename-v1/manifest.json`. Closed controller journals are historical: never replay them or restore an old snapshot over newer user work.
@@ -44,6 +52,20 @@ Continue the existing daily-use observation before phase 1. No installed old Kwi
 - Rename the existing repository in place to preserve all history; retain neutral `ricardo-nth/tap` and rename its formula to `khuluma`. The in-place repository rename, immutable v0.10.0 release and canonical formula/map are published and verified. The app continues to depend on its matching CLI; cask/CLI-independence/deprecation/archive are separate future work.
 
 ## Done
+
+- 2026-10-23 · Installed signed build 340 and matching local contract-4 CLI from 6a48abb; CI/17 stats tests/42 renders/doctor pass, user confirmed menu/dictation/cancel; daemon/data preserved · native/Sources/Khuluma/Stats; local recovery .khuluma-live.qBasYG
+
+- 2026-10-23 · Distributed Stats viewport space across three sections and corrected/thickened full-target milestone progress; local daily install authorized · native/Sources/Khuluma/Stats; native/Tests/KhulumaCoreTests/StatsTests.swift
+
+- 2026-10-23 · Fit normal Stats without scrolling; moved Refresh and usage info to toolbar; build/42 renders and live info/Escape/navigation pass, daily app unchanged · native/Sources/Khuluma/Stats; DESIGN.md
+
+- 2026-10-23 · Restored quiet dated records, recording totals and word milestones; build/16 stats tests/32 renders and live scroll/accessibility pass · native/Sources/Khuluma/Stats/StatsView.swift; DESIGN.md
+
+- 2026-10-23 · Centered lifetime metrics, tightened menu footer and simplified Stats; build/28 renders and live Settings/Back pass, daily app unchanged · native/Sources/Khuluma/Stats/StatsView.swift; DESIGN.md
+
+- 2026-10-23 · Reused Sys Stats native menu tracking; refined icons, hover, toolbar and Settings; build/28 renders pass, daily app unchanged · native/Sources/Khuluma/StatusDropdownController.swift; DESIGN.md
+
+- 2026-10-23 · Added usage menu, Settings, shortcut capture and opt-in Scribe; source/UI/provider checks passed, daily app unchanged · native/Sources/Khuluma/Settings; tests/test_providers.sh
 
 - 2026-10-23 · Shipped canonical-only v0.11.0; app/local/Brew checks passed, data and recovery intact · #85; homebrew-tap#7; v0.11.0
 
@@ -87,4 +109,3 @@ Continue the existing daily-use observation before phase 1. No installed old Kwi
 - 2026-10-16 · Raycast scripts, `integrations` doctor/repair and the `swiftbar` stub removed · #66
 - 2026-10-16 · Finished plans moved to docs/plans/archive/ · #65
 - 2026-10-16 · P0b review done; dropping tmux flow, CLI capture, LLM post-processing, silence trim, chunking; Lowkey to require its matching CLI · roadmap P0b
-- 2026-10-15 · Lowkey rename roadmap approved: phases 0–5, App Store parked · docs/plans/KHULUMA_RENAME_ROADMAP.md

@@ -82,6 +82,32 @@ struct TranscriptionSettingsTests {
     #expect(config.delivery.sendDelayMs == 35)
     #expect(config.usage.summaryPath == "/c/usage.json")
     #expect(config.appContract == AppContract.version)
+    #expect(config.transcription.provider == "parakeet")
+    #expect(config.transcription.keyAvailable == false)
+    #expect(config.soundsEnabled)
+    let muted = try AppConfigFixture.decode(AppConfigFixture.json.replacingOccurrences(
+      of: #""hotkey":"ctrl+option+space""#, with: #""sounds_enabled":false,"hotkey":"ctrl+option+space""#))
+    #expect(!muted.soundsEnabled)
+  }
+
+  @Test func cloudProviderNeverUsesTheLocalDaemon() throws {
+    let cloud = try AppConfigFixture.decode(AppConfigFixture.json.replacingOccurrences(
+      of: #""transcription":{"socket_path""#,
+      with: #""transcription":{"provider":"elevenlabs","key_available":true,"socket_path""#))
+    #expect(cloud.transcription.provider == "elevenlabs")
+    #expect(cloud.transcription.keyAvailable)
+    #expect(cloud.nativePipelineBlocker != nil)
+    #expect(cloud.native == nil)
+    #expect(cloud.supervisionBlocker != nil)
+    #expect(DaemonSupervisor.Target(config: cloud) == nil)
+  }
+
+  @Test func unknownProviderNeverUsesTheLocalDaemon() throws {
+    let unknown = try AppConfigFixture.decode(AppConfigFixture.json.replacingOccurrences(
+      of: #""transcription":{"socket_path""#,
+      with: #""transcription":{"provider":"unknown","socket_path""#))
+    #expect(unknown.native == nil)
+    #expect(DaemonSupervisor.Target(config: unknown) == nil)
   }
 
   @Test func invalidConfigNeverSendsWithFallbackDefaults() throws {
@@ -119,10 +145,10 @@ struct TranscriptionSettingsTests {
     #expect(tooOld.localizedDescription.contains("./install.sh --force"))
 
     let older = try #require(mismatch(AppConfigFixture.json.replacingOccurrences(
-      of: #""app_contract":3"#, with: #""app_contract":2"#)))
-    #expect(older.localizedDescription == "khuluma 0.10.0-dev (contract 2) is older than this Khuluma (contract 3): run ./install.sh --force")
+      of: #""app_contract":4"#, with: #""app_contract":3"#)))
+    #expect(older.localizedDescription == "khuluma 0.10.0-dev (contract 3) is older than this Khuluma (contract 4): run ./install.sh --force")
     let newer = try #require(mismatch(AppConfigFixture.json.replacingOccurrences(
-      of: #""app_contract":3"#, with: #""app_contract":4"#)))
+      of: #""app_contract":4"#, with: #""app_contract":5"#)))
     #expect(newer.localizedDescription.contains("rebuild it with tools/build-khuluma-app.sh"))
     #expect(mismatch(AppConfigFixture.json) == nil)
   }

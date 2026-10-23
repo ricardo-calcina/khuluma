@@ -109,7 +109,7 @@ assert version["identity"]["config_dir"] == str(r / "profile")
 assert version["receipt"]["path"] == str(r / "profile/install-receipt.env")
 assert json.loads((r / "path.json").read_text())["config_path"] == str(r / "profile/settings.toml")
 app = json.loads((r / "app-config.json").read_text())
-assert app["app_contract"] == 3
+assert app["app_contract"] == 4
 assert app["transcription"]["socket_path"] == str(r / "profile/.cache/khulumad.sock")
 assert app["sounds"]["start"]["path"] == str(r / "sounds/start.wav")
 receipt = {}

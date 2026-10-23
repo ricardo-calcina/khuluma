@@ -4,11 +4,15 @@ import SwiftUI
 /// The stats window. All the maths is in `UsageStats`; this only lays it out.
 struct StatsView: View {
   @ObservedObject var model: StatsModel
+  var minimumHeight: CGFloat? = nil
+
   var body: some View {
     Group {
       if let stats = model.stats {
-        StatsContent(stats: stats, model: model)
-          .padding(20)
+        StatsContent(stats: stats, model: model,
+                     minimumHeight: minimumHeight.map { max(0, $0 - 24) })
+          .padding(.horizontal, 20)
+          .padding(.vertical, 12)
       } else if model.refreshFailed {
         Placeholder(symbol: "exclamationmark.triangle", text: "Couldn't load stats.") {
           Button("Try Again") { model.reload() }
@@ -42,17 +46,29 @@ private struct Placeholder<Accessory: View>: View {
 private struct StatsContent: View {
   let stats: UsageStats
   @ObservedObject var model: StatsModel
+  let minimumHeight: CGFloat?
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 12) {
-      if let milestone = model.celebrating {
-        Label("You passed \(milestone.formatted()) words", systemImage: "party.popper.fill")
-          .font(.headline)
-          .padding(.horizontal, 12)
-          .padding(.vertical, 6)
-          .background(Color.accentColor.opacity(0.15), in: Capsule())
-      }
+    VStack(alignment: .leading, spacing: 0) {
       Hero(lifetime: stats.lifetime)
+      Spacer(minLength: 10)
+      Divider()
+      Spacer(minLength: 10)
+      activitySection
+      Spacer(minLength: 10)
+      Divider()
+      Spacer(minLength: 10)
+      recordsSection
+    }
+    .frame(minHeight: minimumHeight, alignment: .top)
+  }
+
+  private var activitySection: some View {
+    VStack(alignment: .leading, spacing: 10) {
+      if model.refreshFailed {
+        Notice(symbol: "exclamationmark.triangle",
+               text: "Couldn't refresh. Showing the last available stats.")
+      }
       switch stats.dailyStatus {
       case nil, "unreadable":
         Notice(symbol: "exclamationmark.triangle",
@@ -61,47 +77,49 @@ private struct StatsContent: View {
         if stats.dailyStatus == "not_started" {
           Notice(symbol: "calendar.badge.clock", text: "Daily stats start with your next dictation.")
         }
-        Divider()
         Activity(stats: stats, rangeDays: $model.rangeDays, showWords: $model.showWordsPerDay)
         if !stats.coverageComplete {
           Notice(symbol: "info.circle",
                  text: "\(stats.untrackedDeliveries.formatted()) dictation\(stats.untrackedDeliveries == 1 ? " was" : "s were") "
                    + "recorded without a day (by an earlier version), so daily figures are lower bounds.")
         }
-        Divider()
-        HStack(alignment: .top, spacing: 20) {
-          StreakSection(stats: stats)
-            .frame(width: 160, alignment: .leading)
-          Divider()
-          RecordsSection(records: stats.records)
-        }
-        .fixedSize(horizontal: false, vertical: true)
+      }
+    }
+  }
+
+  private var recordsSection: some View {
+    VStack(alignment: .leading, spacing: 10) {
+      VStack(alignment: .leading, spacing: 8) {
+        StreakSection(stats: stats)
+        RecordsSection(records: stats.records)
       }
       Divider()
-      Totals(stats: stats)
-      MilestoneBar(milestone: stats.milestone, words: stats.lifetime.words)
-      Footer(stats: stats, model: model)
+      RecordingTime(stats: stats)
+      MilestoneProgress(milestone: stats.milestone, words: stats.lifetime.words,
+                        reached: model.celebrating)
     }
   }
 }
 
 // MARK: - Hero
 
-/// The headline figures as one row, separated by hairlines rather than boxes.
+/// A quiet lifetime summary. Equal columns keep all three figures easy to scan.
 private struct Hero: View {
   let lifetime: UsageStats.Lifetime
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
   var body: some View {
-    HStack(alignment: .top, spacing: 20) {
-      figure("Words dictated", value: lifetime.words.formatted(), tracking: Double(lifetime.words),
-             caption: "all time")
-      Divider()
-      figure("Words per minute", value: lifetime.wordsPerMinute.map { $0.formatted() } ?? "–",
-             tracking: Double(lifetime.wordsPerMinute ?? 0), accent: true,
-             info: "Words per minute of recording, pauses included.", caption: "pauses included")
-      Divider()
-      timeSaved
+    VStack(spacing: 6) {
+      Text("All time")
+        .font(.caption)
+        .foregroundStyle(.secondary)
+      HStack(alignment: .top, spacing: 12) {
+        figure("Total words", value: lifetime.words.formatted(), tracking: Double(lifetime.words))
+        timeSaved
+        figure("Average WPM", value: lifetime.wordsPerMinute.map { $0.formatted() } ?? "–",
+               tracking: Double(lifetime.wordsPerMinute ?? 0),
+               info: "Words per minute of recording, including pauses.", caption: "pauses included")
+      }
     }
     .fixedSize(horizontal: false, vertical: true)
   }
@@ -110,7 +128,7 @@ private struct Hero: View {
   private var timeSaved: some View {
     if lifetime.words > 0 {
       let parts = Format.typingDifferenceParts(ms: lifetime.estimatedSavedMs)
-      figure("Time saved", value: parts.amount, tracking: nil,
+      figure("Time saved", value: Format.savedTime(ms: lifetime.estimatedSavedMs), tracking: nil,
              info: "Typing the same words at \(lifetime.typingWPM) words per minute, minus the time from starting "
                + "a recording to its text arriving. An estimate: your typing speed will differ.",
              caption: parts.caption)
@@ -119,46 +137,30 @@ private struct Hero: View {
     }
   }
 
-  private func figure(_ title: String, value: String, tracking: Double?, accent: Bool = false,
+  private func figure(_ title: String, value: String, tracking: Double?,
                       info: String? = nil, caption: String? = nil) -> some View {
-    VStack(alignment: .leading, spacing: 4) {
-      HStack(spacing: 4) {
-        Text(title.uppercased())
-          .font(.caption.weight(.medium))
-          .tracking(0.4)
-          .foregroundStyle(.secondary)
-        if let info {
-          InfoMark(info).font(.caption)
-        }
-      }
+    VStack(spacing: 4) {
+      Text(title)
+        .font(.callout)
+        .foregroundStyle(.secondary)
       Text(value)
-        .font(.system(size: 26, weight: .bold, design: .rounded))
+        .font(.system(size: 28, weight: .semibold))
         .monospacedDigit()
         .lineLimit(1)
         .minimumScaleFactor(0.6)
-        .foregroundStyle(accent ? Color.accentColor : Color.primary)
         .contentTransition(.numericText(value: tracking ?? 0))
         .animation(reduceMotion ? nil : .default, value: value)
       if let caption {
-        Text(caption).font(.callout).foregroundStyle(.secondary)
+        Text(caption).font(.caption).foregroundStyle(.secondary)
+          .lineLimit(1)
+          .minimumScaleFactor(0.8)
+      } else {
+        Text(" ").font(.caption).accessibilityHidden(true)
       }
     }
-    .frame(maxWidth: .infinity, alignment: .leading)
-  }
-}
-
-private struct InfoMark: View {
-  let text: String
-
-  init(_ text: String) {
-    self.text = text
-  }
-
-  var body: some View {
-    Image(systemName: "info.circle")
-      .foregroundStyle(.secondary)
-      .help(text)
-      .accessibilityLabel(text)
+    .frame(maxWidth: .infinity)
+    .help(info ?? title)
+    .accessibilityElement(children: .combine)
   }
 }
 
@@ -408,32 +410,22 @@ private struct Legend: View {
   }
 }
 
-// MARK: - Streak and bests
+// MARK: - Records and recording time
 
 private struct StreakSection: View {
   let stats: UsageStats
 
   var body: some View {
-    let streak = stats.streak
-    VStack(alignment: .leading, spacing: 6) {
-      Label(stats.coverageComplete ? "Streak" : "Recorded streak", systemImage: "flame.fill")
-        .font(.headline)
-        .foregroundStyle(streak.current > 0 ? Color.orange : Color.secondary)
-      Text("\(streak.current) day\(streak.current == 1 ? "" : "s")")
-        .font(.system(size: 22, weight: .bold, design: .rounded))
-        .monospacedDigit()
-      Text(streak.best == 0 ? "None yet"
-           : streak.current > 1 && streak.current == streak.best
-           ? "Your best streak yet" : "Best \(streak.best) day\(streak.best == 1 ? "" : "s")")
-        .font(.callout)
+    HStack(alignment: .firstTextBaseline, spacing: 8) {
+      Text(stats.coverageComplete ? "Current streak" : "Recorded streak")
         .foregroundStyle(.secondary)
-      if streak.pendingToday {
-        Text("Dictate today to make it \(streak.current + 1)")
-          .font(.callout)
-          .foregroundStyle(.secondary)
-      }
+      Spacer()
+      Text(stats.hasDaily ? "\(stats.streak.current) day\(stats.streak.current == 1 ? "" : "s")" : "–")
+        .monospacedDigit()
     }
-    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    .font(.callout)
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .accessibilityElement(children: .combine)
   }
 }
 
@@ -441,129 +433,151 @@ private struct RecordsSection: View {
   let records: UsageStats.Records
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 6) {
-      Label("Recorded bests", systemImage: "trophy.fill").font(.headline)
-      Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 4) {
-        row("Best day", records.bestDay) { "\($0.formatted()) words" }
-        row("Longest take", records.longestTake) { Format.duration(ms: $0) }
-        row("Longest streak", records.longestStreak) { "\($0) day\($0 == 1 ? "" : "s")" }
+    Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 8) {
+      row("Best day", record: records.bestDay,
+          help: "Most words in a recorded day, across all daily stats.") { "\($0.formatted()) words" }
+      row("Longest take", record: records.longestTake,
+          help: "Longest single recording, including pauses, across all daily stats.") { Format.duration(ms: $0) }
+      row("Longest streak", record: records.longestStreak,
+          help: "Longest run of recorded days. The date is the last day of that run.") {
+        "\($0) day\($0 == 1 ? "" : "s")"
       }
     }
-    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    .font(.callout)
   }
 
-  private func row(_ title: String, _ record: UsageStats.Record?, value: (Int) -> String) -> some View {
-    GridRow {
-      Text(title).font(.callout).foregroundStyle(.secondary).fixedSize()
-      if let record {
-        Text(value(record.value)).font(.callout).monospacedDigit().fixedSize()
-        Text(Format.shortDate(record.date)).font(.callout).foregroundStyle(.secondary).fixedSize()
-        if record.isNew {
-          Text("New")
-            .font(.caption.bold())
-            .foregroundStyle(.white)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 1)
-            .background(Color.accentColor, in: Capsule())
-        }
-      } else {
-        Text("–").foregroundStyle(.secondary)
-      }
+  private func row(_ title: String, record: UsageStats.Record?, help: String,
+                   value: (Int) -> String) -> some View {
+    let amount = record.map { value($0.value) } ?? "–"
+    let date = record.map { $0.date.noon.formatted(date: .abbreviated, time: .omitted) } ?? "–"
+    return GridRow {
+      Text(title)
+        .foregroundStyle(.secondary)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .help(help)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(title)
+        .accessibilityValue(record == nil ? "No recorded value" : "\(amount), \(date)")
+      Text(amount)
+        .monospacedDigit()
+        .gridColumnAlignment(.trailing)
+        .accessibilityHidden(true)
+      Text(date)
+        .foregroundStyle(.secondary)
+        .gridColumnAlignment(.trailing)
+        .accessibilityHidden(true)
     }
   }
 }
 
-// MARK: - Totals, milestone, footer
-
-private struct Totals: View {
+private struct RecordingTime: View {
   let stats: UsageStats
 
   var body: some View {
-    HStack(alignment: .top, spacing: 20) {
-      total("Dictations", value: stats.lifetime.dictations.formatted(),
-            today: stats.hasDaily ? "\(stats.todayDictations.formatted()) today" : nil)
-      Divider()
-      total("Recording time", value: Format.duration(ms: stats.lifetime.recordingMs),
-            today: stats.hasDaily ? "\(Format.duration(ms: stats.todayRecordingMs)) today" : nil)
+    HStack(alignment: .firstTextBaseline, spacing: 12) {
+      Text("Recording time").foregroundStyle(.secondary)
+      Spacer(minLength: 0)
+      Text("All time \(Format.duration(ms: stats.lifetime.recordingMs))")
+        .monospacedDigit()
+      Text("Today \(today)")
+        .monospacedDigit()
     }
-    .fixedSize(horizontal: false, vertical: true)
+    .font(.callout)
+    .help("Time spent recording successful dictations, including pauses. Today requires daily stats.")
+    .accessibilityElement(children: .combine)
   }
 
-  private func total(_ title: String, value: String, today: String?) -> some View {
-    VStack(alignment: .leading, spacing: 2) {
-      Text(title).font(.callout).foregroundStyle(.secondary)
-      HStack(alignment: .firstTextBaseline, spacing: 8) {
-        Text(value)
-          .font(.system(size: 17, weight: .semibold, design: .rounded))
-          .monospacedDigit()
-        if let today {
-          Text(today).font(.callout).foregroundStyle(.secondary)
-        }
-      }
-    }
-    .frame(maxWidth: .infinity, alignment: .leading)
+  private var today: String {
+    stats.hasDaily ? Format.duration(ms: stats.todayRecordingMs) : "–"
   }
 }
 
-private struct MilestoneBar: View {
+// MARK: - Word milestone
+
+private struct MilestoneProgress: View {
   let milestone: UsageStats.Milestone
   let words: Int
+  let reached: Int?
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 6) {
-      HStack {
-        Text("Next milestone: \(milestone.next.formatted()) words").font(.callout)
+    VStack(alignment: .leading, spacing: 7) {
+      if let reached {
+        Text("\(reached.formatted()) words reached")
+          .font(.callout.weight(.medium))
+      }
+      HStack(alignment: .firstTextBaseline) {
+        Text("Next milestone: \(milestone.next.formatted()) words")
         Spacer()
         Text("\((milestone.next - words).formatted()) to go")
-          .font(.callout)
           .monospacedDigit()
           .foregroundStyle(.secondary)
       }
-      Capsule()
-        .fill(.quaternary)
-        .frame(height: 6)
-        .overlay(alignment: .leading) {
-          GeometryReader { proxy in
-            Capsule()
-              .fill(Color.accentColor)
-              .frame(width: milestone.progress > 0 ? max(6, proxy.size.width * milestone.progress) : 0)
-          }
-        }
-        .accessibilityElement()
-        .accessibilityLabel("Progress to next milestone")
-        .accessibilityValue("\(Int(milestone.progress * 100)) percent")
+      .font(.callout)
+      ProgressView(value: progress, total: 1)
+        .progressViewStyle(MilestoneProgressStyle())
+        .help("\(words.formatted()) of \(milestone.next.formatted()) words toward the next milestone.")
+        .accessibilityLabel("Progress to \(milestone.next.formatted()) words")
+        .accessibilityValue("\(Int(progress * 100)) percent, \(words.formatted()) of \(milestone.next.formatted()) words, \((milestone.next - words).formatted()) words remaining")
     }
+  }
+
+  private var progress: Double {
+    min(max(milestone.progress, 0), 1)
   }
 }
 
-private struct Footer: View {
-  let stats: UsageStats
+private struct MilestoneProgressStyle: ProgressViewStyle {
+  func makeBody(configuration: Configuration) -> some View {
+    let progress = min(max(configuration.fractionCompleted ?? 0, 0), 1)
+    GeometryReader { geometry in
+      Capsule()
+        .fill(.quaternary)
+        .overlay(alignment: .leading) {
+          Capsule()
+            .fill(Color.accentColor)
+            .frame(width: geometry.size.width * progress)
+        }
+    }
+    .frame(height: 8)
+  }
+}
+
+// MARK: - Usage information
+
+struct StatsDetailsView: View {
   @ObservedObject var model: StatsModel
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 2) {
-      Divider().padding(.bottom, 4)
-      HStack(alignment: .bottom) {
-        VStack(alignment: .leading, spacing: 2) {
-          Text(Format.coverage(stats)).foregroundStyle(.secondary)
-          Text("Counts and durations only, never what you said.").foregroundStyle(.secondary)
-          Text(updatedLine).foregroundStyle(model.refreshFailed ? Color.orange : Color.secondary)
-        }
-        Spacer()
-        Button {
-          model.reload()
-        } label: {
-          Label("Refresh", systemImage: "arrow.clockwise")
-        }
-        .keyboardShortcut("r")
+    VStack(alignment: .leading, spacing: 12) {
+      Text("Usage information").font(.headline)
+      if let stats = model.stats {
+        Text(Format.coverage(stats))
+      } else {
+        Text("Usage data hasn't been loaded yet.")
       }
+      Text("Counts and durations only, never what you said.")
+        .foregroundStyle(.secondary)
+      Divider()
+      if model.refreshFailed {
+        Label(model.stats == nil ? "Couldn't load usage data. Try refreshing."
+                : "Couldn't refresh. The displayed stats are from the last successful update.",
+              systemImage: "exclamationmark.triangle")
+      }
+      Text(updatedLine)
+        .foregroundStyle(.secondary)
     }
-    .font(.caption)
+    .font(.callout)
+    .padding(16)
+    .frame(width: 292, alignment: .leading)
+    .fixedSize(horizontal: false, vertical: true)
   }
 
   private var updatedLine: String {
-    let time = model.updatedAt.map { $0.formatted(date: .omitted, time: .shortened) } ?? "–"
-    return model.refreshFailed ? "Couldn't refresh · Updated \(time)" : "Updated \(time)"
+    if let updated = model.updatedAt {
+      return "Updated \(updated.formatted(date: .abbreviated, time: .shortened))"
+    } else {
+      return "Not updated yet"
+    }
   }
 }
 
@@ -579,13 +593,18 @@ enum Format {
     return formatter.string(from: seconds) ?? "–"
   }
 
-  /// "≈ 7.9 h" and "faster than typing", or slower when dictating took longer.
+  /// A signed estimate: a negative value means dictating took longer than typing.
+  static func savedTime(ms: Int) -> String {
+    typingDifferenceParts(ms: ms).amount
+  }
+
+  /// "≈ 7.9 h" and "faster than typing", or a negative estimate when slower.
   static func typingDifferenceParts(ms: Int) -> (amount: String, caption: String) {
-    let minutes = Double(abs(ms)) / 60_000
+    let minutes = abs(Double(ms)) / 60_000
     let amount = minutes >= 60
       ? "\((minutes / 60).formatted(.number.precision(.fractionLength(1)))) h"
       : "\(Int(minutes.rounded())) min"
-    return ("≈ \(amount)", ms >= 0 ? "faster than typing" : "slower than typing")
+    return ("≈ \(ms < 0 ? "−" : "")\(amount)", ms >= 0 ? "faster than typing" : "slower than typing")
   }
 
   static func rangeLine(_ range: UsageStats.RangeSummary, since: CivilDate?) -> String {

@@ -11,7 +11,11 @@ final class AppController: NSObject, NSApplicationDelegate {
   /// anyway (and log it) rather than leave the press unanswered.
   private static let chimeFallback: TimeInterval = 0.75
 
-  private let menu = StatusMenu()
+  private lazy var menu = MainActor.assumeIsolated { StatusMenu(stats: statsModel, settings: settingsModel) }
+  private lazy var statsModel = MainActor.assumeIsolated {
+    StatsModel { [weak self] in StatsModel.Source(cli: self?.cli, config: self?.config) }
+  }
+  private lazy var settingsModel = MainActor.assumeIsolated { SettingsModel() }
   private let recorder = AudioRecorder()
   private let sounds = SoundPlayer()
   private lazy var hotkey = HotkeyMonitor { [weak self] in self?.toggle() }
@@ -137,8 +141,21 @@ final class AppController: NSObject, NSApplicationDelegate {
       NSWorkspace.shared.activateFileViewerSelecting(self.recovered.all())
     }
     menu.onShowStats = { [weak self] in self?.showStats() }
-    menu.onReloadSettings = { [weak self] in self?.reloadSettings() }
-    menu.onToggleLogin = { [weak self] in self?.toggleStartAtLogin() }
+    menu.onShowSettings = { [weak self] in self?.showStats(settings: true) }
+    settingsModel.onReload = { [weak self] in self?.reloadSettings(feedback: true) }
+    settingsModel.onOpenConfig = { [weak self] in
+      guard let directory = self?.config?.cleanup.configDir else { return }
+      NSWorkspace.shared.open(URL(fileURLWithPath: directory).appendingPathComponent("config.toml"))
+    }
+    settingsModel.onToggleLogin = { [weak self] in self?.toggleStartAtLogin() }
+    settingsModel.onSave = { [weak self] key, value in self?.saveSetting(key, value: value) }
+    settingsModel.onShortcutRecordingChange = { [weak self] recording in
+      guard let self else { return }
+      if recording { self.hotkey.unregister() }
+      else if self.hotkey.binding == nil, let spec = try? HotkeySpec.parse(self.config?.hotkey ?? "") {
+        self.registerHotkey(spec)
+      }
+    }
     menu.onWillOpen = { [weak self] in
       self?.refreshTimedOutItems()
       self?.menu.showLogin(LoginItem.status)
@@ -302,7 +319,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     guard !quitting else { return }
     let leftovers = leftoverTakes()
     guard !leftovers.isEmpty, !recoveryRunning else { return }
-    guard config.nativePipelineBlocker == nil else {
+    guard config.nativePipelineBlocker == nil || (config.transcription.provider == "elevenlabs" && config.transcription.keyAvailable) else {
       // Can't transcribe natively with these settings: say so, and retry
       // whenever usable settings arrive.
       menu.showRecovered("Saved dictations waiting (\(leftovers.count)): Show in Finder", action: true)
@@ -346,6 +363,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     let hotkeyAt = monotonicMs()
     if take == nil {
       guard !quitting else { return }
+      guard !settingsModel.saving else { return }
       guard !starter.isStarting else {
         Log.write("start: ignored a press while the microphone was still starting")
         return
@@ -569,6 +587,16 @@ final class AppController: NSObject, NSApplicationDelegate {
       let result = pipeline.processWithCLI(samples: samples, take: take, recordMs: recordMs, appName: appName,
                                            stopAt: stopAt, config: config, route: route)
       settled = result.settlesAudio
+      if !settled {
+        do {
+          _ = try inFlight.keep(takeId)
+          DispatchQueue.main.async {
+            self.menu.showRecovered("Saved recording waiting: Show in Finder", action: true)
+          }
+        } catch {
+          Log.write("pipeline: failed recording held until Quit (could not save audio)")
+        }
+      }
       DispatchQueue.main.async { self.finish(result) }
     }
   }
@@ -662,23 +690,38 @@ final class AppController: NSObject, NSApplicationDelegate {
 
   private func refreshStatus() {
     menu.show(status, recording: take != nil)
+    settingsModel.recording = take != nil || starter.isStarting || status.processing > 0
   }
 
   // MARK: - Settings
 
-  private func reloadSettings() {
-    guard let cli else { return }
+  private func reloadSettings(feedback: Bool = false) {
+    guard let cli else {
+      if feedback { settingsModel.finished(error: "Khuluma CLI is unavailable.") }
+      return
+    }
+    if feedback { settingsModel.saving = true }
     work.async { [weak self] in
       do {
         let config = try cli.appConfig()
-        DispatchQueue.main.async { self?.apply(config) }
+        DispatchQueue.main.async {
+          self?.apply(config)
+          if feedback {
+            self?.settingsModel.finished()
+            self?.settingsModel.message = "Settings reloaded"
+          }
+        }
       } catch let mismatch as AppContract.Mismatch {
         DispatchQueue.main.async {
           self?.refuseTakes(mismatch)
           self?.fail(mismatch.localizedDescription)
+          if feedback { self?.settingsModel.finished(error: mismatch.localizedDescription) }
         }
       } catch {
-        DispatchQueue.main.async { self?.fail("cannot read settings: \(error.localizedDescription)") }
+        DispatchQueue.main.async {
+          self?.fail("cannot read settings: \(error.localizedDescription)")
+          if feedback { self?.settingsModel.finished(error: error.localizedDescription) }
+        }
       }
     }
   }
@@ -686,6 +729,7 @@ final class AppController: NSObject, NSApplicationDelegate {
   private func apply(_ config: AppConfig) {
     let firstSettings = self.config == nil
     self.config = config
+    settingsModel.adopt(config)
     contractMismatch = nil
     sweepStaleMarkers()
     sounds.load(from: config)
@@ -711,7 +755,6 @@ final class AppController: NSObject, NSApplicationDelegate {
       }
     } catch {
       pendingHotkey = nil
-      menu.showHotkey("Hotkey: invalid (\(config.hotkey))" + (hotkey.binding.map { ", still \($0.display)" } ?? ""))
       fail("hotkey \"\(config.hotkey)\": \(error)")
     }
   }
@@ -727,6 +770,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     if fresh.config != config?.config { showConfigStatus(fresh) }
     recoverLeftoverTakes(config: fresh)
     config = fresh
+    settingsModel.adopt(fresh)
     sweepStaleMarkers()
     configureSupervision(fresh, trigger: .settings)
     sounds.load(from: fresh)
@@ -755,11 +799,9 @@ final class AppController: NSObject, NSApplicationDelegate {
   private func registerHotkey(_ spec: HotkeySpec) -> Bool {
     do {
       try hotkey.register(spec)
-      menu.showHotkey("Hotkey: \(spec.display)")
       return true
     } catch {
       let kept = hotkey.binding.map { "; keeping \($0.display)" } ?? ""
-      menu.showHotkey("Hotkey: \(hotkey.binding?.display ?? "none") (\(spec.display) unavailable)")
       fail("\(error.localizedDescription)\(kept)")
       return false
     }
@@ -793,11 +835,12 @@ final class AppController: NSObject, NSApplicationDelegate {
   }
 
   private func showDaemonState(_ state: DaemonSupervisor.State) {
+    guard config?.transcription.provider != "elevenlabs" else { menu.showDaemon(nil); return }
     switch state {
     case .unknown:
       menu.showDaemon(nil)
     case .ready:
-      menu.showDaemon("Parakeet: ready")
+      menu.showDaemon(nil)
       // Saved takes that failed while the daemon was down or loading.
       if let config, contractMismatch == nil { recoverLeftoverTakes(config: config) }
     case .warming(let reason):
@@ -935,9 +978,12 @@ final class AppController: NSObject, NSApplicationDelegate {
     do {
       try LoginItem.toggle()
       Log.write("login: start at login \(LoginItem.text(LoginItem.status))")
+      settingsModel.failed = false
+      settingsModel.message = "Start at Login: \(LoginItem.text(LoginItem.status))"
     } catch {
       Log.write("login: could not change start at login: \(error.localizedDescription)")
       fail("could not change Start at Login: \(error.localizedDescription)")
+      settingsModel.finished(error: error.localizedDescription)
     }
     menu.showLogin(LoginItem.status)
   }
@@ -956,12 +1002,48 @@ final class AppController: NSObject, NSApplicationDelegate {
     }
   }
 
-  private func showStats() {
+  private func showStats(settings: Bool = false) {
     MainActor.assumeIsolated {
       let window = statsWindow ?? StatsWindowController(
-        model: StatsModel { [weak self] in StatsModel.Source(cli: self?.cli, config: self?.config) })
+        model: statsModel, settings: settingsModel)
       statsWindow = window
-      window.show()
+      settingsModel.loginStatus = LoginItem.status
+      window.show(settings: settings)
+    }
+  }
+
+  private func saveSetting(_ key: String, value: String) {
+    guard let cli, take == nil, !starter.isStarting, status.processing == 0 else {
+      settingsModel.finished(error: "Finish the recording before changing settings.")
+      return
+    }
+    let previousHotkey = hotkey.binding ?? (try? HotkeySpec.parse(config?.hotkey ?? ""))
+    if key == "app.hotkey" {
+      do { try hotkey.register(HotkeySpec.parse(value)) }
+      catch { settingsModel.finished(error: error.localizedDescription); return }
+    }
+    work.async { [weak self] in
+      let result = Result { try cli.setSetting(key, value: value) }
+      DispatchQueue.main.async {
+        guard let self else { return }
+        switch result {
+        case .success(let config):
+          self.apply(config)
+          let matches: Bool
+          switch key {
+          case "app.hotkey": matches = (try? HotkeySpec.parse(config.hotkey)) == (try? HotkeySpec.parse(value))
+          case "transcription.provider": matches = config.transcription.provider == value
+          case "inline.autosend": matches = config.inline.autosend == (value == "true")
+          case "audio.sounds.enabled": matches = config.soundsEnabled == (value == "true")
+          case "debug.keep_logs": matches = config.transcription.keepLogs == (value == "true")
+          default: matches = true
+          }
+          self.settingsModel.finished(error: matches ? nil : "Saved, but an environment override keeps the current value. Update the override and reload Settings.")
+        case .failure(let error):
+          if key == "app.hotkey", let previousHotkey { self.registerHotkey(previousHotkey) }
+          self.settingsModel.finished(error: error.localizedDescription)
+        }
+      }
     }
   }
 }

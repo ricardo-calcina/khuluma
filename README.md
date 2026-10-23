@@ -1,6 +1,6 @@
 # Khuluma
 
-Local dictation for macOS. Press a key, speak, and the text is pasted into the app in front of you, transcribed on your Mac by a warm Parakeet model (Swift/CoreML). Nothing leaves the machine.
+Dictation for macOS. Press a key, speak, and the text is pasted into the app in front of you. Parakeet (Swift/CoreML) transcribes locally by default. You can explicitly choose ElevenLabs Scribe v2 in Settings; that sends audio to ElevenLabs and uses your API credits.
 
 **Khuluma** means "speak" in isiNdebele and isiZulu. Current work, installed-state evidence and open gates are in [`LOG.md`](LOG.md). The [archived identity-rename outcome](docs/plans/archive/KHULUMA_IDENTITY_RENAME.md) records the transition from the earlier Tmux Whisper/Lowkey identities. The project has three parts:
 
@@ -66,7 +66,7 @@ Canonical config and sounds live at: `~/.config/khuluma` and `~/.local/share/sou
 
 ## Using Khuluma
 
-Press the hotkey to start, speak after the chime, press it again to stop. Ctrl+Esc cancels a recording. The default hotkey is `ctrl+option+space`; change it in `~/.config/khuluma/config.toml`, then choose **Reload Settings** in the menu:
+Press the hotkey to start, speak after the chime, press it again to stop. Ctrl+Esc cancels a recording. The default hotkey is `ctrl+option+space`; record a new one in **Settings**, or edit `~/.config/khuluma/config.toml` and choose **Reload Settings** there:
 
 ```toml
 [app]
@@ -74,15 +74,11 @@ hotkey = "ctrl+option+space"   # e.g. "cmd+shift+d", "f13"
 supervise_daemon = true        # keep the Parakeet daemon warm (launch, wake, recording start)
 ```
 
-The menu shows:
-- whether Khuluma is ready, recording or processing;
-- the hotkey;
-- whether the Parakeet daemon is ready;
-- a warning if `config.toml` doesn't parse.
+The compact, arrowless menu panel shows total words, estimated time saved and average words per minute in three centered columns. Click the menu icon again to close it. Recording, processing, warm-up and error notices appear when needed. The window icon opens Stats; the gear in the menu or window title bar opens **Settings**. Back returns to Stats. Command-comma also opens Settings.
 
-It also offers **Stats…**, **Open Log** and **Start at Login**.
+**Settings** records a new shortcut from a key press and controls the transcription provider, auto-send, sounds, Start at Login and diagnostic logging. Open Log, Open Config and Reload Settings live there. Scribe reads `ELEVENLABS_API_KEY` from the environment or a literal `export ELEVENLABS_API_KEY=...` in your `.zshrc` (including `ZDOTDIR` and `~/.config/zsh`). It never executes the interactive shell or displays the key. Selecting Scribe applies to dictation, saved-recording recovery and file transcription; Parakeet remains the default.
 
-- **Timed-out takes:** when the daemon times out on a take, its audio is kept privately for an hour. **Retry** transcribes it again, and **Paste retried dictation** pastes it wherever you are, without sending. A take that times out on the CLI fallback isn't kept.
+- **Timed-out takes:** when the daemon times out on a take, its audio is kept privately for an hour. **Retry** transcribes it again, and **Paste retried dictation** pastes it wherever you are, without sending. Failed CLI/cloud takes are saved for recovery, including failed network or authentication requests.
 - **Quitting:** a take still recording is saved to disk first, then transcribed into history and copied to the clipboard (never pasted). Takes already stopped and waiting for or in transcription are saved to disk too, and finish as usual. Quit waits up to 30 seconds for all of them. Saved audio and records that haven't reached history by then are finished at the next launch, into history without touching the clipboard. If a take's audio can't be written to disk, Khuluma stays open instead of losing it.
 - **Fallback:** if the daemon can't be reached, the take goes through `khuluma inline process` instead. The same happens when the CLI runs in a non-C locale.
 
@@ -95,7 +91,7 @@ khuluma target origin|current      # the app in front at the start of recording,
 khuluma sound start|stop|process|error on|off
 ```
 
-**Stats…** shows lifetime words, words per minute, the estimated time saved against typing (always labelled as an estimate, at 40 wpm by default), a 30/60/90-day activity heatmap, your streak and your bests. It reads `khuluma usage --json --days all`, which holds counts and durations only, never what you said.
+**Stats** leads with the same lifetime words, estimated time saved against typing (at 40 wpm by default) and average words per minute, including pauses. A 30/60/90-day activity heatmap and optional words-per-day chart sit below, followed by a quiet current streak line, dated records for best day/longest take/longest streak, recording time (all-time and today), and progress toward the next word milestone. These three sections share the normal window's height without scrolling. The milestone bar shows total words as a share of the next target. Refresh (Command-R) sits beside Settings; the info button opens coverage dates, privacy details and the last update time. Recording time totals audio from delivered dictations; it is separate from estimated time saved. Records cover all available daily history, regardless of the Activity range. It reads `khuluma usage --json --days all`, which holds counts and durations only, never what you said.
 
 **Logs:** `~/Library/Logs/Khuluma/app.log` has one `take:` line per take (path, outcome, timings; no text). `tools/khuluma-report.sh` summarises it: outcomes, fallback and failure rates, and where the time goes.
 
@@ -119,7 +115,7 @@ khuluma migrate-modes --skip code   # leave a mode's rules out (still archived)
 
 ## Transcribe audio files
 
-Voice memos go through the same local model:
+Voice memos use the selected transcription provider:
 
 ```bash
 khuluma transcribe memo.m4a               # raw transcript to stdout

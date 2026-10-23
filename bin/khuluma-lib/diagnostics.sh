@@ -40,6 +40,9 @@ collect_set_env_overrides() {
 
 doctor_json() {
   load_backend_runtime_cache >/dev/null 2>&1 || true
+  local selected_backend key_available
+  selected_backend="$(resolve_transcribe_backend)"
+  key_available="$(elevenlabs_key_available)"
 
   local issues=0
   local warnings=0
@@ -129,22 +132,26 @@ doctor_json() {
   swift_models_dir="$(expand_path "$DEFAULT_SWIFT_PARAKEET_MODELS_DIR")"
   local swift_root_ok="0" swift_binary_ok="0" swift_socket_live="0" swift_model_ok="0"
   [[ -n "$swift_root" ]] && swift_root_ok="1"
-  if [[ "$swift_root_ok" != "1" ]]; then
+  if [[ "$selected_backend" == "swift_parakeet" && "$swift_root_ok" != "1" ]]; then
     issues=$((issues + 1))
     doctor_json_add_suggestion "Reinstall native backend sources: ./install.sh --force"
   fi
   [[ -n "$swift_binary" && -x "$swift_binary" ]] && swift_binary_ok="1"
-  if [[ -z "$(command -v swift 2>/dev/null || true)" && "$swift_binary_ok" != "1" ]]; then
+  if [[ "$selected_backend" == "swift_parakeet" && -z "$(command -v swift 2>/dev/null || true)" && "$swift_binary_ok" != "1" ]]; then
     issues=$((issues + 1))
     doctor_json_add_suggestion "Install Swift/Xcode so khulumad can be built"
   fi
   [[ -S "$swift_socket_path" ]] && swift_socket_live="1"
   [[ -n "$swift_model_path" && -d "$swift_model_path" ]] && swift_model_ok="1"
-  if [[ "$swift_model_ok" != "1" ]]; then
+  if [[ "$selected_backend" == "swift_parakeet" && "$swift_model_ok" != "1" ]]; then
     issues=$((issues + 1))
     doctor_json_add_suggestion "Set swift_parakeet.model_path in ~/.config/khuluma/config.toml to your local CoreML Parakeet model directory"
   elif [[ "$swift_model_path" == "$HOME/Library/Application Support/FluidAudio/Models/"* ]]; then
     doctor_json_add_suggestion "Move or copy the Parakeet model into $swift_models_dir so khuluma does not depend on Spokenly/FluidAudio being installed"
+  fi
+  if [[ "$selected_backend" == "elevenlabs" && "$key_available" != "true" ]]; then
+    issues=$((issues + 1))
+    doctor_json_add_suggestion "Export ELEVENLABS_API_KEY in your shell settings, then reload Settings"
   fi
 
   local vocab_path vocab_present="0" vocab_rules="0" legacy_modes="0"
@@ -215,7 +222,8 @@ doctor_json() {
     JSON_CONFIG_SCHEMA_EXPECTED="v$KHULUMA_CONFIG_SCHEMA_VERSION" \
     JSON_CONFIG_SCHEMA_STATUS="$cfg_schema_status" \
     JSON_CONFIG_SCHEMA_PARSE_ERROR="$cfg_parse_error" \
-    JSON_BACKEND="swift_parakeet" \
+    JSON_BACKEND="$selected_backend" \
+    JSON_ELEVENLABS_KEY_AVAILABLE="$key_available" \
     JSON_DAEMON_SOURCE="$swift_root" \
     JSON_DAEMON_SOURCE_OK="$swift_root_ok" \
     JSON_DAEMON_BIN="$swift_binary" \
@@ -288,6 +296,7 @@ data = {
             "parse_error": maybe("JSON_CONFIG_SCHEMA_PARSE_ERROR"),
         },
         "backend": s("JSON_BACKEND"),
+        "elevenlabs_key_available": s("JSON_ELEVENLABS_KEY_AVAILABLE") == "true",
         "daemon_source": {"path": maybe("JSON_DAEMON_SOURCE"), "ok": to_bool_flag("JSON_DAEMON_SOURCE_OK")},
         "daemon_binary": {"path": maybe("JSON_DAEMON_BIN"), "ok": to_bool_flag("JSON_DAEMON_BIN_OK")},
         "daemon_socket": {"path": maybe("JSON_DAEMON_SOCKET"), "live": to_bool_flag("JSON_DAEMON_SOCKET_LIVE")},
@@ -436,21 +445,34 @@ doctor() {
   swift_model_path="$(resolve_swift_parakeet_model_path 2>/dev/null || true)"
   swift_model_version="$(resolve_swift_parakeet_model_version "${swift_model_path:-}")"
   swift_models_dir="$(expand_path "$DEFAULT_SWIFT_PARAKEET_MODELS_DIR")"
-  echo "  - backend: swift_parakeet"
+  local selected_backend
+  selected_backend="$(resolve_transcribe_backend)"
+  echo "  - backend: $selected_backend"
+  if [[ "$selected_backend" == "elevenlabs" ]]; then
+    if [[ "$(elevenlabs_key_available)" == "true" ]]; then
+      echo "  - ElevenLabs API key: available"
+    else
+      echo "  - ElevenLabs API key: unavailable"
+      issues=$((issues + 1))
+      add_suggestion "Export ELEVENLABS_API_KEY in your shell settings, then reload Settings"
+    fi
+  fi
   echo "  - khulumad source: ${swift_root:-missing}"
-  if [[ -z "$swift_root" ]]; then
+  if [[ "$selected_backend" == "swift_parakeet" && -z "$swift_root" ]]; then
     issues=$((issues + 1))
     add_suggestion "Reinstall native backend sources: ./install.sh --force"
   fi
   echo "  - khulumad binary: ${swift_binary:-missing} $([[ -n "$swift_binary" && -x "$swift_binary" ]] && echo '(ok)' || echo '(build needed)')"
-  if [[ -z "$(command -v swift 2>/dev/null || true)" && ( -z "$swift_binary" || ! -x "$swift_binary" ) ]]; then
+  if [[ "$selected_backend" == "swift_parakeet" && -z "$(command -v swift 2>/dev/null || true)" && ( -z "$swift_binary" || ! -x "$swift_binary" ) ]]; then
     issues=$((issues + 1))
     add_suggestion "Install Swift/Xcode so khulumad can be built"
   fi
   echo "  - khulumad socket: $swift_socket_path $([[ -S "$swift_socket_path" ]] && echo '(live)' || echo '(offline)')"
   echo "  - preferred parakeet dir: $swift_models_dir"
   echo "  - parakeet model: ${swift_model_path:-missing}"
-  if [[ -z "$swift_model_path" || ! -d "$swift_model_path" ]]; then
+  if [[ "$selected_backend" != "swift_parakeet" ]]; then
+    echo "  - local model is unused while ElevenLabs is selected"
+  elif [[ -z "$swift_model_path" || ! -d "$swift_model_path" ]]; then
     issues=$((issues + 1))
     add_suggestion "Set swift_parakeet.model_path in ~/.config/khuluma/config.toml to your local CoreML Parakeet model directory"
   else
@@ -644,7 +666,13 @@ status() {
   if [[ -S "$swift_socket_path" ]]; then
     socket_live="1"
   fi
-  if [[ "$model_ready" != "1" ]]; then
+  if [[ "$backend_requested" == "elevenlabs" ]]; then
+    if [[ "$(elevenlabs_key_available)" == "true" ]]; then
+      backend_readiness="cloud_configured"
+    else
+      backend_readiness="missing_key"
+    fi
+  elif [[ "$model_ready" != "1" ]]; then
     backend_readiness="missing_model"
   elif [[ "$socket_live" == "1" ]]; then
     backend_readiness="warm"
@@ -670,6 +698,14 @@ status() {
     summary_state="attention"
     summary_headline="Config schema needs repair."
     summary_next_action="Preview repair with khuluma config repair --dry-run, then run khuluma config repair."
+  elif [[ "$backend_readiness" == "missing_key" ]]; then
+    summary_state="not_ready"
+    summary_headline="ElevenLabs API key is unavailable."
+    summary_next_action="Export ELEVENLABS_API_KEY in your shell settings, then reload Settings."
+  elif [[ "$backend_readiness" == "cloud_configured" ]]; then
+    summary_state="ready"
+    summary_headline="ElevenLabs Scribe is configured."
+    summary_next_action="Use your normal hotkey; transcription requires an internet connection."
   elif [[ "$backend_readiness" == "missing_model" ]]; then
     summary_state="not_ready"
     summary_headline="Parakeet model path is missing or invalid."
