@@ -85,6 +85,60 @@ final class StatusMenu: NSObject {
     statusItem?.button?.performClick(nil)
   }
 
+  /// Cache the real AppKit button, without changing the Mac's appearance.
+  func writePreviewIconSnapshots(to directory: String) {
+    guard sampleData, AppRuntimePaths.isolated, let button = statusItem?.button else { return }
+    let output = URL(fileURLWithPath: directory, isDirectory: true)
+    do { try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true) }
+    catch { print("icon snapshots failed: \(error.localizedDescription)"); return }
+    var status = ActivityStatus()
+    var states = [("ready", status, false)]
+    status.recordingStarted(); states.append(("recording", status, true))
+    status.recordingCancelled(); status.processingStarted(); states.append(("processing", status, false))
+    status.failed("Preview error"); states.append(("error", status, false))
+    let previousAppearance = button.appearance
+    defer {
+      button.appearance = previousAppearance
+      button.highlight(false)
+      show(ActivityStatus(), recording: false)
+    }
+    var failures = readyImage == nil ? 1 : 0
+    print("icon resource loaded=\(readyImage != nil) canvas=\(readyImage?.size ?? .zero)")
+    for (name, activity, recording) in states {
+      show(activity, recording: recording)
+      for (look, appearance) in [("light", NSAppearance.Name.aqua), ("dark", .darkAqua)] {
+        button.appearance = NSAppearance(named: appearance)
+        for selected in [false, true] {
+          func capture() {
+            button.displayIfNeeded()
+            let bounds = button.bounds
+            let file = output.appendingPathComponent("icon-\(name)-\(look)\(selected ? "-selected" : "").png")
+            guard let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil,
+              pixelsWide: Int(bounds.width * 2), pixelsHigh: Int(bounds.height * 2), bitsPerSample: 8,
+              samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
+              bytesPerRow: 0, bitsPerPixel: 0) else { failures += 1; return }
+            bitmap.size = bounds.size
+            button.cacheDisplay(in: bounds, to: bitmap)
+            guard let png = bitmap.representation(using: .png, properties: [:]),
+                  (try? png.write(to: file)) != nil else { failures += 1; return }
+            let image = button.image
+            if self.statusItem?.length != 36 || image?.isTemplate != true { failures += 1 }
+            print("\(file.path) slot=\(self.statusItem?.length ?? 0) window=\(button.window?.frame ?? .zero) button=\(button.frame) image=\(image?.size ?? .zero) template=\(image?.isTemplate == true) menuOpen=\(self.dropdown?.isPresented == true) label=\(button.accessibilityLabel() ?? "")")
+          }
+          if selected {
+            let timer = Timer(timeInterval: 0.05, repeats: false) { [weak self] _ in
+              MainActor.assumeIsolated { capture(); self?.dropdown?.dismiss() }
+            }
+            RunLoop.main.add(timer, forMode: .common)
+            button.performClick(nil)
+            timer.invalidate()
+          } else { capture() }
+        }
+      }
+    }
+    print("icon snapshots complete: \(failures) failures")
+  }
+
   private func perform(_ action: () -> Void) {
     dropdown?.dismiss()
     action()

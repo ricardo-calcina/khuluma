@@ -2,11 +2,11 @@
 
 ## Now
 
-Shipping the selected raised light/dark app icon and 18-point menu glyph. Production exports and bundle resources are prepared; helper regression checks pass and the isolated signed preview is building. Local installation is authorized; live appearance and menu checks remain.
+Khuluma v0.11.0 build 342 is installed from `0ad066f`, with the raised app icon and 18-point menu glyph. Signature, 36 helper regressions, 16 native button renders and doctor pass; config, daemon binary and PID are unchanged. Native menu captures prove stable space and open/dismiss behavior. Finder still chooses the light icon despite valid AppKit light/dark rendering; the compiled native catalog remains open. Its source/workflow are prepared in `7d82223`; public build publication awaits explicit approval after automatic review rejected the push. General appearance remains Auto; the user approved and enabled icon style Dark → Auto.
 
-The menu utility and integrated Settings are installed locally: Khuluma v0.11.0 build 340 and the matching local CLI (contract 4), from `6a48abb` on `feat/menu-utility-settings`. Stats uses three sections across the viewport, with an accurate full-target milestone bar, toolbar utilities and compact Settings. File-transcription entry/output remains a separate design question.
+The menu utility and integrated Settings from build 340 remain in the installed icon update, with the matching local CLI (contract 4). Stats uses three sections across the viewport, with an accurate full-target milestone bar, toolbar utilities and compact Settings. File-transcription entry/output remains a separate design question.
 
-The user confirmed menu toggling, dictation and Control-Escape cancellation work; custom menu-icon artwork is being handled in another session. Live Stats matches the CLI and doctor reports no issues or warnings. F17, Parakeet, canonical data/config/model/sound paths, signing identity and the running daemon were preserved. The Homebrew keg and public release remain unchanged; build 332 and matching local code/receipt backups are retained for recovery.
+The user confirmed build 340 menu toggling, dictation and Control-Escape cancellation. Live Stats matches the CLI. F17, Parakeet, canonical data/config/model/sound paths, signing identity and the running daemon were preserved. The Homebrew keg and public release remain unchanged; build 340 and older code/receipt backups are retained for recovery.
 
 Canonical-only compatibility removal is complete in source #85 and homebrew-tap#7. The immutable source archive matched Git; shell/native checks, pinned bootstrap, both three-scenario hosted package QA runs and the targeted local Brew upgrade passed. Old kegs, the previous app/local code and all data/recovery material remain retained. The completed identity migration is recorded in [its archived outcome](docs/plans/archive/KHULUMA_IDENTITY_RENAME.md).
 
@@ -20,7 +20,7 @@ Continue the existing daily-use observation before phase 1. No installed old Kwi
 - [x] P1 · Complete isolated rename/migration/recovery acceptance, controlled daily cutover and source/tap integration · added 2026-10-22
 
 - [ ] P1 · Before phase 2: search UKIPO and EUIPO by hand for KHULUMA; register khuluma.app · added 2026-10-17
-- [ ] P1 · Package selected raised light/dark icon artwork for automatic appearance; review matching menu template; bundle still has no icon · added 2026-10-17
+- [ ] P1 · Finish Finder automatic light/dark icons with prepared native catalog; public compile awaits approval; raised icon/18 pt menu glyph installed · added 2026-10-17
 - [ ] P1 · Join the Apple Developer Program before phase 2 · added 2026-10-15
 - [ ] P1 · Phase 0 gate: a week of daily use, then `tools/khuluma-report.sh` gates still met · added 2026-10-17
 - [ ] P1 · Phase 1 step 1: native usage ledger and history writer, proven against the CLI with shared fixtures (removes `inline record`) · added 2026-10-17
@@ -42,6 +42,8 @@ Continue the existing daily-use observation before phase 1. No installed old Kwi
 
 ## Decisions
 
+- Icon update recovery: `/Users/admin/Applications/.khuluma-app.LYfteh/previous.app` retains signed build 340; QA and native render evidence stay at `/private/tmp/khuluma-icons-qa.bhadKs/`. Preserve newer user data when recovering.
+
 - Local menu/Settings cutover recovery: `/Users/admin/Applications/.khuluma-live.qBasYG/previous.app` retains build 332; `code-manifest.json` and code backups retain the matching prior local CLI/receipt. Preserve newer usage/history when recovering.
 
 - Prefer canonical-only interfaces. v0.11.0 removed ordinary old command/environment/app compatibility after concrete caller and daily-workflow checks, superseding the former 30-day identity wait. Preserve data, historical releases, explicit recovery and wrong-profile/competing-writer refusals. The completed per-file removal plan remains in Git at `8da982b:LOG.md`; source #85 records implementation.
@@ -54,6 +56,8 @@ Continue the existing daily-use observation before phase 1. No installed old Kwi
 - Rename the existing repository in place to preserve all history; retain neutral `ricardo-nth/tap` and rename its formula to `khuluma`. The in-place repository rename, immutable v0.10.0 release and canonical formula/map are published and verified. The app continues to depend on its matching CLI; cask/CLI-independence/deprecation/archive are separate future work.
 
 ## Done
+
+- 2026-10-23 · Installed signed build 342 raised app icon/18 pt menu glyph; helper/native-render/doctor checks pass, config/daemon preserved; Finder adaptive catalog pending · 0ad066f; assets/icons/README.md
 
 - 2026-10-23 · Installed signed build 340 and matching local contract-4 CLI from 6a48abb; CI/17 stats tests/42 renders/doctor pass, user confirmed menu/dictation/cancel; daemon/data preserved · native/Sources/Khuluma/Stats; local recovery .khuluma-live.qBasYG
 
