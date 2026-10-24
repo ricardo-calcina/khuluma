@@ -55,7 +55,7 @@ if [[ "$bootstrap_help" != *"--ref REF"* ]]; then
   echo "Expected bootstrap help to document pinned refs" >&2
   exit 1
 fi
-if [[ "$bootstrap_help" != *"ricardo-nth/khuluma/main/bootstrap.sh"* ]]; then
+if [[ "$bootstrap_help" != *"ricardo-calcina/khuluma/main/bootstrap.sh"* ]]; then
   echo "Expected bootstrap help to reference the canonical source" >&2
   exit 1
 fi
@@ -75,7 +75,7 @@ cmp "$TMP_ROOT/obsolete-help.out" <(printf '%s\n' "$bootstrap_help")
 
 # Pass-through args should reach install.sh.
 bootstrap_output="$(KHULUMA_BOOTSTRAP_ARCHIVE_URL="$ARCHIVE_URL" "$ROOT/bootstrap.sh" --no-sounds)"
-if [[ "$bootstrap_output" != *"Bootstrap source: ricardo-nth/khuluma@main"* ]]; then
+if [[ "$bootstrap_output" != *"Bootstrap source: ricardo-calcina/khuluma@main"* ]]; then
   echo "Expected bootstrap output to report source repo/ref" >&2
   exit 1
 fi
@@ -89,14 +89,14 @@ assert_file "$HOME/.local/bin/khuluma"
 assert_file "$HOME/.config/khuluma/config.toml"
 assert_file "$HOME/.config/khuluma/install-receipt.env"
 assert_not_file "$HOME/.local/share/sounds/khuluma/start.wav"
-if ! rg -q '^install_source=bootstrap:ricardo-nth/khuluma@main$' "$HOME/.config/khuluma/install-receipt.env"; then
+if ! rg -q '^install_source=bootstrap:ricardo-calcina/khuluma@main$' "$HOME/.config/khuluma/install-receipt.env"; then
   echo "Expected bootstrap install receipt source" >&2
   exit 1
 fi
 
 KHULUMA_BOOTSTRAP_REF=ignored "$ROOT/bootstrap.sh" --archive-url "$ARCHIVE_URL" --ref test-ref --with-sounds
 assert_file "$HOME/.local/share/sounds/khuluma/start.wav"
-if ! rg -q '^install_source=bootstrap:ricardo-nth/khuluma@test-ref$' "$HOME/.config/khuluma/install-receipt.env"; then
+if ! rg -q '^install_source=bootstrap:ricardo-calcina/khuluma@test-ref$' "$HOME/.config/khuluma/install-receipt.env"; then
   echo "Expected --ref to be reflected in bootstrap install receipt" >&2
   exit 1
 fi

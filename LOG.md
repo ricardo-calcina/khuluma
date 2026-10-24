@@ -4,7 +4,7 @@
 
 The user accepts the current dictation cleanup and Settings as working well; this work is closed for now. Further settings expansion, repeated-word cleanup and provider comparisons are parked below for a later session.
 
-Khuluma v0.11.0 build 367 and its matching contract-5 CLI are installed from `4dcf33e`. Source [CI](https://github.com/ricardo-nth/khuluma/actions/runs/40016372572) and [Swift](https://github.com/ricardo-nth/khuluma/actions/runs/40016372589) passed before cutover. The signed app relaunched on the native pipeline; doctor reports zero issues/warnings. A real 35-second take delivered through the native path after cutover. The installation preserved F17, config, existing vocabulary, icon preference/catalog and daemon binary/PID. The installer skipped warm-up and sound replacement; Homebrew and public releases are unchanged.
+Khuluma v0.11.0 build 367 and its matching contract-5 CLI are installed from `4dcf33e`. Source [CI](https://github.com/ricardo-calcina/khuluma/actions/runs/40016372572) and [Swift](https://github.com/ricardo-calcina/khuluma/actions/runs/40016372589) passed before cutover. The signed app relaunched on the native pipeline; doctor reports zero issues/warnings. A real 35-second take delivered through the native path after cutover. The installation preserved F17, config, existing vocabulary, icon preference/catalog and daemon binary/PID. The installer skipped warm-up and sound replacement; Homebrew and public releases are unchanged.
 
 The installed Settings and vocabulary editor load the existing rules and export equivalent JSON. Installed CLI vocabulary save and filler/sentence/brand cleanup pass against a private synthetic profile. Cleanup is now enabled with Exact repeated sentences (level 3). The prepared vocabulary is active: 11 fillers, 28 brand rules and 7 other-word rules; all previous corrections survive. The installed app confirms the saved settings, and a combined filler/repetition/brand sample passes. A local replay of the latest 97-second dictation exactly reproduces the saved result, including removal of four hesitations. New tool-name variants are active; the separate sentence-repetition check passes. Personal vocabulary contents remain outside Git. The source combines menu/Stats/Settings, adaptive/animated icon themes, audio retention and vocabulary work in four grouped merges on main.
 
@@ -65,9 +65,11 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 - Name chosen: Khuluma. Approved rename target is bundle `com.ricardo-nth.khuluma` with a separate `Khuluma Local Code Signing` identity; preserve the existing Lowkey identity and data for other apps/rollback. The controlled cutover and final v0.10.0 app acceptance passed. Name research is dated in `docs/plans/KHULUMA_NAME_CHECK.md`; official UK/EU checks remain open above.
 - Direct distribution is the planned channel. Mac App Store phase 6 is parked; the old roadmap keeps the sandbox research. Free/paid store distribution is undecided.
 - Tmux capture, CLI recording, LLM rewriting, silence trim, bash chunking, Raycast and SwiftBar were dropped; reintroduce none without evidence. Usage, Stats and logs keep counts/timings, not transcript text; history and pending recovery are the intentional text stores.
-- Rename the existing repository in place to preserve all history; retain neutral `ricardo-nth/tap` and rename its formula to `khuluma`. The in-place repository rename, immutable v0.10.0 release and canonical formula/map are published and verified. The app continues to depend on its matching CLI; cask/CLI-independence/deprecation/archive are separate future work.
+- Rename the existing repository in place to preserve all history; retain neutral `ricardo-calcina/tap` and rename its formula to `khuluma`. The in-place repository rename, immutable v0.10.0 release and canonical formula/map are published and verified. The app continues to depend on its matching CLI; cask/CLI-independence/deprecation/archive are separate future work.
 
 ## Done
+
+- 2026-10-24 · Updated active GitHub references for ricardo-calcina; app identifiers and historical evidence preserved · GitHub username migration
 
 - 2026-10-24 · Logged future Dock visibility control beside menu bar icons and clearer repetition choices/examples; implementation deferred · Next
 

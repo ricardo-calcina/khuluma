@@ -9,16 +9,16 @@ Installs Khuluma from a GitHub source archive.
 Environment: KHULUMA_BOOTSTRAP_REPO, KHULUMA_BOOTSTRAP_REF,
              KHULUMA_BOOTSTRAP_ARCHIVE_URL.
 Options:
-  --repo OWNER/REPO  source repository (default: ricardo-nth/khuluma)
+  --repo OWNER/REPO  source repository (default: ricardo-calcina/khuluma)
   --ref REF          source branch/tag/commit (default: main)
   --archive-url URL  exact source archive URL (advanced/testing)
   -h, --help         show this help
 Other arguments are forwarded to install.sh.
 Example:
-  curl -fsSL https://raw.githubusercontent.com/ricardo-nth/khuluma/main/bootstrap.sh | bash -s -- --no-sounds
+  curl -fsSL https://raw.githubusercontent.com/ricardo-calcina/khuluma/main/bootstrap.sh | bash -s -- --no-sounds
 USAGE
 }
-REPO="${KHULUMA_BOOTSTRAP_REPO:-ricardo-nth/khuluma}"
+REPO="${KHULUMA_BOOTSTRAP_REPO:-ricardo-calcina/khuluma}"
 REF="${KHULUMA_BOOTSTRAP_REF:-main}"
 ARCHIVE_URL="${KHULUMA_BOOTSTRAP_ARCHIVE_URL:-}"
 INSTALL_ARGS=()
