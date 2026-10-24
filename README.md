@@ -28,7 +28,7 @@ Khuluma is built from a clone, and it needs the CLI from the same checkout: the 
 For an older Tmux Whisper/Lowkey installation, start with [Identity migration](docs/INTEGRATIONS.md#identity-migration) before running the installation commands below.
 
 ```bash
-git clone https://github.com/ricardo-nth/khuluma.git
+git clone https://github.com/ricardo-calcina/khuluma.git
 cd khuluma
 ./install.sh                     # the CLI, default config, vocab and sounds
 tools/make-signing-identity.sh   # checks the dedicated identity; prints safe creation instructions if absent
@@ -54,10 +54,10 @@ The new bundle ID is `com.ricardo-nth.khuluma`, signed with a separate `Khuluma 
 
 `install.sh` keeps your config, vocab and sounds, including with `--force`, which only refreshes the scripts and adds missing defaults. Other flags: `--no-sounds`, `--with-sounds`, `--replace-sounds` (overwrite your sound files with the bundled ones). It ends with a daemon warm-up, and writes an install receipt to `~/.config/khuluma/install-receipt.env`.
 
-**CLI only:** the published Homebrew formula (`brew install ricardo-nth/tap/khuluma`) and `bootstrap.sh` install the CLI without the app. They are for file transcription, or a pinned CLI on another machine:
+**CLI only:** the published Homebrew formula (`brew install ricardo-calcina/tap/khuluma`) and `bootstrap.sh` install the CLI without the app. They are for file transcription, or a pinned CLI on another machine:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ricardo-nth/khuluma/main/bootstrap.sh | bash -s -- --ref v0.11.0 --force
+curl -fsSL https://raw.githubusercontent.com/ricardo-calcina/khuluma/main/bootstrap.sh | bash -s -- --ref v0.11.0 --force
 ```
 
 v0.11.0 exposes the `khuluma` command and `KHULUMA_*` application overrides; standard XDG roots and existing generic overrides such as `SOUNDS_DIR` remain supported. The `tmux-whisper` forwarding command and its older doctor JSON adapter are removed. Rename old environment overrides before updating; obsolete names are rejected before writes, including empty assignments. `khuluma doctor --json` remains schema 2. The local installer retires only the verified v0.10.0 owned shim recoverably and refuses an unknown file at that path.

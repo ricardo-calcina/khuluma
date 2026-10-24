@@ -29,7 +29,7 @@ need() {
   }
 }
 
-repo_slug="ricardo-nth/khuluma"
+repo_slug="ricardo-calcina/khuluma"
 formula_path="$ROOT/../homebrew-tap/Formula/khuluma.rb"
 write_mode="0"
 tag=""

@@ -12,7 +12,7 @@ Thanks for contributing to Khuluma. Current product work is in [`LOG.md`](LOG.md
 ## Development Setup
 
 ```bash
-git clone https://github.com/ricardo-nth/khuluma.git
+git clone https://github.com/ricardo-calcina/khuluma.git
 cd khuluma
 ./tests/ci.sh
 ./install.sh --force

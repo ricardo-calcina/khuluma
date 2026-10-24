@@ -68,7 +68,7 @@ khuluma status
 - Bootstrap install:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ricardo-nth/khuluma/main/bootstrap.sh | bash -s -- --force
+curl -fsSL https://raw.githubusercontent.com/ricardo-calcina/khuluma/main/bootstrap.sh | bash -s -- --force
 khuluma doctor
 khuluma status
 ```
