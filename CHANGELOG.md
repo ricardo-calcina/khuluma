@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Move `khulumad` to FluidAudio 0.15.6 (pinned exactly). A v3 model folder now needs `JointDecisionv3.mlmodelc`; older downloads with only `JointDecision.mlmodelc` report an invalid model path, so download the model again. `swift_parakeet.model_path` can point at FluidAudio's own cache to share one copy with other apps.
 - Expose dictation cleanup and repetition in Settings, with one vocabulary editor for Fillers, Brands and Other words. Add labelled entry editing, search, Undo, reviewed JSON import and export, validated atomic saves, backups and protection against another agent overwriting a newer file.
 - Make vocabulary.json authoritative after its first save, retaining the earlier text vocab intact. Custom filler phrases replace the built-in list; brands and other words share literal replacement rules. Old text-only editing commands refuse to change an inactive vocab file.
 - Add opt-in `clean.enabled` in config and repetition level 3 for exact adjacent sentences of at least five words. Preserve short emphasis, corrections and grammatical doubles. Narrow filler cleanup to unquoted hesitation sounds so uncertainty and natural wording survive; keep CLI/native cleanup identical.
