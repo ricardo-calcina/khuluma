@@ -69,6 +69,7 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 
 ## Done
 
+- 2026-10-27 · khulumad on FluidAudio 0.15.6 (exact); my config's model_path now points at FluidAudio's shared cache (~/Library/Application Support/FluidAudio/Models/parakeet-tdt-0.6b-v3), so Khuluma and the Kwik apps share one Parakeet v3 copy; same transcript on a 30 s clip, warm 1.0 s vs 2.4 s; 164 Swift tests pass · CHANGELOG Unreleased
 - 2026-10-24 · Updated active GitHub references for ricardo-calcina; app identifiers and historical evidence preserved · GitHub username migration
 
 - 2026-10-24 · Logged future Dock visibility control beside menu bar icons and clearer repetition choices/examples; implementation deferred · Next

@@ -25,10 +25,10 @@ let package = Package(
     ),
   ],
   dependencies: [
-    // 0.12.x only: 0.13+ changed the transcription API and model files, so
-    // moving on needs its own migration. 0.12.6 makes AsrManager an actor,
-    // which the Swift 6.3 compiler requires.
-    .package(url: "https://github.com/FluidInference/FluidAudio.git", .upToNextMinor(from: "0.12.6")),
+    // Pinned exactly: minor releases change the transcription API and model
+    // files. 0.15.6 reads the same Parakeet v3 folder (JointDecisionv3) as
+    // FluidAudio's own cache, so one model copy can serve other apps too.
+    .package(url: "https://github.com/FluidInference/FluidAudio.git", exact: "0.15.6"),
   ],
   targets: [
     .target(

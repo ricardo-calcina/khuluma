@@ -125,7 +125,9 @@ public actor ASREngine {
     }
 
     let started = ContinuousClock.now
-    let result = try await manager.transcribe(audioURL, source: .system)
+    // A fresh decoder state per take, as the per-source state was before.
+    var decoderState = TdtDecoderState.make(decoderLayers: version.decoderLayers)
+    let result = try await manager.transcribe(audioURL, decoderState: &decoderState)
     return TranscriptionResult(
       text: result.text,
       model: modelURL.lastPathComponent,
@@ -142,7 +144,7 @@ public actor ASREngine {
       return
     }
 
-    guard AsrModels.modelsExist(at: modelURL) else {
+    guard AsrModels.modelsExist(at: modelURL, version: version) else {
       throw DaemonServiceError.modelPathInvalid(modelURL.path)
     }
 
@@ -154,7 +156,7 @@ public actor ASREngine {
     )
 
     let newManager = AsrManager()
-    try await newManager.initialize(models: models)
+    try await newManager.loadModels(models)
     manager = newManager
     currentKey = key
     snapshot.set(path: requestedPath ?? modelURL.path, version: versionLabel)

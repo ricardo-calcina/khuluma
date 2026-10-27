@@ -15,7 +15,7 @@ The tmux pane flow, CLI recording, LLM post-processing, the Raycast scripts and 
 - macOS 14 or later
 - `python3` 3.11+ (for `tomllib`) and `ffmpeg`
 - Xcode or the Command Line Tools (`swift`), to build the daemon and Khuluma
-- A Parakeet CoreML model on disk, at `~/.local/share/khuluma/models/parakeet-tdt-0.6b-v3-coreml` (or `-v2-coreml`), or anywhere `swift_parakeet.model_path` in the config points. Install doesn't download it; FluidInference publishes these CoreML conversions on Hugging Face.
+- A Parakeet CoreML model on disk, at `~/.local/share/khuluma/models/parakeet-tdt-0.6b-v3-coreml` (or `-v2-coreml`), or anywhere `swift_parakeet.model_path` in the config points. Install doesn't download it; FluidInference publishes these CoreML conversions on Hugging Face. A v3 folder needs `JointDecisionv3.mlmodelc` (FluidAudio 0.15.6); download again if yours only has `JointDecision.mlmodelc`. FluidAudio's own cache works too: point `model_path` at `~/Library/Application Support/FluidAudio/Models/parakeet-tdt-0.6b-v3` to share one copy with other FluidAudio apps.
 
 ## Source and installed runtime
 
