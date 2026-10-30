@@ -5,6 +5,7 @@
 - Finish a take with the shortcut plus Shift (configurable in Settings → Dictation, or off) to paste it without sending, while auto-send stays on for other takes. The extra shortcut is bound only while recording.
 - Add an Auto-send switch to the menu footer.
 - Drop the menu's All time caption. Settings → Appearance → Menu figures shows all-time or today's words, time saved and WPM, and an optional 7-day bar strip (on by default) sits under them.
+- Vocabulary entry no longer locks the editor while you type: moving to another entry, section, Save, Import or Export keeps a finished entry in the draft and drops an unfinished one. Return adds and puts the cursor back in the first field.
 - Replace the window's gear and Back navigation with Stats | Vocabulary | Settings tabs in the title bar (Command-1/2/3). Vocabulary is a tab instead of a sheet, and its draft survives switching tabs.
 - Add Settings → Transcription → Language for Scribe, with Auto-detect, saved as `[transcription] language` (English by default; `KHULUMA_LANGUAGE` still overrides).
 - Add vocabulary Examples: saved said/expected pairs checked live against the draft and before every save, a preview of what the draft does to any text, recent dictations as input, and a one-click rule for an example that differs by one word or phrase. Examples are optional in `vocabulary.json` and never used as rules.

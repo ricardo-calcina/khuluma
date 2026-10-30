@@ -8,6 +8,8 @@ import UniformTypeIdentifiers
 struct VocabularyView: View {
   @ObservedObject var model: VocabularyModel
   @ObservedObject var settings: SettingsModel
+  @FocusState private var focus: Field?
+  private enum Field { case heard, write }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
@@ -15,7 +17,7 @@ struct VocabularyView: View {
         Picker("Section", selection: Binding(get: { model.section }, set: { model.changeSection($0) })) {
           ForEach(VocabularyModel.Section.allCases) { Text($0.rawValue).tag($0) }
         }
-        .pickerStyle(.segmented).labelsHidden().disabled(!model.canEdit || model.formDirty)
+        .pickerStyle(.segmented).labelsHidden().disabled(!model.canEdit)
         if model.working { ProgressView().controlSize(.small).accessibilityLabel("Updating vocabulary") }
       }
       HStack {
@@ -26,7 +28,7 @@ struct VocabularyView: View {
             .buttonStyle(.plain).help("Clear search").accessibilityLabel("Clear search")
         }
       }
-      .disabled(model.working || model.formDirty)
+      .disabled(model.working)
       HStack {
         Text(model.section == .fillers ? "Remove when heard" : heardTitle)
         Spacer()
@@ -62,7 +64,7 @@ struct VocabularyView: View {
             .font(.callout).foregroundStyle(.secondary).padding().allowsHitTesting(false)
         }
       }
-      .disabled(!model.canEdit || model.formDirty)
+      .disabled(!model.canEdit)
       HStack {
         Text("\(model.filtered.count.formatted()) of \(model.entries.count.formatted()) \(model.entries.count == 1 ? "entry" : "entries")")
           .font(.caption).foregroundStyle(.secondary)
@@ -87,29 +89,31 @@ struct VocabularyView: View {
               }
             }
             TextField(heardPlaceholder, text: $model.heard)
+              .focused($focus, equals: .heard)
               .accessibilityLabel(model.section == .fillers ? "Filler or phrase" : heardTitle)
           }
           if model.section != .fillers {
             VStack(alignment: .leading, spacing: 4) {
               Text(writeTitle).font(.caption)
               TextField(model.section == .examples ? "The text you want pasted" : "e.g. pnpm", text: $model.write)
+                .focused($focus, equals: .write)
                 .accessibilityLabel(writeTitle)
             }
           }
         }
         .textFieldStyle(.roundedBorder)
-        .onSubmit { model.addOrUpdate() }
+        .onSubmit(addEntry)
         HStack {
-          Button(model.selected == nil ? "Add Entry" : "Update Entry") { model.addOrUpdate() }
+          Button(model.selected == nil ? "Add Entry" : "Update Entry", action: addEntry)
             .disabled(model.heard.trimmingCharacters(in: .whitespaces).isEmpty || (model.section != .fillers && model.write.trimmingCharacters(in: .whitespaces).isEmpty))
           Button("Clear Fields") { model.clearFields() }.disabled(model.heard.isEmpty && model.write.isEmpty)
           Spacer()
-          Button("Remove", role: .destructive) { model.remove() }.disabled(model.selected == nil || model.formDirty)
+          Button("Remove", role: .destructive) { model.remove() }.disabled(model.selected == nil)
         }
         if model.section == .examples {
           examplesHelp.font(.caption).frame(minHeight: 28, alignment: .topLeading)
         } else {
-          Text(model.formDirty ? "Add or update this entry, or clear the fields, before choosing another." :
+          Text(model.formDirty ? "Return adds it. Choosing another entry or section keeps it in the draft." :
             (model.section == .fillers ? "Literal phrases, ignoring case. Quoted words and filenames are preserved." : "Use one heard spelling per entry. Add another entry for each variation."))
             .font(.caption).foregroundStyle(.secondary).frame(minHeight: 28, alignment: .topLeading)
         }
@@ -130,15 +134,15 @@ struct VocabularyView: View {
         }
       }.frame(minHeight: 30, alignment: .topLeading)
       HStack {
-        Button("Import…") { chooseImport() }.disabled(!model.canEdit || model.formDirty)
-        Button(model.dirty ? "Export Draft…" : "Export…") { export() }.disabled(!model.loaded || model.working || model.formDirty)
+        Button("Import…") { model.settleFields(); chooseImport() }.disabled(!model.canEdit)
+        Button(model.dirty ? "Export Draft…" : "Export…") { model.settleFields(); export() }.disabled(!model.loaded || model.working)
         Button("Reload") {
           if model.dirty || model.formDirty { model.confirmReload = true } else { model.load() }
         }.disabled(model.working)
         Spacer()
         Button("Save Changes") { model.save() }
           .keyboardShortcut(.defaultAction)
-          .disabled(!model.canEdit || !model.dirty || model.formDirty)
+          .disabled(!model.canEdit || !(model.dirty || (model.formDirty && model.fieldsComplete)))
       }
       .controlSize(.small)
     }
@@ -161,6 +165,13 @@ struct VocabularyView: View {
         Button("Use Imported Vocabulary") { model.useImport() }
         Button("Cancel", role: .cancel) { model.imported = nil }
       } message: { Text(model.importSummary) }
+  }
+
+  /// Adds or updates, then returns to Heard for the next entry.
+  private func addEntry() {
+    guard model.fieldsComplete else { focus = model.heard.isEmpty ? .heard : .write; return }
+    model.addOrUpdate()
+    if !model.formDirty { focus = .heard }
   }
 
   private var heardTitle: String { model.section == .examples ? "Said" : "Heard as" }

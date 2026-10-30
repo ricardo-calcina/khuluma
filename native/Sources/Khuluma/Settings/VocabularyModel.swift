@@ -96,13 +96,27 @@ final class VocabularyModel: ObservableObject {
   var canEdit: Bool { loaded && !working && !settings.recording && !settings.saving }
 
   func clearFields() { selected = nil; heard = ""; write = "" }
+  var fieldsComplete: Bool {
+    !heard.trimmingCharacters(in: .whitespaces).isEmpty
+      && (section == .fillers || !write.trimmingCharacters(in: .whitespaces).isEmpty)
+  }
+  /// Moving on never blocks: a finished entry goes into the draft (Undo can
+  /// take it back), an unfinished one is dropped. Only an invalid entry, such
+  /// as a duplicate, stays in the fields with its message.
+  func settleFields() {
+    guard formDirty else { return }
+    if fieldsComplete { addOrUpdate() } else { clearFields() }
+  }
   func select(_ value: String?) {
+    guard value != selected else { return }
+    settleFields()
     guard !formDirty else { return }
     selected = value
     let entry = entries.first { $0.heard == value }
     heard = entry?.heard ?? ""; write = entry?.write ?? ""
   }
   func changeSection(_ value: Section) {
+    settleFields()
     guard !formDirty else { return }
     section = value; clearFields()
     if value == .examples { loadRecent() }
@@ -195,6 +209,7 @@ final class VocabularyModel: ObservableObject {
   /// Saving with failing examples asks first: they show a rule change broke
   /// something that used to come out right.
   func save(confirmed: Bool = false) {
+    settleFields()
     guard canEdit, !formDirty, let baseline else { return }
     if !confirmed, !exampleFailures.isEmpty {
       confirmFailingSave = true
