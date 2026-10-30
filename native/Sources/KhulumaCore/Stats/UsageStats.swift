@@ -94,6 +94,8 @@ public struct UsageStats: Equatable, Sendable {
   public let todayDictations: Int
   public let todayWords: Int
   public let todayRecordingMs: Int
+  /// Recording start → delivered, summed over today's dictations.
+  public let todayFullElapsedMs: Int
   public let streak: Streak
   public let records: Records
 
@@ -125,6 +127,7 @@ public struct UsageStats: Equatable, Sendable {
     todayDictations = byDate[today]?.count ?? 0
     todayWords = byDate[today]?.words ?? 0
     todayRecordingMs = byDate[today]?.recordingMs ?? 0
+    todayFullElapsedMs = byDate[today]?.fullElapsedMs ?? 0
     let streak = Self.streak(dates: Set(byDate.keys), today: today)
     self.streak = streak
     records = Records(
@@ -195,6 +198,37 @@ public struct UsageStats: Equatable, Sendable {
         return Cell(date: date, state: state, dictations: day?.count ?? 0, words: day?.words ?? 0,
                     recordingMs: day?.recordingMs ?? 0)
       }
+    }
+  }
+
+  /// The menu's three figures for all time or for today.
+  public struct Figures: Equatable, Sendable {
+    public let words: Int
+    /// Estimate, as the CLI computes it: typing-equivalent minus record start → delivered.
+    public let estimatedSavedMs: Int
+    public let wordsPerMinute: Int?
+  }
+
+  public func figures(_ scope: MenuFigures) -> Figures {
+    switch scope {
+    case .allTime:
+      return Figures(words: lifetime.words, estimatedSavedMs: lifetime.estimatedSavedMs,
+                     wordsPerMinute: lifetime.wordsPerMinute)
+    case .today:
+      let typing = todayWords > 0
+        ? Int((Double(todayWords) * 60_000 / Double(max(lifetime.typingWPM, 1))).rounded()) : 0
+      return Figures(words: todayWords, estimatedSavedMs: typing - todayFullElapsedMs,
+                     wordsPerMinute: Self.wpm(words: todayWords, recordingMs: todayRecordingMs))
+    }
+  }
+
+  /// The last `count` days through today, oldest first, for the menu's bars.
+  /// Days before daily tracking began are `.untracked`.
+  public func lastDays(_ count: Int) -> [Cell] {
+    heatmap(days: count).joined().filter {
+      if case .outsideRange = $0.state { return false }
+      if case .future = $0.state { return false }
+      return true
     }
   }
 

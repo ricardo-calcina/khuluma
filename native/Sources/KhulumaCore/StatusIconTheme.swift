@@ -53,3 +53,20 @@ public enum PasteOnlyModifier: String, CaseIterable, Hashable, Sendable {
                                                        carbonModifiers: toggle.carbonModifiers | mask))
   }
 }
+
+/// App-only choice: which period the menu's three figures cover.
+public enum MenuFigures: String, CaseIterable, Hashable, Sendable {
+  case allTime = "all-time"
+  case today
+
+  public init(storedValue: String?) {
+    self = Self(rawValue: storedValue ?? "") ?? .allTime
+  }
+
+  public var title: String {
+    switch self {
+    case .allTime: return "All time"
+    case .today: return "Today"
+    }
+  }
+}

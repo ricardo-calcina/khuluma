@@ -3,30 +3,21 @@ import KhulumaCore
 import SwiftUI
 import UniformTypeIdentifiers
 
+/// The Vocabulary tab. The window owns the model, so a draft survives
+/// switching tabs until it is saved or reloaded.
 struct VocabularyView: View {
+  @ObservedObject var model: VocabularyModel
   @ObservedObject var settings: SettingsModel
-  @StateObject private var model: VocabularyModel
-  @Environment(\.dismiss) private var dismiss
-  init(settings: SettingsModel) {
-    self.settings = settings
-    _model = StateObject(wrappedValue: VocabularyModel(settings: settings))
-  }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
       HStack {
-        VStack(alignment: .leading, spacing: 4) {
-          Text("Vocabulary").font(.title2.weight(.semibold))
-          Text("Fillers, brands and preferred spellings in one place.")
-            .font(.callout).foregroundStyle(.secondary)
+        Picker("Section", selection: Binding(get: { model.section }, set: { model.changeSection($0) })) {
+          ForEach(VocabularyModel.Section.allCases) { Text($0.rawValue).tag($0) }
         }
-        Spacer()
+        .pickerStyle(.segmented).labelsHidden().disabled(!model.canEdit || model.formDirty)
         if model.working { ProgressView().controlSize(.small).accessibilityLabel("Updating vocabulary") }
       }
-      Picker("Section", selection: Binding(get: { model.section }, set: { model.changeSection($0) })) {
-        ForEach(VocabularyModel.Section.allCases) { Text($0.rawValue).tag($0) }
-      }
-      .pickerStyle(.segmented).disabled(!model.canEdit || model.formDirty)
       HStack {
         TextField("Search vocabulary", text: $model.query)
           .textFieldStyle(.roundedBorder).accessibilityLabel("Search vocabulary")
@@ -145,22 +136,16 @@ struct VocabularyView: View {
           if model.dirty || model.formDirty { model.confirmReload = true } else { model.load() }
         }.disabled(model.working)
         Spacer()
-        Button(model.dirty || model.formDirty ? "Cancel" : "Done") { close() }.disabled(model.working)
         Button("Save Changes") { model.save() }
           .keyboardShortcut(.defaultAction)
           .disabled(!model.canEdit || !model.dirty || model.formDirty)
       }
       .controlSize(.small)
     }
-    .padding(20).frame(width: 560, height: 660)
+    .padding(.horizontal, 20).padding(.vertical, 14)
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(Color(nsColor: .windowBackgroundColor))
     .onAppear { if !model.loaded { model.load() } }
-    .interactiveDismissDisabled(model.dirty || model.formDirty || model.working)
-    .onExitCommand { close() }
-    .confirmationDialog("Discard vocabulary changes?", isPresented: $model.confirmDiscard) {
-      Button("Discard Changes", role: .destructive) { dismiss() }
-      Button("Keep Editing", role: .cancel) {}
-    } message: { Text("Your saved vocabulary will stay as it is.") }
     .confirmationDialog("Reload saved vocabulary?", isPresented: $model.confirmReload) {
       Button("Reload and Discard Draft", role: .destructive) { model.load() }
       Button("Keep Editing", role: .cancel) {}
@@ -223,10 +208,6 @@ struct VocabularyView: View {
     }
   }
 
-  private func close() {
-    guard !model.working else { return }
-    if model.dirty || model.formDirty { model.confirmDiscard = true } else { dismiss() }
-  }
   private func chooseImport() {
     let panel = NSOpenPanel()
     panel.allowedContentTypes = [.json]; panel.allowsMultipleSelection = false

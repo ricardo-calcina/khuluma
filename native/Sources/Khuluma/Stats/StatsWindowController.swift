@@ -2,19 +2,23 @@ import AppKit
 import SwiftUI
 import KhulumaCore
 
-/// Stats is the home screen. Settings lives behind the native toolbar gear.
+/// Stats, Vocabulary and Settings are tabs in a centred toolbar segmented
+/// control, so the whole window stays for content. Stats is home.
 @MainActor
 final class StatsWindowController: NSWindowController, NSWindowDelegate, NSToolbarDelegate {
   private let model: StatsModel
   private let navigation = AppNavigation()
+  private let vocabulary: VocabularyModel
   private let detailsPopover = NSPopover()
-  private static let settingsItem = NSToolbarItem.Identifier("Khuluma.Settings")
+  private weak var tabs: NSToolbarItemGroup?
+  private static let tabsItem = NSToolbarItem.Identifier("Khuluma.Tabs")
   private static let refreshItem = NSToolbarItem.Identifier("Khuluma.Refresh")
   private static let infoItem = NSToolbarItem.Identifier("Khuluma.UsageInfo")
-  private static let backItem = NSToolbarItem.Identifier("Khuluma.Back")
 
   init(model: StatsModel, settings: SettingsModel) {
     self.model = model
+    let vocabulary = VocabularyModel(settings: settings)
+    self.vocabulary = vocabulary
     let window = StatsWindow(
       contentRect: NSRect(x: 0, y: 0, width: 560, height: 634),
       styleMask: [.titled, .closable, .miniaturizable, .resizable],
@@ -22,7 +26,7 @@ final class StatsWindowController: NSWindowController, NSWindowDelegate, NSToolb
     window.title = "Khuluma"
     window.isReleasedWhenClosed = false
     window.contentViewController = NSHostingController(rootView: AppView(
-      stats: model, settings: settings, navigation: navigation))
+      stats: model, settings: settings, navigation: navigation, vocabulary: vocabulary))
     window.setContentSize(NSSize(width: 560, height: 634))
     window.contentMinSize = NSSize(width: 560, height: 420)
     window.center()
@@ -35,16 +39,17 @@ final class StatsWindowController: NSWindowController, NSWindowDelegate, NSToolb
     toolbar.displayMode = .iconOnly
     toolbar.allowsUserCustomization = false
     toolbar.autosavesConfiguration = false
+    toolbar.centeredItemIdentifiers = [Self.tabsItem]
     window.toolbarStyle = .unifiedCompact
     window.toolbar = toolbar
-    window.onSettings = { [weak self] in self?.openSettings() }
-    window.onBack = { [weak self] in self?.backToStats() }
+    window.onSelect = { [weak self] page in self?.navigation.selection = page }
     window.onRefresh = { [weak self] in self?.refreshStats() }
     window.onDismissUsageInfo = { [weak self] in
       guard let self, self.detailsPopover.isShown else { return false }
       self.detailsPopover.performClose(nil)
       return true
     }
+    settings.onManageVocabulary = { [weak self] in self?.navigation.selection = .vocabulary }
     navigation.onChange = { [weak self] in self?.updateChrome() }
     updateChrome()
   }
@@ -68,8 +73,10 @@ final class StatsWindowController: NSWindowController, NSWindowDelegate, NSToolb
     model.windowOpened()
   }
 
-  @objc private func openSettings() { navigation.selection = .settings }
-  @objc private func backToStats() { navigation.selection = .stats }
+  @objc private func selectTab(_ sender: Any?) {
+    guard let index = tabs?.selectedIndex, AppNavigation.Page.allCases.indices.contains(index) else { return }
+    navigation.selection = AppNavigation.Page.allCases[index]
+  }
   @objc private func refreshStats() { model.reload() }
 
   @objc private func showUsageInfo(_ sender: NSButton) {
@@ -87,43 +94,53 @@ final class StatsWindowController: NSWindowController, NSWindowDelegate, NSToolb
   private func updateChrome() {
     guard let window = window as? StatsWindow, let toolbar = window.toolbar else { return }
     detailsPopover.performClose(nil)
-    let settings = navigation.selection == .settings
-    window.showingSettings = settings
-    window.title = settings ? "Settings" : "Khuluma"
+    let page = navigation.selection
+    window.page = page
     // The preview must stay visibly distinct from the daily app.
-    if AppRuntimePaths.isolated {
-      window.title = settings ? "Settings · Preview" : "Khuluma Preview · Sample Data"
+    window.title = AppRuntimePaths.isolated ? "Khuluma Preview · Sample Data" : "Khuluma"
+    // Refresh and usage information belong to Stats. Only they come and go,
+    // so the tab control itself is never rebuilt.
+    let statsItems = [Self.infoItem, Self.refreshItem]
+    let showing = toolbar.items.map(\.itemIdentifier).filter(statsItems.contains)
+    if page == .stats, showing.isEmpty {
+      for identifier in statsItems { toolbar.insertItem(withItemIdentifier: identifier, at: toolbar.items.count) }
+    } else if page != .stats, !showing.isEmpty {
+      for index in toolbar.items.indices.reversed() where statsItems.contains(toolbar.items[index].itemIdentifier) {
+        toolbar.removeItem(at: index)
+      }
     }
-    let desired: [NSToolbarItem.Identifier] = settings
-      ? [Self.backItem, .flexibleSpace] : [.flexibleSpace, Self.infoItem, Self.refreshItem, Self.settingsItem]
-    guard toolbar.items.map(\.itemIdentifier) != desired else { return }
-    for index in toolbar.items.indices.reversed() { toolbar.removeItem(at: index) }
-    for (index, identifier) in desired.enumerated() { toolbar.insertItem(withItemIdentifier: identifier, at: index) }
+    tabs?.selectedIndex = AppNavigation.Page.allCases.firstIndex(of: page) ?? 0
   }
 
   func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-    [Self.backItem, .flexibleSpace, Self.infoItem, Self.refreshItem, Self.settingsItem]
+    [.flexibleSpace, Self.tabsItem, Self.infoItem, Self.refreshItem]
   }
 
   func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-    [.flexibleSpace, Self.infoItem, Self.refreshItem, Self.settingsItem]
+    [.flexibleSpace, Self.tabsItem, .flexibleSpace, Self.infoItem, Self.refreshItem]
   }
 
   func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier identifier: NSToolbarItem.Identifier,
                willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
+    if identifier == Self.tabsItem {
+      let group = NSToolbarItemGroup(itemIdentifier: identifier, titles: AppNavigation.Page.allCases.map(\.title),
+                                     selectionMode: .selectOne, labels: nil, target: self,
+                                     action: #selector(selectTab(_:)))
+      group.label = "View"
+      group.toolTip = "Stats (⌘1), Vocabulary (⌘2), Settings (⌘3 or ⌘,)"
+      group.selectedIndex = AppNavigation.Page.allCases.firstIndex(of: navigation.selection) ?? 0
+      tabs = group
+      return group
+    }
     let label: String
     let symbol: String
     let action: Selector
     let help: String
     switch identifier {
-    case Self.settingsItem:
-      (label, symbol, action, help) = ("Settings", "gearshape", #selector(openSettings), "Settings (⌘,)")
     case Self.refreshItem:
       (label, symbol, action, help) = ("Refresh", "arrow.clockwise", #selector(refreshStats), "Refresh (⌘R)")
     case Self.infoItem:
       (label, symbol, action, help) = ("Usage information", "info.circle", #selector(showUsageInfo(_:)), "Usage information")
-    case Self.backItem:
-      (label, symbol, action, help) = ("Back", "chevron.left", #selector(backToStats), "Back to Stats (⌘[)")
     default:
       return nil
     }
@@ -132,9 +149,8 @@ final class StatsWindowController: NSWindowController, NSWindowDelegate, NSToolb
     item.toolTip = help
     item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: label)
     item.target = self
-    item.isNavigational = identifier == Self.backItem
     item.action = action
-    if identifier != Self.backItem, let image = item.image {
+    if let image = item.image {
       let button = NSButton(image: image, target: self, action: action)
       button.image = image.withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 13, weight: .regular))
       button.imageScaling = .scaleNone
@@ -162,7 +178,16 @@ final class StatsWindowController: NSWindowController, NSWindowDelegate, NSToolb
 
 @MainActor
 final class AppNavigation: ObservableObject {
-  enum Page { case stats, settings }
+  enum Page: CaseIterable {
+    case stats, vocabulary, settings
+    var title: String {
+      switch self {
+      case .stats: return "Stats"
+      case .vocabulary: return "Vocabulary"
+      case .settings: return "Settings"
+      }
+    }
+  }
   @Published var selection: Page = .stats { didSet { onChange() } }
   var onChange: () -> Void = {}
 }
@@ -171,17 +196,21 @@ struct AppView: View {
   @ObservedObject var stats: StatsModel
   @ObservedObject var settings: SettingsModel
   @ObservedObject var navigation: AppNavigation
+  let vocabulary: VocabularyModel
 
   var body: some View {
     Group {
-      if navigation.selection == .stats {
+      switch navigation.selection {
+      case .stats:
         GeometryReader { viewport in
           ScrollView {
             StatsView(model: stats, minimumHeight: viewport.size.height)
               .frame(maxWidth: .infinity)
           }
         }
-      } else {
+      case .vocabulary:
+        VocabularyView(model: vocabulary, settings: settings)
+      case .settings:
         SettingsView(model: settings)
       }
     }
@@ -191,15 +220,15 @@ struct AppView: View {
 }
 
 private final class StatsWindow: NSWindow {
-  var onSettings: () -> Void = {}
-  var onBack: () -> Void = {}
+  var onSelect: (AppNavigation.Page) -> Void = { _ in }
   var onRefresh: () -> Void = {}
   var onDismissUsageInfo: () -> Bool = { false }
-  var showingSettings = false
+  var page = AppNavigation.Page.stats
 
+  /// Escape closes usage information, then returns to Stats, then closes.
   override func cancelOperation(_ sender: Any?) {
     if onDismissUsageInfo() { return }
-    if showingSettings { onBack() } else { performClose(sender) }
+    if page != .stats { onSelect(.stats) } else { performClose(sender) }
   }
 
   override func performKeyEquivalent(with event: NSEvent) -> Bool {
@@ -207,9 +236,10 @@ private final class StatsWindow: NSWindow {
     if flags == .command {
       switch event.charactersIgnoringModifiers {
       case "w": performClose(nil); return true
-      case ",": onSettings(); return true
-      case "[" where showingSettings: onBack(); return true
-      case "r" where !showingSettings: onRefresh(); return true
+      case "1": onSelect(.stats); return true
+      case "2": onSelect(.vocabulary); return true
+      case "3", ",": onSelect(.settings); return true
+      case "r" where page == .stats: onRefresh(); return true
       default: break
       }
     }

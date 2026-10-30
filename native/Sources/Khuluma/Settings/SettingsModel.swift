@@ -6,12 +6,13 @@ final class SettingsModel: ObservableObject {
   @Published private(set) var config: AppConfig?
   @Published private(set) var iconTheme: StatusIconTheme
   @Published private(set) var pasteOnlyModifier: PasteOnlyModifier
+  @Published private(set) var menuFigures: MenuFigures
+  @Published private(set) var menuShowsWeek: Bool
   @Published var saving = false
   @Published var recording = false
   @Published var message: String?
   @Published var failed = false
   @Published var loginStatus = LoginItem.status
-  @Published var showingVocabulary = false
   var onSave: (String, String) -> Void = { _, _ in }
   var onReload: () -> Void = {}
   var onToggleLogin: () -> Void = {}
@@ -19,6 +20,8 @@ final class SettingsModel: ObservableObject {
   var onIconThemeChange: (StatusIconTheme) -> Void = { _ in }
   var onOpenLog: () -> Void = { NSWorkspace.shared.open(Log.fileURL) }
   var onOpenConfig: () -> Void = {}
+  /// Shows the window's Vocabulary tab.
+  var onManageVocabulary: () -> Void = {}
   var onLoadVocabulary: () throws -> VocabularySnapshot = { throw CLIBridge.BridgeError.notInstalled }
   var onSaveVocabulary: (VocabularySnapshot) throws -> VocabularySnapshot = { _ in throw CLIBridge.BridgeError.notInstalled }
   var onValidateVocabulary: (Data) throws -> VocabularySheet = { try VocabularySheet.decode($0) }
@@ -29,12 +32,16 @@ final class SettingsModel: ObservableObject {
   private let isolated: Bool
   private static let iconThemeKey = "statusIconTheme"
   private static let pasteOnlyModifierKey = "pasteOnlyModifier"
+  private static let menuFiguresKey = "menuFigures"
+  private static let menuShowsWeekKey = "menuShowsWeek"
 
   init(defaults: UserDefaults = AppRuntimePaths.defaults, isolated: Bool = AppRuntimePaths.isolated) {
     self.defaults = defaults
     self.isolated = isolated
     iconTheme = StatusIconTheme(storedValue: defaults.string(forKey: Self.iconThemeKey))
     pasteOnlyModifier = PasteOnlyModifier(storedValue: defaults.string(forKey: Self.pasteOnlyModifierKey))
+    menuFigures = MenuFigures(storedValue: defaults.string(forKey: Self.menuFiguresKey))
+    menuShowsWeek = defaults.object(forKey: Self.menuShowsWeekKey) as? Bool ?? true
   }
 
   var editable: Bool { config != nil && !saving && !recording }
@@ -53,6 +60,16 @@ final class SettingsModel: ObservableObject {
   func selectPasteOnlyModifier(_ modifier: PasteOnlyModifier) {
     pasteOnlyModifier = modifier
     if !preview || isolated { defaults.set(modifier.rawValue, forKey: Self.pasteOnlyModifierKey) }
+  }
+
+  func selectMenuFigures(_ figures: MenuFigures) {
+    menuFigures = figures
+    if !preview || isolated { defaults.set(figures.rawValue, forKey: Self.menuFiguresKey) }
+  }
+
+  func setMenuShowsWeek(_ shows: Bool) {
+    menuShowsWeek = shows
+    if !preview || isolated { defaults.set(shows, forKey: Self.menuShowsWeekKey) }
   }
 
   /// The paste-only shortcut for the current hotkey, if it can be bound.

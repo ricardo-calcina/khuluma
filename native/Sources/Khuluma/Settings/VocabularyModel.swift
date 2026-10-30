@@ -24,7 +24,6 @@ final class VocabularyModel: ObservableObject {
   @Published var failed = false
   @Published var imported: VocabularySheet?
   @Published var undoStack: [VocabularySheet] = []
-  @Published var confirmDiscard = false
   @Published var confirmReload = false
   private var baseline: VocabularySnapshot?
   private let settings: SettingsModel

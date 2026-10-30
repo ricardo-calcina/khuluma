@@ -267,3 +267,33 @@ struct StatsRefreshTests {
     #expect(refresh.delayForChange(at: 20) == StatsRefresh.debounce)
   }
 }
+
+struct MenuFiguresTests {
+  @Test func todayFiguresUseTodaysBucketAndTheSameEstimate() {
+    // 400 words at 40 wpm = 600 s typing; 120 s from record start to delivered.
+    let today = UsageReport.Day(date: date("2026-10-14"), count: 4, words: 400, recordingMs: 100_000,
+                                fullElapsedMs: 120_000)
+    let stats = UsageStats(report: report(days: [day("2026-10-13", count: 9), today], today: "2026-10-14"),
+                           today: date("2026-10-14"), timeZone: utc)
+    #expect(stats.figures(.today) == .init(words: 400, estimatedSavedMs: 480_000, wordsPerMinute: 240))
+    #expect(stats.figures(.allTime) == .init(words: 24_306, estimatedSavedMs: 27_975_000,
+                                             wordsPerMinute: stats.lifetime.wordsPerMinute))
+  }
+
+  @Test func quietTodayHasNoSpeedAndNoSavedTime() {
+    let stats = UsageStats(report: report(days: [day("2026-10-13", count: 9)], today: "2026-10-14"),
+                           today: date("2026-10-14"), timeZone: utc)
+    #expect(stats.figures(.today) == .init(words: 0, estimatedSavedMs: 0, wordsPerMinute: nil))
+  }
+
+  @Test func lastDaysEndTodayAndMarkDaysBeforeTracking() {
+    let stats = UsageStats(report: report(days: [day("2026-10-02", count: 2, words: 300), day("2026-10-04", count: 1)],
+                                          today: "2026-10-04", started: "2026-10-01T06:00:00Z"),
+                           today: date("2026-10-04"), timeZone: utc)
+    let days = stats.lastDays(7)
+    #expect(days.map(\.date.description) == ["2026-09-28", "2026-09-29", "2026-09-30", "2026-10-01",
+                                             "2026-10-02", "2026-10-03", "2026-10-04"])
+    #expect(days.map(\.words) == [0, 0, 0, 0, 300, 0, 100])
+    #expect(days[2].state == .untracked && days[3].state == .empty && days[4].state == .level(1))
+  }
+}

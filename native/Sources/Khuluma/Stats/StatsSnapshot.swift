@@ -48,23 +48,42 @@ enum StatsSnapshot {
           model: menu, stats: stats, settings: local, openStats: {}, openSettings: {}, action: { _ in })
           .background(Color(nsColor: .windowBackgroundColor))), width: 400)
       }
+      // Menu options from Settings → Appearance. Preview models never write
+      // the daily app's preferences; resetting keeps an isolated run tidy.
+      let options = try UISettingsFixture().model()
+      options.selectMenuFigures(.today)
+      save("menu-today", view: AnyView(MenuPanel(
+        model: MenuModel(), stats: full, settings: options, openStats: {}, openSettings: {}, action: { _ in })
+        .background(Color(nsColor: .windowBackgroundColor))), width: 400)
+      options.selectMenuFigures(.allTime)
+      options.setMenuShowsWeek(false)
+      save("menu-no-week", view: AnyView(MenuPanel(
+        model: MenuModel(), stats: full, settings: options, openStats: {}, openSettings: {}, action: { _ in })
+        .background(Color(nsColor: .windowBackgroundColor))), width: 400)
+      options.setMenuShowsWeek(true)
+      let vocabularyTab = AppNavigation()
+      vocabularyTab.selection = .vocabulary
+      save("app-vocabulary", view: AnyView(AppView(stats: full, settings: local, navigation: vocabularyTab,
+                                                   vocabulary: VocabularyModel(settings: local))),
+           width: 560, height: 634)
       for (name, model) in [("local", local), ("cloud", cloud), ("key-missing", missingKey)] {
         save("settings-\(name)", view: AnyView(SettingsView(model: model)), width: 560, height: 634)
       }
-      save("vocabulary", view: AnyView(VocabularyView(settings: local)), width: 560, height: 660)
-      let navigation = AppNavigation()
-      save("app-stats", view: AnyView(AppView(stats: full, settings: local, navigation: navigation)),
+      save("vocabulary", view: AnyView(VocabularyView(model: VocabularyModel(settings: local), settings: local)),
            width: 560, height: 634)
-      save("app-stats-short", view: AnyView(AppView(stats: full, settings: local, navigation: navigation)),
+      let navigation = AppNavigation()
+      save("app-stats", view: AnyView(AppView(stats: full, settings: local, navigation: navigation, vocabulary: VocabularyModel(settings: local))),
+           width: 560, height: 634)
+      save("app-stats-short", view: AnyView(AppView(stats: full, settings: local, navigation: navigation, vocabulary: VocabularyModel(settings: local))),
            width: 560, height: 420)
-      save("app-stats-milestone", view: AnyView(AppView(stats: examples[0].1, settings: local, navigation: navigation)),
+      save("app-stats-milestone", view: AnyView(AppView(stats: examples[0].1, settings: local, navigation: navigation, vocabulary: VocabularyModel(settings: local))),
            width: 560, height: 634)
       for (name, model) in [("normal", full), ("stale", examples.last!.1)] {
         save("usage-info-\(name)", view: AnyView(StatsDetailsView(model: model)), width: 292)
       }
       let settingsNavigation = AppNavigation()
       settingsNavigation.selection = .settings
-      save("app-settings", view: AnyView(AppView(stats: full, settings: cloud, navigation: settingsNavigation)),
+      save("app-settings", view: AnyView(AppView(stats: full, settings: cloud, navigation: settingsNavigation, vocabulary: VocabularyModel(settings: cloud))),
            width: 560, height: 634)
     } catch {
       FileHandle.standardError.write(Data("UI fixture failed: \(error.localizedDescription)\n".utf8))

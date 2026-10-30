@@ -46,9 +46,8 @@ struct SettingsView: View {
         .disabled(!model.editable || model.config?.cleanup.clean != "1")
         Text("Removes the fillers in your vocabulary. Sentence cleanup keeps changed wording and short emphasis.")
           .font(.caption).foregroundStyle(.secondary)
-        Button("Manage Vocabulary…") { model.showingVocabulary = true }
-          .disabled(!model.editable)
-        Text("One vocabulary for fillers, brands and other words. Edit entries here, or import and export JSON.")
+        Button("Manage Vocabulary") { model.onManageVocabulary() }
+        Text("One vocabulary for fillers, brands, other words and examples, in the Vocabulary tab.")
           .font(.caption).foregroundStyle(.secondary)
       } header: { Text("Cleanup & vocabulary") }
 
@@ -88,6 +87,11 @@ struct SettingsView: View {
         .help("Changes immediately, including during dictation.")
         Text("Both use the same Ready emblem. Full emblem keeps the symbol visible while recording and processing.")
           .font(.caption).foregroundStyle(.secondary)
+        Picker("Menu figures", selection: Binding(get: { model.menuFigures }, set: model.selectMenuFigures)) {
+          ForEach(MenuFigures.allCases, id: \.self) { Text($0.title).tag($0) }
+        }
+        .help("Words, time saved and words per minute in the menu cover all time or today.")
+        Toggle("Show last 7 days in menu", isOn: Binding(get: { model.menuShowsWeek }, set: model.setMenuShowsWeek))
       } header: { Text("Appearance") }
 
       Section {
@@ -128,7 +132,6 @@ struct SettingsView: View {
       if model.saving { ProgressView("Saving settings…").controlSize(.small) }
     }
     .formStyle(.grouped)
-    .sheet(isPresented: $model.showingVocabulary) { VocabularyView(settings: model) }
   }
 
   private var localModelTitle: String {

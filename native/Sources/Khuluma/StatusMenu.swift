@@ -476,17 +476,18 @@ struct MenuPanel: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
       VStack(alignment: .leading, spacing: 10) {
-        Text(sampleData ? "All time · Preview" : "All time")
-          .font(.caption).foregroundStyle(.secondary)
-          .frame(maxWidth: .infinity)
+        // The period is chosen in Settings → Appearance; the labels name it.
         HStack(spacing: 12) {
-          metric("Total words", value: stats.stats.map { $0.lifetime.words.formatted() } ?? "–")
-          metric("Time saved", value: timeSaved)
+          metric(today ? "Words today" : "Total words", value: figures.map { $0.words.formatted() } ?? "–")
+          metric(today ? "Saved today" : "Time saved", value: timeSaved)
             .help("Estimated time saved compared with typing at \(stats.stats?.lifetime.typingWPM ?? 40) words per minute, including delivery time.")
-          metric("Average WPM", value: stats.stats?.lifetime.wordsPerMinute.map { $0.formatted() } ?? "–")
+          metric(today ? "WPM today" : "Average WPM", value: figures?.wordsPerMinute.map { $0.formatted() } ?? "–")
             .help("Words per minute of recording, including pauses.")
         }
         .fixedSize(horizontal: false, vertical: true)
+        if settings.menuShowsWeek, let days = stats.stats?.lastDays(7), stats.stats?.hasDaily == true {
+          WeekBars(days: days)
+        }
         if stats.refreshFailed {
           Label(stats.stats == nil ? "Couldn't load stats. Open Khuluma to retry." : "Couldn't refresh. Showing the last stats.",
                 systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.secondary)
@@ -530,13 +531,16 @@ struct MenuPanel: View {
     return "Paste, then press your send key. Finish with \(shortcut.display) to paste one take without sending."
   }
 
+  private var today: Bool { settings.menuFigures == .today }
+  private var figures: UsageStats.Figures? { stats.stats?.figures(settings.menuFigures) }
+
   private var timeSaved: String {
-    guard let lifetime = stats.stats?.lifetime, lifetime.words > 0 else { return "–" }
-    return Format.savedTime(ms: lifetime.estimatedSavedMs)
+    guard let figures, figures.words > 0 else { return "–" }
+    return Format.savedTime(ms: figures.estimatedSavedMs)
   }
 
   private func metric(_ title: String, value: String) -> some View {
-    VStack(spacing: 5) {
+    VStack(spacing: 3) {
       Text(title).font(.caption).foregroundStyle(.secondary)
       Text(value).font(.system(size: 22, weight: .semibold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
     }
@@ -562,6 +566,43 @@ struct MenuPanel: View {
     if let text = model.paste { Button(text) { action(.paste) } }
     if let text = model.discard { Button(text) { action(.discard) } }
     if let text = model.unsaved { Button(text) { action(.discardUnsaved) } }
+  }
+}
+
+/// Words per day for the last week, today on the right and emphasised.
+private struct WeekBars: View {
+  let days: [UsageStats.Cell]
+
+  var body: some View {
+    let peak = max(days.map(\.words).max() ?? 0, 1)
+    HStack(alignment: .bottom, spacing: 6) {
+      ForEach(Array(days.enumerated()), id: \.offset) { index, day in
+        let isToday = index == days.count - 1
+        VStack(spacing: 3) {
+          ZStack(alignment: .bottom) {
+            Capsule().fill(Color(nsColor: .quaternaryLabelColor)).frame(height: 2)
+            if day.words > 0 {
+              RoundedRectangle(cornerRadius: 2)
+                .fill(Color.accentColor.opacity(isToday ? 1 : 0.6))
+                .frame(height: max(3, 22 * CGFloat(day.words) / CGFloat(peak)))
+            }
+          }
+          .frame(height: 22, alignment: .bottom)
+          Text(Self.initial(day.date))
+            .font(.system(size: 9, weight: isToday ? .semibold : .regular))
+            .foregroundStyle(isToday ? Color.primary : Color.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .help(day.state == .untracked ? "Not tracked" : "\(day.words.formatted()) words")
+      }
+    }
+    .padding(.horizontal, 8)
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel("Last 7 days: " + days.map { "\(Self.initial($0.date)) \($0.words) words" }.joined(separator: ", "))
+  }
+
+  private static func initial(_ date: CivilDate) -> String {
+    ["S", "M", "T", "W", "T", "F", "S"][(date.weekday - 1) % 7]
   }
 }
 
