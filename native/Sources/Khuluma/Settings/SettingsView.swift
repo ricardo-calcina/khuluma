@@ -59,6 +59,12 @@ struct SettingsView: View {
         }
         .disabled(!model.editable)
         if model.provider == "elevenlabs" {
+          Picker("Language", selection: Binding(get: { model.config?.transcription.language ?? "en" },
+                                                set: { model.save("transcription.language", $0) })) {
+            ForEach(languageCodes, id: \.self) { Text(languageTitle($0)).tag($0) }
+          }
+          .disabled(!model.editable)
+          .help("Auto-detect lets Scribe recognise the language of each recording.")
           LabeledContent("API key") {
             Label(model.config?.transcription.keyAvailable == true ? "Available" : "Missing",
                   systemImage: model.config?.transcription.keyAvailable == true ? "checkmark.circle" : "exclamationmark.triangle")
@@ -127,6 +133,17 @@ struct SettingsView: View {
 
   private var localModelTitle: String {
     "Parakeet \(model.config?.transcription.modelVersion ?? "v3") · On this Mac"
+  }
+
+  /// Auto-detect, common Scribe languages, and any other code set in config.
+  private var languageCodes: [String] {
+    let common = ["auto", "en", "es", "fr", "de", "it", "pt", "nl", "zu", "af", "ar", "hi", "ja", "zh"]
+    let current = model.config?.transcription.language ?? "en"
+    return common.contains(current) ? common : common + [current]
+  }
+
+  private func languageTitle(_ code: String) -> String {
+    code == "auto" ? "Auto-detect" : Locale.current.localizedString(forLanguageCode: code) ?? code
   }
 
   private var pasteOnlyNote: String {

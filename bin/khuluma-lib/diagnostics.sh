@@ -776,7 +776,7 @@ status() {
       JSON_SWIFT_MODEL_PATH="$swift_model_path" \
       JSON_SWIFT_MODEL_VERSION="$swift_model_version" \
       JSON_SWIFT_SOCKET_PATH="$swift_socket_path" \
-      JSON_LANGUAGE="${KHULUMA_LANGUAGE:-en}" \
+      JSON_LANGUAGE="$(transcription_language)" \
       JSON_BRITISH_SPELLING="${KHULUMA_BRITISH_SPELLING:-1}" \
       JSON_CLEAN_REGEX="$clean_enabled" \
       JSON_CLEAN_REPEATS_LEVEL="$repeats_level" \
@@ -916,7 +916,7 @@ PYEOF
   [[ -n "$cfg_parse_error" ]] && echo "  config.source: ${CFG_CONFIG_SOURCE:-defaults}"
   echo "  swift_parakeet.model: ${swift_model_path:-<missing>} (${swift_model_version})"
   echo "  swift_parakeet.socket: $swift_socket_path"
-  echo "  language: ${KHULUMA_LANGUAGE:-en}"
+  echo "  language: $(transcription_language)"
   echo "  british_spelling: $(onoff "${KHULUMA_BRITISH_SPELLING:-1}")"
   echo "  clean.regex: $(onoff "$clean_enabled")"
   echo "  clean.repeats_level: $repeats_level"

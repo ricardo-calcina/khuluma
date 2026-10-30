@@ -14,8 +14,28 @@ MAX_ENTRIES = 5000
 DEFAULT_FILLERS = ["um", "umm", "ummm", "uh", "uhh", "uhhh", "erm"]
 
 
+MAX_EXAMPLES = 200
+
+
+def validate_examples(examples):
+    """Saved checks (heard text and the expected result). Cleanup ignores them."""
+    if not isinstance(examples, list) or len(examples) > MAX_EXAMPLES:
+        raise ValueError("examples must be a list of up to 200 entries.")
+    result = []
+    for example in examples:
+        if not isinstance(example, dict) or set(example) != {"said", "expect"}:
+            raise ValueError("Each example needs said and expect text.")
+        for text in example.values():
+            if not isinstance(text, str) or len(text) > 2000 or any(ord(c) < 32 or ord(c) == 127 for c in text):
+                raise ValueError("Each example must be at most 2,000 characters on one line.")
+        if not example["said"].strip():
+            raise ValueError("Each example needs the text that was heard.")
+        result.append({"said": example["said"], "expect": example["expect"]})
+    return result
+
+
 def validate(value):
-    if not isinstance(value, dict) or set(value) != {"schema_version", "fillers", "brands", "words"}:
+    if not isinstance(value, dict) or set(value) - {"examples"} != {"schema_version", "fillers", "brands", "words"}:
         raise ValueError("Use schema_version, fillers, brands and words in the vocabulary JSON.")
     if type(value["schema_version"]) is not int or value["schema_version"] != 1:
         raise ValueError("This vocabulary version is not supported. Use schema_version 1.")
@@ -48,6 +68,9 @@ def validate(value):
                 raise ValueError(f'“{heard}” appears more than once. Keep each heard phrase in one section.')
             seen.add(key)
             result[section].append(clean)
+    examples = validate_examples(value.get("examples", []))
+    if examples:
+        result["examples"] = examples
     return result
 
 

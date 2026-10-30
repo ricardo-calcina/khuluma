@@ -88,6 +88,34 @@ public struct TextPipeline: Sendable {
     let sheet: VocabularySheet?
     do { sheet = try VocabularySheet.load(configDir: settings.configDir) }
     catch { return .needsCLI } // Let the CLI report the invalid document and retain the take.
+    return process(transcript: transcript, sheet: sheet)
+  }
+
+  /// Cleans with `sheet` rather than the saved file: the vocabulary editor's
+  /// preview of a draft, using the same stages as a take.
+  public func preview(transcript: String, sheet: VocabularySheet) -> CleanupOutcome {
+    if settings.requiresCLI { return .needsCLI }
+    return process(transcript: transcript, sheet: sheet)
+  }
+
+  /// The sheet's examples whose cleanup no longer gives the expected text,
+  /// with what it gives now ("" for no speech). Nil when only the CLI can tell.
+  public func failingExamples(_ sheet: VocabularySheet) -> [(example: VocabularySheet.Example, got: String)]? {
+    var failures: [(example: VocabularySheet.Example, got: String)] = []
+    for example in sheet.examples ?? [] {
+      let got: String
+      switch preview(transcript: example.said, sheet: sheet) {
+      case .needsCLI: return nil
+      case .noSpeech: got = ""
+      case .text(_, let text): got = text
+      }
+      // Byte comparison, as the parity tests do: what gets pasted.
+      if !got.utf8.elementsEqual(example.expect.utf8) { failures.append((example, got)) }
+    }
+    return failures
+  }
+
+  private func process(transcript: String, sheet: VocabularySheet?) -> CleanupOutcome {
     let raw = cleanRaw(PerlText.bashCapture(transcript), sheet: sheet)
     if PerlText.isBlank(raw) { return .noSpeech }
     return .text(raw: raw, text: finish(raw, sheet: sheet))

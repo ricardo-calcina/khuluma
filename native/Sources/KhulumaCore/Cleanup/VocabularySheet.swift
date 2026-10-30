@@ -7,16 +7,26 @@ public struct VocabularySheet: Codable, Equatable, Sendable {
     public var write: String
     public init(heard: String, write: String) { self.heard = heard; self.write = write }
   }
+  /// A saved check: what was heard, and the text cleanup should deliver.
+  /// Cleanup ignores examples; the editor reruns them before each save.
+  public struct Example: Codable, Equatable, Hashable, Sendable {
+    public var said: String
+    public var expect: String
+    public init(said: String, expect: String) { self.said = said; self.expect = expect }
+  }
   public var schemaVersion: Int = 1
   public var fillers: [String]
   public var brands: [Correction]
   public var words: [Correction]
+  /// Optional; omitted from the file when there are none.
+  public var examples: [Example]?
+  public static let maximumExamples = 200
   public static let maximumBytes = 1_048_576
   public static let empty = VocabularySheet(fillers: [], brands: [], words: [])
   public static let defaults = VocabularySheet(
     fillers: ["um", "umm", "ummm", "uh", "uhh", "uhhh", "erm"], brands: [], words: [])
 
-  enum CodingKeys: String, CodingKey { case schemaVersion = "schema_version", fillers, brands, words }
+  enum CodingKeys: String, CodingKey { case schemaVersion = "schema_version", fillers, brands, words, examples }
   public init(fillers: [String], brands: [Correction], words: [Correction]) {
     self.fillers = fillers; self.brands = brands; self.words = words
   }
@@ -32,13 +42,19 @@ public struct VocabularySheet: Codable, Equatable, Sendable {
     guard data.count <= maximumBytes else { throw Invalid.document("Choose a vocabulary JSON file smaller than 1 MB.") }
     // Reject unknown fields rather than silently losing an agent's additions.
     guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-          Set(object.keys) == ["schema_version", "fillers", "brands", "words"] else {
+          Set(object.keys).subtracting(["examples"]) == ["schema_version", "fillers", "brands", "words"] else {
       throw Invalid.document("Use schema_version, fillers, brands and words in the vocabulary JSON.")
     }
     for key in ["brands", "words"] {
       guard let entries = object[key] as? [[String: Any]],
             entries.allSatisfy({ Set($0.keys) == ["heard", "write"] }) else {
         throw Invalid.document("Each \(key) entry needs heard and write text.")
+      }
+    }
+    if let examples = object["examples"] {
+      guard let entries = examples as? [[String: Any]],
+            entries.allSatisfy({ Set($0.keys) == ["said", "expect"] }) else {
+        throw Invalid.document("Each example needs said and expect text.")
       }
     }
     return try JSONDecoder().decode(Self.self, from: data).validated()
@@ -66,6 +82,18 @@ public struct VocabularySheet: Codable, Equatable, Sendable {
     }
     result.brands = try corrections(brands)
     result.words = try corrections(words)
+    let examples = examples ?? []
+    guard examples.count <= Self.maximumExamples else { throw Invalid.document("A vocabulary can keep up to 200 examples.") }
+    for example in examples {
+      for text in [example.said, example.expect] where text.unicodeScalars.count > 2000
+        || text.unicodeScalars.contains(where: { $0.value < 32 || $0.value == 127 }) {
+        throw Invalid.document("Each example must be at most 2,000 characters on one line.")
+      }
+      guard !example.said.trimmingCharacters(in: .whitespaces).isEmpty else {
+        throw Invalid.document("Each example needs the text that was heard.")
+      }
+    }
+    result.examples = examples.isEmpty ? nil : examples
     return result
   }
 

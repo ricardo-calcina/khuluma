@@ -166,6 +166,10 @@ final class AppController: NSObject, NSApplicationDelegate {
       guard let cli = self?.cli else { throw CLIBridge.BridgeError.notInstalled }
       return try cli.validateVocabulary(data)
     }
+    settingsModel.onLoadRecentDictations = { [weak self] in
+      guard let cli = self?.cli else { throw CLIBridge.BridgeError.notInstalled }
+      return try cli.recentDictations()
+    }
     settingsModel.onShortcutRecordingChange = { [weak self] recording in
       guard let self else { return }
       if recording { self.hotkey.unregister() }
@@ -1062,6 +1066,7 @@ final class AppController: NSObject, NSApplicationDelegate {
           switch key {
           case "app.hotkey": matches = (try? HotkeySpec.parse(config.hotkey)) == (try? HotkeySpec.parse(value))
           case "transcription.provider": matches = config.transcription.provider == value
+          case "transcription.language": matches = config.transcription.language == value
           case "inline.autosend": matches = config.inline.autosend == (value == "true")
           case "audio.sounds.enabled": matches = config.soundsEnabled == (value == "true")
           case "debug.keep_logs": matches = config.transcription.keepLogs == (value == "true")

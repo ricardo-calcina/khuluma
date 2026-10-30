@@ -1427,6 +1427,12 @@ resolve_transcribe_backend() {
   esac
 }
 
+# KHULUMA_LANGUAGE, else [transcription] language, else English. "auto"
+# lets ElevenLabs detect the language; local Parakeet detects it either way.
+transcription_language() {
+  printf '%s\n' "${KHULUMA_LANGUAGE:-${CFG_TRANSCRIPTION_LANGUAGE:-en}}"
+}
+
 elevenlabs_key_available() {
   python3 "$KHULUMA_INTERNAL_LIB_DIR/providers.py" available
 }
@@ -3387,7 +3393,7 @@ process_inline_recording() {
   local whisper_rc=0
   stage_started_ms="$(now_ms)"
   set +e
-  txt="$(transcribe_audio "$wav" "$model_id" "${KHULUMA_LANGUAGE:-en}" "" "inline")"
+  txt="$(transcribe_audio "$wav" "$model_id" "$(transcription_language)" "" "inline")"
   whisper_rc=$?
   set -e
   transcribe_ms=$(( $(now_ms) - stage_started_ms ))

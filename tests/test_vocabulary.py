@@ -120,6 +120,20 @@ class VocabularyTests(unittest.TestCase):
         result = self.command("inline", "cleanup", "--json", data="brand.")
         self.assertEqual(result["text"], "$1\\folder.")
 
+    def test_examples_round_trip_and_do_not_change_cleanup(self):
+        snapshot = self.snapshot()
+        snapshot["document"]["examples"] = [{"said": "Um, open pn pm.", "expect": "open pnpm."}]
+        saved = self.save(snapshot)
+        self.assertEqual(saved["document"]["examples"], snapshot["document"]["examples"])
+        # Example text is never a rule: "Um, open pn pm." stays a checked input only.
+        result = self.command("inline", "cleanup", "--json", data="Um, open pn pm. Now say said.")
+        self.assertEqual(result["text"], "open pnpm. Now say said.")
+        saved["document"]["examples"] = []
+        self.assertNotIn("examples", self.save(saved)["document"])
+        for bad in ([{"said": "x"}], [{"said": "", "expect": "x"}], [{"said": "a\nb", "expect": "x"}], "x"):
+            document = dict(saved["document"], examples=bad)
+            self.command("vocab-sheet", "validate", "--json", data=json.dumps(document), okay=False)
+
     def test_old_text_commands_do_not_silently_edit_inactive_file(self):
         self.save(self.snapshot())
         previous = (self.config / "vocab").read_bytes()

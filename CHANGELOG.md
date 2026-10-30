@@ -4,6 +4,8 @@
 
 - Finish a take with the shortcut plus Shift (configurable in Settings → Dictation, or off) to paste it without sending, while auto-send stays on for other takes. The extra shortcut is bound only while recording.
 - Add an Auto-send switch to the menu footer.
+- Add Settings → Transcription → Language for Scribe, with Auto-detect, saved as `[transcription] language` (English by default; `KHULUMA_LANGUAGE` still overrides).
+- Add vocabulary Examples: saved said/expected pairs checked live against the draft and before every save, a preview of what the draft does to any text, recent dictations as input, and a one-click rule for an example that differs by one word or phrase. Examples are optional in `vocabulary.json` and never used as rules.
 - Move `khulumad` to FluidAudio 0.15.6 (pinned exactly). A v3 model folder now needs `JointDecisionv3.mlmodelc`; older downloads with only `JointDecision.mlmodelc` report an invalid model path, so download the model again. `swift_parakeet.model_path` can point at FluidAudio's own cache to share one copy with other apps.
 - Expose dictation cleanup and repetition in Settings, with one vocabulary editor for Fillers, Brands and Other words. Add labelled entry editing, search, Undo, reviewed JSON import and export, validated atomic saves, backups and protection against another agent overwriting a newer file.
 - Make vocabulary.json authoritative after its first save, retaining the earlier text vocab intact. Custom filler phrases replace the built-in list; brands and other words share literal replacement rules. Old text-only editing commands refuse to change an inactive vocab file.

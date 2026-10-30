@@ -210,6 +210,29 @@ ELEVENLABS_API_KEY=fixture-env-key KHULUMA_TEST_EXPECTED_KEY=fixture-env-key \
 assert_json "cloud inline uses the same deterministic cleanup and history" "$OUTPUT_DIR/cloud-inline.json" 'data["ok"] is True and data["raw_text"] == "color is useful" and data["text"] == "colour is useful" and data["history_saved"] is True and data["usage_deferred"] is True'
 assert_absent "deferred cloud processing writes no usage" "$KHULUMA_CONFIG_DIR/usage.json"
 
+"$KHULUMA_BIN" app-config --json >"$OUTPUT_DIR/language-default.json"
+assert_json "language defaults to English" "$OUTPUT_DIR/language-default.json" 'data["transcription"]["language"] == "en"'
+reject_setting invalid-language transcription.language english
+reject_setting uppercase-language transcription.language EN
+"$KHULUMA_BIN" app-settings set transcription.language auto --json >"$OUTPUT_DIR/language-auto.json"
+assert_json "auto language is an app setting" "$OUTPUT_DIR/language-auto.json" 'data["transcription"]["language"] == "auto"'
+KHULUMA_LANGUAGE=fr "$KHULUMA_BIN" app-config --json >"$OUTPUT_DIR/language-env.json"
+assert_json "KHULUMA_LANGUAGE overrides the saved language" "$OUTPUT_DIR/language-env.json" 'data["transcription"]["language"] == "fr"'
+"$KHULUMA_BIN" transcribe "$KHULUMA_TEST_FIXTURE_ROOT/input.wav" --format json --quiet >"$OUTPUT_DIR/language-auto-file.json" 2>"$OUTPUT_DIR/language-auto-file.err"
+"$KHULUMA_BIN" app-settings set transcription.language es --json >"$OUTPUT_DIR/language-es.json"
+"$KHULUMA_BIN" transcribe "$KHULUMA_TEST_FIXTURE_ROOT/input.wav" --format json --quiet >"$OUTPUT_DIR/language-es-file.json" 2>"$OUTPUT_DIR/language-es-file.err"
+python3 - "$KHULUMA_TEST_CURL_LOG" <<'PY' || fail "saved language reaches Scribe"
+import json, sys
+with open(sys.argv[1], encoding="utf-8") as stream:
+    requests = [json.loads(line)["args"] for line in stream]
+codes = [[a for a in args if a.startswith("language_code=")] for args in requests]
+assert codes[-3] == ["language_code=en"], codes  # default, before the change
+assert codes[-2] == [], codes                    # auto: Scribe detects
+assert codes[-1] == ["language_code=es"], codes
+PY
+pass "saved language reaches Scribe"
+"$KHULUMA_BIN" app-settings set transcription.language en --json >/dev/null
+
 printf '# no credential in the configured zshrc\n' >"$HOME/.config/zsh/.zshrc"
 KHULUMA_TEST_EXPECTED_KEY=fixture-fallback-key \
   "$KHULUMA_BIN" transcribe "$KHULUMA_TEST_FIXTURE_ROOT/input.wav" --format json --quiet >"$OUTPUT_DIR/fallback-file.json" 2>"$OUTPUT_DIR/fallback-file.err"

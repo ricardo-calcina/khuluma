@@ -82,7 +82,7 @@ app_transcription_settings_json() {
   APPTR_MODEL_PATH="$model_path" \
   APPTR_MODEL_VERSION="$model_version" \
   APPTR_MODEL_LABEL="$(current_transcribe_model_label)" \
-  APPTR_LANGUAGE="${KHULUMA_LANGUAGE:-en}" \
+  APPTR_LANGUAGE="$(transcription_language)" \
   APPTR_TAIL_PAD_MS="${KHULUMA_TRANSCRIBE_TAIL_PAD_MS:-500}" \
   APPTR_TAIL_RESCUE="$tail_rescue" \
   APPTR_TAIL_RESCUE_MS="${KHULUMA_SWIFT_PARAKEET_TAIL_RESCUE_MS:-}" \
@@ -123,6 +123,9 @@ app_settings() {
   case "$key" in
     transcription.provider)
       [[ "$value" == "parakeet" || "$value" == "elevenlabs" ]] || die "provider must be parakeet or elevenlabs"
+      ;;
+    transcription.language)
+      [[ "$value" =~ ^(auto|[a-z]{2,3})$ ]] || die "language must be auto or an ISO 639 code such as en"
       ;;
     swift_parakeet.model_version)
       [[ -z "$value" || "$value" == "v2" || "$value" == "v3" ]] || die "model version must be v2 or v3"

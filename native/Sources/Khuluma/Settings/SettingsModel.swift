@@ -22,6 +22,7 @@ final class SettingsModel: ObservableObject {
   var onLoadVocabulary: () throws -> VocabularySnapshot = { throw CLIBridge.BridgeError.notInstalled }
   var onSaveVocabulary: (VocabularySnapshot) throws -> VocabularySnapshot = { _ in throw CLIBridge.BridgeError.notInstalled }
   var onValidateVocabulary: (Data) throws -> VocabularySheet = { try VocabularySheet.decode($0) }
+  var onLoadRecentDictations: () throws -> [String] = { [] }
   var preview = false
 
   private let defaults: UserDefaults

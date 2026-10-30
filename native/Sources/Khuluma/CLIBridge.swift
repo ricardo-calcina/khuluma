@@ -70,6 +70,14 @@ struct CLIBridge {
     try VocabularySheet.decode(run(["vocab-sheet", "validate", "--json"], timeout: 15, input: data))
   }
 
+  /// The last few dictations' first-pass text (before vocabulary), newest
+  /// first, from `history export` (a stable contract).
+  func recentDictations(limit: Int = 10) throws -> [String] {
+    struct Entry: Decodable { let raw: String }
+    let entries = try JSONDecoder().decode([Entry].self, from: run(["history", "export", String(limit), "--json"], timeout: 15))
+    return entries.map(\.raw).filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+  }
+
   /// `--defer-usage`: the CLI doesn't count the take; the caller records
   /// usage once it has delivered.
   func process(wav: URL, app: String?, recordMs: Int, startupMs: Int, startedAtEpochMs: Int,

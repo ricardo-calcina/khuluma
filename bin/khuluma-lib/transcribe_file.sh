@@ -308,13 +308,13 @@ manage_transcribe() {
     KHULUMA_LAST_BACKEND_ENGINE=""
     KHULUMA_LAST_BACKEND_MODEL=""
     if [[ "$backend" == "elevenlabs" ]]; then
-      text="$(transcribe_elevenlabs_cli "$wav" "${KHULUMA_LANGUAGE:-en}")" || {
+      text="$(transcribe_elevenlabs_cli "$wav" "$(transcription_language)")" || {
         echo "khuluma: transcription failed: $label" >&2
         failures=$((failures + 1)); continue
       }
     elif ! text="$(KHULUMA_SWIFT_PARAKEET_TIMEOUT_SECONDS="$timeout_s" \
       KHULUMA_SWIFT_PARAKEET_TAIL_RESCUE="$tail_rescue" \
-      transcribe_swift_parakeet_tail_rescue_cli "$wav" "${KHULUMA_LANGUAGE:-en}" "file")"; then
+      transcribe_swift_parakeet_tail_rescue_cli "$wav" "$(transcription_language)" "file")"; then
       echo "khuluma: transcription failed: $label (see $TRANSCRIBE_LOG)" >&2
       failures=$((failures + 1)); continue
     fi

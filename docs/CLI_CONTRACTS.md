@@ -91,6 +91,8 @@ These commands are safe to build integrations on:
     event's effective `sounds.<event>.enabled` value.
   - `transcription.provider` is `parakeet` (the default, local) or
     `elevenlabs` (an explicit cloud selection using Scribe v2).
+    `transcription.language` is `KHULUMA_LANGUAGE`, else `[transcription]
+    language`, else `en`; `auto` lets Scribe detect the language.
     `transcription.key_available` reports credential presence without exposing
     its value. Cloud selection sets `pipeline.supervise` to false because it
     does not use the local Parakeet daemon.
@@ -99,6 +101,7 @@ These commands are safe to build integrations on:
     `app-config` object. Environment overrides still take precedence, so the
     returned effective value can differ from the saved value.
   - Editable strings: `app.hotkey`, `transcription.provider`,
+    `transcription.language` (`auto` or a lowercase ISO 639 code such as `en`),
     `swift_parakeet.model_path` (an existing directory, or empty to use model
     discovery), and `swift_parakeet.model_version` (`v2`, `v3`, or empty for
     inference). Hotkeys accept a modifier and key, or F1–F20.
@@ -117,6 +120,11 @@ These commands are safe to build integrations on:
     are accepted. The limits are 1 MB, 5,000 total entries and 200 Unicode
     scalars per phrase. Case-insensitive heard phrases must be unique across
     all sections.
+  - Optional `examples`: up to 200 `{ "said": "...", "expect": "..." }`
+    checks (each at most 2,000 characters on one line; `said` non-empty).
+    Cleanup never reads them; the app's editor reruns them against a draft
+    before saving. The field is omitted when there are none, so older readers
+    of an example-free file are unaffected.
   - Reads `vocabulary.json` when present. Otherwise it exposes the retained
     text `vocab` as Other words alongside the initial hesitation list, without
     converting or replacing any files. Conflicting/invalid text rules must be

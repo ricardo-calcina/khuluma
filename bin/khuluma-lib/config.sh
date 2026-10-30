@@ -21,6 +21,7 @@ audio_retention_days = 2
 
 [transcription]
 provider = "parakeet"
+language = "en"
 
 [swift_parakeet]
 model_path = ""
@@ -195,6 +196,7 @@ out = {
   "CFG_HISTORY_RETENTION_DAYS": str(get("history.retention_days", "7")),
   "CFG_HISTORY_AUDIO_RETENTION_DAYS": str(get("history.audio_retention_days", "2")),
   "CFG_TRANSCRIPTION_PROVIDER": str(get("transcription.provider", "parakeet")),
+  "CFG_TRANSCRIPTION_LANGUAGE": str(get("transcription.language", "en")),
   "CFG_SWIFT_PARAKEET_MODEL_PATH": str(get("swift_parakeet.model_path", "")),
   "CFG_SWIFT_PARAKEET_MODEL_VERSION": str(get("swift_parakeet.model_version", "")),
   "CFG_SWIFT_PARAKEET_SOCKET_PATH": str(get("swift_parakeet.socket_path", "")),
