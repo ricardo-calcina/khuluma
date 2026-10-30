@@ -25,6 +25,11 @@ final class AppController: NSObject, NSApplicationDelegate {
     self?.cancelRecording()
   }
   private static let cancelKey = try! HotkeySpec.parse("ctrl+escape")
+  /// The shortcut plus the chosen modifier (Shift by default) finishes a take
+  /// and pastes without sending. Bound only while recording, like cancel.
+  private lazy var pasteOnlyHotkey = HotkeyMonitor(signature: 0x4B48504F /* 'KHPO' */) { [weak self] in
+    self?.stopRecording(pasteOnly: true)
+  }
   /// One start at a time; a failed start never leaves its marker behind.
   private let starter = TakeStarter()
   private var cli: CLIBridge?
@@ -449,6 +454,12 @@ final class AppController: NSObject, NSApplicationDelegate {
       } catch {
         Log.write("hotkey: \(Self.cancelKey.display) to cancel is unavailable this take: \(error.localizedDescription)")
       }
+      if let binding = hotkey.binding,
+         let pasteOnly = settingsModel.pasteOnlyModifier.stopShortcut(for: binding) {
+        do { try pasteOnlyHotkey.register(pasteOnly) } catch {
+          Log.write("hotkey: \(pasteOnly.display) to paste without sending is unavailable this take: \(error.localizedDescription)")
+        }
+      }
       Log.write(String(format: "start: engine.start %.1fms, hotkey→capturing %.1fms, app=%@",
                        engineMs, startedAt - hotkeyAt, original?.localizedName ?? "-"))
       // While you speak: make sure the daemon is up with the model loaded
@@ -464,12 +475,17 @@ final class AppController: NSObject, NSApplicationDelegate {
     }
   }
 
-  private func stopRecording() {
-    guard let take else { return }
+  private func stopRecording(pasteOnly: Bool = false) {
+    guard var take else { return }
     // "Stop → delivered" starts here, before the engine is torn down.
     let stopAt = monotonicMs()
     take.chime.cancel()
     cancelHotkey.unregister()
+    pasteOnlyHotkey.unregister()
+    if pasteOnly {
+      take.pasteOnly = true
+      Log.write("stop: paste-only shortcut, this take will not be sent")
+    }
     let firstBuffer = recorder.firstBufferTime
     let samples = recorder.stop()
     let engineStopMs = monotonicMs() - stopAt
@@ -504,6 +520,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     guard let take else { return }
     take.chime.cancel()
     cancelHotkey.unregister()
+    pasteOnlyHotkey.unregister()
     _ = recorder.stop()
     take.marker?.remove()
     self.take = nil

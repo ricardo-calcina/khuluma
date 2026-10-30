@@ -20,9 +20,12 @@ struct Take {
   let marker: TakeMarker?
   /// The start chime: played once, when capture is confirmed.
   let chime: OneShot
+  /// Stopped with the paste-only shortcut: paste, never send.
+  var pasteOnly = false
 
   func delivery(_ base: Delivery) -> Delivery {
-    retargeted ? base.restoringOriginalApp() : base
+    let delivery = retargeted ? base.restoringOriginalApp() : base
+    return pasteOnly ? delivery.withoutSending() : delivery
   }
 }
 

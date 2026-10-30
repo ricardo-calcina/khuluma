@@ -236,6 +236,12 @@ public struct Delivery: Decodable, Equatable, Sendable {
     Delivery(autosend: autosend, sendMode: sendMode, pasteTarget: "restore",
              activateDelayMs: activateDelayMs, sendDelayMs: sendDelayMs)
   }
+
+  /// The same delivery, pasting without pressing the send key.
+  public func withoutSending() -> Delivery {
+    Delivery(autosend: false, sendMode: sendMode, pasteTarget: pasteTarget,
+             activateDelayMs: activateDelayMs, sendDelayMs: sendDelayMs)
+  }
 }
 
 /// `khuluma warmup --json`.

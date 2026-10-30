@@ -18,6 +18,15 @@ struct SettingsView: View {
         Toggle("Auto-send", isOn: setting("inline.autosend", model.config?.inline.autosend ?? false))
           .disabled(!model.editable)
           .help("Paste the transcript, then send it with your configured send key.")
+        Picker("Paste without sending", selection: Binding(get: { model.pasteOnlyModifier },
+                                                           set: model.selectPasteOnlyModifier)) {
+          ForEach(PasteOnlyModifier.allCases, id: \.self) { Text($0.title).tag($0) }
+        }
+        .disabled(model.config?.inline.autosend != true)
+        .help("Hold this key with your shortcut when you finish a take to paste it without sending.")
+        if model.config?.inline.autosend == true, model.pasteOnlyModifier != .off {
+          Text(pasteOnlyNote).font(.caption).foregroundStyle(.secondary)
+        }
         Toggle("Sounds", isOn: setting("audio.sounds.enabled", model.config?.soundsEnabled ?? true))
           .disabled(!model.editable)
           .help("Play sounds during dictation.")
@@ -118,6 +127,13 @@ struct SettingsView: View {
 
   private var localModelTitle: String {
     "Parakeet \(model.config?.transcription.modelVersion ?? "v3") · On this Mac"
+  }
+
+  private var pasteOnlyNote: String {
+    guard let shortcut = model.pasteOnlyShortcut else {
+      return "Your shortcut already uses this key, or the combination is reserved. Choose another key."
+    }
+    return "Finish with \(shortcut.display) to paste without sending."
   }
 
   private func setting(_ key: String, _ value: Bool) -> Binding<Bool> {

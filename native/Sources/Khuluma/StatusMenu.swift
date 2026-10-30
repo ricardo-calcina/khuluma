@@ -501,6 +501,14 @@ struct MenuPanel: View {
           .accessibilityLabel("Open Khuluma").help("Open Khuluma")
           .keyboardShortcut("o")
         Spacer()
+        Toggle("Auto-send", isOn: Binding(
+          get: { settings.config?.inline.autosend ?? false },
+          set: { settings.save("inline.autosend", $0 ? "true" : "false") }))
+          .toggleStyle(.switch).controlSize(.mini)
+          .font(.caption).foregroundStyle(.secondary)
+          .disabled(!settings.editable)
+          .help(autosendHelp)
+          .padding(.trailing, 4)
         Button(action: openSettings) { Image(systemName: "gearshape") }
           .accessibilityLabel("Settings").help("Settings")
           .keyboardShortcut(",")
@@ -515,6 +523,11 @@ struct MenuPanel: View {
       .padding(.vertical, 4)
     }
     .frame(width: 400)
+  }
+
+  private var autosendHelp: String {
+    guard let shortcut = settings.pasteOnlyShortcut else { return "Paste, then press your send key." }
+    return "Paste, then press your send key. Finish with \(shortcut.display) to paste one take without sending."
   }
 
   private var timeSaved: String {

@@ -5,6 +5,7 @@ import KhulumaCore
 final class SettingsModel: ObservableObject {
   @Published private(set) var config: AppConfig?
   @Published private(set) var iconTheme: StatusIconTheme
+  @Published private(set) var pasteOnlyModifier: PasteOnlyModifier
   @Published var saving = false
   @Published var recording = false
   @Published var message: String?
@@ -26,11 +27,13 @@ final class SettingsModel: ObservableObject {
   private let defaults: UserDefaults
   private let isolated: Bool
   private static let iconThemeKey = "statusIconTheme"
+  private static let pasteOnlyModifierKey = "pasteOnlyModifier"
 
   init(defaults: UserDefaults = AppRuntimePaths.defaults, isolated: Bool = AppRuntimePaths.isolated) {
     self.defaults = defaults
     self.isolated = isolated
     iconTheme = StatusIconTheme(storedValue: defaults.string(forKey: Self.iconThemeKey))
+    pasteOnlyModifier = PasteOnlyModifier(storedValue: defaults.string(forKey: Self.pasteOnlyModifierKey))
   }
 
   var editable: Bool { config != nil && !saving && !recording }
@@ -43,6 +46,17 @@ final class SettingsModel: ObservableObject {
     // Snapshot previews must not write to the daily app's preferences.
     if !preview || isolated { defaults.set(theme.rawValue, forKey: Self.iconThemeKey) }
     onIconThemeChange(theme)
+  }
+
+  /// Read when each take starts, so a change applies from the next take.
+  func selectPasteOnlyModifier(_ modifier: PasteOnlyModifier) {
+    pasteOnlyModifier = modifier
+    if !preview || isolated { defaults.set(modifier.rawValue, forKey: Self.pasteOnlyModifierKey) }
+  }
+
+  /// The paste-only shortcut for the current hotkey, if it can be bound.
+  var pasteOnlyShortcut: HotkeySpec? {
+    (try? HotkeySpec.parse(config?.hotkey ?? "")).flatMap { pasteOnlyModifier.stopShortcut(for: $0) }
   }
 
   func save(_ key: String, _ value: String) {

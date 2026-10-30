@@ -63,3 +63,28 @@ struct HotkeyCaptureTests {
     }
   }
 }
+
+struct PasteOnlyShortcutTests {
+  @Test func addsTheModifierToTheDictationShortcut() throws {
+    let function = try #require(PasteOnlyModifier.shift.stopShortcut(for: HotkeySpec.parse("f17")))
+    #expect(function == (try HotkeySpec.parse("shift+f17")))
+    #expect(function.display == "⇧F17")
+    let chord = try #require(PasteOnlyModifier.command.stopShortcut(for: HotkeySpec.parse("ctrl+option+space")))
+    #expect(chord.carbonModifiers == HotkeySpec.controlMask | HotkeySpec.optionMask | HotkeySpec.commandMask)
+    #expect(chord.keyCode == 49)
+  }
+
+  @Test func offersNothingWhenThePressWouldBeTheShortcutOrReserved() throws {
+    #expect(PasteOnlyModifier.shift.stopShortcut(for: try HotkeySpec.parse("cmd+shift+d")) == nil)
+    #expect(PasteOnlyModifier.off.stopShortcut(for: try HotkeySpec.parse("f17")) == nil)
+    // ⌘Q and ⌘W stay with the app; Option alone is fine with the same key.
+    #expect(PasteOnlyModifier.command.stopShortcut(for: try HotkeySpec.parse("option+q")) == nil)
+    #expect(PasteOnlyModifier.shift.stopShortcut(for: try HotkeySpec.parse("option+q")) != nil)
+  }
+
+  @Test func unknownStoredValuesDefaultToShift() {
+    #expect(PasteOnlyModifier(storedValue: nil) == .shift)
+    #expect(PasteOnlyModifier(storedValue: "hyper") == .shift)
+    #expect(PasteOnlyModifier(storedValue: "off") == .off)
+  }
+}

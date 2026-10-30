@@ -74,13 +74,15 @@ hotkey = "ctrl+option+space"   # e.g. "cmd+shift+d", "f13"
 supervise_daemon = true        # keep the Parakeet daemon warm (launch, wake, recording start)
 ```
 
-The compact, arrowless menu panel shows total words, estimated time saved and average words per minute in three centered columns. Click the menu icon again to close it. Recording, processing, warm-up and error notices appear when needed. The window icon opens Stats; the gear in the menu or window title bar opens **Settings**. Back returns to Stats. Command-comma also opens Settings.
+The compact, arrowless menu panel shows total words, estimated time saved and average words per minute in three centered columns. Click the menu icon again to close it. Recording, processing, warm-up and error notices appear when needed. The Auto-send switch in the footer turns sending on or off. The window icon opens Stats; the gear in the menu or window title bar opens **Settings**. Back returns to Stats. Command-comma also opens Settings.
 
-**Settings** records a new shortcut from a key press and controls the transcription provider, auto-send, sounds, Start at Login and diagnostic logging. Open Log, Open Config and Reload Settings live there. Scribe reads `ELEVENLABS_API_KEY` from the environment or a literal `export ELEVENLABS_API_KEY=...` in your `.zshrc` (including `ZDOTDIR` and `~/.config/zsh`). It never executes the interactive shell or displays the key. Selecting Scribe applies to dictation, saved-recording recovery and file transcription; Parakeet remains the default.
+**Settings** records a new shortcut from a key press and controls the transcription provider, auto-send, the paste-without-sending key, sounds, Start at Login and diagnostic logging. Open Log, Open Config and Reload Settings live there. Scribe reads `ELEVENLABS_API_KEY` from the environment or a literal `export ELEVENLABS_API_KEY=...` in your `.zshrc` (including `ZDOTDIR` and `~/.config/zsh`). It never executes the interactive shell or displays the key. Selecting Scribe applies to dictation, saved-recording recovery and file transcription; Parakeet remains the default.
 
 - **Timed-out takes:** when the daemon times out on a take, its audio is kept privately for an hour. **Retry** transcribes it again, and **Paste retried dictation** pastes it wherever you are, without sending. Failed CLI/cloud takes are saved for recovery, including failed network or authentication requests.
 - **Quitting:** a take still recording is saved to disk first, then transcribed into history and copied to the clipboard (never pasted). Takes already stopped and waiting for or in transcription are saved to disk too, and finish as usual. Quit waits up to 30 seconds for all of them. Saved audio and records that haven't reached history by then are finished at the next launch, into history without touching the clipboard. If a take's audio can't be written to disk, Khuluma stays open instead of losing it.
 - **Fallback:** if the daemon can't be reached, the take goes through `khuluma inline process` instead. The same happens when the CLI runs in a non-C locale.
+
+**Paste without sending:** with auto-send on, hold Shift as you press the shortcut to finish (for example ⇧F17 or ⌃⌥⇧Space) and that take is pasted without pressing the send key. Choose Option, Control, Command or Off in Settings → Dictation; the key must not already be part of your shortcut.
 
 **Delivery settings** live in the CLI:
 
