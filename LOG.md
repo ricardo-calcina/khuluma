@@ -28,7 +28,8 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 - [x] P1 · Review the full identity rename plan · added 2026-10-22
 - [x] P1 · Complete isolated rename/migration/recovery acceptance, controlled daily cutover and source/tap integration · added 2026-10-22
 
-- [ ] P1 · Before phase 2: search UKIPO and EUIPO by hand for KHULUMA; register khuluma.app · added 2026-10-17
+- [ ] P1 · Before phase 2: search UKIPO and EUIPO by hand for KHULUMA (khuluma.app bought by Ricardo 2026-11-05) · added 2026-10-17
+- [ ] P1 · khuluma.app website: decide what it offers before the signed app exists (waitlist, the free CLI, or both); build it in VPS products/Khuluma/site, reusing the approved studio-site Khuluma page copy · added 2026-11-05
 - [x] P1 · Install raised adaptive light/dark app icon and 18 pt menu glyph; verify Finder automatic switching · added 2026-10-17
 - [ ] P1 · Join the Apple Developer Program before phase 2 · added 2026-10-15
 - [ ] P1 · Phase 0 gate: a week of daily use, then `tools/khuluma-report.sh` gates still met · added 2026-10-17
@@ -81,6 +82,7 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 
 ## Done
 
+- 2026-11-05 · Ricardo bought the khuluma.app domain · Next
 - 2026-11-05 · Ricardo confirmed a take on the iPhone Continuity mic on build 398 (requested = actual, fallback none, delivered); design refresh settled · app.log 11:16Z
 - 2026-11-05 · Installed build 398 (app only; daemon kept, doctor healthy) · ~/Applications/.khuluma-app.TEUOtl/previous.app
 - 2026-11-05 · Pinned mics start on their real hardware format (iPhone Continuity mic failed on 391), checked converter per Codex Terra review, Cancel Recording on the Recording row; inline mic list tried and reverted · 15793b2, 7dc3db8
