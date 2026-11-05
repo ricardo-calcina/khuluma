@@ -1,0 +1,53 @@
+# A config.toml with every section the CLI writes, non-default values,
+# and keys the app doesn't use. @ROOT@ is the generator's (or test's) temp root.
+
+[meta]
+config_version = 1
+
+[app]
+hotkey = "cmd+shift+d"
+supervise_daemon = false
+
+[clean]
+enabled = true
+repeats_level = 3
+
+[history]
+retention_days = 30
+audio_retention_days = 5
+typing_wpm = 55
+
+[transcription]
+provider = "parakeet"
+language = 'fr'
+
+[swift_parakeet]
+model_path = "@ROOT@/models/parakeet-custom-v2"
+model_version = ""
+socket_path = "@ROOT@/sock/k.sock"
+
+[inline]
+autosend = false
+process_sound = false
+paste_target = "origin"   # normalised to restore
+send_mode = "ctrl+j"
+
+[debug]
+keep_logs = true
+
+[audio.sounds]
+cancel = ""
+cancel_enabled = false
+enabled = true
+error = ""
+error_enabled = true
+process = "@ROOT@/sounds/process.wav"
+process_enabled = true
+start = "@ROOT@/sounds/start.wav"
+start_enabled = true
+stop = "@ROOT@/sounds/missing.wav"
+stop_enabled = true
+
+[extra]
+unused = "kept out"
+list = ["a", "b"]

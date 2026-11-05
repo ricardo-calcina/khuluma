@@ -52,6 +52,11 @@ public struct AppConfig: Decodable, Equatable, Sendable {
   public struct Sound: Decodable, Equatable, Sendable {
     public let enabled: Bool
     public let path: String?
+
+    public init(enabled: Bool, path: String?) {
+      self.enabled = enabled
+      self.path = path
+    }
   }
 
   public struct Inline: Decodable, Equatable, Sendable {
@@ -61,6 +66,16 @@ public struct AppConfig: Decodable, Equatable, Sendable {
     public let processSound: Bool
     public let activateDelayMs: Int
     public let sendDelayMs: Int
+
+    public init(autosend: Bool, sendMode: String, pasteTarget: String, processSound: Bool,
+                activateDelayMs: Int, sendDelayMs: Int) {
+      self.autosend = autosend
+      self.sendMode = sendMode
+      self.pasteTarget = pasteTarget
+      self.processSound = processSound
+      self.activateDelayMs = activateDelayMs
+      self.sendDelayMs = sendDelayMs
+    }
 
     enum CodingKeys: String, CodingKey {
       case autosend
@@ -94,6 +109,8 @@ public struct AppConfig: Decodable, Equatable, Sendable {
   public struct Usage: Decodable, Equatable, Sendable {
     public let summaryPath: String
 
+    public init(summaryPath: String) { self.summaryPath = summaryPath }
+
     enum CodingKeys: String, CodingKey {
       case summaryPath = "summary_path"
     }
@@ -104,6 +121,11 @@ public struct AppConfig: Decodable, Equatable, Sendable {
     public let error: String?
     /// "file", or when invalid: "last_good" (last valid copy) or "defaults".
     public let source: String
+
+    public init(error: String?, source: String) {
+      self.error = error
+      self.source = source
+    }
   }
 
   /// config.toml is invalid and there was no valid copy to fall back to, so
@@ -124,6 +146,25 @@ public struct AppConfig: Decodable, Equatable, Sendable {
   public struct Pipeline: Decodable, Equatable, Sendable {
     /// `[app] supervise_daemon`.
     public let supervise: Bool
+
+    public init(supervise: Bool) { self.supervise = supervise }
+  }
+
+  public init(schemaVersion: Int, appContract: Int, cliVersion: String, hotkey: String, sounds: [String: Sound],
+              soundsEnabled: Bool?, inline: Inline, cleanup: CleanupSettings, transcription: TranscriptionSettings,
+              pipeline: Pipeline, config: ConfigStatus, usage: Usage) {
+    self.schemaVersion = schemaVersion
+    self.appContract = appContract
+    self.cliVersion = cliVersion
+    self.hotkey = hotkey
+    self.sounds = sounds
+    self.declaredSoundsEnabled = soundsEnabled
+    self.inline = inline
+    self.cleanup = cleanup
+    self.transcription = transcription
+    self.pipeline = pipeline
+    self.config = config
+    self.usage = usage
   }
 
   enum CodingKeys: String, CodingKey {
@@ -159,7 +200,6 @@ public struct AppConfig: Decodable, Equatable, Sendable {
   /// Why a take must go through `inline process` instead of the native
   /// pipeline, or nil if the native path reproduces the CLI.
   public var nativePipelineBlocker: String? {
-    if cleanup.requiresCLI { return "CLI locale is not C (\(cleanup.localeCtype ?? "")/\(cleanup.localeCollate ?? ""))" }
     return transcription.cliReason
   }
 

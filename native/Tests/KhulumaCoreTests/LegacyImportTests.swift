@@ -95,7 +95,10 @@ import Testing
     #expect(r.counts == LegacyImport.Counts(history: 3, history_invalid: 0, debug_files: 2, vocabulary_backups: 1))
     #expect(r.usage.source == LegacyImport.UsageTotals(count: 42, processed_words: 1234, recording_duration_ms: 98765))
     #expect(r.usage.imported == r.usage.source)
-    #expect(r.vocabulary && r.skipped.isEmpty && r.settings == "pending" && r.legacy_take_ids == 4)
+    #expect(r.vocabulary && r.settings == "imported" && r.legacy_take_ids == 4)
+    // The top-level `hotkey` isn't a key the app reads (that's [app] hotkey).
+    #expect(r.skipped == [LegacyImport.Skipped(path: f.root.appendingPathComponent("config.toml").path + " hotkey",
+                                               reason: "not used by the app")])
     #expect(f.digest(f.root) == before, "source untouched")
 
     let fm = FileManager.default
@@ -132,7 +135,8 @@ import Testing
     try f.put("history/2026-11-03T08-00-01.json", "[1,2]")
     let r = try receipt(f.run())
     #expect(r.counts.history == 3 && r.counts.history_invalid == 2)
-    #expect(r.skipped.count == 2 && r.skipped.allSatisfy { $0.reason.contains("invalid history") })
+    let history = r.skipped.filter { !$0.path.contains("config.toml") }
+    #expect(history.count == 2 && history.allSatisfy { $0.reason.contains("invalid history") })
     #expect(FileManager.default.fileExists(atPath: f.dest.appendingPathComponent("history/2026-11-03T08-00-00.json").path))
   }
 

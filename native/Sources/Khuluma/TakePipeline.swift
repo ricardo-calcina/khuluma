@@ -12,17 +12,33 @@ final class TakePipeline {
     case fallback(String)
   }
 
-  let cli: CLIBridge
+  /// The CLI, for takes the native path can't handle (until slice G); nil
+  /// when none is installed. Set once found.
+  var cli: CLIBridge? {
+    get { cliLock.lock(); defer { cliLock.unlock() }; return storedCLI }
+    set { cliLock.lock(); storedCLI = newValue; cliLock.unlock() }
+  }
+  private var storedCLI: CLIBridge?
+  private let cliLock = NSLock()
+  /// The current settings (settings.json).
+  let loadConfig: () -> AppConfig
   let persister: TakePersister
   /// Takes whose transcription timed out, for Retry/Discard.
   let timedOut = TimedOutTakes.standard
   /// The daemon didn't answer: the supervisor should look at it.
   private let onUnreachable: () -> Void
 
-  init(cli: CLIBridge, persister: TakePersister, onUnreachable: @escaping () -> Void) {
-    self.cli = cli
+  init(persister: TakePersister, loadConfig: @escaping () -> AppConfig, onUnreachable: @escaping () -> Void) {
+    self.loadConfig = loadConfig
     self.persister = persister
     self.onUnreachable = onUnreachable
+  }
+
+  /// The CLI, or `notInstalled`: the caller keeps the take as a saved
+  /// recording rather than losing it.
+  func requireCLI() throws -> CLIBridge {
+    guard let cli else { throw CLIBridge.BridgeError.notInstalled }
+    return cli
   }
 
   /// How long a take waits, after WAV prep, for the ping that tags it
@@ -215,6 +231,11 @@ final class TakePipeline {
       extra(&line)
       Log.write(line.line)
     }
+    guard let cli else {
+      // No CLI: the take is kept as a saved recording (not settled), never lost.
+      logTake("failed") { $0.add("error", "cli_missing") }
+      return .failed("This dictation needs the khuluma CLI (\(route.reason)); recording saved")
+    }
     do {
       try WAVEncoder.encode(samples: samples).write(to: wav, options: [.atomic])
       chmod(wav.path, 0o600)
@@ -228,11 +249,10 @@ final class TakePipeline {
         }
         return result.status == "no_speech" ? .noSpeech : .failed(result.message ?? result.status)
       }
-      // An invalid config.toml with no valid copy means default settings
-      // (autosend on): paste without sending. Unknown settings count as that.
-      let delivery = config.map { $0.safeDelivery(result.delivery) }
-        ?? Delivery(autosend: false, sendMode: result.delivery.sendMode, pasteTarget: result.delivery.pasteTarget,
-                    activateDelayMs: result.delivery.activateDelayMs, sendDelayMs: result.delivery.sendDelayMs)
+      // settings.json decides delivery, not the CLI's own config.toml
+      // (`result.delivery`). `delivery` is already made safe (no autosend
+      // on fallback defaults).
+      let delivery = (config ?? loadConfig()).delivery
       let steps = DeliveryPlan.steps(text: result.text, delivery: take.delivery(delivery),
                                      hasOriginalApp: take.originalApp != nil)
       let delivering = monotonicMs()

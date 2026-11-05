@@ -45,9 +45,9 @@ public struct CleanupSettings: Codable, Equatable, Sendable {
   }
 
   /// The native pipeline can't reproduce this configuration; use the CLI.
-  public var requiresCLI: Bool {
-    !CleanupSettings.isCLocale(localeCtype) || !CleanupSettings.isCLocale(localeCollate)
-  }
+  /// Always false: the native pipeline runs in the C locale whatever the
+  /// shell's locale was (the CLI's non-C-locale refusal is gone, slice C3).
+  public var requiresCLI: Bool { false }
 
   static func isCLocale(_ value: String?) -> Bool {
     ["", "C", "POSIX"].contains(value ?? "")

@@ -52,8 +52,8 @@ struct TranscriptionSettingsTests {
     #expect(TranscriptionSettings.bashInt("-5", default: 8000) == 8000)
     #expect(TranscriptionSettings.bashInt("0", default: 8000) == 0)
     #expect(TranscriptionSettings.bashInt("250", default: 8000) == 250)
-    #expect(TranscriptionSettings.bashInt("010", default: 8000) == nil)  // octal in (( ))
-    #expect(TranscriptionSettings.bashInt("99999999999999999999999", default: 1) == nil)
+    #expect(TranscriptionSettings.bashInt("010", default: 8000) == 10)  // decimal: no bash anymore
+    #expect(TranscriptionSettings.bashInt("99999999999999999999999", default: 1) == 1)
   }
 
   @Test func reportsWhyTheCLIIsNeeded() {
@@ -62,13 +62,13 @@ struct TranscriptionSettingsTests {
     #expect(TranscriptionSettings(socketPath: "/s", modelPath: nil).cliReason != nil)
     var octal = base
     octal.tailPadMs = "0500"
-    #expect(octal.cliReason != nil)
+    #expect(octal.cliReason == nil && octal.tailPad == 500)
     var keepLogs = base
     keepLogs.keepLogs = true
     #expect(keepLogs.cliReason == nil)  // inline record writes the debug archive
     var noFFmpeg = base
     noFFmpeg.ffmpeg = false
-    #expect(noFFmpeg.cliReason != nil)
+    #expect(noFFmpeg.cliReason == nil)  // native WAV prep needs no ffmpeg
     var noPad = base
     noPad.tailPadMs = "0"
     #expect(noPad.cliReason == nil && noPad.tailPad == 0)

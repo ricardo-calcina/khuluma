@@ -1,0 +1,9 @@
+[meta]
+config_version = 1
+
+[transcription]
+provider = "elevenlabs"
+language = "auto"
+
+[audio.sounds]
+enabled = false

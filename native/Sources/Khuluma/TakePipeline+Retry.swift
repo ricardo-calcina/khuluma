@@ -23,12 +23,7 @@ extension TakePipeline {
   func retranscribe(_ entry: TimedOutTakes.Entry) -> RetryOutcome {
     let info = entry.info
     let startedAt = monotonicMs()
-    let config: AppConfig
-    do {
-      config = try cli.appConfig()
-    } catch {
-      return .failed("retry: cannot read settings: \(error.localizedDescription)")
-    }
+    let config = loadConfig()
     // Natively only if the daemon is warm now; otherwise the CLI starts it.
     guard let (transcription, cleanup, modelPath) = config.native,
           DaemonClient(socketPath: transcription.socketPath).status(timeout: 1)?
@@ -82,7 +77,7 @@ extension TakePipeline {
   private func retranscribeWithCLI(_ entry: TimedOutTakes.Entry, provider: String) -> RetryOutcome {
     let info = entry.info
     do {
-      let result = try cli.process(wav: entry.wav, app: info.app, recordMs: info.recordMs,
+      let result = try requireCLI().process(wav: entry.wav, app: info.app, recordMs: info.recordMs,
                                    startupMs: info.startupMs, startedAtEpochMs: info.startedAtMs,
                                    expectedProvider: provider)
       guard result.ok else {

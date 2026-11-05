@@ -13,11 +13,11 @@ final class TakePersister {
   private var settings = TakeRecorder.Settings.from(nil)
   private let replayGate = ReplayGate()
 
-  /// Takes on the settings the recorder needs, and releases the launch
-  /// replay the first time. Retention stays 7/2 days until the settings
-  /// slice reads it from settings.json.
-  func adopt(_ config: AppConfig) {
-    let fresh = TakeRecorder.Settings.from(config, historyRetentionDays: 7, audioRetentionDays: 2)
+  /// Takes on the settings the recorder needs (retention from
+  /// settings.json), and releases the launch replay the first time.
+  func adopt(_ config: AppConfig, history: AppSettings.History) {
+    let fresh = TakeRecorder.Settings.from(config, historyRetentionDays: history.retentionDays,
+                                           audioRetentionDays: history.audioRetentionDays)
     settingsLock.lock()
     settings = fresh
     settingsLock.unlock()

@@ -141,9 +141,11 @@ struct CleanupParityTests {
       settings.configDir = configDir
       let outcome = TextPipeline(settings: settings).process(transcript: item.input)
 
-      if settings.requiresCLI {
+      if !CleanupSettings.isCLocale(settings.localeCtype) || !CleanupSettings.isCLocale(settings.localeCollate) {
+        // bash ran these in a non-C locale; the app always cleans in C now
+        // (slice C3), so there's no bash output to match. It must still run.
         sawLocale = true
-        #expect(outcome == .needsCLI, "\(item.id): must fall back to the CLI")
+        #expect(outcome != .needsCLI, "\(item.id): non-C locale must not need the CLI")
         continue
       }
       switch (item.status, outcome) {
@@ -161,12 +163,11 @@ struct CleanupParityTests {
     #expect(failures == 0, "\(failures) pipeline cases differ from bash")
   }
 
-  @Test func nonCLocaleFallsBackToTheCLI() {
+  @Test func nonCLocaleRunsNatively() {
     #expect(!CleanupSettings(configDir: "/c").requiresCLI)
-    #expect(!CleanupSettings(configDir: "/c", localeCtype: "POSIX", localeCollate: nil).requiresCLI)
     let utf8 = CleanupSettings(configDir: "/c", localeCtype: "en_US.UTF-8", localeCollate: "en_US.UTF-8")
-    #expect(utf8.requiresCLI)
-    #expect(TextPipeline(settings: utf8).process(transcript: "hello") == .needsCLI)
+    #expect(!utf8.requiresCLI)
+    #expect(TextPipeline(settings: utf8).process(transcript: "hello") != .needsCLI)
   }
 
   @Test func appConfigCleanupSectionDecodes() throws {

@@ -69,7 +69,7 @@ extension TakePipeline {
   private func recoverWithCLI(url: URL, samples: [Float], takeId: String, startedEpochMs: Int?, startupMs: Int,
                               app: String?, copy: Bool, store: RecoveredTakes) {
     do {
-      let result = try cli.process(wav: url, app: app, recordMs: samples.count * 1000 / AudioPrep.sampleRate,
+      let result = try requireCLI().process(wav: url, app: app, recordMs: samples.count * 1000 / AudioPrep.sampleRate,
                                    startupMs: startupMs, startedAtEpochMs: startedEpochMs ?? 0,
                                    expectedProvider: "elevenlabs")
       if result.status == "no_speech" {

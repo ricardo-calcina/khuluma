@@ -13,7 +13,10 @@ final class AppController: NSObject, NSApplicationDelegate {
 
   private lazy var menu = MainActor.assumeIsolated { StatusMenu(stats: statsModel, settings: settingsModel) }
   private lazy var statsModel = MainActor.assumeIsolated {
-    StatsModel { [weak self] in StatsModel.Source(cli: self?.cli, config: self?.config) }
+    StatsModel { [weak self] in
+      // Read fresh each time, so a reload or a hand edit of settings.json counts.
+      StatsModel.Source(typingWPM: self?.settingsStore.load().settings.history.typingWpm)
+    }
   }
   private lazy var settingsModel = MainActor.assumeIsolated { SettingsModel() }
   private let recorder = AudioRecorder()
@@ -34,8 +37,17 @@ final class AppController: NSObject, NSApplicationDelegate {
   }
   /// One start at a time; a failed start never leaves its marker behind.
   private let starter = TakeStarter()
+  /// The CLI, only for takes the native path can't handle (until slice G).
   private var cli: CLIBridge?
-  /// Set with `cli`: transcription, delivery and persistence of takes.
+  /// Settings live in settings.json in the app folder.
+  private let settingsStore = SettingsStore.standard()
+  private let settingsEnvironment = SettingsEnvironment.current()
+  /// Reads the settings as AppConfig; safe on any queue.
+  private var loadConfig: @Sendable () -> AppConfig {
+    let store = settingsStore, environment = settingsEnvironment
+    return { store.appConfig(environment: environment) }
+  }
+  /// Set once the import has run: transcription, delivery and persistence of takes.
   private var pipeline: TakePipeline?
   private var config: AppConfig?
   private var take: Take?
@@ -45,6 +57,8 @@ final class AppController: NSObject, NSApplicationDelegate {
   private let work = DispatchQueue(label: "khuluma.work", qos: .userInitiated)
   private let recovered = RecoveredTakes.standard
   private var recoveryRunning = false
+  /// Asked for while a recovery pass was running: one more pass after it.
+  private var recoveryRerun = false
   private let settingsQueue = DispatchQueue(label: "khuluma.settings", qos: .userInitiated, attributes: .concurrent)
   /// Where take markers go: the CLI's processing dir.
   private var markerDirectory: String { config?.transcription.processingDir ?? TakeMarker.defaultDirectory }
@@ -97,36 +111,53 @@ final class AppController: NSObject, NSApplicationDelegate {
       Log.write("permission: accessibility not granted yet (prompted)")
     }
 
-    // Discovery verifies the CLI with subprocesses. Keep the menu and Quit
-    // responsive if an installed candidate is stalled or incompatible.
+    // The one-time import of the CLI's data (settings included) runs before
+    // settings load and before the persister's replay. Then the CLI, only
+    // needed for takes the native path can't handle, is looked for; the app
+    // works without it. Off main: both touch the disk or run subprocesses.
     settingsQueue.async { [weak self] in
+      let imported = LegacyImport.run()
+      Log.write("import: \(imported.logLine)")
+      DispatchQueue.main.async {
+        guard let self, !self.quitting else { return }
+        self.finishInitialization()
+      }
+      // Discovery verifies the CLI with subprocesses. Keep the menu and Quit
+      // responsive if an installed candidate is stalled or incompatible.
       let result = Result { try CLIBridge.locate() }
       DispatchQueue.main.async {
         guard let self, !self.quitting else { return }
         switch result {
-        case .success(let cli):
-          guard let cli else {
-            self.status.failed("khuluma CLI not found")
-            return
-          }
-          self.finishCLIInitialization(cli)
-        case .failure(let error):
-          self.status.failed(error.localizedDescription)
+        case .success(let cli?): self.adoptCLI(cli)
+        case .success(nil): Log.write("cli: khuluma CLI not found; native path only")
+        case .failure(let error): Log.write("cli: \(error.localizedDescription); native path only")
         }
       }
     }
   }
 
-  private func finishCLIInitialization(_ cli: CLIBridge) {
+  /// A CLI was found: takes the native path can't handle can use it, and
+  /// the supervisor can warm the daemon with it.
+  private func adoptCLI(_ cli: CLIBridge) {
     self.cli = cli
-    let pipeline = TakePipeline(cli: cli, persister: TakePersister()) { [weak self] in
+    pipeline?.cli = cli
+    Log.write("cli: found, used only for takes the native path can't handle")
+    if let config {
+      configureSupervision(config, trigger: .settings)
+      // Leftovers that needed the CLI before it was found get another go.
+      recoverLeftoverTakes(config: config)
+    }
+  }
+
+  private func finishInitialization() {
+    let pipeline = TakePipeline(persister: TakePersister(), loadConfig: loadConfig) { [weak self] in
       self?.supervisor?.trigger(.unreachable)
     }
     self.pipeline = pipeline
     supervisor = DaemonSupervisor(
       environment: DaemonSupervisor.Environment(
         probe: { path, timeout in DaemonClient(socketPath: path).status(timeout: timeout) },
-        warmup: { try cli.warmup() },
+        warmup: { try pipeline.requireCLI().warmup() },
         schedule: { delay, work in DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + delay, execute: work) }),
       onChange: { [weak self] state, line in
         Log.write("supervisor: \(line)")
@@ -159,31 +190,23 @@ final class AppController: NSObject, NSApplicationDelegate {
     menu.onShowSettings = { [weak self] in self?.showStats(settings: true) }
     settingsModel.onReload = { [weak self] in self?.reloadSettings(feedback: true) }
     settingsModel.onOpenConfig = { [weak self] in
-      guard let directory = self?.config?.cleanup.configDir else { return }
-      NSWorkspace.shared.open(URL(fileURLWithPath: directory).appendingPathComponent("config.toml"))
+      guard let store = self?.settingsStore else { return }
+      try? store.ensureFile()
+      NSWorkspace.shared.open(store.url)
     }
     settingsModel.onToggleLogin = { [weak self] in self?.toggleStartAtLogin() }
     settingsModel.onSave = { [weak self] key, value in self?.saveSetting(key, value: value) }
-    settingsModel.onLoadVocabulary = { [weak self] in
-      guard let cli = self?.cli else { throw CLIBridge.BridgeError.notInstalled }
-      return try cli.vocabulary()
-    }
-    settingsModel.onSaveVocabulary = { [weak self] snapshot in
-      guard let cli = self?.cli else { throw CLIBridge.BridgeError.notInstalled }
-      return try cli.saveVocabulary(snapshot)
-    }
-    settingsModel.onValidateVocabulary = { [weak self] data in
-      guard let cli = self?.cli else { throw CLIBridge.BridgeError.notInstalled }
-      return try cli.validateVocabulary(data)
-    }
-    settingsModel.onLoadRecentDictations = { [weak self] in
-      guard let cli = self?.cli else { throw CLIBridge.BridgeError.notInstalled }
-      return try cli.recentDictations()
+    let vocabulary = VocabularyStore(root: AppRuntimePaths.support)
+    settingsModel.onLoadVocabulary = { try vocabulary.show() }
+    settingsModel.onSaveVocabulary = { try vocabulary.save($0) }
+    settingsModel.onValidateVocabulary = { try vocabulary.validate($0) }
+    settingsModel.onLoadRecentDictations = {
+      RecentDictations.raw(history: AppRuntimePaths.support.appendingPathComponent("history", isDirectory: true))
     }
     settingsModel.onShortcutRecordingChange = { [weak self] recording in
       guard let self else { return }
       if recording { self.hotkey.unregister() }
-      else if self.hotkey.binding == nil, let spec = try? HotkeySpec.parse(self.config?.hotkey ?? "") {
+      else if self.pipeline != nil, self.hotkey.binding == nil, let spec = try? HotkeySpec.parse(self.config?.hotkey ?? "") {
         self.registerHotkey(spec)
       }
     }
@@ -354,9 +377,15 @@ final class AppController: NSObject, NSApplicationDelegate {
   private func recoverLeftoverTakes(config: AppConfig) {
     // While quitting, saved takes are already queued or still in flight.
     guard !quitting else { return }
+    guard !recoveryRunning else {
+      recoveryRerun = true
+      return
+    }
     let leftovers = leftoverTakes()
-    guard !leftovers.isEmpty, !recoveryRunning else { return }
-    guard config.nativePipelineBlocker == nil || (config.transcription.provider == "elevenlabs" && config.transcription.keyAvailable) else {
+    guard !leftovers.isEmpty else { return }
+    // ElevenLabs: try the configured route even when the key isn't visible
+    // to the app (a zshrc key); a failure keeps the take in recovered.
+    guard config.nativePipelineBlocker == nil || config.transcription.provider == "elevenlabs" else {
       // Can't transcribe natively with these settings: say so, and retry
       // whenever usable settings arrive.
       menu.showRecovered("Saved dictations waiting (\(leftovers.count)): Show in Finder", action: true)
@@ -377,6 +406,12 @@ final class AppController: NSObject, NSApplicationDelegate {
       let done = leftovers.count - remaining
       DispatchQueue.main.async {
         self.recoveryRunning = false
+        defer {
+          if self.recoveryRerun {
+            self.recoveryRerun = false
+            if let config = self.config { self.recoverLeftoverTakes(config: config) }
+          }
+        }
         if remaining > 0 {
           self.menu.showRecovered("Saved dictations waiting (\(remaining)): Show in Finder", action: true)
         } else if done > 0 {
@@ -450,9 +485,6 @@ final class AppController: NSObject, NSApplicationDelegate {
     switch outcome {
     case .started(let engineMs, let marker):
       let startedAt = monotonicMs()
-      let refuse: (AppContract.Mismatch) -> Void = { [weak self] mismatch in
-        DispatchQueue.main.async { self?.refuseTakes(mismatch) }
-      }
       take = Take(
         hotkeyAt: hotkeyAt,
         startedAt: startedAt,
@@ -460,7 +492,7 @@ final class AppController: NSObject, NSApplicationDelegate {
         startupMs: Int((startedAt - hotkeyAt).rounded()),
         originalApp: original,
         retargeted: retargeted,
-        settings: cli.map { SettingsFetch(cli: $0, queue: settingsQueue, onMismatch: refuse) },
+        settings: SettingsFetch(queue: settingsQueue, load: loadConfig),
         marker: marker,
         chime: chime
       )
@@ -561,14 +593,24 @@ final class AppController: NSObject, NSApplicationDelegate {
 
   private func process(samples: [Float], take: Take, recordMs: Int, stopAt: Double) {
     guard let pipeline else {
+      // Still starting (the import runs first): never drop the samples.
+      // Saved like a quit's take and transcribed once settings are loaded.
       take.marker?.remove()
+      let takeId = inFlight.add(samples: samples)
+      let kept: Bool
+      do { _ = try inFlight.keep(takeId); kept = true } catch {
+        kept = false
+        Log.write("pipeline: could not save the recording yet (held until Quit): \(error.localizedDescription)")
+      }
       var line = TakeLog()
       line.add("path", "none")
       line.add("outcome", "failed")
       line.add("record", recordMs)
-      line.add("error", "cli_missing")
+      line.add("error", "not_ready")
+      line.add("kept", kept ? 1 : 0)
       Log.write(line.line)
-      finishProcessing(error: "khuluma CLI not found")
+      if kept { menu.showRecovered("Saved recording waiting: Show in Finder", action: true) }
+      finishProcessing(error: "Khuluma was still starting; recording saved" + (kept ? "" : " until Quit"))
       return
     }
     let frontmostAtStop = NSWorkspace.shared.frontmostApplication?.localizedName
@@ -745,43 +787,35 @@ final class AppController: NSObject, NSApplicationDelegate {
   // MARK: - Settings
 
   private func reloadSettings(feedback: Bool = false) {
-    guard let cli else {
-      pipeline?.persister.settingsUnavailable()
-      if feedback { settingsModel.finished(error: "Khuluma CLI is unavailable.") }
+    // Nothing loads or registers until the import and pipeline are ready.
+    guard pipeline != nil else {
+      if feedback { settingsModel.finished(error: "Khuluma is still starting.") }
       return
     }
     if feedback { settingsModel.saving = true }
+    let load = loadConfig
     work.async { [weak self] in
-      do {
-        let config = try cli.appConfig()
-        DispatchQueue.main.async {
-          self?.apply(config)
-          if feedback {
-            self?.settingsModel.finished()
-            self?.settingsModel.message = "Settings reloaded"
-          }
-        }
-      } catch let mismatch as AppContract.Mismatch {
-        DispatchQueue.main.async {
-          self?.pipeline?.persister.settingsUnavailable()
-          self?.refuseTakes(mismatch)
-          self?.fail(mismatch.localizedDescription)
-          if feedback { self?.settingsModel.finished(error: mismatch.localizedDescription) }
-        }
-      } catch {
-        DispatchQueue.main.async {
-          self?.pipeline?.persister.settingsUnavailable()
-          self?.fail("cannot read settings: \(error.localizedDescription)")
-          if feedback { self?.settingsModel.finished(error: error.localizedDescription) }
+      // Never fails: an invalid settings.json falls back (see showConfigStatus).
+      let config = load()
+      DispatchQueue.main.async {
+        self?.apply(config)
+        if feedback {
+          self?.settingsModel.finished()
+          self?.settingsModel.message = "Settings reloaded"
         }
       }
     }
   }
 
+  /// History retention for the persister, from settings.json.
+  private func adoptPersistence(_ config: AppConfig) {
+    pipeline?.persister.adopt(config, history: settingsStore.load().settings.history)
+  }
+
   private func apply(_ config: AppConfig) {
     let firstSettings = self.config == nil
     self.config = config
-    pipeline?.persister.adopt(config)
+    adoptPersistence(config)
     settingsModel.adopt(config)
     contractMismatch = nil
     sweepStaleMarkers()
@@ -791,7 +825,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     configureSupervision(config, trigger: firstSettings ? .launch : .settings)
     do {
       let spec = try HotkeySpec.parse(config.hotkey)
-      Log.write("settings: hotkey \(spec.display), cli \(config.cliVersion) (contract \(config.appContract)), pipeline "
+      Log.write("settings: hotkey \(spec.display), settings.json (\(config.config.source)), pipeline "
                 + (config.nativePipelineBlocker.map { "CLI (\($0))" } ?? "native"))
       if take != nil || starter.isStarting {
         // Re-registering now could drop the press that stops this take. The
@@ -823,7 +857,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     if fresh.config != config?.config { showConfigStatus(fresh) }
     recoverLeftoverTakes(config: fresh)
     config = fresh
-    pipeline?.persister.adopt(fresh)
+    adoptPersistence(fresh)
     settingsModel.adopt(fresh)
     sweepStaleMarkers()
     configureSupervision(fresh, trigger: .settings)
@@ -833,7 +867,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     }
   }
 
-  /// Warns in the menu (and log) while config.toml doesn't parse.
+  /// Warns in the menu (and log) while settings.json doesn't parse.
   private func showConfigStatus(_ config: AppConfig) {
     let status = config.config
     guard let error = status.error else {
@@ -843,8 +877,10 @@ final class AppController: NSObject, NSApplicationDelegate {
     let using = status.source == "last_good"
       ? "using the last valid settings"
       : "using defaults, paste without sending"
-    menu.showConfigWarning("⚠︎ config.toml invalid: \(using)")
-    Log.write("settings: config.toml invalid (\(error)); \(using)")
+    let what = status.source == SettingsStore.importedDefaultsSource || error.hasPrefix("settings were not imported")
+      ? "settings not imported" : "settings.json invalid"
+    menu.showConfigWarning("⚠︎ \(what): \(using)")
+    Log.write("settings: \(what) (\(error)); \(using)")
   }
 
   /// Binds the hotkey; if the new one can't be registered, the old binding
@@ -1067,7 +1103,11 @@ final class AppController: NSObject, NSApplicationDelegate {
   }
 
   private func saveSetting(_ key: String, value: String) {
-    guard let cli, take == nil, !starter.isStarting, status.processing == 0 else {
+    guard pipeline != nil else {
+      settingsModel.finished(error: "Khuluma is still starting.")
+      return
+    }
+    guard take == nil, !starter.isStarting, status.processing == 0 else {
       settingsModel.finished(error: "Finish the recording before changing settings.")
       return
     }
@@ -1077,25 +1117,14 @@ final class AppController: NSObject, NSApplicationDelegate {
       catch { settingsModel.finished(error: error.localizedDescription); return }
     }
     work.async { [weak self] in
-      let result = Result { try cli.setSetting(key, value: value) }
+      guard let self else { return }
+      let store = self.settingsStore
+      let result = Result { try store.set(key, value: value) }.map { _ in self.loadConfig() }
       DispatchQueue.main.async {
-        guard let self else { return }
         switch result {
         case .success(let config):
           self.apply(config)
-          let matches: Bool
-          switch key {
-          case "app.hotkey": matches = (try? HotkeySpec.parse(config.hotkey)) == (try? HotkeySpec.parse(value))
-          case "transcription.provider": matches = config.transcription.provider == value
-          case "transcription.language": matches = config.transcription.language == value
-          case "inline.autosend": matches = config.inline.autosend == (value == "true")
-          case "audio.sounds.enabled": matches = config.soundsEnabled == (value == "true")
-          case "debug.keep_logs": matches = config.transcription.keepLogs == (value == "true")
-          case "clean.enabled": matches = config.cleanup.clean == (value == "true" ? "1" : "0")
-          case "clean.repeats_level": matches = config.cleanup.repeatsLevel == value
-          default: matches = true
-          }
-          self.settingsModel.finished(error: matches ? nil : "Saved, but an environment override keeps the current value. Update the override and reload Settings.")
+          self.settingsModel.finished(error: nil)
         case .failure(let error):
           if key == "app.hotkey", let previousHotkey { self.registerHotkey(previousHotkey) }
           self.settingsModel.finished(error: error.localizedDescription)

@@ -1,0 +1,4660 @@
+[
+ {
+  "name": "missing-file",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": null,
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "not_started",
+    "tracking_started_at": null
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "not_started",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 0,
+     "tmux": 0
+    },
+    "count": 0
+   },
+   "estimated_time_difference_ms": 0,
+   "full_elapsed_duration_ms": 0,
+   "processed_words": 0,
+   "recording_duration_ms": 0,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 0,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "fresh-totals-only",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 3, \"by_flow\": {\"inline\": 3, \"tmux\": 0}}, \"processed_words\": 100, \"recording_duration_ms\": 5000, \"full_elapsed_duration_ms\": 6000}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "not_started",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 3,
+     "tmux": 0
+    },
+    "count": 3
+   },
+   "estimated_time_difference_ms": 144000,
+   "full_elapsed_duration_ms": 6000,
+   "processed_words": 100,
+   "recording_duration_ms": 5000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 150000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "fresh-nothing-counted",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-10-20T08:00:00Z\", \"delivered_dictations\": {\"count\": 0, \"by_flow\": {\"inline\": 0, \"tmux\": 0}}, \"processed_words\": 0, \"recording_duration_ms\": 0, \"full_elapsed_duration_ms\": 0}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-10-20T08:00:00Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "not_started",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 0,
+     "tmux": 0
+    },
+    "count": 0
+   },
+   "estimated_time_difference_ms": 0,
+   "full_elapsed_duration_ms": 0,
+   "processed_words": 0,
+   "recording_duration_ms": 0,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 0,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "no-tracking-started-at",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": null, \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "not_started",
+    "tracking_started_at": null
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "not_started",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 1430000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1000,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1500000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "empty-tracking-started-at",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "not_started",
+    "tracking_started_at": null
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "not_started",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 1430000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1000,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1500000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "fractional-tracking-started-at",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53.250Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53.250Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "not_started",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 1430000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1000,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1500000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "offset-tracking-started-at",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T10:30:53+04:00\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T10:30:53+04:00"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "not_started",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 1430000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1000,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1500000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "daily-one-day-today",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 2, \"by_flow\": {\"inline\": 2, \"tmux\": 0}}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000, \"daily\": {\"started_at\": \"2026-10-14T21:30:00Z\", \"baseline_count\": 0, \"days\": {\"2026-10-20\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": 40, \"recording_ms\": 9000, \"full_elapsed_ms\": 11000, \"longest_recording_ms\": 6000, \"most_words\": 30}}}}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": "2026-10-14T21:30:00Z",
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [
+     {
+      "by_flow": {
+       "inline": 2,
+       "tmux": 0
+      },
+      "count": 2,
+      "date": "2026-10-20",
+      "full_elapsed_ms": 11000,
+      "longest_recording_ms": 6000,
+      "most_words": 30,
+      "recording_ms": 9000,
+      "words": 40
+     }
+    ],
+    "range": {
+     "from": "2026-10-20",
+     "to": "2026-10-21"
+    },
+    "started_at": "2026-10-14T21:30:00Z",
+    "status": "active",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 2,
+     "tmux": 0
+    },
+    "count": 2
+   },
+   "estimated_time_difference_ms": 1430000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1000,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1500000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "daily-legacy-no-daily-section",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 82, \"by_flow\": {\"inline\": 82, \"tmux\": 0}}, \"processed_words\": 24311, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "not_started",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 82,
+     "tmux": 0
+    },
+    "count": 82
+   },
+   "estimated_time_difference_ms": 36396500,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 24311,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 36466500,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "daily-untracked-deliveries",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 50, \"by_flow\": {\"inline\": 50, \"tmux\": 0}}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000, \"daily\": {\"started_at\": \"2026-10-14T21:30:00Z\", \"baseline_count\": 20, \"days\": {\"2026-10-18\": {\"count\": 3, \"inline\": 3, \"tmux\": 0, \"words\": 40, \"recording_ms\": 9000, \"full_elapsed_ms\": 11000, \"longest_recording_ms\": 6000, \"most_words\": 30}, \"2026-10-20\": {\"count\": 4, \"inline\": 4, \"tmux\": 0, \"words\": 40, \"recording_ms\": 9000, \"full_elapsed_ms\": 11000, \"longest_recording_ms\": 6000, \"most_words\": 30}}}}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": "2026-10-14T21:30:00Z",
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [
+     {
+      "by_flow": {
+       "inline": 3,
+       "tmux": 0
+      },
+      "count": 3,
+      "date": "2026-10-18",
+      "full_elapsed_ms": 11000,
+      "longest_recording_ms": 6000,
+      "most_words": 30,
+      "recording_ms": 9000,
+      "words": 40
+     },
+     {
+      "by_flow": {
+       "inline": 4,
+       "tmux": 0
+      },
+      "count": 4,
+      "date": "2026-10-20",
+      "full_elapsed_ms": 11000,
+      "longest_recording_ms": 6000,
+      "most_words": 30,
+      "recording_ms": 9000,
+      "words": 40
+     }
+    ],
+    "range": {
+     "from": "2026-10-18",
+     "to": "2026-10-21"
+    },
+    "started_at": "2026-10-14T21:30:00Z",
+    "status": "active",
+    "untracked_deliveries": 23
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 50,
+     "tmux": 0
+    },
+    "count": 50
+   },
+   "estimated_time_difference_ms": 1430000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1000,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1500000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "daily-untracked-never-negative",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 5, \"by_flow\": {\"inline\": 5, \"tmux\": 0}}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000, \"daily\": {\"started_at\": \"2026-10-14T21:30:00Z\", \"baseline_count\": 3, \"days\": {\"2026-10-20\": {\"count\": 9, \"inline\": 9, \"tmux\": 0, \"words\": 40, \"recording_ms\": 9000, \"full_elapsed_ms\": 11000, \"longest_recording_ms\": 6000, \"most_words\": 30}}}}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": "2026-10-14T21:30:00Z",
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [
+     {
+      "by_flow": {
+       "inline": 9,
+       "tmux": 0
+      },
+      "count": 9,
+      "date": "2026-10-20",
+      "full_elapsed_ms": 11000,
+      "longest_recording_ms": 6000,
+      "most_words": 30,
+      "recording_ms": 9000,
+      "words": 40
+     }
+    ],
+    "range": {
+     "from": "2026-10-20",
+     "to": "2026-10-21"
+    },
+    "started_at": "2026-10-14T21:30:00Z",
+    "status": "active",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 5,
+     "tmux": 0
+    },
+    "count": 5
+   },
+   "estimated_time_difference_ms": 1430000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1000,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1500000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "daily-empty-days",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 7, \"by_flow\": {\"inline\": 7, \"tmux\": 0}}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000, \"daily\": {\"started_at\": \"2026-10-14T21:30:00Z\", \"baseline_count\": 7, \"days\": {}}}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": "2026-10-14T21:30:00Z",
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": "2026-10-14T21:30:00Z",
+    "status": "active",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 7,
+     "tmux": 0
+    },
+    "count": 7
+   },
+   "estimated_time_difference_ms": 1430000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1000,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1500000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "daily-future-day-extends-range",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000, \"daily\": {\"started_at\": \"2026-10-14T21:30:00Z\", \"baseline_count\": 1, \"days\": {\"2026-10-25\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": 40, \"recording_ms\": 9000, \"full_elapsed_ms\": 11000, \"longest_recording_ms\": 6000, \"most_words\": 30}, \"2026-10-19\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": 40, \"recording_ms\": 9000, \"full_elapsed_ms\": 11000, \"longest_recording_ms\": 6000, \"most_words\": 30}}}}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": "2026-10-14T21:30:00Z",
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [
+     {
+      "by_flow": {
+       "inline": 2,
+       "tmux": 0
+      },
+      "count": 2,
+      "date": "2026-10-19",
+      "full_elapsed_ms": 11000,
+      "longest_recording_ms": 6000,
+      "most_words": 30,
+      "recording_ms": 9000,
+      "words": 40
+     },
+     {
+      "by_flow": {
+       "inline": 2,
+       "tmux": 0
+      },
+      "count": 2,
+      "date": "2026-10-25",
+      "full_elapsed_ms": 11000,
+      "longest_recording_ms": 6000,
+      "most_words": 30,
+      "recording_ms": 9000,
+      "words": 40
+     }
+    ],
+    "range": {
+     "from": "2026-10-19",
+     "to": "2026-10-25"
+    },
+    "started_at": "2026-10-14T21:30:00Z",
+    "status": "active",
+    "untracked_deliveries": 5
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 1430000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1000,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1500000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "daily-all-days-in-past",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000, \"daily\": {\"started_at\": \"2026-10-14T21:30:00Z\", \"baseline_count\": 0, \"days\": {\"2026-01-01\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": 40, \"recording_ms\": 9000, \"full_elapsed_ms\": 11000, \"longest_recording_ms\": 6000, \"most_words\": 30}, \"2026-02-03\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": 40, \"recording_ms\": 9000, \"full_elapsed_ms\": 11000, \"longest_recording_ms\": 6000, \"most_words\": 30}}}}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": "2026-10-14T21:30:00Z",
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [
+     {
+      "by_flow": {
+       "inline": 2,
+       "tmux": 0
+      },
+      "count": 2,
+      "date": "2026-01-01",
+      "full_elapsed_ms": 11000,
+      "longest_recording_ms": 6000,
+      "most_words": 30,
+      "recording_ms": 9000,
+      "words": 40
+     },
+     {
+      "by_flow": {
+       "inline": 2,
+       "tmux": 0
+      },
+      "count": 2,
+      "date": "2026-02-03",
+      "full_elapsed_ms": 11000,
+      "longest_recording_ms": 6000,
+      "most_words": 30,
+      "recording_ms": 9000,
+      "words": 40
+     }
+    ],
+    "range": {
+     "from": "2026-01-01",
+     "to": "2026-10-21"
+    },
+    "started_at": "2026-10-14T21:30:00Z",
+    "status": "active",
+    "untracked_deliveries": 6
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 1430000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1000,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1500000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "daily-many-days-unsorted",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 700, \"by_flow\": {\"inline\": 700, \"tmux\": 0}}, \"processed_words\": 50000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000, \"daily\": {\"started_at\": \"2026-10-14T21:30:00Z\", \"baseline_count\": 10, \"days\": {\"2026-09-27\": {\"count\": 4, \"inline\": 4, \"tmux\": 0, \"words\": 10, \"recording_ms\": 118000, \"full_elapsed_ms\": 141600, \"longest_recording_ms\": 500, \"most_words\": 56}, \"2026-09-26\": {\"count\": 3, \"inline\": 3, \"tmux\": 0, \"words\": 0, \"recording_ms\": 117000, \"full_elapsed_ms\": 140400, \"longest_recording_ms\": 0, \"most_words\": 49}, \"2026-09-25\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": 120, \"recording_ms\": 116000, \"full_elapsed_ms\": 139200, \"longest_recording_ms\": 4000, \"most_words\": 42}, \"2026-09-24\": {\"count\": 1, \"inline\": 1, \"tmux\": 0, \"words\": 110, \"recording_ms\": 115000, \"full_elapsed_ms\": 138000, \"longest_recording_ms\": 3500, \"most_words\": 35}, \"2026-09-23\": {\"count\": 5, \"inline\": 5, \"tmux\": 0, \"words\": 100, \"recording_ms\": 114000, \"full_elapsed_ms\": 136800, \"longest_recording_ms\": 3000, \"most_words\": 28}, \"2026-09-22\": {\"count\": 4, \"inline\": 4, \"tmux\": 0, \"words\": 90, \"recording_ms\": 113000, \"full_elapsed_ms\": 135600, \"longest_recording_ms\": 2500, \"most_words\": 21}, \"2026-09-20\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": 70, \"recording_ms\": 111000, \"full_elapsed_ms\": 133200, \"longest_recording_ms\": 1500, \"most_words\": 7}, \"2026-09-19\": {\"count\": 1, \"inline\": 1, \"tmux\": 0, \"words\": 60, \"recording_ms\": 110000, \"full_elapsed_ms\": 132000, \"longest_recording_ms\": 1000, \"most_words\": 0}, \"2026-09-18\": {\"count\": 5, \"inline\": 5, \"tmux\": 0, \"words\": 50, \"recording_ms\": 109000, \"full_elapsed_ms\": 130800, \"longest_recording_ms\": 500, \"most_words\": 70}, \"2026-09-17\": {\"count\": 4, \"inline\": 4, \"tmux\": 0, \"words\": 40, \"recording_ms\": 108000, \"full_elapsed_ms\": 129600, \"longest_recording_ms\": 0, \"most_words\": 63}, \"2026-09-16\": {\"count\": 3, \"inline\": 3, \"tmux\": 0, \"words\": 30, \"recording_ms\": 107000, \"full_elapsed_ms\": 128400, \"longest_recording_ms\": 4000, \"most_words\": 56}, \"2026-09-15\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": 20, \"recording_ms\": 106000, \"full_elapsed_ms\": 127200, \"longest_recording_ms\": 3500, \"most_words\": 49}, \"2026-09-13\": {\"count\": 5, \"inline\": 5, \"tmux\": 0, \"words\": 0, \"recording_ms\": 104000, \"full_elapsed_ms\": 124800, \"longest_recording_ms\": 2500, \"most_words\": 35}, \"2026-09-12\": {\"count\": 4, \"inline\": 4, \"tmux\": 0, \"words\": 120, \"recording_ms\": 103000, \"full_elapsed_ms\": 123600, \"longest_recording_ms\": 2000, \"most_words\": 28}, \"2026-09-11\": {\"count\": 3, \"inline\": 3, \"tmux\": 0, \"words\": 110, \"recording_ms\": 102000, \"full_elapsed_ms\": 122400, \"longest_recording_ms\": 1500, \"most_words\": 21}, \"2026-09-10\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": 100, \"recording_ms\": 101000, \"full_elapsed_ms\": 121200, \"longest_recording_ms\": 1000, \"most_words\": 14}, \"2026-09-09\": {\"count\": 1, \"inline\": 1, \"tmux\": 0, \"words\": 90, \"recording_ms\": 100000, \"full_elapsed_ms\": 120000, \"longest_recording_ms\": 500, \"most_words\": 7}, \"2026-09-08\": {\"count\": 5, \"inline\": 5, \"tmux\": 0, \"words\": 80, \"recording_ms\": 99000, \"full_elapsed_ms\": 118800, \"longest_recording_ms\": 0, \"most_words\": 0}, \"2026-09-06\": {\"count\": 3, \"inline\": 3, \"tmux\": 0, \"words\": 60, \"recording_ms\": 97000, \"full_elapsed_ms\": 116400, \"longest_recording_ms\": 3500, \"most_words\": 63}, \"2026-09-05\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": 50, \"recording_ms\": 96000, \"full_elapsed_ms\": 115200, \"longest_recording_ms\": 3000, \"most_words\": 56}, \"2026-09-04\": {\"count\": 1, \"inline\": 1, \"tmux\": 0, \"words\": 40, \"recording_ms\": 95000, \"full_elapsed_ms\": 114000, \"longest_recording_ms\": 2500, \"most_words\": 49}, \"2026-09-03\": {\"count\": 5, \"inline\": 5, \"tmux\": 0, \"words\": 30, \"recording_ms\": 94000, \"full_elapsed_ms\": 112800, \"longest_recording_ms\": 2000, \"most_words\": 42}, \"2026-09-02\": {\"count\": 4, \"inline\": 4, \"tmux\": 0, \"words\": 20, \"recording_ms\": 93000, \"full_elapsed_ms\": 111600, \"longest_recording_ms\": 1500, \"most_words\": 35}, \"2026-09-01\": {\"count\": 3, \"inline\": 3, \"tmux\": 0, \"words\": 10, \"recording_ms\": 92000, \"full_elapsed_ms\": 110400, \"longest_recording_ms\": 1000, \"most_words\": 28}, \"2026-08-30\": {\"count\": 1, \"inline\": 1, \"tmux\": 0, \"words\": 120, \"recording_ms\": 90000, \"full_elapsed_ms\": 108000, \"longest_recording_ms\": 0, \"most_words\": 14}, \"2026-08-29\": {\"count\": 5, \"inline\": 5, \"tmux\": 0, \"words\": 110, \"recording_ms\": 89000, \"full_elapsed_ms\": 106800, \"longest_recording_ms\": 4000, \"most_words\": 7}, \"2026-08-28\": {\"count\": 4, \"inline\": 4, \"tmux\": 0, \"words\": 100, \"recording_ms\": 88000, \"full_elapsed_ms\": 105600, \"longest_recording_ms\": 3500, \"most_words\": 0}, \"2026-08-27\": {\"count\": 3, \"inline\": 3, \"tmux\": 0, \"words\": 90, \"recording_ms\": 87000, \"full_elapsed_ms\": 104400, \"longest_recording_ms\": 3000, \"most_words\": 70}, \"2026-08-26\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": 80, \"recording_ms\": 86000, \"full_elapsed_ms\": 103200, \"longest_recording_ms\": 2500, \"most_words\": 63}, \"2026-08-25\": {\"count\": 1, \"inline\": 1, \"tmux\": 0, \"words\": 70, \"recording_ms\": 85000, \"full_elapsed_ms\": 102000, \"longest_recording_ms\": 2000, \"most_words\": 56}, \"2026-08-23\": {\"count\": 4, \"inline\": 4, \"tmux\": 0, \"words\": 50, \"recording_ms\": 83000, \"full_elapsed_ms\": 99600, \"longest_recording_ms\": 1000, \"most_words\": 42}, \"2026-08-22\": {\"count\": 3, \"inline\": 3, \"tmux\": 0, \"words\": 40, \"recording_ms\": 82000, \"full_elapsed_ms\": 98400, \"longest_recording_ms\": 500, \"most_words\": 35}, \"2026-08-21\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": 30, \"recording_ms\": 81000, \"full_elapsed_ms\": 97200, \"longest_recording_ms\": 0, \"most_words\": 28}, \"2026-08-20\": {\"count\": 1, \"inline\": 1, \"tmux\": 0, \"words\": 20, \"recording_ms\": 80000, \"full_elapsed_ms\": 96000, \"longest_recording_ms\": 4000, \"most_words\": 21}, \"2026-08-19\": {\"count\": 5, \"inline\": 5, \"tmux\": 0, \"words\": 10, \"recording_ms\": 79000, \"full_elapsed_ms\": 94800, \"longest_recording_ms\": 3500, \"most_words\": 14}, \"2026-08-18\": {\"count\": 4, \"inline\": 4, \"tmux\": 0, \"words\": 0, \"recording_ms\": 78000, \"full_elapsed_ms\": 93600, \"longest_recording_ms\": 3000, \"most_words\": 7}, \"2026-08-16\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": 110, \"recording_ms\": 76000, \"full_elapsed_ms\": 91200, \"longest_recording_ms\": 2000, \"most_words\": 70}, \"2026-08-15\": {\"count\": 1, \"inline\": 1, \"tmux\": 0, \"words\": 100, \"recording_ms\": 75000, \"full_elapsed_ms\": 90000, \"longest_recording_ms\": 1500, \"most_words\": 63}, \"2026-08-14\": {\"count\": 5, \"inline\": 5, \"tmux\": 0, \"words\": 90, \"recording_ms\": 74000, \"full_elapsed_ms\": 88800, \"longest_recording_ms\": 1000, \"most_words\": 56}, \"2026-08-13\": {\"count\": 4, \"inline\": 4, \"tmux\": 0, \"words\": 80, \"recording_ms\": 73000, \"full_elapsed_ms\": 87600, \"longest_recording_ms\": 500, \"most_words\": 49}, \"2026-08-12\": {\"count\": 3, \"inline\": 3, \"tmux\": 0, \"words\": 70, \"recording_ms\": 72000, \"full_elapsed_ms\": 86400, \"longest_recording_ms\": 0, \"most_words\": 42}, \"2026-08-11\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": 60, \"recording_ms\": 71000, \"full_elapsed_ms\": 85200, \"longest_recording_ms\": 4000, \"most_words\": 35}, \"2026-08-09\": {\"count\": 5, \"inline\": 5, \"tmux\": 0, \"words\": 40, \"recording_ms\": 69000, \"full_elapsed_ms\": 82800, \"longest_recording_ms\": 3000, \"most_words\": 21}, \"2026-08-08\": {\"count\": 4, \"inline\": 4, \"tmux\": 0, \"words\": 30, \"recording_ms\": 68000, \"full_elapsed_ms\": 81600, \"longest_recording_ms\": 2500, \"most_words\": 14}, \"2026-08-07\": {\"count\": 3, \"inline\": 3, \"tmux\": 0, \"words\": 20, \"recording_ms\": 67000, \"full_elapsed_ms\": 80400, \"longest_recording_ms\": 2000, \"most_words\": 7}, \"2026-08-06\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": 10, \"recording_ms\": 66000, \"full_elapsed_ms\": 79200, \"longest_recording_ms\": 1500, \"most_words\": 0}, \"2026-08-05\": {\"count\": 1, \"inline\": 1, \"tmux\": 0, \"words\": 0, \"recording_ms\": 65000, \"full_elapsed_ms\": 78000, \"longest_recording_ms\": 1000, \"most_words\": 70}, \"2026-08-04\": {\"count\": 5, \"inline\": 5, \"tmux\": 0, \"words\": 120, \"recording_ms\": 64000, \"full_elapsed_ms\": 76800, \"longest_recording_ms\": 500, \"most_words\": 63}, \"2026-08-02\": {\"count\": 3, \"inline\": 3, \"tmux\": 0, \"words\": 100, \"recording_ms\": 62000, \"full_elapsed_ms\": 74400, \"longest_recording_ms\": 4000, \"most_words\": 49}, \"2026-08-01\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": 90, \"recording_ms\": 61000, \"full_elapsed_ms\": 73200, \"longest_recording_ms\": 3500, \"most_words\": 42}, \"2026-07-31\": {\"count\": 1, \"inline\": 1, \"tmux\": 0, \"words\": 80, \"recording_ms\": 60000, \"full_elapsed_ms\": 72000, \"longest_recording_ms\": 3000, \"most_words\": 35}, \"2026-07-30\": {\"count\": 5, \"inline\": 5, \"tmux\": 0, \"words\": 70, \"recording_ms\": 59000, \"full_elapsed_ms\": 70800, \"longest_recording_ms\": 2500, \"most_words\": 28}, \"2026-07-29\": {\"count\": 4, \"inline\": 4, \"tmux\": 0, \"words\": 60, \"recording_ms\": 58000, \"full_elapsed_ms\": 69600, \"longest_recording_ms\": 2000, \"most_words\": 21}, \"2026-07-28\": {\"count\": 3, \"inline\": 3, \"tmux\": 0, \"words\": 50, \"recording_ms\": 57000, \"full_elapsed_ms\": 68400, \"longest_recording_ms\": 1500, \"most_words\": 14}, \"2026-07-26\": {\"count\": 1, \"inline\": 1, \"tmux\": 0, \"words\": 30, \"recording_ms\": 55000, \"full_elapsed_ms\": 66000, \"longest_recording_ms\": 500, \"most_words\": 0}, \"2026-07-25\": {\"count\": 5, \"inline\": 5, \"tmux\": 0, \"words\": 20, \"recording_ms\": 54000, \"full_elapsed_ms\": 64800, \"longest_recording_ms\": 0, \"most_words\": 70}, \"2026-07-24\": {\"count\": 4, \"inline\": 4, \"tmux\": 0, \"words\": 10, \"recording_ms\": 53000, \"full_elapsed_ms\": 63600, \"longest_recording_ms\": 4000, \"most_words\": 63}, \"2026-07-23\": {\"count\": 3, \"inline\": 3, \"tmux\": 0, \"words\": 0, \"recording_ms\": 52000, \"full_elapsed_ms\": 62400, \"longest_recording_ms\": 3500, \"most_words\": 56}, \"2026-07-22\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": 120, \"recording_ms\": 51000, \"full_elapsed_ms\": 61200, \"longest_recording_ms\": 3000, \"most_words\": 49}, \"2026-07-21\": {\"count\": 1, \"inline\": 1, \"tmux\": 0, \"words\": 110, \"recording_ms\": 50000, \"full_elapsed_ms\": 60000, \"longest_recording_ms\": 2500, \"most_words\": 42}, \"2026-07-19\": {\"count\": 4, \"inline\": 4, \"tmux\": 0, \"words\": 90, \"recording_ms\": 48000, \"full_elapsed_ms\": 57600, \"longest_recording_ms\": 1500, \"most_words\": 28}, \"2026-07-18\": {\"count\": 3, \"inline\": 3, \"tmux\": 0, \"words\": 80, \"recording_ms\": 47000, \"full_elapsed_ms\": 56400, \"longest_recording_ms\": 1000, \"most_words\": 21}, \"2026-07-17\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": 70, \"recording_ms\": 46000, \"full_elapsed_ms\": 55200, \"longest_recording_ms\": 500, \"most_words\": 14}, \"2026-07-16\": {\"count\": 1, \"inline\": 1, \"tmux\": 0, \"words\": 60, \"recording_ms\": 45000, \"full_elapsed_ms\": 54000, \"longest_recording_ms\": 0, \"most_words\": 7}, \"2026-07-15\": {\"count\": 5, \"inline\": 5, \"tmux\": 0, \"words\": 50, \"recording_ms\": 44000, \"full_elapsed_ms\": 52800, \"longest_recording_ms\": 4000, \"most_words\": 0}, \"2026-07-14\": {\"count\": 4, \"inline\": 4, \"tmux\": 0, \"words\": 40, \"recording_ms\": 43000, \"full_elapsed_ms\": 51600, \"longest_recording_ms\": 3500, \"most_words\": 70}, \"2026-07-12\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": 20, \"recording_ms\": 41000, \"full_elapsed_ms\": 49200, \"longest_recording_ms\": 2500, \"most_words\": 56}, \"2026-07-11\": {\"count\": 1, \"inline\": 1, \"tmux\": 0, \"words\": 10, \"recording_ms\": 40000, \"full_elapsed_ms\": 48000, \"longest_recording_ms\": 2000, \"most_words\": 49}, \"2026-07-10\": {\"count\": 5, \"inline\": 5, \"tmux\": 0, \"words\": 0, \"recording_ms\": 39000, \"full_elapsed_ms\": 46800, \"longest_recording_ms\": 1500, \"most_words\": 42}, \"2026-07-09\": {\"count\": 4, \"inline\": 4, \"tmux\": 0, \"words\": 120, \"recording_ms\": 38000, \"full_elapsed_ms\": 45600, \"longest_recording_ms\": 1000, \"most_words\": 35}, \"2026-07-08\": {\"count\": 3, \"inline\": 3, \"tmux\": 0, \"words\": 110, \"recording_ms\": 37000, \"full_elapsed_ms\": 44400, \"longest_recording_ms\": 500, \"most_words\": 28}, \"2026-07-07\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": 100, \"recording_ms\": 36000, \"full_elapsed_ms\": 43200, \"longest_recording_ms\": 0, \"most_words\": 21}, \"2026-07-05\": {\"count\": 5, \"inline\": 5, \"tmux\": 0, \"words\": 80, \"recording_ms\": 34000, \"full_elapsed_ms\": 40800, \"longest_recording_ms\": 3500, \"most_words\": 7}, \"2026-07-04\": {\"count\": 4, \"inline\": 4, \"tmux\": 0, \"words\": 70, \"recording_ms\": 33000, \"full_elapsed_ms\": 39600, \"longest_recording_ms\": 3000, \"most_words\": 0}, \"2026-07-03\": {\"count\": 3, \"inline\": 3, \"tmux\": 0, \"words\": 60, \"recording_ms\": 32000, \"full_elapsed_ms\": 38400, \"longest_recording_ms\": 2500, \"most_words\": 70}, \"2026-07-02\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": 50, \"recording_ms\": 31000, \"full_elapsed_ms\": 37200, \"longest_recording_ms\": 2000, \"most_words\": 63}, \"2026-07-01\": {\"count\": 1, \"inline\": 1, \"tmux\": 0, \"words\": 40, \"recording_ms\": 30000, \"full_elapsed_ms\": 36000, \"longest_recording_ms\": 1500, \"most_words\": 56}, \"2026-06-30\": {\"count\": 5, \"inline\": 5, \"tmux\": 0, \"words\": 30, \"recording_ms\": 29000, \"full_elapsed_ms\": 34800, \"longest_recording_ms\": 1000, \"most_words\": 49}, \"2026-06-28\": {\"count\": 3, \"inline\": 3, \"tmux\": 0, \"words\": 10, \"recording_ms\": 27000, \"full_elapsed_ms\": 32400, \"longest_recording_ms\": 0, \"most_words\": 35}, \"2026-06-27\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": 0, \"recording_ms\": 26000, \"full_elapsed_ms\": 31200, \"longest_recording_ms\": 4000, \"most_words\": 28}, \"2026-06-26\": {\"count\": 1, \"inline\": 1, \"tmux\": 0, \"words\": 120, \"recording_ms\": 25000, \"full_elapsed_ms\": 30000, \"longest_recording_ms\": 3500, \"most_words\": 21}, \"2026-06-25\": {\"count\": 5, \"inline\": 5, \"tmux\": 0, \"words\": 110, \"recording_ms\": 24000, \"full_elapsed_ms\": 28800, \"longest_recording_ms\": 3000, \"most_words\": 14}, \"2026-06-24\": {\"count\": 4, \"inline\": 4, \"tmux\": 0, \"words\": 100, \"recording_ms\": 23000, \"full_elapsed_ms\": 27600, \"longest_recording_ms\": 2500, \"most_words\": 7}, \"2026-06-23\": {\"count\": 3, \"inline\": 3, \"tmux\": 0, \"words\": 90, \"recording_ms\": 22000, \"full_elapsed_ms\": 26400, \"longest_recording_ms\": 2000, \"most_words\": 0}, \"2026-06-21\": {\"count\": 1, \"inline\": 1, \"tmux\": 0, \"words\": 70, \"recording_ms\": 20000, \"full_elapsed_ms\": 24000, \"longest_recording_ms\": 1000, \"most_words\": 63}, \"2026-06-20\": {\"count\": 5, \"inline\": 5, \"tmux\": 0, \"words\": 60, \"recording_ms\": 19000, \"full_elapsed_ms\": 22800, \"longest_recording_ms\": 500, \"most_words\": 56}, \"2026-06-19\": {\"count\": 4, \"inline\": 4, \"tmux\": 0, \"words\": 50, \"recording_ms\": 18000, \"full_elapsed_ms\": 21600, \"longest_recording_ms\": 0, \"most_words\": 49}, \"2026-06-18\": {\"count\": 3, \"inline\": 3, \"tmux\": 0, \"words\": 40, \"recording_ms\": 17000, \"full_elapsed_ms\": 20400, \"longest_recording_ms\": 4000, \"most_words\": 42}, \"2026-06-17\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": 30, \"recording_ms\": 16000, \"full_elapsed_ms\": 19200, \"longest_recording_ms\": 3500, \"most_words\": 35}, \"2026-06-16\": {\"count\": 1, \"inline\": 1, \"tmux\": 0, \"words\": 20, \"recording_ms\": 15000, \"full_elapsed_ms\": 18000, \"longest_recording_ms\": 3000, \"most_words\": 28}, \"2026-06-14\": {\"count\": 4, \"inline\": 4, \"tmux\": 0, \"words\": 0, \"recording_ms\": 13000, \"full_elapsed_ms\": 15600, \"longest_recording_ms\": 2000, \"most_words\": 14}, \"2026-06-13\": {\"count\": 3, \"inline\": 3, \"tmux\": 0, \"words\": 120, \"recording_ms\": 12000, \"full_elapsed_ms\": 14400, \"longest_recording_ms\": 1500, \"most_words\": 7}, \"2026-06-12\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": 110, \"recording_ms\": 11000, \"full_elapsed_ms\": 13200, \"longest_recording_ms\": 1000, \"most_words\": 0}, \"2026-06-11\": {\"count\": 1, \"inline\": 1, \"tmux\": 0, \"words\": 100, \"recording_ms\": 10000, \"full_elapsed_ms\": 12000, \"longest_recording_ms\": 500, \"most_words\": 70}, \"2026-06-10\": {\"count\": 5, \"inline\": 5, \"tmux\": 0, \"words\": 90, \"recording_ms\": 9000, \"full_elapsed_ms\": 10800, \"longest_recording_ms\": 0, \"most_words\": 63}, \"2026-06-09\": {\"count\": 4, \"inline\": 4, \"tmux\": 0, \"words\": 80, \"recording_ms\": 8000, \"full_elapsed_ms\": 9600, \"longest_recording_ms\": 4000, \"most_words\": 56}, \"2026-06-07\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": 60, \"recording_ms\": 6000, \"full_elapsed_ms\": 7200, \"longest_recording_ms\": 3000, \"most_words\": 42}, \"2026-06-06\": {\"count\": 1, \"inline\": 1, \"tmux\": 0, \"words\": 50, \"recording_ms\": 5000, \"full_elapsed_ms\": 6000, \"longest_recording_ms\": 2500, \"most_words\": 35}, \"2026-06-05\": {\"count\": 5, \"inline\": 5, \"tmux\": 0, \"words\": 40, \"recording_ms\": 4000, \"full_elapsed_ms\": 4800, \"longest_recording_ms\": 2000, \"most_words\": 28}, \"2026-06-04\": {\"count\": 4, \"inline\": 4, \"tmux\": 0, \"words\": 30, \"recording_ms\": 3000, \"full_elapsed_ms\": 3600, \"longest_recording_ms\": 1500, \"most_words\": 21}, \"2026-06-02\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": 10, \"recording_ms\": 1000, \"full_elapsed_ms\": 1200, \"longest_recording_ms\": 500, \"most_words\": 7}, \"2026-06-03\": {\"count\": 5, \"inline\": 5, \"tmux\": 0, \"words\": 20, \"recording_ms\": 119000, \"full_elapsed_ms\": 142800, \"longest_recording_ms\": 1000, \"most_words\": 63}}}}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": "2026-10-14T21:30:00Z",
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [
+     {
+      "by_flow": {
+       "inline": 2,
+       "tmux": 0
+      },
+      "count": 2,
+      "date": "2026-06-02",
+      "full_elapsed_ms": 1200,
+      "longest_recording_ms": 500,
+      "most_words": 7,
+      "recording_ms": 1000,
+      "words": 10
+     },
+     {
+      "by_flow": {
+       "inline": 5,
+       "tmux": 0
+      },
+      "count": 5,
+      "date": "2026-06-03",
+      "full_elapsed_ms": 142800,
+      "longest_recording_ms": 1000,
+      "most_words": 63,
+      "recording_ms": 119000,
+      "words": 20
+     },
+     {
+      "by_flow": {
+       "inline": 4,
+       "tmux": 0
+      },
+      "count": 4,
+      "date": "2026-06-04",
+      "full_elapsed_ms": 3600,
+      "longest_recording_ms": 1500,
+      "most_words": 21,
+      "recording_ms": 3000,
+      "words": 30
+     },
+     {
+      "by_flow": {
+       "inline": 5,
+       "tmux": 0
+      },
+      "count": 5,
+      "date": "2026-06-05",
+      "full_elapsed_ms": 4800,
+      "longest_recording_ms": 2000,
+      "most_words": 28,
+      "recording_ms": 4000,
+      "words": 40
+     },
+     {
+      "by_flow": {
+       "inline": 1,
+       "tmux": 0
+      },
+      "count": 1,
+      "date": "2026-06-06",
+      "full_elapsed_ms": 6000,
+      "longest_recording_ms": 2500,
+      "most_words": 35,
+      "recording_ms": 5000,
+      "words": 50
+     },
+     {
+      "by_flow": {
+       "inline": 2,
+       "tmux": 0
+      },
+      "count": 2,
+      "date": "2026-06-07",
+      "full_elapsed_ms": 7200,
+      "longest_recording_ms": 3000,
+      "most_words": 42,
+      "recording_ms": 6000,
+      "words": 60
+     },
+     {
+      "by_flow": {
+       "inline": 4,
+       "tmux": 0
+      },
+      "count": 4,
+      "date": "2026-06-09",
+      "full_elapsed_ms": 9600,
+      "longest_recording_ms": 4000,
+      "most_words": 56,
+      "recording_ms": 8000,
+      "words": 80
+     },
+     {
+      "by_flow": {
+       "inline": 5,
+       "tmux": 0
+      },
+      "count": 5,
+      "date": "2026-06-10",
+      "full_elapsed_ms": 10800,
+      "longest_recording_ms": 0,
+      "most_words": 63,
+      "recording_ms": 9000,
+      "words": 90
+     },
+     {
+      "by_flow": {
+       "inline": 1,
+       "tmux": 0
+      },
+      "count": 1,
+      "date": "2026-06-11",
+      "full_elapsed_ms": 12000,
+      "longest_recording_ms": 500,
+      "most_words": 70,
+      "recording_ms": 10000,
+      "words": 100
+     },
+     {
+      "by_flow": {
+       "inline": 2,
+       "tmux": 0
+      },
+      "count": 2,
+      "date": "2026-06-12",
+      "full_elapsed_ms": 13200,
+      "longest_recording_ms": 1000,
+      "most_words": 0,
+      "recording_ms": 11000,
+      "words": 110
+     },
+     {
+      "by_flow": {
+       "inline": 3,
+       "tmux": 0
+      },
+      "count": 3,
+      "date": "2026-06-13",
+      "full_elapsed_ms": 14400,
+      "longest_recording_ms": 1500,
+      "most_words": 7,
+      "recording_ms": 12000,
+      "words": 120
+     },
+     {
+      "by_flow": {
+       "inline": 4,
+       "tmux": 0
+      },
+      "count": 4,
+      "date": "2026-06-14",
+      "full_elapsed_ms": 15600,
+      "longest_recording_ms": 2000,
+      "most_words": 14,
+      "recording_ms": 13000,
+      "words": 0
+     },
+     {
+      "by_flow": {
+       "inline": 1,
+       "tmux": 0
+      },
+      "count": 1,
+      "date": "2026-06-16",
+      "full_elapsed_ms": 18000,
+      "longest_recording_ms": 3000,
+      "most_words": 28,
+      "recording_ms": 15000,
+      "words": 20
+     },
+     {
+      "by_flow": {
+       "inline": 2,
+       "tmux": 0
+      },
+      "count": 2,
+      "date": "2026-06-17",
+      "full_elapsed_ms": 19200,
+      "longest_recording_ms": 3500,
+      "most_words": 35,
+      "recording_ms": 16000,
+      "words": 30
+     },
+     {
+      "by_flow": {
+       "inline": 3,
+       "tmux": 0
+      },
+      "count": 3,
+      "date": "2026-06-18",
+      "full_elapsed_ms": 20400,
+      "longest_recording_ms": 4000,
+      "most_words": 42,
+      "recording_ms": 17000,
+      "words": 40
+     },
+     {
+      "by_flow": {
+       "inline": 4,
+       "tmux": 0
+      },
+      "count": 4,
+      "date": "2026-06-19",
+      "full_elapsed_ms": 21600,
+      "longest_recording_ms": 0,
+      "most_words": 49,
+      "recording_ms": 18000,
+      "words": 50
+     },
+     {
+      "by_flow": {
+       "inline": 5,
+       "tmux": 0
+      },
+      "count": 5,
+      "date": "2026-06-20",
+      "full_elapsed_ms": 22800,
+      "longest_recording_ms": 500,
+      "most_words": 56,
+      "recording_ms": 19000,
+      "words": 60
+     },
+     {
+      "by_flow": {
+       "inline": 1,
+       "tmux": 0
+      },
+      "count": 1,
+      "date": "2026-06-21",
+      "full_elapsed_ms": 24000,
+      "longest_recording_ms": 1000,
+      "most_words": 63,
+      "recording_ms": 20000,
+      "words": 70
+     },
+     {
+      "by_flow": {
+       "inline": 3,
+       "tmux": 0
+      },
+      "count": 3,
+      "date": "2026-06-23",
+      "full_elapsed_ms": 26400,
+      "longest_recording_ms": 2000,
+      "most_words": 0,
+      "recording_ms": 22000,
+      "words": 90
+     },
+     {
+      "by_flow": {
+       "inline": 4,
+       "tmux": 0
+      },
+      "count": 4,
+      "date": "2026-06-24",
+      "full_elapsed_ms": 27600,
+      "longest_recording_ms": 2500,
+      "most_words": 7,
+      "recording_ms": 23000,
+      "words": 100
+     },
+     {
+      "by_flow": {
+       "inline": 5,
+       "tmux": 0
+      },
+      "count": 5,
+      "date": "2026-06-25",
+      "full_elapsed_ms": 28800,
+      "longest_recording_ms": 3000,
+      "most_words": 14,
+      "recording_ms": 24000,
+      "words": 110
+     },
+     {
+      "by_flow": {
+       "inline": 1,
+       "tmux": 0
+      },
+      "count": 1,
+      "date": "2026-06-26",
+      "full_elapsed_ms": 30000,
+      "longest_recording_ms": 3500,
+      "most_words": 21,
+      "recording_ms": 25000,
+      "words": 120
+     },
+     {
+      "by_flow": {
+       "inline": 2,
+       "tmux": 0
+      },
+      "count": 2,
+      "date": "2026-06-27",
+      "full_elapsed_ms": 31200,
+      "longest_recording_ms": 4000,
+      "most_words": 28,
+      "recording_ms": 26000,
+      "words": 0
+     },
+     {
+      "by_flow": {
+       "inline": 3,
+       "tmux": 0
+      },
+      "count": 3,
+      "date": "2026-06-28",
+      "full_elapsed_ms": 32400,
+      "longest_recording_ms": 0,
+      "most_words": 35,
+      "recording_ms": 27000,
+      "words": 10
+     },
+     {
+      "by_flow": {
+       "inline": 5,
+       "tmux": 0
+      },
+      "count": 5,
+      "date": "2026-06-30",
+      "full_elapsed_ms": 34800,
+      "longest_recording_ms": 1000,
+      "most_words": 49,
+      "recording_ms": 29000,
+      "words": 30
+     },
+     {
+      "by_flow": {
+       "inline": 1,
+       "tmux": 0
+      },
+      "count": 1,
+      "date": "2026-07-01",
+      "full_elapsed_ms": 36000,
+      "longest_recording_ms": 1500,
+      "most_words": 56,
+      "recording_ms": 30000,
+      "words": 40
+     },
+     {
+      "by_flow": {
+       "inline": 2,
+       "tmux": 0
+      },
+      "count": 2,
+      "date": "2026-07-02",
+      "full_elapsed_ms": 37200,
+      "longest_recording_ms": 2000,
+      "most_words": 63,
+      "recording_ms": 31000,
+      "words": 50
+     },
+     {
+      "by_flow": {
+       "inline": 3,
+       "tmux": 0
+      },
+      "count": 3,
+      "date": "2026-07-03",
+      "full_elapsed_ms": 38400,
+      "longest_recording_ms": 2500,
+      "most_words": 70,
+      "recording_ms": 32000,
+      "words": 60
+     },
+     {
+      "by_flow": {
+       "inline": 4,
+       "tmux": 0
+      },
+      "count": 4,
+      "date": "2026-07-04",
+      "full_elapsed_ms": 39600,
+      "longest_recording_ms": 3000,
+      "most_words": 0,
+      "recording_ms": 33000,
+      "words": 70
+     },
+     {
+      "by_flow": {
+       "inline": 5,
+       "tmux": 0
+      },
+      "count": 5,
+      "date": "2026-07-05",
+      "full_elapsed_ms": 40800,
+      "longest_recording_ms": 3500,
+      "most_words": 7,
+      "recording_ms": 34000,
+      "words": 80
+     },
+     {
+      "by_flow": {
+       "inline": 2,
+       "tmux": 0
+      },
+      "count": 2,
+      "date": "2026-07-07",
+      "full_elapsed_ms": 43200,
+      "longest_recording_ms": 0,
+      "most_words": 21,
+      "recording_ms": 36000,
+      "words": 100
+     },
+     {
+      "by_flow": {
+       "inline": 3,
+       "tmux": 0
+      },
+      "count": 3,
+      "date": "2026-07-08",
+      "full_elapsed_ms": 44400,
+      "longest_recording_ms": 500,
+      "most_words": 28,
+      "recording_ms": 37000,
+      "words": 110
+     },
+     {
+      "by_flow": {
+       "inline": 4,
+       "tmux": 0
+      },
+      "count": 4,
+      "date": "2026-07-09",
+      "full_elapsed_ms": 45600,
+      "longest_recording_ms": 1000,
+      "most_words": 35,
+      "recording_ms": 38000,
+      "words": 120
+     },
+     {
+      "by_flow": {
+       "inline": 5,
+       "tmux": 0
+      },
+      "count": 5,
+      "date": "2026-07-10",
+      "full_elapsed_ms": 46800,
+      "longest_recording_ms": 1500,
+      "most_words": 42,
+      "recording_ms": 39000,
+      "words": 0
+     },
+     {
+      "by_flow": {
+       "inline": 1,
+       "tmux": 0
+      },
+      "count": 1,
+      "date": "2026-07-11",
+      "full_elapsed_ms": 48000,
+      "longest_recording_ms": 2000,
+      "most_words": 49,
+      "recording_ms": 40000,
+      "words": 10
+     },
+     {
+      "by_flow": {
+       "inline": 2,
+       "tmux": 0
+      },
+      "count": 2,
+      "date": "2026-07-12",
+      "full_elapsed_ms": 49200,
+      "longest_recording_ms": 2500,
+      "most_words": 56,
+      "recording_ms": 41000,
+      "words": 20
+     },
+     {
+      "by_flow": {
+       "inline": 4,
+       "tmux": 0
+      },
+      "count": 4,
+      "date": "2026-07-14",
+      "full_elapsed_ms": 51600,
+      "longest_recording_ms": 3500,
+      "most_words": 70,
+      "recording_ms": 43000,
+      "words": 40
+     },
+     {
+      "by_flow": {
+       "inline": 5,
+       "tmux": 0
+      },
+      "count": 5,
+      "date": "2026-07-15",
+      "full_elapsed_ms": 52800,
+      "longest_recording_ms": 4000,
+      "most_words": 0,
+      "recording_ms": 44000,
+      "words": 50
+     },
+     {
+      "by_flow": {
+       "inline": 1,
+       "tmux": 0
+      },
+      "count": 1,
+      "date": "2026-07-16",
+      "full_elapsed_ms": 54000,
+      "longest_recording_ms": 0,
+      "most_words": 7,
+      "recording_ms": 45000,
+      "words": 60
+     },
+     {
+      "by_flow": {
+       "inline": 2,
+       "tmux": 0
+      },
+      "count": 2,
+      "date": "2026-07-17",
+      "full_elapsed_ms": 55200,
+      "longest_recording_ms": 500,
+      "most_words": 14,
+      "recording_ms": 46000,
+      "words": 70
+     },
+     {
+      "by_flow": {
+       "inline": 3,
+       "tmux": 0
+      },
+      "count": 3,
+      "date": "2026-07-18",
+      "full_elapsed_ms": 56400,
+      "longest_recording_ms": 1000,
+      "most_words": 21,
+      "recording_ms": 47000,
+      "words": 80
+     },
+     {
+      "by_flow": {
+       "inline": 4,
+       "tmux": 0
+      },
+      "count": 4,
+      "date": "2026-07-19",
+      "full_elapsed_ms": 57600,
+      "longest_recording_ms": 1500,
+      "most_words": 28,
+      "recording_ms": 48000,
+      "words": 90
+     },
+     {
+      "by_flow": {
+       "inline": 1,
+       "tmux": 0
+      },
+      "count": 1,
+      "date": "2026-07-21",
+      "full_elapsed_ms": 60000,
+      "longest_recording_ms": 2500,
+      "most_words": 42,
+      "recording_ms": 50000,
+      "words": 110
+     },
+     {
+      "by_flow": {
+       "inline": 2,
+       "tmux": 0
+      },
+      "count": 2,
+      "date": "2026-07-22",
+      "full_elapsed_ms": 61200,
+      "longest_recording_ms": 3000,
+      "most_words": 49,
+      "recording_ms": 51000,
+      "words": 120
+     },
+     {
+      "by_flow": {
+       "inline": 3,
+       "tmux": 0
+      },
+      "count": 3,
+      "date": "2026-07-23",
+      "full_elapsed_ms": 62400,
+      "longest_recording_ms": 3500,
+      "most_words": 56,
+      "recording_ms": 52000,
+      "words": 0
+     },
+     {
+      "by_flow": {
+       "inline": 4,
+       "tmux": 0
+      },
+      "count": 4,
+      "date": "2026-07-24",
+      "full_elapsed_ms": 63600,
+      "longest_recording_ms": 4000,
+      "most_words": 63,
+      "recording_ms": 53000,
+      "words": 10
+     },
+     {
+      "by_flow": {
+       "inline": 5,
+       "tmux": 0
+      },
+      "count": 5,
+      "date": "2026-07-25",
+      "full_elapsed_ms": 64800,
+      "longest_recording_ms": 0,
+      "most_words": 70,
+      "recording_ms": 54000,
+      "words": 20
+     },
+     {
+      "by_flow": {
+       "inline": 1,
+       "tmux": 0
+      },
+      "count": 1,
+      "date": "2026-07-26",
+      "full_elapsed_ms": 66000,
+      "longest_recording_ms": 500,
+      "most_words": 0,
+      "recording_ms": 55000,
+      "words": 30
+     },
+     {
+      "by_flow": {
+       "inline": 3,
+       "tmux": 0
+      },
+      "count": 3,
+      "date": "2026-07-28",
+      "full_elapsed_ms": 68400,
+      "longest_recording_ms": 1500,
+      "most_words": 14,
+      "recording_ms": 57000,
+      "words": 50
+     },
+     {
+      "by_flow": {
+       "inline": 4,
+       "tmux": 0
+      },
+      "count": 4,
+      "date": "2026-07-29",
+      "full_elapsed_ms": 69600,
+      "longest_recording_ms": 2000,
+      "most_words": 21,
+      "recording_ms": 58000,
+      "words": 60
+     },
+     {
+      "by_flow": {
+       "inline": 5,
+       "tmux": 0
+      },
+      "count": 5,
+      "date": "2026-07-30",
+      "full_elapsed_ms": 70800,
+      "longest_recording_ms": 2500,
+      "most_words": 28,
+      "recording_ms": 59000,
+      "words": 70
+     },
+     {
+      "by_flow": {
+       "inline": 1,
+       "tmux": 0
+      },
+      "count": 1,
+      "date": "2026-07-31",
+      "full_elapsed_ms": 72000,
+      "longest_recording_ms": 3000,
+      "most_words": 35,
+      "recording_ms": 60000,
+      "words": 80
+     },
+     {
+      "by_flow": {
+       "inline": 2,
+       "tmux": 0
+      },
+      "count": 2,
+      "date": "2026-08-01",
+      "full_elapsed_ms": 73200,
+      "longest_recording_ms": 3500,
+      "most_words": 42,
+      "recording_ms": 61000,
+      "words": 90
+     },
+     {
+      "by_flow": {
+       "inline": 3,
+       "tmux": 0
+      },
+      "count": 3,
+      "date": "2026-08-02",
+      "full_elapsed_ms": 74400,
+      "longest_recording_ms": 4000,
+      "most_words": 49,
+      "recording_ms": 62000,
+      "words": 100
+     },
+     {
+      "by_flow": {
+       "inline": 5,
+       "tmux": 0
+      },
+      "count": 5,
+      "date": "2026-08-04",
+      "full_elapsed_ms": 76800,
+      "longest_recording_ms": 500,
+      "most_words": 63,
+      "recording_ms": 64000,
+      "words": 120
+     },
+     {
+      "by_flow": {
+       "inline": 1,
+       "tmux": 0
+      },
+      "count": 1,
+      "date": "2026-08-05",
+      "full_elapsed_ms": 78000,
+      "longest_recording_ms": 1000,
+      "most_words": 70,
+      "recording_ms": 65000,
+      "words": 0
+     },
+     {
+      "by_flow": {
+       "inline": 2,
+       "tmux": 0
+      },
+      "count": 2,
+      "date": "2026-08-06",
+      "full_elapsed_ms": 79200,
+      "longest_recording_ms": 1500,
+      "most_words": 0,
+      "recording_ms": 66000,
+      "words": 10
+     },
+     {
+      "by_flow": {
+       "inline": 3,
+       "tmux": 0
+      },
+      "count": 3,
+      "date": "2026-08-07",
+      "full_elapsed_ms": 80400,
+      "longest_recording_ms": 2000,
+      "most_words": 7,
+      "recording_ms": 67000,
+      "words": 20
+     },
+     {
+      "by_flow": {
+       "inline": 4,
+       "tmux": 0
+      },
+      "count": 4,
+      "date": "2026-08-08",
+      "full_elapsed_ms": 81600,
+      "longest_recording_ms": 2500,
+      "most_words": 14,
+      "recording_ms": 68000,
+      "words": 30
+     },
+     {
+      "by_flow": {
+       "inline": 5,
+       "tmux": 0
+      },
+      "count": 5,
+      "date": "2026-08-09",
+      "full_elapsed_ms": 82800,
+      "longest_recording_ms": 3000,
+      "most_words": 21,
+      "recording_ms": 69000,
+      "words": 40
+     },
+     {
+      "by_flow": {
+       "inline": 2,
+       "tmux": 0
+      },
+      "count": 2,
+      "date": "2026-08-11",
+      "full_elapsed_ms": 85200,
+      "longest_recording_ms": 4000,
+      "most_words": 35,
+      "recording_ms": 71000,
+      "words": 60
+     },
+     {
+      "by_flow": {
+       "inline": 3,
+       "tmux": 0
+      },
+      "count": 3,
+      "date": "2026-08-12",
+      "full_elapsed_ms": 86400,
+      "longest_recording_ms": 0,
+      "most_words": 42,
+      "recording_ms": 72000,
+      "words": 70
+     },
+     {
+      "by_flow": {
+       "inline": 4,
+       "tmux": 0
+      },
+      "count": 4,
+      "date": "2026-08-13",
+      "full_elapsed_ms": 87600,
+      "longest_recording_ms": 500,
+      "most_words": 49,
+      "recording_ms": 73000,
+      "words": 80
+     },
+     {
+      "by_flow": {
+       "inline": 5,
+       "tmux": 0
+      },
+      "count": 5,
+      "date": "2026-08-14",
+      "full_elapsed_ms": 88800,
+      "longest_recording_ms": 1000,
+      "most_words": 56,
+      "recording_ms": 74000,
+      "words": 90
+     },
+     {
+      "by_flow": {
+       "inline": 1,
+       "tmux": 0
+      },
+      "count": 1,
+      "date": "2026-08-15",
+      "full_elapsed_ms": 90000,
+      "longest_recording_ms": 1500,
+      "most_words": 63,
+      "recording_ms": 75000,
+      "words": 100
+     },
+     {
+      "by_flow": {
+       "inline": 2,
+       "tmux": 0
+      },
+      "count": 2,
+      "date": "2026-08-16",
+      "full_elapsed_ms": 91200,
+      "longest_recording_ms": 2000,
+      "most_words": 70,
+      "recording_ms": 76000,
+      "words": 110
+     },
+     {
+      "by_flow": {
+       "inline": 4,
+       "tmux": 0
+      },
+      "count": 4,
+      "date": "2026-08-18",
+      "full_elapsed_ms": 93600,
+      "longest_recording_ms": 3000,
+      "most_words": 7,
+      "recording_ms": 78000,
+      "words": 0
+     },
+     {
+      "by_flow": {
+       "inline": 5,
+       "tmux": 0
+      },
+      "count": 5,
+      "date": "2026-08-19",
+      "full_elapsed_ms": 94800,
+      "longest_recording_ms": 3500,
+      "most_words": 14,
+      "recording_ms": 79000,
+      "words": 10
+     },
+     {
+      "by_flow": {
+       "inline": 1,
+       "tmux": 0
+      },
+      "count": 1,
+      "date": "2026-08-20",
+      "full_elapsed_ms": 96000,
+      "longest_recording_ms": 4000,
+      "most_words": 21,
+      "recording_ms": 80000,
+      "words": 20
+     },
+     {
+      "by_flow": {
+       "inline": 2,
+       "tmux": 0
+      },
+      "count": 2,
+      "date": "2026-08-21",
+      "full_elapsed_ms": 97200,
+      "longest_recording_ms": 0,
+      "most_words": 28,
+      "recording_ms": 81000,
+      "words": 30
+     },
+     {
+      "by_flow": {
+       "inline": 3,
+       "tmux": 0
+      },
+      "count": 3,
+      "date": "2026-08-22",
+      "full_elapsed_ms": 98400,
+      "longest_recording_ms": 500,
+      "most_words": 35,
+      "recording_ms": 82000,
+      "words": 40
+     },
+     {
+      "by_flow": {
+       "inline": 4,
+       "tmux": 0
+      },
+      "count": 4,
+      "date": "2026-08-23",
+      "full_elapsed_ms": 99600,
+      "longest_recording_ms": 1000,
+      "most_words": 42,
+      "recording_ms": 83000,
+      "words": 50
+     },
+     {
+      "by_flow": {
+       "inline": 1,
+       "tmux": 0
+      },
+      "count": 1,
+      "date": "2026-08-25",
+      "full_elapsed_ms": 102000,
+      "longest_recording_ms": 2000,
+      "most_words": 56,
+      "recording_ms": 85000,
+      "words": 70
+     },
+     {
+      "by_flow": {
+       "inline": 2,
+       "tmux": 0
+      },
+      "count": 2,
+      "date": "2026-08-26",
+      "full_elapsed_ms": 103200,
+      "longest_recording_ms": 2500,
+      "most_words": 63,
+      "recording_ms": 86000,
+      "words": 80
+     },
+     {
+      "by_flow": {
+       "inline": 3,
+       "tmux": 0
+      },
+      "count": 3,
+      "date": "2026-08-27",
+      "full_elapsed_ms": 104400,
+      "longest_recording_ms": 3000,
+      "most_words": 70,
+      "recording_ms": 87000,
+      "words": 90
+     },
+     {
+      "by_flow": {
+       "inline": 4,
+       "tmux": 0
+      },
+      "count": 4,
+      "date": "2026-08-28",
+      "full_elapsed_ms": 105600,
+      "longest_recording_ms": 3500,
+      "most_words": 0,
+      "recording_ms": 88000,
+      "words": 100
+     },
+     {
+      "by_flow": {
+       "inline": 5,
+       "tmux": 0
+      },
+      "count": 5,
+      "date": "2026-08-29",
+      "full_elapsed_ms": 106800,
+      "longest_recording_ms": 4000,
+      "most_words": 7,
+      "recording_ms": 89000,
+      "words": 110
+     },
+     {
+      "by_flow": {
+       "inline": 1,
+       "tmux": 0
+      },
+      "count": 1,
+      "date": "2026-08-30",
+      "full_elapsed_ms": 108000,
+      "longest_recording_ms": 0,
+      "most_words": 14,
+      "recording_ms": 90000,
+      "words": 120
+     },
+     {
+      "by_flow": {
+       "inline": 3,
+       "tmux": 0
+      },
+      "count": 3,
+      "date": "2026-09-01",
+      "full_elapsed_ms": 110400,
+      "longest_recording_ms": 1000,
+      "most_words": 28,
+      "recording_ms": 92000,
+      "words": 10
+     },
+     {
+      "by_flow": {
+       "inline": 4,
+       "tmux": 0
+      },
+      "count": 4,
+      "date": "2026-09-02",
+      "full_elapsed_ms": 111600,
+      "longest_recording_ms": 1500,
+      "most_words": 35,
+      "recording_ms": 93000,
+      "words": 20
+     },
+     {
+      "by_flow": {
+       "inline": 5,
+       "tmux": 0
+      },
+      "count": 5,
+      "date": "2026-09-03",
+      "full_elapsed_ms": 112800,
+      "longest_recording_ms": 2000,
+      "most_words": 42,
+      "recording_ms": 94000,
+      "words": 30
+     },
+     {
+      "by_flow": {
+       "inline": 1,
+       "tmux": 0
+      },
+      "count": 1,
+      "date": "2026-09-04",
+      "full_elapsed_ms": 114000,
+      "longest_recording_ms": 2500,
+      "most_words": 49,
+      "recording_ms": 95000,
+      "words": 40
+     },
+     {
+      "by_flow": {
+       "inline": 2,
+       "tmux": 0
+      },
+      "count": 2,
+      "date": "2026-09-05",
+      "full_elapsed_ms": 115200,
+      "longest_recording_ms": 3000,
+      "most_words": 56,
+      "recording_ms": 96000,
+      "words": 50
+     },
+     {
+      "by_flow": {
+       "inline": 3,
+       "tmux": 0
+      },
+      "count": 3,
+      "date": "2026-09-06",
+      "full_elapsed_ms": 116400,
+      "longest_recording_ms": 3500,
+      "most_words": 63,
+      "recording_ms": 97000,
+      "words": 60
+     },
+     {
+      "by_flow": {
+       "inline": 5,
+       "tmux": 0
+      },
+      "count": 5,
+      "date": "2026-09-08",
+      "full_elapsed_ms": 118800,
+      "longest_recording_ms": 0,
+      "most_words": 0,
+      "recording_ms": 99000,
+      "words": 80
+     },
+     {
+      "by_flow": {
+       "inline": 1,
+       "tmux": 0
+      },
+      "count": 1,
+      "date": "2026-09-09",
+      "full_elapsed_ms": 120000,
+      "longest_recording_ms": 500,
+      "most_words": 7,
+      "recording_ms": 100000,
+      "words": 90
+     },
+     {
+      "by_flow": {
+       "inline": 2,
+       "tmux": 0
+      },
+      "count": 2,
+      "date": "2026-09-10",
+      "full_elapsed_ms": 121200,
+      "longest_recording_ms": 1000,
+      "most_words": 14,
+      "recording_ms": 101000,
+      "words": 100
+     },
+     {
+      "by_flow": {
+       "inline": 3,
+       "tmux": 0
+      },
+      "count": 3,
+      "date": "2026-09-11",
+      "full_elapsed_ms": 122400,
+      "longest_recording_ms": 1500,
+      "most_words": 21,
+      "recording_ms": 102000,
+      "words": 110
+     },
+     {
+      "by_flow": {
+       "inline": 4,
+       "tmux": 0
+      },
+      "count": 4,
+      "date": "2026-09-12",
+      "full_elapsed_ms": 123600,
+      "longest_recording_ms": 2000,
+      "most_words": 28,
+      "recording_ms": 103000,
+      "words": 120
+     },
+     {
+      "by_flow": {
+       "inline": 5,
+       "tmux": 0
+      },
+      "count": 5,
+      "date": "2026-09-13",
+      "full_elapsed_ms": 124800,
+      "longest_recording_ms": 2500,
+      "most_words": 35,
+      "recording_ms": 104000,
+      "words": 0
+     },
+     {
+      "by_flow": {
+       "inline": 2,
+       "tmux": 0
+      },
+      "count": 2,
+      "date": "2026-09-15",
+      "full_elapsed_ms": 127200,
+      "longest_recording_ms": 3500,
+      "most_words": 49,
+      "recording_ms": 106000,
+      "words": 20
+     },
+     {
+      "by_flow": {
+       "inline": 3,
+       "tmux": 0
+      },
+      "count": 3,
+      "date": "2026-09-16",
+      "full_elapsed_ms": 128400,
+      "longest_recording_ms": 4000,
+      "most_words": 56,
+      "recording_ms": 107000,
+      "words": 30
+     },
+     {
+      "by_flow": {
+       "inline": 4,
+       "tmux": 0
+      },
+      "count": 4,
+      "date": "2026-09-17",
+      "full_elapsed_ms": 129600,
+      "longest_recording_ms": 0,
+      "most_words": 63,
+      "recording_ms": 108000,
+      "words": 40
+     },
+     {
+      "by_flow": {
+       "inline": 5,
+       "tmux": 0
+      },
+      "count": 5,
+      "date": "2026-09-18",
+      "full_elapsed_ms": 130800,
+      "longest_recording_ms": 500,
+      "most_words": 70,
+      "recording_ms": 109000,
+      "words": 50
+     },
+     {
+      "by_flow": {
+       "inline": 1,
+       "tmux": 0
+      },
+      "count": 1,
+      "date": "2026-09-19",
+      "full_elapsed_ms": 132000,
+      "longest_recording_ms": 1000,
+      "most_words": 0,
+      "recording_ms": 110000,
+      "words": 60
+     },
+     {
+      "by_flow": {
+       "inline": 2,
+       "tmux": 0
+      },
+      "count": 2,
+      "date": "2026-09-20",
+      "full_elapsed_ms": 133200,
+      "longest_recording_ms": 1500,
+      "most_words": 7,
+      "recording_ms": 111000,
+      "words": 70
+     },
+     {
+      "by_flow": {
+       "inline": 4,
+       "tmux": 0
+      },
+      "count": 4,
+      "date": "2026-09-22",
+      "full_elapsed_ms": 135600,
+      "longest_recording_ms": 2500,
+      "most_words": 21,
+      "recording_ms": 113000,
+      "words": 90
+     },
+     {
+      "by_flow": {
+       "inline": 5,
+       "tmux": 0
+      },
+      "count": 5,
+      "date": "2026-09-23",
+      "full_elapsed_ms": 136800,
+      "longest_recording_ms": 3000,
+      "most_words": 28,
+      "recording_ms": 114000,
+      "words": 100
+     },
+     {
+      "by_flow": {
+       "inline": 1,
+       "tmux": 0
+      },
+      "count": 1,
+      "date": "2026-09-24",
+      "full_elapsed_ms": 138000,
+      "longest_recording_ms": 3500,
+      "most_words": 35,
+      "recording_ms": 115000,
+      "words": 110
+     },
+     {
+      "by_flow": {
+       "inline": 2,
+       "tmux": 0
+      },
+      "count": 2,
+      "date": "2026-09-25",
+      "full_elapsed_ms": 139200,
+      "longest_recording_ms": 4000,
+      "most_words": 42,
+      "recording_ms": 116000,
+      "words": 120
+     },
+     {
+      "by_flow": {
+       "inline": 3,
+       "tmux": 0
+      },
+      "count": 3,
+      "date": "2026-09-26",
+      "full_elapsed_ms": 140400,
+      "longest_recording_ms": 0,
+      "most_words": 49,
+      "recording_ms": 117000,
+      "words": 0
+     },
+     {
+      "by_flow": {
+       "inline": 4,
+       "tmux": 0
+      },
+      "count": 4,
+      "date": "2026-09-27",
+      "full_elapsed_ms": 141600,
+      "longest_recording_ms": 500,
+      "most_words": 56,
+      "recording_ms": 118000,
+      "words": 10
+     }
+    ],
+    "range": {
+     "from": "2026-06-02",
+     "to": "2026-10-21"
+    },
+    "started_at": "2026-10-14T21:30:00Z",
+    "status": "active",
+    "untracked_deliveries": 382
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 700,
+     "tmux": 0
+    },
+    "count": 700
+   },
+   "estimated_time_difference_ms": 74930000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 50000,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 75000000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "daily-year-boundary",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000, \"daily\": {\"started_at\": \"2026-10-14T21:30:00Z\", \"baseline_count\": 0, \"days\": {\"2025-12-31\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": 40, \"recording_ms\": 9000, \"full_elapsed_ms\": 11000, \"longest_recording_ms\": 6000, \"most_words\": 30}, \"2026-01-01\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": 40, \"recording_ms\": 9000, \"full_elapsed_ms\": 11000, \"longest_recording_ms\": 6000, \"most_words\": 30}, \"2024-02-29\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": 40, \"recording_ms\": 9000, \"full_elapsed_ms\": 11000, \"longest_recording_ms\": 6000, \"most_words\": 30}}}}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": "2026-10-14T21:30:00Z",
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [
+     {
+      "by_flow": {
+       "inline": 2,
+       "tmux": 0
+      },
+      "count": 2,
+      "date": "2024-02-29",
+      "full_elapsed_ms": 11000,
+      "longest_recording_ms": 6000,
+      "most_words": 30,
+      "recording_ms": 9000,
+      "words": 40
+     },
+     {
+      "by_flow": {
+       "inline": 2,
+       "tmux": 0
+      },
+      "count": 2,
+      "date": "2025-12-31",
+      "full_elapsed_ms": 11000,
+      "longest_recording_ms": 6000,
+      "most_words": 30,
+      "recording_ms": 9000,
+      "words": 40
+     },
+     {
+      "by_flow": {
+       "inline": 2,
+       "tmux": 0
+      },
+      "count": 2,
+      "date": "2026-01-01",
+      "full_elapsed_ms": 11000,
+      "longest_recording_ms": 6000,
+      "most_words": 30,
+      "recording_ms": 9000,
+      "words": 40
+     }
+    ],
+    "range": {
+     "from": "2024-02-29",
+     "to": "2026-10-21"
+    },
+    "started_at": "2026-10-14T21:30:00Z",
+    "status": "active",
+    "untracked_deliveries": 4
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 1430000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1000,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1500000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "daily-started-at-fractional",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000, \"daily\": {\"started_at\": \"2026-10-14T21:30:00.5+04:00\", \"baseline_count\": 0, \"days\": {\"2026-10-20\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": 40, \"recording_ms\": 9000, \"full_elapsed_ms\": 11000, \"longest_recording_ms\": 6000, \"most_words\": 30}}}}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": "2026-10-14T21:30:00.5+04:00",
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [
+     {
+      "by_flow": {
+       "inline": 2,
+       "tmux": 0
+      },
+      "count": 2,
+      "date": "2026-10-20",
+      "full_elapsed_ms": 11000,
+      "longest_recording_ms": 6000,
+      "most_words": 30,
+      "recording_ms": 9000,
+      "words": 40
+     }
+    ],
+    "range": {
+     "from": "2026-10-20",
+     "to": "2026-10-21"
+    },
+    "started_at": "2026-10-14T21:30:00.5+04:00",
+    "status": "active",
+    "untracked_deliveries": 8
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 1430000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1000,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1500000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "daily-null",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000, \"daily\": null}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "not_started",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 1430000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1000,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1500000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "daily-string",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000, \"daily\": \"nope\"}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "unreadable",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 1430000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1000,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1500000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "daily-list",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000, \"daily\": []}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "unreadable",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 1430000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1000,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1500000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "daily-days-not-object",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000, \"daily\": {\"started_at\": \"2026-10-14T21:30:00Z\", \"baseline_count\": 0, \"days\": []}}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "unreadable",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 1430000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1000,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1500000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "daily-missing-days",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000, \"daily\": {\"started_at\": \"2026-10-14T21:30:00Z\", \"baseline_count\": 0}}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "unreadable",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 1430000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1000,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1500000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "daily-missing-started-at",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000, \"daily\": {\"baseline_count\": 0, \"days\": {}}}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "unreadable",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 1430000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1000,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1500000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "daily-bad-started-at",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000, \"daily\": {\"started_at\": \"yesterday\", \"baseline_count\": 0, \"days\": {}}}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "unreadable",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 1430000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1000,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1500000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "daily-started-at-no-zone",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000, \"daily\": {\"started_at\": \"2026-10-14T21:30:00\", \"baseline_count\": 0, \"days\": {}}}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "unreadable",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 1430000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1000,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1500000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "daily-started-at-number",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000, \"daily\": {\"started_at\": 5, \"baseline_count\": 0, \"days\": {}}}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "unreadable",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 1430000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1000,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1500000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "daily-missing-baseline",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000, \"daily\": {\"started_at\": \"2026-10-14T21:30:00Z\", \"days\": {}}}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "unreadable",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 1430000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1000,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1500000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "daily-negative-baseline",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000, \"daily\": {\"started_at\": \"2026-10-14T21:30:00Z\", \"baseline_count\": -1, \"days\": {}}}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "unreadable",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 1430000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1000,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1500000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "daily-float-baseline",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000, \"daily\": {\"started_at\": \"2026-10-14T21:30:00Z\", \"baseline_count\": 2.0, \"days\": {}}}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "unreadable",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 1430000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1000,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1500000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "daily-bool-baseline",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000, \"daily\": {\"started_at\": \"2026-10-14T21:30:00Z\", \"baseline_count\": true, \"days\": {}}}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "unreadable",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 1430000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1000,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1500000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "daily-bad-date-key",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000, \"daily\": {\"started_at\": \"2026-10-14T21:30:00Z\", \"baseline_count\": 0, \"days\": {\"2026-13-01\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": 40, \"recording_ms\": 9000, \"full_elapsed_ms\": 11000, \"longest_recording_ms\": 6000, \"most_words\": 30}}}}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "unreadable",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 1430000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1000,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1500000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "daily-bad-date-shape",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000, \"daily\": {\"started_at\": \"2026-10-14T21:30:00Z\", \"baseline_count\": 0, \"days\": {\"2026-1-05\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": 40, \"recording_ms\": 9000, \"full_elapsed_ms\": 11000, \"longest_recording_ms\": 6000, \"most_words\": 30}}}}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "unreadable",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 1430000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1000,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1500000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "daily-feb-30",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000, \"daily\": {\"started_at\": \"2026-10-14T21:30:00Z\", \"baseline_count\": 0, \"days\": {\"2026-02-30\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": 40, \"recording_ms\": 9000, \"full_elapsed_ms\": 11000, \"longest_recording_ms\": 6000, \"most_words\": 30}}}}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "unreadable",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 1430000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1000,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1500000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "daily-bucket-not-object",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000, \"daily\": {\"started_at\": \"2026-10-14T21:30:00Z\", \"baseline_count\": 0, \"days\": {\"2026-10-20\": 5}}}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "unreadable",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 1430000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1000,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1500000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "daily-negative-field",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000, \"daily\": {\"started_at\": \"2026-10-14T21:30:00Z\", \"baseline_count\": 0, \"days\": {\"2026-10-20\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": -1, \"recording_ms\": 9000, \"full_elapsed_ms\": 11000, \"longest_recording_ms\": 6000, \"most_words\": 30}}}}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "unreadable",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 1430000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1000,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1500000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "daily-float-field",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000, \"daily\": {\"started_at\": \"2026-10-14T21:30:00Z\", \"baseline_count\": 0, \"days\": {\"2026-10-20\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": 3.0, \"recording_ms\": 9000, \"full_elapsed_ms\": 11000, \"longest_recording_ms\": 6000, \"most_words\": 30}}}}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "unreadable",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 1430000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1000,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1500000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "daily-bool-field",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000, \"daily\": {\"started_at\": \"2026-10-14T21:30:00Z\", \"baseline_count\": 0, \"days\": {\"2026-10-20\": {\"count\": true, \"inline\": 2, \"tmux\": 0, \"words\": 40, \"recording_ms\": 9000, \"full_elapsed_ms\": 11000, \"longest_recording_ms\": 6000, \"most_words\": 30}}}}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "unreadable",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 1430000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1000,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1500000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "daily-string-field",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000, \"daily\": {\"started_at\": \"2026-10-14T21:30:00Z\", \"baseline_count\": 0, \"days\": {\"2026-10-20\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": \"3\", \"recording_ms\": 9000, \"full_elapsed_ms\": 11000, \"longest_recording_ms\": 6000, \"most_words\": 30}}}}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "unreadable",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 1430000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1000,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1500000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "daily-null-field",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000, \"daily\": {\"started_at\": \"2026-10-14T21:30:00Z\", \"baseline_count\": 0, \"days\": {\"2026-10-20\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": 40, \"recording_ms\": 9000, \"full_elapsed_ms\": 11000, \"longest_recording_ms\": 6000, \"most_words\": null}}}}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "unreadable",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 1430000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1000,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1500000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "daily-missing-field",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000, \"daily\": {\"started_at\": \"2026-10-14T21:30:00Z\", \"baseline_count\": 0, \"days\": {\"2026-10-20\": {\"count\": 2, \"inline\": 2, \"words\": 40, \"recording_ms\": 9000, \"full_elapsed_ms\": 11000, \"longest_recording_ms\": 6000, \"most_words\": 30}}}}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "unreadable",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 1430000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1000,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1500000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "daily-one-bad-day-spoils-all",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000, \"daily\": {\"started_at\": \"2026-10-14T21:30:00Z\", \"baseline_count\": 0, \"days\": {\"2026-10-19\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": 40, \"recording_ms\": 9000, \"full_elapsed_ms\": 11000, \"longest_recording_ms\": 6000, \"most_words\": 30}, \"2026-10-20\": {\"count\": 2, \"inline\": -5, \"tmux\": 0, \"words\": 40, \"recording_ms\": 9000, \"full_elapsed_ms\": 11000, \"longest_recording_ms\": 6000, \"most_words\": 30}}}}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "unreadable",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 1430000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1000,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1500000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "daily-extra-bucket-keys-ignored",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000, \"daily\": {\"started_at\": \"2026-10-14T21:30:00Z\", \"baseline_count\": 0, \"days\": {\"2026-10-20\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": 40, \"recording_ms\": 9000, \"full_elapsed_ms\": 11000, \"longest_recording_ms\": 6000, \"most_words\": 30, \"note\": \"x\", \"by_flow\": {}}}}}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": "2026-10-14T21:30:00Z",
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [
+     {
+      "by_flow": {
+       "inline": 2,
+       "tmux": 0
+      },
+      "count": 2,
+      "date": "2026-10-20",
+      "full_elapsed_ms": 11000,
+      "longest_recording_ms": 6000,
+      "most_words": 30,
+      "recording_ms": 9000,
+      "words": 40
+     }
+    ],
+    "range": {
+     "from": "2026-10-20",
+     "to": "2026-10-21"
+    },
+    "started_at": "2026-10-14T21:30:00Z",
+    "status": "active",
+    "untracked_deliveries": 8
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 1430000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1000,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1500000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "daily-extra-section-keys-ignored",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000, \"daily\": {\"started_at\": \"2026-10-14T21:30:00Z\", \"baseline_count\": 0, \"days\": {\"2026-10-20\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": 40, \"recording_ms\": 9000, \"full_elapsed_ms\": 11000, \"longest_recording_ms\": 6000, \"most_words\": 30}}, \"future\": 1}}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": "2026-10-14T21:30:00Z",
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [
+     {
+      "by_flow": {
+       "inline": 2,
+       "tmux": 0
+      },
+      "count": 2,
+      "date": "2026-10-20",
+      "full_elapsed_ms": 11000,
+      "longest_recording_ms": 6000,
+      "most_words": 30,
+      "recording_ms": 9000,
+      "words": 40
+     }
+    ],
+    "range": {
+     "from": "2026-10-20",
+     "to": "2026-10-21"
+    },
+    "started_at": "2026-10-14T21:30:00Z",
+    "status": "active",
+    "untracked_deliveries": 8
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 1430000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1000,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1500000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "totals-negative-become-zero",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": -5, \"recording_duration_ms\": -1, \"full_elapsed_duration_ms\": -9}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "not_started",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 0,
+   "full_elapsed_duration_ms": 0,
+   "processed_words": 0,
+   "recording_duration_ms": 0,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 0,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "totals-strings",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": \"120\", \"recording_duration_ms\": \" 5000 \", \"full_elapsed_duration_ms\": \"6e3\"}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "not_started",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 180000,
+   "full_elapsed_duration_ms": 0,
+   "processed_words": 120,
+   "recording_duration_ms": 5000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 180000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "totals-floats-truncate",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 120.9, \"recording_duration_ms\": 5000.5, \"full_elapsed_duration_ms\": 6000.0}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "not_started",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 174000,
+   "full_elapsed_duration_ms": 6000,
+   "processed_words": 120,
+   "recording_duration_ms": 5000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 180000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "totals-bools",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": true, \"recording_duration_ms\": false, \"full_elapsed_duration_ms\": 70000}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "not_started",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": -68500,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1,
+   "recording_duration_ms": 0,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1500,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "totals-null-and-list",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": null, \"recording_duration_ms\": [1], \"full_elapsed_duration_ms\": {}}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "not_started",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 0,
+   "full_elapsed_duration_ms": 0,
+   "processed_words": 0,
+   "recording_duration_ms": 0,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 0,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "count-string",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": \"12\", \"by_flow\": {\"inline\": 12}}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "not_started",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 12,
+     "tmux": 0
+    },
+    "count": 12
+   },
+   "estimated_time_difference_ms": 1430000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1000,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1500000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "by-flow-missing",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 4}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "not_started",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 0,
+     "tmux": 0
+    },
+    "count": 4
+   },
+   "estimated_time_difference_ms": 1430000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1000,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1500000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "estimate-negative",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 1, \"by_flow\": {\"inline\": 1, \"tmux\": 0}}, \"processed_words\": 10, \"recording_duration_ms\": 1000, \"full_elapsed_duration_ms\": 900000}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "not_started",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 1,
+     "tmux": 0
+    },
+    "count": 1
+   },
+   "estimated_time_difference_ms": -885000,
+   "full_elapsed_duration_ms": 900000,
+   "processed_words": 10,
+   "recording_duration_ms": 1000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 15000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "estimate-zero-words-elapsed",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 1, \"by_flow\": {\"inline\": 1, \"tmux\": 0}}, \"processed_words\": 0, \"recording_duration_ms\": 1000, \"full_elapsed_duration_ms\": 5000}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "not_started",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 1,
+     "tmux": 0
+    },
+    "count": 1
+   },
+   "estimated_time_difference_ms": -5000,
+   "full_elapsed_duration_ms": 5000,
+   "processed_words": 0,
+   "recording_duration_ms": 1000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 0,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "typing-wpm-60",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": "60",
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1234, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "not_started",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 1164000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1234,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1234000,
+    "wpm": 60
+   }
+  }
+ },
+ {
+  "name": "typing-wpm-garbage",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": "abc",
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1234, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "not_started",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 1781000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1234,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1851000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "typing-wpm-zero",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": "0",
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1234, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "not_started",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 1781000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1234,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1851000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "typing-wpm-negative",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": "-5",
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1234, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "not_started",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 1781000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1234,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1851000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "typing-wpm-1",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": "1",
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1234, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "not_started",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 73970000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1234,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 74040000,
+    "wpm": 1
+   }
+  }
+ },
+ {
+  "name": "typing-rounds-half-to-even-up",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": "40000",
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 0}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "not_started",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 2,
+   "full_elapsed_duration_ms": 0,
+   "processed_words": 1,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 2,
+    "wpm": 40000
+   }
+  }
+ },
+ {
+  "name": "typing-rounds-half-to-even-down",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": "40000",
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 3, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 0}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "not_started",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 4,
+   "full_elapsed_duration_ms": 0,
+   "processed_words": 3,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 4,
+    "wpm": 40000
+   }
+  }
+ },
+ {
+  "name": "typing-rounds-thirds",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": "3",
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 7, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 0}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": null,
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": null,
+    "status": "not_started",
+    "untracked_deliveries": 0
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 140000,
+   "full_elapsed_duration_ms": 0,
+   "processed_words": 7,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 140000,
+    "wpm": 3
+   }
+  }
+ },
+ {
+  "name": "tz-auckland-next-day",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Pacific/Auckland",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000, \"daily\": {\"started_at\": \"2026-10-14T21:30:00Z\", \"baseline_count\": 0, \"days\": {\"2026-10-20\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": 40, \"recording_ms\": 9000, \"full_elapsed_ms\": 11000, \"longest_recording_ms\": 6000, \"most_words\": 30}, \"2026-10-21\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": 40, \"recording_ms\": 9000, \"full_elapsed_ms\": 11000, \"longest_recording_ms\": 6000, \"most_words\": 30}}}}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": "2026-10-14T21:30:00Z",
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [
+     {
+      "by_flow": {
+       "inline": 2,
+       "tmux": 0
+      },
+      "count": 2,
+      "date": "2026-10-20",
+      "full_elapsed_ms": 11000,
+      "longest_recording_ms": 6000,
+      "most_words": 30,
+      "recording_ms": 9000,
+      "words": 40
+     },
+     {
+      "by_flow": {
+       "inline": 2,
+       "tmux": 0
+      },
+      "count": 2,
+      "date": "2026-10-21",
+      "full_elapsed_ms": 11000,
+      "longest_recording_ms": 6000,
+      "most_words": 30,
+      "recording_ms": 9000,
+      "words": 40
+     }
+    ],
+    "range": {
+     "from": "2026-10-20",
+     "to": "2026-10-21"
+    },
+    "started_at": "2026-10-14T21:30:00Z",
+    "status": "active",
+    "untracked_deliveries": 6
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 1430000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1000,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1500000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "tz-los-angeles-same-day",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "America/Los_Angeles",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000, \"daily\": {\"started_at\": \"2026-10-14T21:30:00Z\", \"baseline_count\": 0, \"days\": {\"2026-10-20\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": 40, \"recording_ms\": 9000, \"full_elapsed_ms\": 11000, \"longest_recording_ms\": 6000, \"most_words\": 30}}}}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": "2026-10-14T21:30:00Z",
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-20",
+    "days": [
+     {
+      "by_flow": {
+       "inline": 2,
+       "tmux": 0
+      },
+      "count": 2,
+      "date": "2026-10-20",
+      "full_elapsed_ms": 11000,
+      "longest_recording_ms": 6000,
+      "most_words": 30,
+      "recording_ms": 9000,
+      "words": 40
+     }
+    ],
+    "range": {
+     "from": "2026-10-20",
+     "to": "2026-10-20"
+    },
+    "started_at": "2026-10-14T21:30:00Z",
+    "status": "active",
+    "untracked_deliveries": 8
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 1430000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1000,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1500000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "tz-london-dst-change",
+  "now": "2026-10-25T23:30:00Z",
+  "tz": "Europe/London",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000, \"daily\": {\"started_at\": \"2026-10-14T21:30:00Z\", \"baseline_count\": 0, \"days\": {\"2026-10-25\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": 40, \"recording_ms\": 9000, \"full_elapsed_ms\": 11000, \"longest_recording_ms\": 6000, \"most_words\": 30}, \"2026-10-26\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": 40, \"recording_ms\": 9000, \"full_elapsed_ms\": 11000, \"longest_recording_ms\": 6000, \"most_words\": 30}}}}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": "2026-10-14T21:30:00Z",
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-25",
+    "days": [
+     {
+      "by_flow": {
+       "inline": 2,
+       "tmux": 0
+      },
+      "count": 2,
+      "date": "2026-10-25",
+      "full_elapsed_ms": 11000,
+      "longest_recording_ms": 6000,
+      "most_words": 30,
+      "recording_ms": 9000,
+      "words": 40
+     },
+     {
+      "by_flow": {
+       "inline": 2,
+       "tmux": 0
+      },
+      "count": 2,
+      "date": "2026-10-26",
+      "full_elapsed_ms": 11000,
+      "longest_recording_ms": 6000,
+      "most_words": 30,
+      "recording_ms": 9000,
+      "words": 40
+     }
+    ],
+    "range": {
+     "from": "2026-10-25",
+     "to": "2026-10-26"
+    },
+    "started_at": "2026-10-14T21:30:00Z",
+    "status": "active",
+    "untracked_deliveries": 6
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 1430000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1000,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1500000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "tz-dubai-midnight",
+  "now": "2026-10-20T20:00:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000, \"daily\": {\"started_at\": \"2026-10-14T21:30:00Z\", \"baseline_count\": 0, \"days\": {\"2026-10-21\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": 40, \"recording_ms\": 9000, \"full_elapsed_ms\": 11000, \"longest_recording_ms\": 6000, \"most_words\": 30}}}}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": "2026-10-14T21:30:00Z",
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-21",
+    "days": [
+     {
+      "by_flow": {
+       "inline": 2,
+       "tmux": 0
+      },
+      "count": 2,
+      "date": "2026-10-21",
+      "full_elapsed_ms": 11000,
+      "longest_recording_ms": 6000,
+      "most_words": 30,
+      "recording_ms": 9000,
+      "words": 40
+     }
+    ],
+    "range": {
+     "from": "2026-10-21",
+     "to": "2026-10-21"
+    },
+    "started_at": "2026-10-14T21:30:00Z",
+    "status": "active",
+    "untracked_deliveries": 8
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 1430000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1000,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1500000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "tz-dubai-before-midnight",
+  "now": "2026-10-20T19:59:59Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000, \"daily\": {\"started_at\": \"2026-10-14T21:30:00Z\", \"baseline_count\": 0, \"days\": {\"2026-10-20\": {\"count\": 2, \"inline\": 2, \"tmux\": 0, \"words\": 40, \"recording_ms\": 9000, \"full_elapsed_ms\": 11000, \"longest_recording_ms\": 6000, \"most_words\": 30}}}}",
+  "ok": true,
+  "expected": {
+   "command": "usage",
+   "coverage": {
+    "daily_tracking_started_at": "2026-10-14T21:30:00Z",
+    "history_backfill": false,
+    "retention_independent": true,
+    "scope": "successful_delivered_dictations_recorded_since_tracking_started",
+    "status": "active",
+    "tracking_started_at": "2026-09-19T06:30:53Z"
+   },
+   "daily": {
+    "as_of_local_date": "2026-10-20",
+    "days": [
+     {
+      "by_flow": {
+       "inline": 2,
+       "tmux": 0
+      },
+      "count": 2,
+      "date": "2026-10-20",
+      "full_elapsed_ms": 11000,
+      "longest_recording_ms": 6000,
+      "most_words": 30,
+      "recording_ms": 9000,
+      "words": 40
+     }
+    ],
+    "range": {
+     "from": "2026-10-20",
+     "to": "2026-10-20"
+    },
+    "started_at": "2026-10-14T21:30:00Z",
+    "status": "active",
+    "untracked_deliveries": 8
+   },
+   "delivered_dictations": {
+    "by_flow": {
+     "inline": 10,
+     "tmux": 0
+    },
+    "count": 10
+   },
+   "estimated_time_difference_ms": 1430000,
+   "full_elapsed_duration_ms": 70000,
+   "processed_words": 1000,
+   "recording_duration_ms": 60000,
+   "schema_version": 1,
+   "typing_assumption": {
+    "typing_equivalent_duration_ms": 1500000,
+    "wpm": 40
+   }
+  }
+ },
+ {
+  "name": "error-unreadable-json",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{not json",
+  "ok": false,
+  "error": "khuluma: usage summary is unreadable: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)"
+ },
+ {
+  "name": "error-empty-file",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "",
+  "ok": false,
+  "error": "khuluma: usage summary is unreadable: Expecting value: line 1 column 1 (char 0)"
+ },
+ {
+  "name": "error-schema-2",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 2, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000}",
+  "ok": false,
+  "error": "khuluma: unsupported usage summary schema"
+ },
+ {
+  "name": "error-no-schema",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": {\"count\": 10, \"by_flow\": {\"inline\": 10, \"tmux\": 0}}, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000}",
+  "ok": false,
+  "error": "khuluma: unsupported usage summary schema"
+ },
+ {
+  "name": "error-no-deliveries",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000}",
+  "ok": false,
+  "error": "khuluma: unsupported usage summary schema"
+ },
+ {
+  "name": "error-deliveries-not-object",
+  "now": "2026-10-20T20:30:00Z",
+  "tz": "Asia/Dubai",
+  "wpm": null,
+  "file_text": "{\"schema_version\": 1, \"tracking_started_at\": \"2026-09-19T06:30:53Z\", \"delivered_dictations\": 5, \"processed_words\": 1000, \"recording_duration_ms\": 60000, \"full_elapsed_duration_ms\": 70000}",
+  "ok": false,
+  "error": "khuluma: unsupported usage summary schema"
+ }
+]

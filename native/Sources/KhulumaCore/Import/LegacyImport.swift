@@ -6,9 +6,12 @@ import Foundation
 /// newer app data. Writes `import.json` last, so a crash leaves no receipt and
 /// the next run cleans up and starts again.
 ///
-/// Settings (`config.toml` -> `settings.json`) are not converted here yet: the
-/// receipt says `"settings": "pending"`; the settings model (slice C) adds a
-/// step at `importSettings` below and sets that field.
+/// Settings: `config.toml` (or `.config.toml.last-good` when it doesn't
+/// parse) is converted to `settings.json` (`LegacySettings`); keys not carried
+/// over are listed in the receipt's `skipped`. The receipt's `settings` is
+/// "imported"; "defaults_no_autosend" when the CLI had a config but neither
+/// file converts (settings.json gets defaults with autosend off and an
+/// `import_warning`); "defaults" when there was no config.
 public enum LegacyImport {
   public static let receiptName = "import.json"
   public static let legacyTakeIDsName = "legacy-take-ids.json"
@@ -242,7 +245,8 @@ public enum LegacyImport {
     try writeStaged(try JSONSerialization.data(withJSONObject: ids, options: [.prettyPrinted]),
                     rel: legacyTakeIDsName, stage: stage)
 
-    // importSettings: slice C converts config.toml here and stages settings.json.
+    // Settings: config.toml -> settings.json, only the keys the app uses.
+    let settingsOutcome = try importSettings(src.root, stage: stage)
 
     // Every staged copy was size-checked against its source and fsynced as it
     // was written; usage totals were re-read from the staged bytes above.
@@ -257,7 +261,7 @@ public enum LegacyImport {
 
     let receipt = Receipt(imported_at: iso8601(now), source_root: src.root.path, counts: counts, usage: usage,
                           vocabulary: vocabulary, legacy_vocab: hasLegacyVocab, legacy_take_ids: ids.count, skipped: stage.skipped + kept,
-                          settings: "pending")
+                          settings: settingsOutcome)
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
     try DataFiles.replace(dest.appendingPathComponent(receiptName), with: try encoder.encode(receipt))
@@ -273,6 +277,30 @@ public enum LegacyImport {
                            "vocabulary-backups", legacyTakeIDsName, stagingName, journalName]
 
   /// Newer app data that an import must never merge over.
+  /// Stages settings.json from the CLI's config. "imported" or "defaults".
+  static func importSettings(_ root: URL, stage: Stage) throws -> String {
+    let result = LegacySettings.convert(configDir: root)
+    for problem in result.problems {
+      stage.skipped.append(Skipped(path: problem.path, reason: problem.reason))
+    }
+    guard let conversion = result.conversion, let source = result.source else {
+      guard !result.problems.isEmpty else { return "defaults" }
+      // The CLI had settings but none convert: defaults, but never autosend
+      // on a guess; the app warns until a setting is changed.
+      var safe = AppSettings()
+      safe.inline.autosend = false
+      safe.importWarning = "the CLI's config.toml could not be converted; using defaults"
+      try writeStaged(try SettingsStore.encode(safe, over: [:]), rel: AppSettings.fileName, stage: stage)
+      return "defaults_no_autosend"
+    }
+    for item in conversion.skipped {
+      stage.skipped.append(Skipped(path: source.path + " " + item.key, reason: item.reason))
+    }
+    let data = try SettingsStore.encode(conversion.settings, over: [:])
+    try writeStaged(data, rel: AppSettings.fileName, stage: stage)
+    return "imported"
+  }
+
   static func existingAppData(_ dest: URL) -> String? {
     let history = dest.appendingPathComponent("history", isDirectory: true)
     if let names = try? FileManager.default.contentsOfDirectory(atPath: history.path),
@@ -282,7 +310,7 @@ public enum LegacyImport {
     if countFiles(history.appendingPathComponent("inline-debug")) > 0 {
       return "the app already has a debug archive in \(history.path)"
     }
-    for name in ["usage.json", "vocabulary.json", "vocab", legacyTakeIDsName]
+    for name in ["usage.json", "vocabulary.json", "vocab", legacyTakeIDsName, AppSettings.fileName]
     where lstatMode(dest.appendingPathComponent(name)) != nil {
       return "the app already has \(name)"
     }

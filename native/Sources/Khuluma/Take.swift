@@ -39,35 +39,24 @@ struct UnsavedTake {
   let marker: TakeMarker?
 }
 
-/// `khuluma app-config --json`, fetched in the background.
+/// The settings (settings.json), read in the background while recording.
 final class SettingsFetch: @unchecked Sendable {
   enum Outcome {
     case config(AppConfig)
     /// The CLI isn't the one Khuluma was built with: no take may use it.
+    /// (Settings no longer come from the CLI; kept for the CLI route.)
     case mismatch(AppContract.Mismatch)
-    /// Not read (in time): the CLI path reads its own settings.
+    /// Not read in time.
     case unavailable(String)
   }
 
   private let done = DispatchGroup()
   private var outcome: Outcome = .unavailable("settings unavailable")
 
-  /// `onMismatch` runs as soon as a mismatch is known, so later presses
-  /// are refused even if no take waits for this fetch.
-  private let onMismatch: (AppContract.Mismatch) -> Void
-
-  init(cli: CLIBridge, queue: DispatchQueue, onMismatch: @escaping (AppContract.Mismatch) -> Void) {
-    self.onMismatch = onMismatch
+  init(queue: DispatchQueue, load: @escaping () -> AppConfig) {
     done.enter()
     queue.async {
-      do {
-        self.outcome = .config(try cli.appConfig())
-      } catch let mismatch as AppContract.Mismatch {
-        self.outcome = .mismatch(mismatch)
-        self.onMismatch(mismatch)
-      } catch {
-        self.outcome = .unavailable(error.localizedDescription)
-      }
+      self.outcome = .config(load())
       self.done.leave()
     }
   }

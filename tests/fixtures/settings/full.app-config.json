@@ -1,0 +1,73 @@
+{
+  "app_contract": 5,
+  "cleanup": {
+    "british_spelling": "1",
+    "clean": "1",
+    "config_dir": "@ROOT@/config",
+    "locale_collate": "",
+    "locale_ctype": "",
+    "repeats_level": "3",
+    "vocab_clean": "1"
+  },
+  "cli_version": "0.11.0",
+  "config": {
+    "error": null,
+    "source": "file"
+  },
+  "hotkey": "cmd+shift+d",
+  "inline": {
+    "activate_delay_ms": 90,
+    "autosend": false,
+    "paste_target": "restore",
+    "process_sound": false,
+    "send_delay_ms": 35,
+    "send_mode": "ctrl_j"
+  },
+  "pipeline": {
+    "supervise": false
+  },
+  "schema_version": 1,
+  "sounds": {
+    "cancel": {
+      "enabled": false,
+      "path": null
+    },
+    "error": {
+      "enabled": true,
+      "path": "@ROOT@/data/sounds/khuluma/error.wav"
+    },
+    "process": {
+      "enabled": true,
+      "path": "@ROOT@/sounds/process.wav"
+    },
+    "start": {
+      "enabled": true,
+      "path": "@ROOT@/sounds/start.wav"
+    },
+    "stop": {
+      "enabled": false,
+      "path": null
+    }
+  },
+  "sounds_enabled": true,
+  "transcription": {
+    "ffmpeg": true,
+    "keep_logs": true,
+    "key_available": false,
+    "language": "fr",
+    "model_label": "parakeet-custom-v2",
+    "model_path": "@ROOT@/models/parakeet-custom-v2",
+    "model_version": "v2",
+    "processing_dir": "/tmp/khuluma-processing",
+    "provider": "parakeet",
+    "socket_path": "@ROOT@/sock/k.sock",
+    "tail_pad_ms": "500",
+    "tail_rescue": true,
+    "tail_rescue_min_ms": "",
+    "tail_rescue_ms": "",
+    "timeout_seconds": "600"
+  },
+  "usage": {
+    "summary_path": "@ROOT@/config/usage.json"
+  }
+}

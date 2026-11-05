@@ -6,10 +6,10 @@ import KhulumaCore
 /// zone change, on wake and from the Refresh button. Never polls.
 @MainActor
 final class StatsModel: ObservableObject {
-  /// The CLI and its last settings, read when a load starts.
+  /// The typing pace assumed for the time-saved estimate, read when a load
+  /// starts (nil: the default, 40 words per minute).
   struct Source {
-    let cli: CLIBridge?
-    let config: AppConfig?
+    let typingWPM: Int?
   }
 
   static let ranges = [30, 60, 90]
@@ -58,7 +58,7 @@ final class StatsModel: ObservableObject {
   /// Fixed content, for snapshots.
   init(stats: UsageStats?, updatedAt: Date?, rangeDays: Int = 30, showWordsPerDay: Bool = true,
        celebrating: Int? = nil, refreshFailed: Bool = false) {
-    source = { Source(cli: nil, config: nil) }
+    source = { Source(typingWPM: nil) }
     fixture = true
     self.stats = stats
     self.updatedAt = updatedAt
@@ -134,24 +134,17 @@ final class StatsModel: ObservableObject {
   }
 
   private func load(_ generation: Int) {
-    let source = source()
-    guard let cli = source.cli else {
-      return finished(.failure(CLIBridge.BridgeError.notInstalled), generation: generation,
-                      ledger: Self.ledgerPath(nil), before: nil)
-    }
-    let cached = source.config
+    let wpm = UsageReportBuilder.typingWPM(source().typingWPM)
+    let url = Self.ledgerURL
     queue.async { [weak self] in
-      // Settings may not have loaded yet (Khuluma just launched).
-      let config = cached ?? (try? cli.appConfig())
       // The ledger as it was before the read: a write after this point is
       // seen as a change once the watcher is up.
-      let path = Self.ledgerPath(config)
-      let before = FileSignature(path: path)
-      let result = Result { try cli.usage() }
+      let before = FileSignature(path: url.path)
+      let result = Result { try UsageReportBuilder.report(url: url, today: CivilDate(Date()), typingWPM: wpm) }
       // Menus track in their own run loop mode, without draining the main queue.
       RunLoop.main.perform(inModes: [.common]) { [weak self] in
         MainActor.assumeIsolated {
-          self?.finished(result, generation: generation, ledger: path, before: before)
+          self?.finished(result, generation: generation, ledger: url.path, before: before)
         }
       }
       CFRunLoopWakeUp(CFRunLoopGetMain())
@@ -194,12 +187,8 @@ final class StatsModel: ObservableObject {
 
   // MARK: - Ledger watcher
 
-  nonisolated private static func ledgerPath(_ config: AppConfig?) -> String {
-    if let path = config?.usage.summaryPath, !path.isEmpty { return path }
-    let home = FileManager.default.homeDirectoryForCurrentUser.path
-    return URL(fileURLWithPath: CLIEnvironment.configDirectory(base: ProcessInfo.processInfo.environment, home: home))
-      .appendingPathComponent("usage.json").path
-  }
+  /// The app's own ledger, in its folder.
+  nonisolated private static var ledgerURL: URL { AppRuntimePaths.support.appendingPathComponent("usage.json") }
 
   /// Watches the ledger's directory: the CLI replaces the file atomically, so
   /// the file itself is a new inode after each write.

@@ -94,8 +94,6 @@ public struct TranscriptionSettings: Codable, Equatable, Sendable {
     if provider == "elevenlabs" { return "ElevenLabs Scribe uses the CLI" }
     if provider != "parakeet" { return "unsupported transcription provider" }
     if modelPath?.isEmpty ?? true { return "no Parakeet model path" }
-    if !ffmpeg { return "ffmpeg/ffprobe missing (the CLI skips padding)" }
-    if tailPad == nil || rescueMs == nil || rescueMinMs == nil { return "a numeric override bash would read as octal" }
     return nil
   }
 
@@ -116,7 +114,8 @@ public struct TranscriptionSettings: Codable, Equatable, Sendable {
   static func bashInt(_ raw: String, default fallback: Int) -> Int? {
     let isDigits = !raw.isEmpty && raw.unicodeScalars.allSatisfy { $0.value >= 48 && $0.value <= 57 }
     guard isDigits else { return fallback }
-    if raw.count > 1 && raw.hasPrefix("0") { return nil }
-    return Int(raw)
+    // Leading zeros read as decimal now (no bash to read them as octal);
+    // an overflow uses the default.
+    return Int(raw) ?? fallback
   }
 }
