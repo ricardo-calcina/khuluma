@@ -20,14 +20,14 @@ final class StatsWindowController: NSWindowController, NSWindowDelegate, NSToolb
     let vocabulary = VocabularyModel(settings: settings)
     self.vocabulary = vocabulary
     let window = StatsWindow(
-      contentRect: NSRect(x: 0, y: 0, width: 560, height: 704),
+      contentRect: NSRect(x: 0, y: 0, width: 560, height: 712),
       styleMask: [.titled, .closable, .miniaturizable, .resizable],
       backing: .buffered, defer: false)
     window.title = "Khuluma"
     window.isReleasedWhenClosed = false
     window.contentViewController = NSHostingController(rootView: AppView(
       stats: model, settings: settings, navigation: navigation, vocabulary: vocabulary))
-    window.setContentSize(NSSize(width: 560, height: 704))
+    window.setContentSize(NSSize(width: 560, height: 712))
     window.contentMinSize = NSSize(width: 560, height: 420)
     window.center()
     if !AppRuntimePaths.isolated { window.setFrameAutosaveName("KhulumaStats") }

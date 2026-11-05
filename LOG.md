@@ -85,7 +85,7 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 - 2026-11-05 · Pinned mics start on their real hardware format (iPhone Continuity mic failed on 391), checked converter per Codex Terra review, Cancel Recording on the Recording row; inline mic list tried and reverted · 15793b2, 7dc3db8
 - 2026-11-05 · Installed build 391 from d99bd84 (app only; CLI and daemon unchanged, doctor healthy) · ~/Applications/.khuluma-app.f7GuFA/previous.app
 - 2026-11-05 · Microphone picker in the menu and Settings with a take-safe engine policy; two Codex Sol reviews, fixes in b8fd358 and 7bf864e · d99bd84
-- 2026-11-05 · Stats window restyled: grouped boxes, no All time caption, highlight tiles with symbols, window starts 560×704; not installed yet · CHANGELOG Unreleased
+- 2026-11-05 · Stats window restyled in one ink (like the icon), hairlines not boxes, ring marks, small caps labels; Activity one height for all ranges, heatmap centred, hover readout in the range line; window starts 560×712; not installed yet · CHANGELOG Unreleased
 - 2026-11-05 · Stats Activity adapts: heatmap fills the width with Words per day off, chart beside it on 30 days and under it on 60/90; hover line fixed width;  203 Swift tests pass; not installed yet · CHANGELOG Unreleased
 - 2026-11-05 · Paste without sending confirmed on build 398: a real Shift+F5 take pasted and was not sent · app.log 12:46Z
 - 2026-11-05 · Vocabulary tab rebuilt as a standard Mac list editor; Codex Terra review fixes in a7bb4fe · 4d904cc
