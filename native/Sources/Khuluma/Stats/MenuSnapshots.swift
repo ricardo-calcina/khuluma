@@ -4,7 +4,7 @@ import KhulumaCore
 import UniformTypeIdentifiers
 
 /// `-KhulumaPreviewMenuSnapshots <dir>` in the isolated UI preview: opens the
-/// real native menu and the Microphone submenu with sample inputs, in light
+/// real native menu with its inline microphone list and sample inputs, in light
 /// and dark, and saves the app's own menu windows as PNGs (playbook §5).
 @MainActor
 final class MenuSnapshots {
@@ -39,34 +39,29 @@ final class MenuSnapshots {
       timers.append(timer)
       RunLoop.main.add(timer, forMode: .common)
     }
+    let deviceSets: [(String, AudioInputs)] = [("2dev", PreviewInputs.connected), ("3dev", PreviewInputs.three)]
     for (look, appearance) in [("light", NSAppearance.Name.aqua), ("dark", .darkAqua)] {
+      for (devices, inputs) in deviceSets {
       for (state, choice) in states {
-        let name = "\(state)-\(look)"
+        let name = "\(state)-\(devices)-\(look)"
         at(time) { [self] in
           NSApp.appearance = NSAppearance(named: appearance)
           menu.setPreviewAppearance(NSAppearance(named: appearance))
-          settings.adoptAudioInputs(PreviewInputs.connected)
+          settings.adoptAudioInputs(inputs)
           settings.selectMicrophone(choice)
         }
         at(time + 0.1) { [self] in menu.showPreviewMenu() }
         at(time + 0.4) { [self] in if !menu.previewMenuIsOpen { print("\(name): reopening"); menu.showPreviewMenu() } }
         at(time + 0.8) { [self] in capture("menu-\(name)") }
-        if state == "default" {
+        if state == "default", devices == "2dev" {
           // Live update while open: AirPods connect and become the default.
           at(time + 1.0) { [self] in settings.adoptAudioInputs(PreviewInputs.withAirPods) }
           at(time + 1.1) { [self] in capture("menu-default-live-soon-\(look)") }
           at(time + 1.6) { [self] in capture("menu-default-live-\(look)") }
         }
         at(time + 2.0) { [self] in menu.dismissPreviewMenu() }
-        // The submenu on its own (a copy): AppKit opens the real one only on hover.
-        at(time + 2.3) { [self] in
-          guard let copy = menu.previewMicrophoneSubmenu?.copy() as? NSMenu else { failures += 1; return }
-          openPopUp = copy
-          copy.popUp(positioning: nil, at: NSPoint(x: 200, y: NSScreen.main.map { $0.visibleFrame.maxY - 40 } ?? 800), in: nil)
-        }
-        at(time + 3.0) { [self] in capture("submenu-\(name)") }
-        at(time + 3.2) { [self] in openPopUp?.cancelTracking(); openPopUp = nil }
-        time += 3.6
+        time += 2.4
+      }
       }
       // Recording: the activity label and Cancel Recording share one row.
       at(time) { [self] in
