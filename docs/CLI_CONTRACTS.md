@@ -203,6 +203,149 @@ included in settings JSON, command arguments, diagnostics, or logs. Failed
 cloud requests do not return remote response bodies as transcript text.
 
 
+## Shared data contract 1
+
+Status: contract 1, implementation in progress on `wip/app-independence`. Plan: `docs/plans/APP_INDEPENDENCE.md`.
+
+The native app and the CLI each work alone and share the files below when both are installed. Both sides implement this section; anything not listed is private to one product.
+
+### On-disk formats and locks
+
+What the app reads and writes, kept compatible with the installed v0.11 CLI during a changeover.
+
+#### Roots and overrides
+
+| File | Default path | Moved by |
+|---|---|---|
+| config | `~/.config/khuluma/config.toml` | `KHULUMA_CONFIG_FILE`; otherwise the config dir |
+| config dir (`<cfg>`) | `~/.config/khuluma` | `KHULUMA_CONFIG_DIR`, else `$XDG_CONFIG_HOME/khuluma` |
+| vocabulary | `<cfg>/vocabulary.json` | config dir |
+| history | `<cfg>/history/*.json` | config dir |
+| bench | `<cfg>/history/bench.tsv` | config dir |
+| usage | `<cfg>/usage.json` | `KHULUMA_USAGE_SUMMARY_FILE` |
+| shared log | `~/Library/Logs/Khuluma/khuluma.log` | `KHULUMA_LOG_DIR` |
+
+Both sides resolve every override the same way. `KHULUMA_LOG_DIR` is today an app-only isolation variable (set together with `KHULUMA_SUPPORT_DIR` and `KHULUMA_DEFAULTS_SUITE`); contract-1 CLIs honour it for `khuluma.log` too. Locks and temp files live beside the file they guard (`usage.json.lock` beside a moved usage file). Moving data to Application Support is not part of contract 1.
+
+#### Writer tag
+
+Every record written under contract 1 carries a writer:
+
+```json
+"writer": {"name": "app", "version": "0.12.0", "build": "416"}
+"writer": {"name": "cli", "version": "0.12.0", "build": null}
+```
+
+Compact form (bench, log): `app/0.12.0+416`, `cli/0.12.0`. `name` is `app` or `cli`. A record without a tag (written before contract 1, or by the v0.11 CLI) reads as `unknown`. Records the CLI writes on the app's behalf (`inline record` or `inline process`, called by older apps) are tagged `app`, with the app's version when it passes one, else `version: null`.
+
+#### Take identity and idempotency
+
+Every take has a `take_id` (`[A-Za-z0-9._-]{1,128}`, as `usage.json` accepts today). Each destination records it, and a write is idempotent per destination: under that destination's lock the writer checks whether the take id is already there and, if so, does nothing and reports success. This replaces the separate replay ledgers. The `.cache/recorded-takes`, `recorded-takes-history` and `recorded-takes-bench` ledgers are still read for takes written before contract 1 and are not written by contract-1 writers; they are retired once no pending record predates contract 1.
+
+#### Per file
+
+**History** (`history/<local-ts>[_N].json`, local time `YYYY-MM-DDTHH-MM-SS`)
+
+```json
+{
+  "timestamp": "2026-11-05T09:14:02Z",
+  "app": "TextEdit",
+  "raw": "…",
+  "processed": "…",
+  "take_id": "a1b2c3",
+  "writer": {"name": "app", "version": "0.12.0", "build": "416"},
+  "metrics": {"record_ms": 4100, "transcribe_ms": 210, "clean_ms": 3, "paste_ms": 40, "total_ms": 4400},
+  "audio": {}
+}
+```
+
+- Lock: `flock(history/.history.lock)`, exclusive, held across the take-id check, the name claim and the publish.
+- Take-id check: scan entries newer than the retention window for `take_id`; found = done.
+- Claim and publish in one step: write the full document to a temp file in `history/` and fsync it, then `link()` it to `<ts>.json` (fails if the name exists, so it is an exclusive create); on collision try `_2` … `_50`, then fail. Unlink the temp and fsync the directory. Readers never see an empty or partial entry.
+- Readers ignore files that don't parse and unknown keys. `metrics` and `audio` keep today's keys.
+
+**Bench** (`history/bench.tsv`, tab-separated, no header, one row per take). Columns:
+
+1 `ts` (UTC, `%Y-%m-%dT%H:%M:%SZ`) · 2 `flow` · 3 `status` · 4 `model` · 5 `mode` (always `none`) · 6 `postprocess` · 7 `raw_chars` · 8 `out_chars` · 9 `record_ms` · 10 `transcribe_ms` · 11 `clean_ms` · 12 `postprocess_ms` · 13 `paste_ms` · 14 `total_ms` · 15 `startup_total_ms` · 16 `startup_audio_ms` · 17 `startup_ffmpeg_live_ms` · 18 `startup_target_ms` · 19 `startup_audio_source` · 20 `writer` (compact) · 21 `take_id`
+
+```
+2026-11-05T09:14:06Z	inline	ok	parakeet-v3	none	0	52	51	4100	210	3	0	40	4400	0	0	0	0		app/0.12.0+416	a1b2c3
+```
+
+- Lock: `mkdir history/bench.tsv.lock.d`, retried for up to 3 s; a lock directory older than 60 s is stale and removed once.
+- Contract-1 writers never append without the lock: no lock in 3 s = skip the row and log it to `khuluma.log` (bench is diagnostics).
+- Under the lock: take-id check (column 21), append, then trim to the newest `KHULUMA_BENCH_MAX_ROWS` (default 800) rows via temp file and rename.
+- Fields contain no tabs or newlines. Readers treat missing columns 20-21 as `unknown` and empty, and ignore extra columns.
+
+**Usage** (`usage.json`)
+
+```json
+{
+  "schema_version": 1,
+  "tracking_started_at": "2026-10-01T08:00:00Z",
+  "delivered_dictations": {"count": 120, "by_flow": {"inline": 120, "tmux": 0}},
+  "processed_words": 5400,
+  "recording_duration_ms": 900000,
+  "full_elapsed_duration_ms": 960000,
+  "daily": {"started_at": "…", "baseline_count": 0, "days": {"2026-11-05": {"count": 3, "inline": 3, "tmux": 0, "words": 140, "recording_ms": 12000, "full_elapsed_ms": 13000, "longest_recording_ms": 6000, "most_words": 70}}},
+  "recent_take_ids": {"a1b2c3": "2026-11-05"},
+  "by_writer": {"app": 40, "cli": 2},
+  "attribution_started_at": "2026-11-06T10:00:00Z"
+}
+```
+
+- `schema_version` stays 1: the v0.11 CLI refuses to write any other value, which would stop it counting during the transition.
+- New, additive: `by_writer` counts tagged deliveries only; `attribution_started_at` is when the first contract-1 writer added it. Unattributed = `count` minus the sum of `by_writer`.
+- Day buckets stay closed: exactly the eight keys above (v0.11 rewrites them with known keys only, so a new key would be dropped). No `last_write` field (v0.11 would leave it stale).
+- Idempotency: `recent_take_ids` (take id → local date, pruned by age and count as today); a take id already present = no change.
+- Lock: `flock(usage.json.lock)`, non-blocking retries for at most 2 s; timeout = skip and log, the take stays pending.
+- Write: temp file in the same directory, fsync, rename over `usage.json`, fsync the directory.
+- An unreadable file, or a `schema_version` other than 1, is never overwritten: the write fails and is logged.
+
+**Config** (`config.toml`)
+
+- Lock: `flock(config.toml.lock)`, exclusive, around every read-modify-replace, on both sides. Plain reads take no lock.
+- Format unchanged; readers parse full TOML (the CLI uses `tomllib`), not a subset. Unknown keys and tables are preserved on write.
+- Invalid file: readers fall back to `.config.toml.last-good`; no writer rewrites an invalid file.
+- A symlinked `config.toml` stays a symlink: replace the target, not the link.
+
+**Vocabulary** (`vocabulary.json`): unchanged. `flock(.vocabulary.lock)`, revision check and backups as today. Closed schema: no `writer` field inside.
+
+**Shared log** (`~/Library/Logs/Khuluma/khuluma.log`)
+
+```
+[2026-11-05T09:14:06.512Z] [app/0.12.0+416] take a1b2c3 delivered in 4400 ms
+```
+
+- UTC ISO 8601 with milliseconds, then the compact writer, then the message.
+- Open `O_APPEND`; one `write()` per line, newline included.
+- No transcript text, API keys or remote response bodies.
+- `app.log` is kept and no longer written; `tools/khuluma-report.sh` reads both.
+
+#### Rules
+
+- Writers preserve unknown keys in every JSON and TOML file.
+- Within contract 1, changes are additive only. Removing or retyping a field needs contract 2.
+- Transcript text appears only in history and pending recovery, never in usage, bench or the log.
+- The app reports `data_contract` in its launch log line.
+
+#### Transition with the v0.11 CLI
+
+The installed v0.11 CLI keeps writing until a contract-1 CLI ships. It writes untagged records (`unknown`) with no `take_id` in history or bench, uses the old replay ledgers, ignores `.history.lock` and `config.toml.lock`, and appends to bench without the lock after a 3 s timeout. It does honour `usage.json.lock`, `recent_take_ids`, `.vocabulary.lock` and the bench lock when free. The guarantees here hold fully only between contract-1 writers; with v0.11 they degrade to today's behaviour, not worse.
+
+#### Daemons
+
+Not shared in contract 1. The app runs its bundled `khulumad` as its own child on its own socket in Application Support; the CLI keeps its own daemon. Sharing one waits until the daemon protocol carries a version.
+
+### Only while a contract-1 CLI is still developed
+
+Dropped in one cut if the CLI is retired.
+
+- **CLI writer obligations**: tag records `cli/<version>` (or `app` on the app's behalf, above), record `take_id`, take every lock above, never append to bench unlocked, write `khuluma.log` lines, and honour `KHULUMA_LOG_DIR`.
+- **`khuluma version --json`** gains `data_contract` (0.12+, number; absent = pre-contract CLI). Add it to "Stable Read Contracts" when it ships.
+- **`recording.lock`** (`<cfg>/recording.lock`): one recording at a time across app and CLI. Take `flock(LOCK_EX|LOCK_NB)` before capture, hold it for the whole capture, never unlink the file. Then truncate and write one JSON line, informational only: `{"writer": "cli/0.12.0", "pid": 4242, "started_at": "2026-11-05T09:14:02.120Z", "take_id": "a1b2c3"}`. Held = refuse and name the holder. The CLI passes the locked fd to its ffmpeg child; the app opens it `O_CLOEXEC`.
+- **`data-contract.json`** (`<cfg>/data-contract.json`): `{"data_contract": 1, "set_by": {"name": "app", "version": "0.12.0", "build": "416"}}`. Missing = 1. Written atomically, only raised. A side supporting less than the file says refuses shared writes (reads stay allowed) and names the product to update. v0.11 ignores both files.
+
 ## Identity migration and diagnostic schema
 
 The executable is `khuluma`. v0.11.0 removes the `tmux-whisper` command and legacy doctor JSON adapter; doctor schema 2 is the supported diagnostic object. Normal execution rejects obsolete `DICTATE_*` and Lowkey signing overrides before writes; use `KHULUMA_*` names. Help/version/default probes remain nonmutating. An app contract number alone is not canonical identity proof: the app also checks the nonmutating version identity probe and effective config root.
