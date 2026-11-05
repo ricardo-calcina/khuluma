@@ -2,11 +2,13 @@
 
 ## Now
 
+Design refresh (started 2026-11-05): native polish only. The menu keeps its big figures and gains a microphone picker; Vocabulary becomes a standard Mac list editor; Stats stays as is. Build 383 (main at f148f84, the 30 Oct menu/tabs work) is installed; app rollback is `~/Applications/.khuluma-app.5r9WGE/previous.app`.
+
 Direction from 2026-10-27: Khuluma splits into two products. The Khuluma CLI, the free tool that grew out of the tmux-whisper setup, stays on the Homebrew tap and gets its SwiftBar integrations back. The native Swift dictation app becomes its own paid product, signed and notarised, installed from the App Store or a website download, not Homebrew. Phases 2, 4 and 5 and the SwiftBar, cask and App Store decisions below predate this and need re-planning (Next P1).
 
 The user accepts the current dictation cleanup and Settings as working well; this work is closed for now. Further settings expansion, repeated-word cleanup and provider comparisons are parked below for a later session.
 
-Khuluma v0.11.0 build 367 and its matching contract-5 CLI are installed from `4dcf33e`. Source [CI](https://github.com/ricardo-calcina/khuluma/actions/runs/40016372572) and [Swift](https://github.com/ricardo-calcina/khuluma/actions/runs/40016372589) passed before cutover. The signed app relaunched on the native pipeline; doctor reports zero issues/warnings. A real 35-second take delivered through the native path after cutover. The installation preserved F17, config, existing vocabulary, icon preference/catalog and daemon binary/PID. The installer skipped warm-up and sound replacement; Homebrew and public releases are unchanged.
+Khuluma v0.11.0 build 367 and its matching contract-5 CLI were installed from `4dcf33e` (superseded by build 383 on 2026-11-05). Source [CI](https://github.com/ricardo-calcina/khuluma/actions/runs/40016372572) and [Swift](https://github.com/ricardo-calcina/khuluma/actions/runs/40016372589) passed before cutover. The signed app relaunched on the native pipeline; doctor reports zero issues/warnings. A real 35-second take delivered through the native path after cutover. The installation preserved F17, config, existing vocabulary, icon preference/catalog and daemon binary/PID. The installer skipped warm-up and sound replacement; Homebrew and public releases are unchanged.
 
 The installed Settings and vocabulary editor load the existing rules and export equivalent JSON. Installed CLI vocabulary save and filler/sentence/brand cleanup pass against a private synthetic profile. Cleanup is now enabled with Exact repeated sentences (level 3). The prepared vocabulary is active: 11 fillers, 28 brand rules and 7 other-word rules; all previous corrections survive. The installed app confirms the saved settings, and a combined filler/repetition/brand sample passes. A local replay of the latest 97-second dictation exactly reproduces the saved result, including removal of four hesitations. New tool-name variants are active; the separate sentence-repetition check passes. Personal vocabulary contents remain outside Git. The source combines menu/Stats/Settings, adaptive/animated icon themes, audio retention and vocabulary work in four grouped merges on main.
 
@@ -40,7 +42,9 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 - [ ] P2 · Compare Parakeet and ElevenLabs Scribe on real repeats, intonation and laughter/non-speech output; verify provider behavior before choosing cleanup rules · added 2026-10-24
 - [x] P2 · Remove old command/env/app compatibility after canonical-only caller and daily-app checks · added 2026-10-23
 - [x] P2 · Align formula updater and intact source/tap siblings at khuluma and homebrew-tap · added 2026-10-22
-- [ ] P2 · Skip auto-send for one take: hold a key (Shift or similar, to decide) so the take pastes without pressing Enter; auto-send stays the default · added 2026-10-17 · source done 2026-10-30 (shortcut + Shift, configurable; menu Auto-send switch); needs Swift CI, menu render check and a real take before install
+- [ ] P2 · Skip auto-send for one take: hold a key (Shift or similar, to decide) so the take pastes without pressing Enter; auto-send stays the default · added 2026-10-17 · source done 2026-10-30 (shortcut + Shift, configurable; menu Auto-send switch); Swift CI passed; installed 2026-11-05 as build 383; real take with and without Shift still to confirm
+- [ ] P2 · Menu: microphone picker (native submenu under the figures, current input shown; same choice in Settings → Dictation; falls back to the system default when the chosen mic is missing) · added 2026-11-05
+- [ ] P2 · Vocabulary tab as a standard Mac list editor: editable table, +/− under it, Import/Export in an action menu, keep the draft/Save model · added 2026-11-05
 - [ ] P3 · Visual identity (colour, Ndebele/cursed-speech motifs) parked: 2026-10-30 Stats concepts read as non-Mac; keep the native look and current layout until a subtler direction comes up · added 2026-10-30
 - [ ] P2 · Stats stage 3 ideas (not committed): weeks view, wpm trend, typing_wpm config, time of day, opt-in per-app · added 2026-10-16
 - [x] P2 · Use total words, estimated time saved and average WPM in the menu and Stats summary · added 2026-10-23
@@ -73,6 +77,7 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 
 ## Done
 
+- 2026-11-05 · Installed build 383 and matching CLI from main (30 Oct tabs, menu figures/7-day strip, Auto-send switch, paste without sending); daemon kept, doctor healthy · ~/Applications/.khuluma-app.5r9WGE/previous.app
 - 2026-10-27 · #88 merged; app rebuilt from main and installed as build 377 (rollback ~/Applications/.khuluma-app.1OP0aL/previous.app); a real 14 s take delivered warm on the native path (total 1.3 s) with the shared FluidAudio model · app.log 12:15Z
 - 2026-10-27 · khulumad on FluidAudio 0.15.6 (exact); my config's model_path now points at FluidAudio's shared cache (~/Library/Application Support/FluidAudio/Models/parakeet-tdt-0.6b-v3), so Khuluma and the Kwik apps share one Parakeet v3 copy; same transcript as before on a 30 s clip at the same warm speed (2-3 s); 164 Swift tests and tests/ci.sh pass; the app was restarted to pick up the new path · CHANGELOG Unreleased
 - 2026-10-24 · Updated active GitHub references for ricardo-calcina; app identifiers and historical evidence preserved · GitHub username migration
