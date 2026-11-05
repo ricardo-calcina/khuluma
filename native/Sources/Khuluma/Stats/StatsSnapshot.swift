@@ -81,6 +81,11 @@ enum StatsSnapshot {
       missingMicrophone.page = .dictation
       missingMicrophone.selectMicrophone(PreviewInputs.missing)
       save("settings-microphone-missing", view: AnyView(SettingsView(model: missingMicrophone)), width: 560, height: 634)
+      // The shortest window, with feedback showing in the footer.
+      let short = try UISettingsFixture().model()
+      short.page = .dictation
+      short.message = "Preview setting saved in memory."
+      save("settings-dictation-short", view: AnyView(SettingsView(model: short)), width: 560, height: 420)
       save("vocabulary", view: AnyView(VocabularyView(model: VocabularyModel(settings: local), settings: local)),
            width: 560, height: 634)
       // Examples with the failing one selected, so the inspector offers its fix.

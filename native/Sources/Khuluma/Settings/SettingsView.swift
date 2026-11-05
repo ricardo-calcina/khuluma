@@ -28,6 +28,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
 
 struct SettingsView: View {
   @ObservedObject var model: SettingsModel
+  @FocusState private var focusedPage: SettingsPage?
 
   var body: some View {
     HStack(spacing: 0) {
@@ -40,12 +41,12 @@ struct SettingsView: View {
             .padding(.bottom, 14)
             .accessibilityAddTraits(.isHeader)
           page
-          status
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 18)
         .frame(maxWidth: .infinity, alignment: .leading)
       }
+      .safeAreaInset(edge: .bottom, spacing: 0) { footer }
     }
     .toggleStyle(.switch)
     .tint(Ember.accent)
@@ -57,23 +58,33 @@ struct SettingsView: View {
   private var sidebar: some View {
     VStack(alignment: .leading, spacing: 2) {
       ForEach(SettingsPage.allCases) { page in
-        SidebarRow(page: page, selected: model.page == page) { model.page = page }
+        SidebarRow(page: page, selected: model.page == page, focused: focusedPage == page) { select(page) }
+          .focusable()
+          .focusEffectDisabled()
+          .focused($focusedPage, equals: page)
+          .onKeyPress(.space) { select(page); return .handled }
+          .onMoveCommand { move($0) }
       }
       Spacer()
     }
     .padding(.horizontal, 10)
     .padding(.vertical, 18)
     .frame(width: 150)
-    .focusable()
-    .focusEffectDisabled()
-    .onMoveCommand { direction in
-      let pages = SettingsPage.allCases
-      guard let index = pages.firstIndex(of: model.page) else { return }
-      switch direction {
-      case .up where index > 0: model.page = pages[index - 1]
-      case .down where index < pages.count - 1: model.page = pages[index + 1]
-      default: break
-      }
+  }
+
+  private func select(_ page: SettingsPage) {
+    model.page = page
+    focusedPage = page
+  }
+
+  /// Up/Down move selection and focus together.
+  private func move(_ direction: MoveCommandDirection) {
+    let pages = SettingsPage.allCases
+    guard let index = pages.firstIndex(of: model.page) else { return }
+    switch direction {
+    case .up where index > 0: select(pages[index - 1])
+    case .down where index < pages.count - 1: select(pages[index + 1])
+    default: break
     }
   }
 
@@ -144,9 +155,10 @@ struct SettingsView: View {
       }
     }
     SettingsGroup("Transcription") {
-      SettingsRow("Model", note: model.provider == "elevenlabs"
-                  ? "Scribe uploads new and recovered recordings to ElevenLabs and uses your credits. Internet required."
-                  : "Runs offline on this Mac.", last: model.provider != "elevenlabs") {
+      // Shown before Scribe is chosen too: choosing it saves at once.
+      SettingsRow("Model",
+                  note: "Scribe uploads new and recovered recordings to ElevenLabs and uses your credits. Internet required.",
+                  last: model.provider != "elevenlabs") {
         Picker("Model", selection: Binding(get: { model.provider }, set: { model.save("transcription.provider", $0) })) {
           Text(localModelTitle).tag("parakeet")
           Text("ElevenLabs Scribe v2").tag("elevenlabs")
@@ -261,8 +273,19 @@ struct SettingsView: View {
     }
   }
 
-  /// Recording, save and error feedback, shown on every page.
-  @ViewBuilder private var status: some View {
+  /// Recording, save and error feedback: a footer outside the scroll, so it
+  /// stays visible in short windows, shown only when there is something to say.
+  @ViewBuilder private var footer: some View {
+    if model.recording || model.message != nil || model.saving {
+      VStack(alignment: .leading, spacing: 0) {
+        Rule()
+        status.padding(.horizontal, 20).padding(.vertical, 10)
+      }
+      .background(Color(nsColor: .windowBackgroundColor))
+    }
+  }
+
+  private var status: some View {
     VStack(alignment: .leading, spacing: 6) {
       if model.recording {
         Label("Dictation controls are available when dictation finishes.", systemImage: "mic.fill")
@@ -275,7 +298,7 @@ struct SettingsView: View {
       }
       if model.saving { ProgressView("Saving settings…").controlSize(.small) }
     }
-    .padding(.top, 4)
+    .frame(maxWidth: .infinity, alignment: .leading)
   }
 
   /// The same choice as the menu's Microphone row, for when that is hidden.
@@ -331,6 +354,7 @@ struct SettingsView: View {
 private struct SidebarRow: View {
   let page: SettingsPage
   let selected: Bool
+  var focused = false
   let action: () -> Void
   // Not @State: the Command Line Tools have no SwiftUI macro plugin.
   @StateObject private var hover = Hover()
@@ -348,6 +372,8 @@ private struct SidebarRow: View {
       .padding(.vertical, 6)
       .background(RoundedRectangle(cornerRadius: 7, style: .continuous)
         .fill(selected ? Ember.accent.opacity(0.14) : hover.active ? Ink.track : .clear))
+      .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous)
+        .strokeBorder(Ember.accent, lineWidth: focused ? 2 : 0))
       .contentShape(Rectangle())
     }
     .buttonStyle(.plain)
