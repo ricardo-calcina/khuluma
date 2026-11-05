@@ -2,6 +2,8 @@
 
 ## Now
 
+Focus from 2026-11-05: first make the app work without the CLI (tab "Khuluma app without the CLI", branch `wip/app-independence`, worktree `../khuluma-wt-app-independence`), then the two-product split and the CLI side (tab "Khuluma two-product split", branch `wip/product-split`, worktree `../khuluma-wt-product-split`). The app tab owns the shared data contract. Apple Developer Program and the trademark search wait until both land; the khuluma.app website can happen any time, separately.
+
 Window and menu restyle (2026-11-05) is installed as build 415 from main: Stats, Settings and Vocabulary share one ink-and-ember look (Theme.swift; DESIGN.md), Settings has a four-page sidebar, and Activity keeps one height for every range. Ricardo approved it from a preview build. The menu dropdown matches, and the window now shows in Cmd-Tab and the Dock while open (Ricardo confirmed Cmd-Tab in the preview). Wired headphones and AirPods are still to try on the microphone picker (Next). App rollback is `~/Applications/.khuluma-app.aX5hsD/previous.app` (build 411).
 
 Direction from 2026-10-27: Khuluma splits into two products. The Khuluma CLI, the free tool that grew out of the tmux-whisper setup, stays on the Homebrew tap and gets its SwiftBar integrations back. The native Swift dictation app becomes its own paid product, signed and notarised, installed from the App Store or a website download, not Homebrew. Phases 2, 4 and 5 and the SwiftBar, cask and App Store decisions below predate this and need re-planning (Next P1).
@@ -31,20 +33,21 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 - [ ] P1 · Before phase 2: search UKIPO and EUIPO by hand for KHULUMA (khuluma.app bought by Ricardo 2026-11-05) · added 2026-10-17
 - [ ] P1 · khuluma.app website: decide what it offers before the signed app exists (waitlist, the free CLI, or both); build it in VPS products/Khuluma/site, reusing the approved studio-site Khuluma page copy · added 2026-11-05
 - [x] P1 · Install raised adaptive light/dark app icon and 18 pt menu glyph; verify Finder automatic switching · added 2026-10-17
-- [ ] P1 · Join the Apple Developer Program before phase 2 · added 2026-10-15
+- [ ] P1 · Join the Apple Developer Program before phase 2 (after app independence and the split, Ricardo 2026-11-05) · added 2026-10-15
 - [ ] P1 · Phase 0 gate: a week of daily use, then `tools/khuluma-report.sh` gates still met · added 2026-10-17
 - [ ] P1 · Phase 1 step 1: native usage ledger and history writer, proven against the CLI with shared fixtures (removes `inline record`) · added 2026-10-17
 - [ ] P1 · Phase 1 after the native writers: port config, bundle and supervise the daemon, add model download and bundled sounds, then port or drop CLI fallbacks; keep shared files/locks compatible while both writers exist · added 2026-10-22
 - [ ] P1 · Phase 1 delivery: use PostEvent permission gates and a bundled child daemon; verify clean-account dictation/Stats/history without CLI and 14 days without CLI invocations or usage mismatch before calling it independent · added 2026-10-22
-- [ ] P2 · Add “Show app icon in Dock” beside the menu bar icon setting in Appearance · added 2026-10-24
+- [ ] P2 · Add “Show app icon in Dock” next to the Open at login setting · added 2026-10-24
 - [ ] P2 · Clarify the Repetition selector with plain labels and before/after examples; explain each option’s scope, preserved repeats and how it interacts with cleanup · added 2026-10-24
 - [ ] P2 · Audit existing CLI/config options against the app Settings; identify useful controls still missing from the UI before expanding it · added 2026-10-24
+- [ ] P2 · Cleanup round (after the split): better transcript cleanup with selectable levels, including an optional cloud model; covers the repetition labels, repeated-word cleanup and Parakeet vs Scribe items · added 2026-11-05
 - [ ] P2 · Test conservative repeated-word cleanup such as “don't don't”, preserving intentional emphasis and grammatical doubles · added 2026-10-24
 - [ ] P2 · Compare Parakeet and ElevenLabs Scribe on real repeats, intonation and laughter/non-speech output; verify provider behavior before choosing cleanup rules · added 2026-10-24
 - [x] P2 · Remove old command/env/app compatibility after canonical-only caller and daily-app checks · added 2026-10-23
 - [x] P2 · Align formula updater and intact source/tap siblings at khuluma and homebrew-tap · added 2026-10-22
 - [ ] P2 · Paste retried dictation from the menu refuses while the Khuluma window is frontmost (pre-existing; Terra review): capture and restore an external target for that path · added 2026-11-05
-- [ ] P2 · Check live on build 415: hovering Activity never moves the layout; Settings sidebar Tab/arrow focus and VoiceOver; Vocabulary tab-strip arrows and in-place editing · added 2026-11-05
+- [ ] P2 · Check live on build 415: Settings sidebar Tab/arrow focus and VoiceOver; Vocabulary tab-strip arrows and in-place editing (Activity hover confirmed fine 2026-11-05) · added 2026-11-05
 - [ ] P2 · Finish the microphone picker hardware checks (iPhone Continuity mic confirmed on build 398; it takes ~2.2 s to start, so speak after the chime): wired headphones and AirPods, pick the current default explicitly, unplug the chosen mic between takes and mid-take; each take's `audio: take input requested=… actual=… fallback=…` line in ~/Library/Logs/Khuluma/app.log should match · added 2026-11-05
 - [ ] P3 · Vocabulary examples are keyed by Said text: a repeat replaces, and duplicate Said rows in an imported file share one table row (Terra review, same as before the editor change) · added 2026-11-05
 - [x] P2 · Menu: microphone picker (native submenu under the figures, current input shown; same choice in Settings → Dictation; falls back to the system default when the chosen mic is missing) · added 2026-11-05
@@ -66,6 +69,7 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 
 ## Decisions
 
+- App and CLI (Ricardo, 2026-11-05): app independence comes before the CLI split. Each must work alone; when both are installed they share the same logs, history and usage tracking, and every record says which one wrote it, so a problem can be traced to its source.
 - Microphone choice stays a submenu row in the menu, not an inline ticked list (tried in f983018, reverted 2026-11-05): Ricardo rarely switches and mostly stays on System Default; the row only needs to show the input in use. The case for choosing is two inputs at once, e.g. recording a video on the phone while Khuluma keeps the MacBook mic.
 - Icon/theme recovery: `/Users/admin/Applications/.khuluma-app.74v7dj/previous.app` retains signed build 353; current QA is at `/private/tmp/khuluma-themes-qa.RxaJYA/`. `.khuluma-app.xMyT3X/previous.app` retains build 351, `.khuluma-app.atWD6N/previous.app` build 347, `.khuluma-app.LYC8GT/previous.app` build 342 and `.khuluma-app.LYfteh/previous.app` build 340. Earlier motion/status/app-icon QA remains under `/private/tmp/khuluma-{motion,status,icons}-qa.*` as recorded in `assets/icons/README.md`. Preserve newer user data when recovering.
 
