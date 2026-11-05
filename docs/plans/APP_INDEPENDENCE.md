@@ -1,10 +1,10 @@
 # App independence: Khuluma.app without the CLI
 
-Status: plan revised after two Codex Sol reviews (strategy, risks), 2026-11-05 (tab "Khuluma app without the CLI", branch `wip/app-independence`). Replaces LOG Next items "Phase 1 step 1", "Phase 1 after the native writers" and "Phase 1 delivery".
+Status: revised 2026-11-05 after Ricardo's decision to sunset the CLI (LOG Decisions, ee14c0f). Khuluma is the app only. Tab "Khuluma app without the CLI", branch `wip/app-independence`. The earlier two-product version (shared data contract 1, writer tags, dual-writer locks) is in Git history at 671670f and b5d29fc; it is dropped.
 
 ## Goal
 
-The native app dictates, saves history, tracks usage and shows Stats on a Mac with no `khuluma` CLI. The app and the CLI each work alone. When both are installed they share one history, one usage ledger, one bench table and one log, every record names its writer (app or CLI, plus version), and concurrent writes never lose or double-count anything.
+The app dictates, saves history, tracks usage and shows Stats on a Mac with no `khuluma` CLI, keeps its data in its own folder, and brings over the CLI features Ricardo keeps (file transcription as a small command inside the app, ElevenLabs Scribe, and whatever else the sunset tab's keep list names). His existing history, usage, settings and vocabulary come across once. Then the sunset tab retires the CLI, formula and tap.
 
 ## Where the app depends on the CLI today
 
@@ -12,70 +12,82 @@ The native app dictates, saves history, tracks usage and shows Stats on a Mac wi
 
 | Call | Used for | Replacement |
 |---|---|---|
-| `version --json`, `app-config --json` | locate CLI, contract check, all settings | native config reader (slice 4) |
-| `app-settings set` | Settings writes | native config writer (slice 4) |
-| `vocab-sheet show/validate/save` | Vocabulary editor | native, same lock/backups (slice 4) |
-| `history export` | recent dictations (editor examples) | native history reader (slice 3) |
-| `inline record` | history, bench, usage after each native take | native writers (slice 2) |
-| `usage --json --days all` | Stats and menu figures | native usage reader (slice 3) |
-| `warmup --json` | starts/builds khulumad from source, loads model | bundled daemon the app supervises (slice 5) |
-| `inline process` | fallback route + ElevenLabs Scribe | drop fallback; port Scribe or drop it (slice 6) |
+| `version --json`, `app-config --json` | locate CLI, contract check, all settings | app settings file (slice C) |
+| `app-settings set` | Settings writes | same (slice C) |
+| `vocab-sheet show/validate/save` | Vocabulary editor | native, app folder (slice C) |
+| `history export` | recent dictations (editor examples) | native history reader (slice C) |
+| `inline record` | history, bench, usage after each take | native writers (slice A) |
+| `usage --json --days all` | Stats and menu figures | native usage reader (slice C) |
+| `warmup --json` | starts/builds khulumad from source, loads the model | bundled daemon the app runs (slice D) |
+| `inline process` | fallback route and ElevenLabs Scribe | drop the route; native Scribe (slice E) |
 
-Sounds come from `~/.local/share/sounds/khuluma` (installed by the CLI installer); the model path comes from config (today FluidAudio's shared cache).
+Sounds come from `~/.local/share/sounds/khuluma`, installed by the CLI; the model is in FluidAudio's shared cache.
 
-## Shared data contract (slice 0, lands on main first)
+## App data
 
-A new section in `docs/CLI_CONTRACTS.md`, "Shared data contract 1". Summary:
+Everything under `~/Library/Application Support/Khuluma` (`KHULUMA_SUPPORT_DIR` in isolated runs), next to the existing `pending/` and `recovered/`:
 
-**Roots.** Unchanged so existing data keeps working: config, vocabulary, history, bench and usage under `~/.config/khuluma`, with every existing override honoured (`KHULUMA_CONFIG_DIR`, XDG, config-file and `KHULUMA_USAGE_SUMMARY_FILE`); logs under `~/Library/Logs/Khuluma`. Moving data to Application Support stays Phase 3.
+- `history/<local-ts>[_N].json`: today's per-take shape plus `take_id`; retention pruning to the Trash as today; the keep_logs debug archive under `history/inline-debug/` with the 48-hour WAV expiry.
+- `usage.json`: today's schema-1 shape (totals, daily buckets, `recent_take_ids`), so Stats code and the import stay simple.
+- `settings.json`: the app's settings (hotkey, sounds, delivery, cleanup, transcription, model path, history retention), versioned, written atomically. Replaces `config.toml`; readable and editable by agents.
+- `vocabulary.json` with `vocabulary-backups/`: today's format, revision and backups.
+- `import.json`: the one-time import receipt.
+- `bench.tsv` is dropped: `app.log` already has per-take timings.
 
-**Writer tag.** Every new record carries `writer`: `{"name": "app"|"cli", "version": "<semver>", "build": "<n or null>"}`, compact form `app/0.12.0+416`, `cli/0.12.0`. Records written before contract 1, or by the installed v0.11 CLI during the transition, have no tag and read as `unknown`.
+The app is the only writer: writes run on one queue, under one `flock` on `.data.lock` so a second copy of the app can't interleave, with temp + fsync + rename and idempotency by take id. Logs stay in `~/Library/Logs/Khuluma/app.log`.
 
-**Take identity.** Every destination records `take_id`, and each write is idempotent per destination by take id, checked under that destination's lock. That replaces the separate replay ledgers (which commit after the write, so a crash between them duplicates). The old `.cache/recorded-takes*` ledgers are still read for takes written before contract 1, and retired only once no pending record predates it.
+## One-time import
 
-| File | Lock (contract 1) | Change |
-|---|---|---|
-| `history/<local-ts>[_N].json` | new `flock(history/.history.lock)` around the take-id check and publish; exclusive create kept | add `take_id`, `writer`; publish atomically (write temp, `link()` to the claimed name, fsync) |
-| `history/bench.tsv` | `bench.tsv.lock.d` mkdir lock as today; new writers never append without it (no lock in 3 s = skip the row and log it, bench is diagnostics) | column 20 `writer`, column 21 `take_id`; readers treat missing columns as unknown |
-| `usage.json` | `flock(usage.json.lock)` as today | stays `schema_version: 1` (v0.11 refuses anything else); add top-level `by_writer {app, cli}`, counting tagged deliveries only, plus `attribution_started_at`; unattributed = count minus the sum. Day buckets stay closed (v0.11 rewrites them with known keys only). No `last_write` (v0.11 would leave it stale) |
-| `config.toml` | new `flock(config.toml.lock)` around every read-modify-replace, both sides (today only the last-good copy is locked, so concurrent setting changes can overwrite each other) | format unchanged; full TOML, not a subset (the CLI parses with `tomllib`); invalid file falls back to last-good, never rewritten |
-| `vocabulary.json` | `flock(.vocabulary.lock)`, revision, backups, as today | unchanged; stays closed-schema (no writer field inside) |
-| `recording.lock` | non-blocking `flock`, held for the whole capture, never unlinked; one JSON line inside `{writer, pid, started_at, take_id}`; the CLI passes the locked fd to its ffmpeg child, the app opens it `O_CLOEXEC` | new: one recording at a time across app and CLI; held = refuse and name the holder |
-| `data-contract.json` | written atomically | new: `{"data_contract": 1, "set_by": <writer>}`; missing = 1; a side that supports less than the file says refuses shared writes and names the product to update. Only participating versions honour it; v0.11 can't |
-| `~/Library/Logs/Khuluma/khuluma.log` | `O_APPEND`, one `write()` per line | new shared human log, `[ISO time] [app/0.12.0+416] message`; `app.log` stops growing and is kept; `tools/khuluma-report.sh` reads both |
+On first launch of the new build, if `import.json` is missing and `~/.config/khuluma` (or `KHULUMA_CONFIG_DIR`/XDG) exists:
 
-**Rules.** Writers preserve unknown keys. Additive fields only within contract 1. Transcript text only in history and pending recovery, never in usage, bench or logs. `khuluma version --json` and the app's launch log line report `data_contract`.
+- copy `history/*.json` (and the debug archive), `usage.json`, `vocabulary.json` and its backups into the app folder;
+- convert `config.toml` (and `.config.toml.last-good` if the main file is invalid) to `settings.json` with a small reader for the keys the app uses; anything not carried over is listed in the receipt and the log, nothing is guessed;
+- treat take ids in the legacy `.cache/recorded-takes*` ledgers as already saved, so a build-415 pending take replayed after the import isn't saved twice;
+- write `import.json` (source paths, counts, totals before and after, what was skipped) last.
 
-**Transition with the installed v0.11 CLI.** It keeps writing until the split tab ships a contract-1 CLI. Its rows are untagged (`unknown`), it ignores the new locks on config and history, and it can append to bench unlocked after a 3 s timeout. The guarantees above hold fully only between contract-1 writers; with v0.11 they degrade to today's behaviour, not worse. Acceptance tests run new app against the real frozen v0.11 executable as well as against the new CLI.
-
-**Daemon.** Separate at first: the app runs its bundled `khulumad` as an owned child on its own socket in Application Support (stopped on quit, restarted after a crash); the CLI keeps its own. Sharing one warm daemon comes later, once the daemon protocol carries a version. Measure memory with both warm.
+The source is never changed or deleted. Usage totals and history counts after the import must equal the source. A Settings button can redo the import into an empty app folder; it never merges over newer app data.
 
 ## Slices
 
 Each slice: a worker builds it, a Codex reviewer reviews it, fixes go back to the same worker, I commit and push `wip/app-independence`.
 
-0. **Contract doc** (docs only) → rebase, land on main, tell the split tab.
-1. **CLI writers to contract 1**: tag, take id and idempotency in `save_history`, `append_bench_entry`, `usage_record_delivery`; config write lock; no unlocked bench append; `khuluma_log` helper; recording-lock and data-contract helpers for the split tab to call; `version --json` reports `data_contract`. Shell tests, including old readers still parsing.
-2. **Native writers and a durable spool**: `HistoryWriter`, `BenchWriter`, `UsageLedger`, `SharedLog`, `RecordingLock` in `KhulumaCore`, same locks and idempotency. Pending records keep per-destination done flags, are fsynced, never expire while unresolved, and unreadable ones are quarantined, not deleted (today: deleted, and anything older than 7 days dropped). Shared fixtures in `tests/fixtures/shared-data/` drive Swift and shell writers. Kill-between-every-step, duplicate-submission, disk-full, lock-timeout and paused-trim tests, plus Swift vs CLI (new and frozen v0.11) concurrent writers with exact totals. `TakePersister` switches off `inline record`; build-415 spooled records still replay.
-3. **Minimal standalone path** (proves the big risk early): native config reader (full TOML, overrides, last-good fallback; parity fixtures against `app-config --json`), bundled `khulumad` started by the app, native Stats/menu figures from `usage.json` and recent dictations from `history/`. Remove CLI-era eligibility gates that would strand a take without the CLI: ffmpeg/ffprobe required, non-C locales refused, numeric overrides forcing the CLI route. Gate: one real take with no CLI, ffmpeg or Python reachable.
-4. **Settings and vocabulary writes**: native Settings writer under the config lock (same atomic, symlink-keeping rules), vocabulary show/validate/save under `.vocabulary.lock`.
-5. **First run**: model download through FluidAudio with progress in the menu; bundled sounds (`~/.local/share/sounds/khuluma` still overrides); microphone and PostEvent permission gates with plain prompts. Denied or revoked PostEvent makes delivery fail (take kept, no usage), not log-and-continue as today. Native ElevenLabs Scribe (decision 1), with the queued take's provider fixed at capture as today.
-6. **Cut the cord**: delete `CLIBridge`, the CLI route and `app_contract`. A take that can't be processed natively goes to recovered and retries; never lost.
-7. **Acceptance and merge** (below): merge to main after isolated acceptance and Ricardo's OK on an installed build; the 14-day observation runs after the merge as its own LOG item.
+A. **Native writers and a durable spool** (in progress): history and usage writers in the app folder, `TakePersister` off `inline record`. Pending records keep per-destination done flags, are fsynced, never expire while unresolved, and unreadable ones are quarantined instead of deleted (today they're deleted, and anything older than 7 days is dropped).
+B. **Import** as above, with fixtures shaped like his real files (names and shapes only, no transcript text in Git).
+C. **Native settings, vocabulary and Stats**: `settings.json` replaces `app-config`/`app-settings`, vocabulary show/validate/save natively, Stats and menu figures from the app's `usage.json`, recent dictations from its history. Remove the CLI-era gates that would strand a take without the CLI: ffmpeg/ffprobe required, non-C locales refused, numeric overrides forcing the CLI route.
+D. **Bundled daemon, model, sounds, permissions**: `khulumad` in `Khuluma.app/Contents/Helpers`, run and supervised by the app on its own socket in the app folder (stopped on quit, restarted after a crash); first-run model download through FluidAudio with progress in the menu, reusing the shared cache when it's there; sounds bundled in Resources; microphone and PostEvent permission prompts. Denied or revoked PostEvent fails the delivery (take kept, nothing counted), instead of only logging it as today.
+E. **ElevenLabs Scribe** in the app: native upload, key from the Keychain first, then the read-only zshrc lookup the CLI uses today, so his current setup keeps working. Never in logs, arguments or settings.
+F. **`khuluma transcribe` and the Finder Quick Action** inside the app (keep list below): a small helper executable in the bundle, decoding audio with AVFoundation (m4a, mp3, wav, aac, flac, mp4, mov) and using the app's daemon, or loading the model itself when the app isn't running. The app does not touch `~/.local/bin/khuluma` while the CLI is installed (today's app still calls it); the sunset tab swaps the link at its phase 4. The app provides the "Transcribe with Khuluma" Quick Action calling the helper; the sunset tab removes the CLI's workflow from `~/Library/Services` once the app's exists.
+G. **Cut the cord**: delete `CLIBridge`, the CLI route and the app-contract checks. A take that can't be processed goes to recovered and retries; it is never lost. Tell the sunset tab (t4k) the app no longer needs the CLI.
+H. **Acceptance, install, merge** (below).
+
+## Keep list (sunset tab t4k, confirmed by Ricardo 2026-11-05; inventory in docs/plans/CLI_SUNSET.md)
+
+1. `khuluma transcribe <file>...`: `-q`; `--format json` (one object per line: `file`, `text`, `audio_duration_ms`, `processing_ms`, `model`, `engine`); `-o <file>`; several files; `--beside` (`<name>.txt` next to each file); `--force` (otherwise never overwrite, and no partial output on failure). Errors as `khuluma: ...` on stderr with a non-zero exit. Raw transcript, no cleanup, not counted in usage or history. Dropped: `-c`, `--out-dir`, stdin `-`, `--no-tail-rescue`.
+2. ElevenLabs Scribe (slice E).
+3. Finder Quick Action "Transcribe with Khuluma": `<name>.txt` beside each file, text copied, a notification.
+4. Settings imported from `config.toml`, no UI needed now: `inline.send_mode` (his: enter), `inline.paste_target` (his: current), per-event sound toggles and paths including the process sound, `history.retention_days`, `history.audio_retention_days`, `history.typing_wpm`, British spelling on by default.
+5. No `vocabulary.json`: read the legacy `vocab` text file once at import.
+
+Dropped with the CLI: the history/last/usage/doctor/status/bench/config/changelog readers (a History window stays a phase 2 item), legacy text-vocab commands, migrate-modes and the env tunables.
 
 ## Acceptance
 
-- **Isolated, this Mac**: worktree build with the isolation overrides and a private config root, `KHULUMA_CLI` and the default CLI paths unreachable (PATH alone doesn't hide it; discovery checks fixed paths), no ffmpeg or Python on its path. Real takes into TextEdit; cancel, quit mid-take, daemon kill and restart, sleep/wake, recovery retry; history + bench + usage written once each with `writer: app` and the take id; Stats shows them; relaunch keeps them.
-- **With a CLI on the same fixture root**: the new CLI and the frozen v0.11 executable each read the app's takes; their writes show in the app's Stats; concurrent stress leaves exact totals; delivered take ids in usage match history minus recovered (history-only) takes.
-- **Clean account** (decisive gate): Ricardo creates a standard macOS user once (about 15 minutes). No CLI, Homebrew tools, Python or developer tools there. Copy the build to `/Users/Shared`, open it: permission prompts (and denial: take kept, nothing counted), model download, one take into TextEdit, Stats shows 1, history entry tagged `app`. Then install the CLI there and confirm it reads the same take and its own take shows in the app.
-- **Daily, after merge**: 14 days with no `khuluma` process started by the app and delivered take ids reconciled between usage and history.
+- **Isolated, this Mac**: worktree build with the isolation overrides, a private fixture root and no CLI reachable (`KHULUMA_CLI` and the default CLI paths unreachable; no ffmpeg or Python on its path). Import from a copy of his real `~/.config/khuluma` into the fixture: counts and totals match. Then real takes into TextEdit; cancel, quit mid-take, daemon kill and restart, sleep/wake, recovery retry; each take saved once; Stats shows it; relaunch keeps it. `khuluma transcribe` on a voice memo.
+- **Clean account** (decisive gate): Ricardo creates a standard macOS user once (about 15 minutes). No CLI, Homebrew tools, Python or developer tools there. Copy the build to `/Users/Shared` and open it: permission prompts (and denial: take kept, nothing counted), model download, one take into TextEdit, Stats shows 1, history entry saved, `khuluma transcribe` works through the bundled helper and the Quick Action.
+- **Daily**: install over build 415 with his OK; the rollback is the previous app plus the untouched `~/.config/khuluma`. Then merge to main. The 14-day watch (no `khuluma` process started by the app, usage matching delivered takes in history) runs after the merge.
 
 ## Not in scope
 
-Signing/notarisation, Apple Developer Program, trademark, website, Homebrew releases, the cleanup round, ROADMAP.md, `integrations/` and the rest of the CLI's behaviour (split tab).
+Retiring the CLI, formula and tap (sunset tab), signing/notarisation, Apple Developer Program, trademark, website, the cleanup round.
 
 ## Decisions (Ricardo, 2026-11-05)
 
-1. ElevenLabs Scribe is ported to the app now (slice 5): native upload, key from the Keychain first, then the same read-only zshrc lookup the CLI uses, so today's setup keeps working. Never sent in logs, arguments or settings JSON.
-2. One shared `khuluma.log`; `app.log` is kept and stops growing; `tools/khuluma-report.sh` reads both.
-3. Separate daemons for app and CLI at first.
+1. The CLI is sunset; Khuluma is the app only. One-time import into the app's own storage.
+2. ElevenLabs Scribe and file transcription move into the app.
+3. The app runs its own bundled daemon.
+
+## Approved by Ricardo (2026-11-05)
+
+4. Settings live in `settings.json` in the app folder (not `config.toml`, not UserDefaults): plain JSON that agents can read and edit.
+5. `bench.tsv` is dropped; `app.log` keeps per-take timings.
+6. The import copies, never moves: `~/.config/khuluma` stays as the rollback until he decides to clear it.

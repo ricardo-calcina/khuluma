@@ -37,7 +37,7 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 - [x] P1 · Install raised adaptive light/dark app icon and 18 pt menu glyph; verify Finder automatic switching · added 2026-10-17
 - [ ] P1 · Join the Apple Developer Program before phase 2 (after app independence and the split, Ricardo 2026-11-05) · added 2026-10-15
 - [ ] P1 · Phase 0 gate: a week of daily use, then `tools/khuluma-report.sh` gates still met · added 2026-10-17
-- [ ] P1 · App independence (slices 0-7 in docs/plans/APP_INDEPENDENCE.md, branch wip/app-independence) replaces the three Phase 1 items below · added 2026-11-05
+- [ ] P1 · App independence (slices A-H in docs/plans/APP_INDEPENDENCE.md, branch wip/app-independence): own data folder with a copy-only import, no CLI calls, transcribe helper, Quick Action and Scribe in the app; replaces the three Phase 1 items below · added 2026-11-05
 - [ ] P1 · Phase 1 step 1: native usage ledger and history writer, proven against the CLI with shared fixtures (removes `inline record`) · added 2026-10-17
 - [ ] P1 · Phase 1 after the native writers: port config, bundle and supervise the daemon, add model download and bundled sounds, then port or drop CLI fallbacks; keep shared files/locks compatible while both writers exist · added 2026-10-22
 - [ ] P1 · Phase 1 delivery: use PostEvent permission gates and a bundled child daemon; verify clean-account dictation/Stats/history without CLI and 14 days without CLI invocations or usage mismatch before calling it independent · added 2026-10-22
@@ -70,7 +70,7 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 
 ## Decisions
 
-- App independence (Ricardo, 2026-11-05): the app ports ElevenLabs Scribe now (Keychain, then the CLI's zshrc lookup); app and CLI share one tagged `~/Library/Logs/Khuluma/khuluma.log`; app and CLI run separate daemons at first. Details in docs/plans/APP_INDEPENDENCE.md.
+- App data (Ricardo, 2026-11-05): the app keeps its data in `~/Library/Application Support/Khuluma`, settings in `settings.json`, bench.tsv dropped, a one-time copy-only import from `~/.config/khuluma` (the source stays as the rollback); Scribe ported (Keychain, then the CLI's zshrc lookup); the app runs its own bundled daemon. The shared data contract and writer tags are withdrawn with the sunset. Details in docs/plans/APP_INDEPENDENCE.md.
 - CLI sunset (Ricardo, 2026-11-05; replaces the 2026-10-27 two-product split): Khuluma is the native app only. Ricardo doesn't use the CLI from the terminal or tmux and won't maintain a separate tool or tap. What's kept moves into the app (file transcription as a small command built into the app, which the transcribe-audio skill uses; ElevenLabs Scribe). Then the CLI, its formula and the tap are retired. No long-term app and CLI sharing of data: a one-time import into the app instead.
 - Microphone choice stays a submenu row in the menu, not an inline ticked list (tried in f983018, reverted 2026-11-05): Ricardo rarely switches and mostly stays on System Default; the row only needs to show the input in use. The case for choosing is two inputs at once, e.g. recording a video on the phone while Khuluma keeps the MacBook mic.
 - Icon/theme recovery: `/Users/admin/Applications/.khuluma-app.74v7dj/previous.app` retains signed build 353; current QA is at `/private/tmp/khuluma-themes-qa.RxaJYA/`. `.khuluma-app.xMyT3X/previous.app` retains build 351, `.khuluma-app.atWD6N/previous.app` build 347, `.khuluma-app.LYC8GT/previous.app` build 342 and `.khuluma-app.LYfteh/previous.app` build 340. Earlier motion/status/app-icon QA remains under `/private/tmp/khuluma-{motion,status,icons}-qa.*` as recorded in `assets/icons/README.md`. Preserve newer user data when recovering.
@@ -89,7 +89,7 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 ## Done
 
 - 2026-11-05 · CLI sunset inventory and keep list confirmed (Finder action and transcribe kept, history readers dropped); ROADMAP re-planned for phases 1, 4, 5 then 2 · docs/plans/CLI_SUNSET.md
-- 2026-11-05 · App-independence plan and shared data contract 1 drafted, reviewed by two Codex Sol runs, decisions taken (Scribe ported, one khuluma.log, separate daemons) · docs/plans/APP_INDEPENDENCE.md
+- 2026-11-05 · App-independence plan reviewed by two Codex Sol runs and re-planned app-only after the sunset decision; shared data contract withdrawn · docs/plans/APP_INDEPENDENCE.md
 - 2026-11-05 · Ricardo bought the khuluma.app domain · Next
 - 2026-11-05 · Ricardo confirmed a take on the iPhone Continuity mic on build 398 (requested = actual, fallback none, delivered); design refresh settled · app.log 11:16Z
 - 2026-11-05 · Installed build 398 (app only; daemon kept, doctor healthy) · ~/Applications/.khuluma-app.TEUOtl/previous.app
