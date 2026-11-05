@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- While the Khuluma window is open, it appears in Cmd-Tab and the Dock with a standard menu bar (Settings, Edit, Window); closing the window returns Khuluma to the menu bar only. In the menu, Auto-send shows ember when on, and the recording row gets a red mic emblem and a Cancel capsule.
 - Restyle the menu to match the window: figures over small caps titles, ember bars in the 7-day strip, a red mic while recording and an ember Auto-send switch.
 - Restyle Settings and Vocabulary to match Stats. Settings gets a sidebar with four pages (General, Dictation, Cleanup, Advanced) instead of one long form; the model choice moves into Dictation and Start at login into General; save and error messages stay visible in a footer. Vocabulary gets a title and a line explaining each section, text tabs with counts and an ember underline, a calmer table with small caps column titles (columns no longer resize), quiet +/− controls and an ember Save Changes.
 - Restyle the Stats window in one ink, like the app icon: black on light, white on dark, for the heatmap, chart and milestone bar. Sections are split by faint hairlines, not boxes. The lifetime figures drop the All time caption (as in the menu) and show the date they count from; labels sit under figures in small caps. Streak and records become four columns, and each figure has a ring mark (flame, rosette, trophy, calendar, mic, flag). The window starts at 560 by 712.
