@@ -49,16 +49,11 @@ private struct StatsContent: View {
   let minimumHeight: CGFloat?
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 0) {
-      Hero(lifetime: stats.lifetime)
-      Spacer(minLength: 10)
-      Divider()
-      Spacer(minLength: 10)
-      activitySection
-      Spacer(minLength: 10)
-      Divider()
-      Spacer(minLength: 10)
-      recordsSection
+    VStack(alignment: .leading, spacing: 12) {
+      Card { Hero(lifetime: stats.lifetime) }
+      Card { activitySection }
+      Highlights(stats: stats)
+      Card { progressSection }
     }
     .frame(minHeight: minimumHeight, alignment: .top)
   }
@@ -71,6 +66,7 @@ private struct StatsContent: View {
       }
       switch stats.dailyStatus {
       case nil, "unreadable":
+        Text("Activity").font(.headline)
         Notice(symbol: "exclamationmark.triangle",
                text: "Daily stats couldn't be read. Lifetime totals are unaffected.")
       default:
@@ -87,40 +83,76 @@ private struct StatsContent: View {
     }
   }
 
-  private var recordsSection: some View {
-    VStack(alignment: .leading, spacing: 10) {
-      VStack(alignment: .leading, spacing: 8) {
-        StreakSection(stats: stats)
-        RecordsSection(records: stats.records)
-      }
-      Divider()
+  private var progressSection: some View {
+    VStack(alignment: .leading, spacing: 12) {
       RecordingTime(stats: stats)
+      Divider()
       MilestoneProgress(milestone: stats.milestone, words: stats.lifetime.words,
                         reached: model.celebrating)
     }
   }
 }
 
+/// A grouped box, as in System Settings: white on the window in light mode,
+/// a lighter fill in dark mode, with a hairline edge.
+private struct Card<Content: View>: View {
+  var padding: CGFloat = 14
+  @ViewBuilder let content: Content
+  @Environment(\.colorScheme) private var colorScheme
+
+  static var radius: CGFloat { 10 }
+
+  var body: some View {
+    let shape = RoundedRectangle(cornerRadius: Self.radius, style: .continuous)
+    content
+      .padding(padding)
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .background(colorScheme == .dark ? Color.white.opacity(0.05) : Color(nsColor: .controlBackgroundColor),
+                  in: shape)
+      .overlay(shape.strokeBorder(Color(nsColor: .separatorColor), lineWidth: 0.5))
+  }
+}
+
+/// A white SF Symbol on a small coloured rounded square, like the icons in
+/// System Settings.
+private struct SymbolBadge: View {
+  let symbol: String
+  let color: Color
+  var size: CGFloat = 20
+
+  var body: some View {
+    RoundedRectangle(cornerRadius: size * 0.26, style: .continuous)
+      .fill(color.gradient)
+      .frame(width: size, height: size)
+      .overlay {
+        Image(systemName: symbol)
+          .font(.system(size: size * 0.55, weight: .semibold))
+          .foregroundStyle(.white)
+      }
+      .accessibilityHidden(true)
+  }
+}
+
 // MARK: - Hero
 
-/// A quiet lifetime summary. Equal columns keep all three figures easy to scan.
+/// The lifetime figures, as in the menu: the titles say it's all time.
+/// Equal columns keep all three figures easy to scan.
 private struct Hero: View {
   let lifetime: UsageStats.Lifetime
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
   var body: some View {
-    VStack(spacing: 6) {
-      Text("All time")
-        .font(.caption)
-        .foregroundStyle(.secondary)
-      HStack(alignment: .top, spacing: 12) {
-        figure("Total words", value: lifetime.words.formatted(), tracking: Double(lifetime.words))
-        timeSaved
-        figure("Average WPM", value: lifetime.wordsPerMinute.map { $0.formatted() } ?? "–",
-               tracking: Double(lifetime.wordsPerMinute ?? 0),
-               info: "Words per minute of recording, including pauses.", caption: "pauses included")
-      }
+    HStack(alignment: .top, spacing: 0) {
+      figure("Total words", value: lifetime.words.formatted(), tracking: Double(lifetime.words),
+             caption: lifetime.since.map { "since \($0.formatted(.dateTime.day().month(.abbreviated).year()))" })
+      Divider().frame(height: 56).padding(.top, 4)
+      timeSaved
+      Divider().frame(height: 56).padding(.top, 4)
+      figure("Average WPM", value: lifetime.wordsPerMinute.map { $0.formatted() } ?? "–",
+             tracking: Double(lifetime.wordsPerMinute ?? 0),
+             info: "Words per minute of recording, including pauses.", caption: "pauses included")
     }
+    .padding(.vertical, 2)
     .fixedSize(horizontal: false, vertical: true)
   }
 
@@ -139,24 +171,22 @@ private struct Hero: View {
 
   private func figure(_ title: String, value: String, tracking: Double?,
                       info: String? = nil, caption: String? = nil) -> some View {
-    VStack(spacing: 4) {
+    VStack(spacing: 2) {
       Text(title)
         .font(.callout)
         .foregroundStyle(.secondary)
       Text(value)
-        .font(.system(size: 28, weight: .semibold))
+        .font(.system(size: 28, weight: .semibold, design: .rounded))
         .monospacedDigit()
         .lineLimit(1)
         .minimumScaleFactor(0.6)
         .contentTransition(.numericText(value: tracking ?? 0))
         .animation(reduceMotion ? nil : .default, value: value)
-      if let caption {
-        Text(caption).font(.caption).foregroundStyle(.secondary)
-          .lineLimit(1)
-          .minimumScaleFactor(0.8)
-      } else {
-        Text(" ").font(.caption).accessibilityHidden(true)
-      }
+      Text(caption ?? " ")
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .lineLimit(1)
+        .minimumScaleFactor(0.8)
     }
     .frame(maxWidth: .infinity)
     .help(info ?? title)
@@ -187,8 +217,9 @@ private struct Activity: View {
   // Not @State: the Command Line Tools have no SwiftUI macro plugin.
   @StateObject private var hover = Hover()
 
-  /// The content width inside the 560-point window's 20-point insets.
-  static let width: CGFloat = 520
+  /// The content width inside the window's 20-point insets and the card's
+  /// 14-point padding.
+  static let width: CGFloat = 492
 
   /// Heatmap only (Words per day off); 30 days with the chart beside it;
   /// longer ranges with the chart under it, so both get the full width.
@@ -440,63 +471,74 @@ private struct Legend: View {
   }
 }
 
-// MARK: - Records and recording time
+// MARK: - Highlights, recording time and milestone
 
-private struct StreakSection: View {
+/// Streak and records as four tiles, each with its own symbol.
+private struct Highlights: View {
   let stats: UsageStats
 
   var body: some View {
-    HStack(alignment: .firstTextBaseline, spacing: 8) {
-      Text(stats.coverageComplete ? "Current streak" : "Recorded streak")
-        .foregroundStyle(.secondary)
-      Spacer()
-      Text(stats.hasDaily ? "\(stats.streak.current) day\(stats.streak.current == 1 ? "" : "s")" : "–")
-        .monospacedDigit()
+    let records = stats.records
+    HStack(spacing: 10) {
+      tile(stats.coverageComplete ? "Current streak" : "Recorded streak", symbol: "flame.fill", color: .orange,
+           value: stats.hasDaily ? days(stats.streak.current) : "–",
+           detail: stats.hasDaily ? (stats.streak.pendingToday ? "dictate today to keep it" : "in a row") : " ",
+           help: "Days in a row with a dictation, up to today.")
+      tile("Best day", symbol: "rosette", color: .pink,
+           value: records.bestDay.map { "\($0.value.formatted()) words" } ?? "–",
+           detail: date(records.bestDay),
+           help: "Most words in a recorded day, across all daily stats.")
+      tile("Longest take", symbol: "trophy.fill", color: .yellow,
+           value: records.longestTake.map { Format.duration(ms: $0.value) } ?? "–",
+           detail: date(records.longestTake),
+           help: "Longest single recording, including pauses, across all daily stats.")
+      tile("Longest streak", symbol: "calendar", color: .green,
+           value: records.longestStreak.map { days($0.value) } ?? "–",
+           detail: records.longestStreak.map { "ended \(Format.recordDate($0.date))" } ?? " ",
+           help: "Longest run of recorded days. The date is the last day of that run.")
     }
-    .font(.callout)
-    .frame(maxWidth: .infinity, alignment: .leading)
-    .accessibilityElement(children: .combine)
+    .fixedSize(horizontal: false, vertical: true)
   }
-}
 
-private struct RecordsSection: View {
-  let records: UsageStats.Records
+  private func days(_ count: Int) -> String {
+    "\(count) day\(count == 1 ? "" : "s")"
+  }
 
-  var body: some View {
-    Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 8) {
-      row("Best day", record: records.bestDay,
-          help: "Most words in a recorded day, across all daily stats.") { "\($0.formatted()) words" }
-      row("Longest take", record: records.longestTake,
-          help: "Longest single recording, including pauses, across all daily stats.") { Format.duration(ms: $0) }
-      row("Longest streak", record: records.longestStreak,
-          help: "Longest run of recorded days. The date is the last day of that run.") {
-        "\($0) day\($0 == 1 ? "" : "s")"
+  private func date(_ record: UsageStats.Record?) -> String {
+    record.map { Format.recordDate($0.date) } ?? " "
+  }
+
+  private func tile(_ title: String, symbol: String, color: Color, value: String, detail: String,
+                    help: String) -> some View {
+    Card(padding: 10) {
+      VStack(alignment: .leading, spacing: 6) {
+        HStack(spacing: 6) {
+          SymbolBadge(symbol: symbol, color: color)
+          Text(title)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.85)
+        }
+        VStack(alignment: .leading, spacing: 1) {
+          Text(value)
+            .font(.system(size: 17, weight: .semibold, design: .rounded))
+            .monospacedDigit()
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+          Text(detail)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+        }
       }
+      .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
-    .font(.callout)
-  }
-
-  private func row(_ title: String, record: UsageStats.Record?, help: String,
-                   value: (Int) -> String) -> some View {
-    let amount = record.map { value($0.value) } ?? "–"
-    let date = record.map { $0.date.noon.formatted(date: .abbreviated, time: .omitted) } ?? "–"
-    return GridRow {
-      Text(title)
-        .foregroundStyle(.secondary)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .help(help)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(title)
-        .accessibilityValue(record == nil ? "No recorded value" : "\(amount), \(date)")
-      Text(amount)
-        .monospacedDigit()
-        .gridColumnAlignment(.trailing)
-        .accessibilityHidden(true)
-      Text(date)
-        .foregroundStyle(.secondary)
-        .gridColumnAlignment(.trailing)
-        .accessibilityHidden(true)
-    }
+    .help(help)
+    .accessibilityElement(children: .ignore)
+    .accessibilityLabel(title)
+    .accessibilityValue(value == "–" ? "No recorded value" : "\(value), \(detail)")
   }
 }
 
@@ -504,17 +546,24 @@ private struct RecordingTime: View {
   let stats: UsageStats
 
   var body: some View {
-    HStack(alignment: .firstTextBaseline, spacing: 12) {
-      Text("Recording time").foregroundStyle(.secondary)
+    HStack(alignment: .center, spacing: 8) {
+      SymbolBadge(symbol: "mic.fill", color: .red)
+      Text("Recording time")
       Spacer(minLength: 0)
-      Text("All time \(Format.duration(ms: stats.lifetime.recordingMs))")
-        .monospacedDigit()
-      Text("Today \(today)")
-        .monospacedDigit()
+      figure(Format.duration(ms: stats.lifetime.recordingMs), label: "all time")
+      Text("·").foregroundStyle(.tertiary)
+      figure(today, label: "today")
     }
     .font(.callout)
     .help("Time spent recording successful dictations, including pauses. Today requires daily stats.")
     .accessibilityElement(children: .combine)
+  }
+
+  private func figure(_ value: String, label: String) -> some View {
+    HStack(alignment: .firstTextBaseline, spacing: 4) {
+      Text(value).monospacedDigit().fontWeight(.medium)
+      Text(label).foregroundStyle(.secondary)
+    }
   }
 
   private var today: String {
@@ -530,13 +579,15 @@ private struct MilestoneProgress: View {
   let reached: Int?
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 7) {
+    VStack(alignment: .leading, spacing: 8) {
       if let reached {
-        Text("\(reached.formatted()) words reached")
+        Label("\(reached.formatted()) words reached", systemImage: "party.popper.fill")
           .font(.callout.weight(.medium))
       }
-      HStack(alignment: .firstTextBaseline) {
-        Text("Next milestone: \(milestone.next.formatted()) words")
+      HStack(alignment: .center, spacing: 8) {
+        SymbolBadge(symbol: "flag.checkered", color: .blue)
+        Text("Next milestone")
+        Text("\(milestone.next.formatted()) words").fontWeight(.medium)
         Spacer()
         Text("\((milestone.next - words).formatted()) to go")
           .monospacedDigit()
@@ -698,6 +749,12 @@ enum Format {
 
   static func shortDate(_ date: CivilDate) -> String {
     formatted(date, template: "dMMM")
+  }
+
+  /// "15 Oct", or "15 Oct 2025" outside the current year.
+  static func recordDate(_ date: CivilDate) -> String {
+    let thisYear = Calendar.current.component(.year, from: Date())
+    return date.components.year == thisYear ? shortDate(date) : formatted(date, template: "dMMMyyyy")
   }
 
   static func longDate(_ date: CivilDate) -> String {
