@@ -1,89 +1,69 @@
 import AppKit
 import KhulumaCore
 
-/// The menu's microphone list, inline like the system Sound menu: a
-/// "Microphone" section header, then one native row per option with a
-/// checkmark on the choice. Changes apply from the next take.
+/// The menu's Microphone row: a native item showing the input the next take
+/// uses, with a native submenu to choose it. Changes apply from the next take.
 final class MicrophoneMenu: NSObject {
-  /// The header and rows, in order; `refresh` replaces them in place.
-  private(set) var items: [NSMenuItem] = []
-  private weak var menu: NSMenu?
+  let item = NSMenuItem()
+  private let submenu = NSMenu(title: "Microphone")
   private let settings: SettingsModel
-  /// The menu's content width: a right-aligned detail ends inside it.
+  /// The menu's content width: the right-aligned value ends inside it.
   private let width: CGFloat
-  private lazy var detailTab: CGFloat = Self.detailTabStop(width: width)
+  private lazy var valueTab: CGFloat = Self.valueTabStop(width: width)
   private let font = NSFont.menuFont(ofSize: 0)
 
   init(settings: SettingsModel, width: CGFloat) {
     self.settings = settings
     self.width = width
     super.init()
+    submenu.autoenablesItems = false
+    item.submenu = submenu
+    item.image = NSImage(systemSymbolName: "mic", accessibilityDescription: nil)
+    refresh()
   }
 
-  /// Adds the list to the end of `menu`.
-  func install(in menu: NSMenu) {
-    self.menu = menu
-    items = makeItems()
-    items.forEach(menu.addItem)
-  }
-
-  /// Rebuilds the list in place; safe while the menu is open.
+  /// Rebuilds the row and the list; safe while the menu is open.
   func refresh() {
-    guard let menu, let first = items.first else { return }
-    let index = menu.index(of: first)
-    guard index >= 0 else { return }
-    let fresh = makeItems()
-    guard !Self.same(fresh, items) else { return }
-    items.forEach(menu.removeItem)
-    for (offset, item) in fresh.enumerated() { menu.insertItem(item, at: index + offset) }
-    items = fresh
-  }
-
-  private func makeItems() -> [NSMenuItem] {
     let choice = settings.microphoneChoice
-    var rows = [NSMenuItem.sectionHeader(title: "Microphone")]
-    for option in choice.options {
-      let row = NSMenuItem(title: option.title, action: #selector(choose(_:)), keyEquivalent: "")
-      row.target = self
-      row.representedObject = option.uid
-      row.state = option.checked ? .on : .off
-      row.isEnabled = option.connected
-      // A chosen device that couldn't be used: takes use the system default.
-      let unusable = option.uid != nil && option.uid == choice.unusableUID
-      if let detail = unusable ? "Not available" : option.detail {
-        row.attributedTitle = title(option.title, detail: detail, enabled: option.connected)
+    let title = rowTitle(choice.summary)
+    if item.attributedTitle != title { item.attributedTitle = title }
+    item.toolTip = choice.note
+    submenu.removeAllItems()
+    for (index, option) in choice.options.enumerated() {
+      let entry = NSMenuItem(title: option.title, action: #selector(choose(_:)), keyEquivalent: "")
+      entry.target = self
+      entry.representedObject = option.uid
+      entry.state = option.checked ? .on : .off
+      entry.isEnabled = option.connected
+      if let detail = option.detail {
+        if #available(macOS 14.4, *) { entry.subtitle = detail } else { entry.title += " (\(detail))" }
       }
-      if option.checked || unusable { row.toolTip = choice.note }
-      rows.append(row)
+      submenu.addItem(entry)
+      if index == 0, choice.options.count > 1 { submenu.addItem(.separator()) }
     }
-    return rows
-  }
-
-  /// Rows are compared by what they show, so an unchanged list isn't rebuilt mid-tracking.
-  private static func same(_ a: [NSMenuItem], _ b: [NSMenuItem]) -> Bool {
-    a.count == b.count && zip(a, b).allSatisfy {
-      $0.title == $1.title && $0.attributedTitle == $1.attributedTitle && $0.state == $1.state
-        && $0.isEnabled == $1.isEnabled && ($0.representedObject as? String) == ($1.representedObject as? String)
-        && $0.toolTip == $1.toolTip
-    }
+    submenu.addItem(.separator())
+    let sound = NSMenuItem(title: "Sound Settings…", action: #selector(openSoundSettings), keyEquivalent: "")
+    sound.target = self
+    submenu.addItem(sound)
   }
 
   @objc private func choose(_ sender: NSMenuItem) {
     settings.selectMicrophone(uid: sender.representedObject as? String)
   }
 
-  /// The option and its secondary detail, right-aligned with a tab stop so
-  /// the menu keeps its width.
-  private func title(_ label: String, detail: String, enabled: Bool) -> NSAttributedString {
-    let room = detailTab - measure(label) - 24
+  @objc private func openSoundSettings() { AudioInputDevices.openSoundSettings() }
+
+  /// "Microphone" and the value, right-aligned with a tab stop so the row
+  /// reads like a native setting and the menu keeps its width.
+  private func rowTitle(_ value: String) -> NSAttributedString {
+    let label = "Microphone"
+    let room = valueTab - measure(label) - 24
     let paragraph = NSMutableParagraphStyle()
-    paragraph.tabStops = [NSTextTab(textAlignment: .right, location: detailTab)]
+    paragraph.tabStops = [NSTextTab(textAlignment: .right, location: valueTab)]
     paragraph.lineBreakMode = .byClipping
-    var attributes: [NSAttributedString.Key: Any] = [.font: font, .paragraphStyle: paragraph]
-    if !enabled { attributes[.foregroundColor] = NSColor.disabledControlTextColor }
-    let title = NSMutableAttributedString(string: label, attributes: attributes)
-    attributes[.foregroundColor] = enabled ? NSColor.secondaryLabelColor : NSColor.disabledControlTextColor
-    title.append(NSAttributedString(string: "\t" + truncated(detail, to: room), attributes: attributes))
+    let title = NSMutableAttributedString(string: label, attributes: [.font: font, .paragraphStyle: paragraph])
+    title.append(NSAttributedString(string: "\t" + truncated(value, to: room), attributes: [
+      .font: font, .paragraphStyle: paragraph, .foregroundColor: NSColor.secondaryLabelColor]))
     return title
   }
 
@@ -96,22 +76,23 @@ final class MicrophoneMenu: NSObject {
     return String(characters).trimmingCharacters(in: .whitespaces) + "…"
   }
 
-  /// Where a detail must end for the row to fit `width`: the menu's own
-  /// insets (state column, padding) measured on a scratch menu, so the row
-  /// tracks the system's metrics rather than a guessed constant.
-  private static func detailTabStop(width: CGFloat) -> CGFloat {
+  /// Where the value must end for the row to fit `width`: the menu's own
+  /// insets (image, submenu arrow, padding) measured on a scratch menu, so
+  /// the row tracks the system's metrics rather than a guessed constant.
+  private static func valueTabStop(width: CGFloat) -> CGFloat {
     let probeTab: CGFloat = 1_000
     let probe = NSMenu()
-    probe.showsStateColumn = true
+    probe.showsStateColumn = false
     let row = NSMenuItem()
     let paragraph = NSMutableParagraphStyle()
     paragraph.tabStops = [NSTextTab(textAlignment: .right, location: probeTab)]
     row.attributedTitle = NSAttributedString(string: "M\tM", attributes: [
       .font: NSFont.menuFont(ofSize: 0), .paragraphStyle: paragraph])
-    row.state = .on
+    row.image = NSImage(systemSymbolName: "mic", accessibilityDescription: nil)
+    row.submenu = NSMenu()
     probe.addItem(row)
     let overhead = probe.size.width - probeTab
-    guard overhead.isFinite, overhead > 0, overhead < width / 2 else { return width - 60 }
+    guard overhead.isFinite, overhead > 0, overhead < width / 2 else { return width - 80 }
     return width - overhead
   }
 }

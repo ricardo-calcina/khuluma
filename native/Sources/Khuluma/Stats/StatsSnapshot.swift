@@ -376,6 +376,4 @@ enum PreviewInputs {
   static let connected = AudioInputs(devices: [builtIn, display], defaultUID: builtIn.uid)
   /// AirPods connect and become the default.
   static let withAirPods = AudioInputs(devices: [builtIn, display, airPods], defaultUID: airPods.uid)
-  /// Three inputs, the built-in mic still the default.
-  static let three = AudioInputs(devices: [builtIn, display, airPods], defaultUID: builtIn.uid)
 }

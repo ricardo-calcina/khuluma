@@ -131,13 +131,11 @@ final class StatusMenu: NSObject {
       action: action))
     summary.onSizeChange = { [weak dropdown] in dropdown?.fitToContent() }
     footer.onSizeChange = { [weak dropdown] in dropdown?.fitToContent() }
-    // Native rows between the hosted views: the inline microphone list.
+    // Native rows between the hosted views: a real submenu can open there.
     let microphone = MicrophoneMenu(settings: settings, width: MenuSummary.width)
     self.microphone = microphone
     dropdown.addHosted(summary)
-    // The checkmark column for the list; hosted views span the full width either way.
-    dropdown.menu.showsStateColumn = true
-    microphone.install(in: dropdown.menu)
+    dropdown.addNative(microphone.item)
     dropdown.addHosted(footer)
     dropdown.onNeedsUpdate = { [weak microphone] in microphone?.refresh() }
     settings.observeMicrophone { [weak microphone] in microphone?.refresh() }
@@ -198,6 +196,8 @@ final class StatusMenu: NSObject {
     statusItem?.button?.image = finishingFrames[frame]
   }
 
+  /// The Microphone row's submenu, for the isolated menu captures.
+  var previewMicrophoneSubmenu: NSMenu? { sampleData ? microphone?.item.submenu : nil }
   func dismissPreviewMenu() { dropdown?.dismiss() }
   var previewMenuIsOpen: Bool { dropdown?.isPresented == true }
   /// The pre-microphone menu (one hosted view with a SwiftUI divider), for comparing captures.
