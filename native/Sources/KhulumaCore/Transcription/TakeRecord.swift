@@ -1,7 +1,8 @@
 import Foundation
 
-/// Payload for `khuluma inline record --json`: one native take's
-/// outcome, persisted by the CLI's own history/bench/usage writers.
+/// One finished take's outcome, spooled in `PendingRecords` and written to
+/// history and usage by `TakeRecorder`. The JSON keys are the ones build 415
+/// spooled for the CLI, so its leftovers still decode.
 public struct TakeRecord: Codable, Equatable, Sendable {
   public var takeId: String
   /// ok | no_speech | transcribe_failed | paste_failed (bench status).
@@ -30,8 +31,8 @@ public struct TakeRecord: Codable, Equatable, Sendable {
   /// Records only the usage of a take `inline process --defer-usage`
   /// already saved to history and bench.
   public var usageOnly: Bool?
-  /// Padded WAV for the `[debug] keep_logs` archive; `inline record` takes
-  /// ownership and removes it.
+  /// Padded WAV for the `[debug] keep_logs` archive; `TakeRecorder` takes
+  /// ownership and removes it once the take is saved.
   public var wavPath: String?
 
   public init(takeId: String, status: String, delivered: Bool) {
@@ -58,20 +59,5 @@ public struct TakeRecord: Codable, Equatable, Sendable {
     case wavPath = "wav_path"
     case deliveredLocalDate = "delivered_local_date"
     case usageOnly = "usage_only"
-  }
-}
-
-/// `inline record --json`'s answer.
-public struct RecordResult: Decodable, Equatable, Sendable {
-  public let ok: Bool
-  public let takeId: String
-  public let usageRecorded: Bool
-  public let historySaved: Bool
-
-  enum CodingKeys: String, CodingKey {
-    case ok
-    case takeId = "take_id"
-    case usageRecorded = "usage_recorded"
-    case historySaved = "history_saved"
   }
 }

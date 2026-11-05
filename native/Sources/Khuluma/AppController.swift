@@ -119,7 +119,7 @@ final class AppController: NSObject, NSApplicationDelegate {
 
   private func finishCLIInitialization(_ cli: CLIBridge) {
     self.cli = cli
-    let pipeline = TakePipeline(cli: cli, persister: TakePersister(cli: cli)) { [weak self] in
+    let pipeline = TakePipeline(cli: cli, persister: TakePersister()) { [weak self] in
       self?.supervisor?.trigger(.unreachable)
     }
     self.pipeline = pipeline
@@ -746,6 +746,7 @@ final class AppController: NSObject, NSApplicationDelegate {
 
   private func reloadSettings(feedback: Bool = false) {
     guard let cli else {
+      pipeline?.persister.settingsUnavailable()
       if feedback { settingsModel.finished(error: "Khuluma CLI is unavailable.") }
       return
     }
@@ -762,12 +763,14 @@ final class AppController: NSObject, NSApplicationDelegate {
         }
       } catch let mismatch as AppContract.Mismatch {
         DispatchQueue.main.async {
+          self?.pipeline?.persister.settingsUnavailable()
           self?.refuseTakes(mismatch)
           self?.fail(mismatch.localizedDescription)
           if feedback { self?.settingsModel.finished(error: mismatch.localizedDescription) }
         }
       } catch {
         DispatchQueue.main.async {
+          self?.pipeline?.persister.settingsUnavailable()
           self?.fail("cannot read settings: \(error.localizedDescription)")
           if feedback { self?.settingsModel.finished(error: error.localizedDescription) }
         }
@@ -778,6 +781,7 @@ final class AppController: NSObject, NSApplicationDelegate {
   private func apply(_ config: AppConfig) {
     let firstSettings = self.config == nil
     self.config = config
+    pipeline?.persister.adopt(config)
     settingsModel.adopt(config)
     contractMismatch = nil
     sweepStaleMarkers()
@@ -819,6 +823,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     if fresh.config != config?.config { showConfigStatus(fresh) }
     recoverLeftoverTakes(config: fresh)
     config = fresh
+    pipeline?.persister.adopt(fresh)
     settingsModel.adopt(fresh)
     sweepStaleMarkers()
     configureSupervision(fresh, trigger: .settings)

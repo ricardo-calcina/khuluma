@@ -603,12 +603,6 @@ struct TakeRecordTests {
     #expect(object["usage_only"] as? Bool == true)
   }
 
-  @Test func decodesTheRecordResult() throws {
-    let result = try JSONDecoder().decode(RecordResult.self, from: Data(
-      #"{"ok":true,"take_id":"a","duplicate":false,"usage_recorded":false,"history_saved":true,"usage_dedup":true}"#.utf8))
-    #expect(result.takeId == "a" && !result.usageRecorded && result.historySaved)
-  }
-
   @Test func takeMarkerLooksLikeTheCLIsAndFollowsTheTake() throws {
     let dir = NSTemporaryDirectory() + "khuluma-markers-\(UUID().uuidString)"
     let marker = try #require(TakeMarker.create(directory: dir, takeId: "abc-123/../x", phase: .recording, pid: 4242))
