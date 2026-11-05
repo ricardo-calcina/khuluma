@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Choose the microphone from the menu (a native Microphone submenu) or Settings → Dictation. System Default stays the default; a chosen device that is unplugged stays chosen and takes use the system default until it returns. A change applies from the next take, never mid-take, and each take logs the input it used.
+- Choose the microphone from the menu (a native Microphone submenu) or Settings → Dictation. System Default stays the default; a chosen device that is unplugged stays chosen and takes use the system default until it returns. A change applies from the next take, never mid-take. If the chosen device can't be used, takes fall back to the system default and the menu says so; each take logs the requested and actual input and any fallback.
 - Finish a take with the shortcut plus Shift (configurable in Settings → Dictation, or off) to paste it without sending, while auto-send stays on for other takes. The extra shortcut is bound only while recording.
 - Add an Auto-send switch to the menu footer.
 - Drop the menu's All time caption. Settings → Appearance → Menu figures shows all-time or today's words, time saved and WPM, and an optional 7-day bar strip (on by default) sits under them.

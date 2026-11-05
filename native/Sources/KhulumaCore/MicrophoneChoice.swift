@@ -30,15 +30,22 @@ public struct MicrophoneChoice: Equatable, Sendable {
   /// The stored device: its UID and the name it had when chosen.
   public let stored: AudioInput?
   public let inputs: AudioInputs
+  /// A connected device the recorder couldn't use, so takes fell back to
+  /// the system default (until the choice or the device list changes).
+  public let unusableUID: String?
 
-  public init(stored: AudioInput?, inputs: AudioInputs) {
+  public init(stored: AudioInput?, inputs: AudioInputs, unusableUID: String? = nil) {
     self.stored = stored
     self.inputs = inputs
+    self.unusableUID = unusableUID
   }
 
   /// The stored device when connected (with its current name).
-  public var chosen: AudioInput? { stored.flatMap { stored in inputs.devices.first { $0.uid == stored.uid } } }
-  public var storedMissing: Bool { stored != nil && chosen == nil }
+  public var connected: AudioInput? { stored.flatMap { stored in inputs.devices.first { $0.uid == stored.uid } } }
+  /// The stored device when connected and usable.
+  public var chosen: AudioInput? { connected.flatMap { $0.uid == unusableUID ? nil : $0 } }
+  public var storedMissing: Bool { stored != nil && connected == nil }
+  public var storedUnusable: Bool { connected != nil && chosen == nil }
   /// True when the next take uses whatever the system default input is.
   public var followsSystemDefault: Bool { chosen == nil }
   /// The input the next take records from, if any is known.
@@ -46,14 +53,16 @@ public struct MicrophoneChoice: Equatable, Sendable {
 
   /// The short value shown beside "Microphone" in the menu.
   public var summary: String {
-    guard let effective else { return storedMissing ? "System Default" : "No Input" }
-    return storedMissing ? "\(effective.name) (Default)" : effective.name
+    guard let effective else { return storedMissing || storedUnusable ? "System Default" : "No Input" }
+    return storedMissing || storedUnusable ? "\(effective.name) (Default)" : effective.name
   }
 
   /// Help shown when the stored device is missing.
   public var note: String? {
-    guard let stored, storedMissing else { return nil }
-    return "\(stored.name) isn’t connected. Takes use the system default until it is."
+    guard let stored else { return nil }
+    if storedMissing { return "\(stored.name) isn’t connected. Takes use the system default until it is." }
+    if storedUnusable { return "Khuluma couldn’t record from \(stored.name). Takes use the system default; choose it again to retry." }
+    return nil
   }
 
   public struct Option: Equatable, Sendable {

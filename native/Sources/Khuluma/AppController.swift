@@ -81,13 +81,14 @@ final class AppController: NSObject, NSApplicationDelegate {
               + ", start at login \(LoginItem.text(LoginItem.status))")
 
     let settings = settingsModel
-    recorder.preferredInputUID = { settings.microphone?.uid }
+    recorder.preferredInput = { settings.microphone }
+    recorder.onFallbackChange = { settings.reportMicrophoneFallback($0) }
     recorder.prepare()
     recorder.onConfigurationChange = { [weak self] in self?.handleDeviceChange() }
     inputMonitor = AudioInputMonitor { settings.adoptAudioInputs($0) }
     // A new choice, or the chosen device coming and going, rebuilds the
     // engine while idle; during a take it waits for the take to end.
-    settings.observeMicrophone { [weak self] in self?.recorder.inputChoiceChanged() }
+    settings.observeMicrophoneChoice { [weak self] in self?.recorder.inputChoiceChanged() }
     AudioRecorder.requestPermission { granted in
       if !granted { Log.write("permission: microphone denied") }
     }

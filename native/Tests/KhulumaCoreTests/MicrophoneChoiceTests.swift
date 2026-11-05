@@ -49,6 +49,21 @@ struct MicrophoneChoiceTests {
     #expect(back.effective == yeti && back.options.count == 3)
   }
 
+  @Test func anUnusableChoiceFallsBackAndSaysSo() {
+    let choice = MicrophoneChoice(stored: yeti, inputs: AudioInputs(devices: [builtIn, yeti], defaultUID: builtIn.uid),
+                                  unusableUID: yeti.uid)
+    #expect(choice.storedUnusable && !choice.storedMissing && choice.followsSystemDefault)
+    #expect(choice.effective == builtIn)
+    #expect(choice.summary == "MacBook Pro Microphone (Default)")
+    #expect(choice.note == "Khuluma couldn’t record from Yeti Stereo Microphone. Takes use the system default; choose it again to retry.")
+    // Still listed once, connected and checked: choosing it again retries.
+    #expect(choice.options.map(\.checked) == [false, false, true] && choice.options.count == 3)
+    // An unusable mark for another device changes nothing.
+    let other = MicrophoneChoice(stored: yeti, inputs: AudioInputs(devices: [builtIn, yeti], defaultUID: builtIn.uid),
+                                 unusableUID: builtIn.uid)
+    #expect(other.effective == yeti && other.note == nil)
+  }
+
   @Test func noInputsAtAll() {
     let none = MicrophoneChoice(stored: nil, inputs: AudioInputs())
     #expect(none.effective == nil)

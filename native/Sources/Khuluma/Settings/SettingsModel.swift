@@ -12,6 +12,8 @@ final class SettingsModel: ObservableObject {
   @Published private(set) var microphone: AudioInput?
   /// Connected inputs, from CoreAudio or sample data in previews.
   @Published private(set) var audioInputs = AudioInputs()
+  /// The chosen device the recorder couldn't use (takes use the default).
+  @Published private(set) var unusableMicrophoneUID: String?
   @Published var saving = false
   @Published var recording = false
   @Published var message: String?
@@ -22,8 +24,11 @@ final class SettingsModel: ObservableObject {
   var onToggleLogin: () -> Void = {}
   var onShortcutRecordingChange: (Bool) -> Void = { _ in }
   var onIconThemeChange: (StatusIconTheme) -> Void = { _ in }
-  /// Each runs when the choice or the connected inputs change.
+  /// Each runs when anything the Microphone row shows changes.
   private var microphoneObservers: [() -> Void] = []
+  /// Each runs only when the choice or the connected inputs change (the
+  /// recorder), never for its own fallback report, so they can't loop.
+  private var microphoneChoiceObservers: [() -> Void] = []
   var onOpenLog: () -> Void = { NSWorkspace.shared.open(Log.fileURL) }
   var onOpenConfig: () -> Void = {}
   /// Shows the window's Vocabulary tab.
@@ -83,13 +88,29 @@ final class SettingsModel: ObservableObject {
     if !preview || isolated { defaults.set(shows, forKey: Self.menuShowsWeekKey) }
   }
 
-  var microphoneChoice: MicrophoneChoice { MicrophoneChoice(stored: microphone, inputs: audioInputs) }
+  var microphoneChoice: MicrophoneChoice {
+    MicrophoneChoice(stored: microphone, inputs: audioInputs, unusableUID: unusableMicrophoneUID)
+  }
 
   func observeMicrophone(_ observer: @escaping () -> Void) { microphoneObservers.append(observer) }
+  func observeMicrophoneChoice(_ observer: @escaping () -> Void) { microphoneChoiceObservers.append(observer) }
+
+  /// From the recorder: the chosen device failed (its UID) or works again (nil).
+  func reportMicrophoneFallback(_ uid: String?) {
+    guard unusableMicrophoneUID != uid else { return }
+    unusableMicrophoneUID = uid
+    microphoneObservers.forEach { $0() }
+  }
+
+  private func microphoneChanged() {
+    microphoneChoiceObservers.forEach { $0() }
+    microphoneObservers.forEach { $0() }
+  }
 
   /// Nil chooses System Default. Applies from the next take, never mid-take.
   func selectMicrophone(_ input: AudioInput?) {
-    guard microphone != input else { return }
+    // Choosing the same device again retries one that failed.
+    guard microphone != input || (input != nil && input?.uid == unusableMicrophoneUID) else { return }
     microphone = input
     if !preview || isolated {
       if let input {
@@ -100,7 +121,7 @@ final class SettingsModel: ObservableObject {
         defaults.removeObject(forKey: Self.microphoneNameKey)
       }
     }
-    microphoneObservers.forEach { $0() }
+    microphoneChanged()
   }
 
   /// Picks by UID from the options shown (connected or the stored one).
@@ -120,7 +141,7 @@ final class SettingsModel: ObservableObject {
       self.microphone = connected
       if !preview || isolated { defaults.set(connected.name, forKey: Self.microphoneNameKey) }
     }
-    microphoneObservers.forEach { $0() }
+    microphoneChanged()
   }
 
   /// The paste-only shortcut for the current hotkey, if it can be bound.

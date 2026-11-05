@@ -11,7 +11,8 @@ enum AudioInputDevices {
   /// Connected, visible devices with input streams, in system order.
   static func current() -> AudioInputs {
     let devices = deviceIDs().compactMap { id -> AudioInput? in
-      guard hasInput(id), !isHidden(id), let uid = string(id, kAudioDevicePropertyDeviceUID) else { return nil }
+      guard hasInput(id), !isHidden(id), !isPrivateAggregate(id),
+            let uid = string(id, kAudioDevicePropertyDeviceUID) else { return nil }
       return AudioInput(uid: uid, name: name(of: id))
     }
     return AudioInputs(devices: devices, defaultUID: defaultInputID().flatMap { string($0, kAudioDevicePropertyDeviceUID) })
@@ -67,7 +68,22 @@ enum AudioInputDevices {
   }
 
   private static func isHidden(_ device: AudioDeviceID) -> Bool { uint32(device, kAudioDevicePropertyIsHidden) == 1 }
-  private static func isAlive(_ device: AudioDeviceID) -> Bool { uint32(device, kAudioDevicePropertyDeviceIsAlive) != 0 }
+
+  /// AVAudioEngine makes a private aggregate (CADefaultDeviceAggregate-…)
+  /// to follow the default input; it isn't a microphone to offer.
+  private static func isPrivateAggregate(_ device: AudioDeviceID) -> Bool {
+    guard uint32(device, kAudioDevicePropertyTransportType) == kAudioDeviceTransportTypeAggregate else { return false }
+    var address = address(kAudioAggregateDevicePropertyComposition)
+    var value: Unmanaged<CFDictionary>?
+    var size = UInt32(MemoryLayout<Unmanaged<CFDictionary>?>.size)
+    if AudioObjectGetPropertyData(device, &address, 0, nil, &size, &value) == noErr,
+       let composition = value?.takeRetainedValue() as? [String: Any],
+       (composition[kAudioAggregateDeviceIsPrivateKey] as? NSNumber)?.boolValue == true {
+      return true
+    }
+    return string(device, kAudioDevicePropertyDeviceUID)?.hasPrefix("CADefaultDeviceAggregate") == true
+  }
+  static func isAlive(_ device: AudioDeviceID) -> Bool { uint32(device, kAudioDevicePropertyDeviceIsAlive) != 0 }
 
   private static func uint32(_ object: AudioObjectID, _ selector: AudioObjectPropertySelector) -> UInt32? {
     var address = address(selector)
