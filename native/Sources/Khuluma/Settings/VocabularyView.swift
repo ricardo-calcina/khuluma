@@ -16,6 +16,7 @@ struct VocabularyView: View {
     VStack(alignment: .leading, spacing: 0) {
       header
       tabStrip
+      if #available(macOS 14.4, *) { columnHeader }
       table
       controlBar
       if model.section == .examples {
@@ -130,6 +131,28 @@ struct VocabularyView: View {
     }
   }
 
+  /// Our own column titles, drawn above the table when the native header is
+  /// hidden (macOS 14.4+). Offsets match the table's cell insets.
+  private var columnHeader: some View {
+    HStack(spacing: 0) {
+      switch model.section {
+      case .fillers:
+        Ink.label("Filler").frame(maxWidth: .infinity, alignment: .leading)
+      case .examples:
+        Color.clear.frame(width: 33, height: 1)
+        Ink.label("Said").frame(maxWidth: .infinity, alignment: .leading)
+        Ink.label("Expect").padding(.leading, 8).frame(maxWidth: .infinity, alignment: .leading)
+      case .brands, .words:
+        Ink.label("Heard as").frame(maxWidth: .infinity, alignment: .leading)
+        Ink.label("Write as").padding(.leading, 8).frame(maxWidth: .infinity, alignment: .leading)
+      }
+    }
+    .padding(.leading, 16).padding(.trailing, 16)
+    .padding(.top, 10).padding(.bottom, 2)
+    .fixedSize(horizontal: false, vertical: true)
+    .accessibilityHidden(true)
+  }
+
   // MARK: Table
 
   @ViewBuilder private var table: some View {
@@ -154,6 +177,7 @@ struct VocabularyView: View {
       }
     }
     .tableStyle(.inset(alternatesRowBackgrounds: false))
+    .modifier(HiddenColumnHeaders())
     .scrollContentBackground(.hidden)
     .frame(minHeight: 120)
     .background(TableFocus(request: model.tableFocusRequest))
@@ -501,5 +525,13 @@ private struct SearchField: NSViewRepresentable {
       guard let field = notification.object as? NSSearchField else { return }
       text.wrappedValue = field.stringValue
     }
+  }
+}
+
+/// Hides the native column header where the OS allows it; our own row
+/// replaces it. Before macOS 14.4 the native header stays.
+private struct HiddenColumnHeaders: ViewModifier {
+  func body(content: Content) -> some View {
+    if #available(macOS 14.4, *) { content.tableColumnHeaders(.hidden) } else { content }
   }
 }
