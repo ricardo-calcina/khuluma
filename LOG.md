@@ -2,6 +2,8 @@
 
 ## Now
 
+Pick up (CLI sunset tab): keep list handed to the app tab (t4j) on 2026-11-05 · next: when it confirms the app runs without the CLI, prepare phase 4 (final v0.12.0 with notice, formula disable!) for Ricardo's yes · branch: wip/product-split
+
 Focus from 2026-11-05: Khuluma is the app only; the CLI and Homebrew tap are being sunset (Decisions). Tab "Khuluma app without the CLI" (branch `wip/app-independence`, worktree `../khuluma-wt-app-independence`) makes the app independent and brings over what's kept: file transcription as a small command built into the app, and ElevenLabs Scribe. Tab "Khuluma CLI sunset" (branch `wip/product-split`, worktree `../khuluma-wt-product-split`) lists what the CLI does, then retires the CLI, formula and tap once the app no longer needs them. Apple Developer Program and the trademark search wait until then; the khuluma.app website runs in its own tab in VPS `products/Khuluma/site`.
 
 Window and menu restyle (2026-11-05) is installed as build 415 from main: Stats, Settings and Vocabulary share one ink-and-ember look (Theme.swift; DESIGN.md), Settings has a four-page sidebar, and Activity keeps one height for every range. Ricardo approved it from a preview build. The menu dropdown matches, and the window now shows in Cmd-Tab and the Dock while open (Ricardo confirmed Cmd-Tab in the preview). Wired headphones and AirPods are still to try on the microphone picker (Next). App rollback is `~/Applications/.khuluma-app.aX5hsD/previous.app` (build 411).
