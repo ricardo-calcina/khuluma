@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Activity adapts to the space: with Words per day off the heatmap fills the width; on 30 days the chart sits beside the heatmap, and on 60 or 90 days it sits under it, both full width. The hover readout keeps a fixed width, so moving between days no longer nudges the layout. The window starts 26 points taller (560 by 660) to fit the stacked layout.
 - Fix a chosen iPhone (Continuity) microphone, and other inputs that settle their format only once active, never starting: capture now uses the input's hardware format read at start, rebuilds the 16 kHz converter if buffers arrive in another format, and retries the chosen microphone once before falling back to the system default.
 - Show Cancel Recording on the same menu row as Recording…, on the right.
 - Choose the microphone from the menu (a native Microphone submenu) or Settings → Dictation. System Default stays the default; a chosen device that is unplugged stays chosen and takes use the system default until it returns. A change applies from the next take, never mid-take. If the chosen device can't be used, takes fall back to the system default and the menu says so; each take logs the requested and actual input and any fallback.

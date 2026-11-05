@@ -133,6 +133,9 @@ enum StatsSnapshot {
     return [
       ("90-days", StatsModel(stats: fullStats, updatedAt: updated, rangeDays: 90, celebrating: 50_000)),
       ("30-days", StatsModel(stats: fullStats, updatedAt: updated, rangeDays: 30)),
+      ("60-days", StatsModel(stats: fullStats, updatedAt: updated, rangeDays: 60)),
+      ("30-days-heatmap-only", StatsModel(stats: fullStats, updatedAt: updated, rangeDays: 30, showWordsPerDay: false)),
+      ("90-days-heatmap-only", StatsModel(stats: fullStats, updatedAt: updated, rangeDays: 90, showWordsPerDay: false)),
       ("incomplete", StatsModel(
         stats: UsageStats(report: report(today: today, trackedDays: 20, untracked: 12), today: today), updatedAt: updated)),
       ("unreadable", StatsModel(

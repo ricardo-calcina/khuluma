@@ -56,14 +56,14 @@ final class StatsModel: ObservableObject {
   }
 
   /// Fixed content, for snapshots.
-  init(stats: UsageStats?, updatedAt: Date?, rangeDays: Int = 30, celebrating: Int? = nil,
-       refreshFailed: Bool = false) {
+  init(stats: UsageStats?, updatedAt: Date?, rangeDays: Int = 30, showWordsPerDay: Bool = true,
+       celebrating: Int? = nil, refreshFailed: Bool = false) {
     source = { Source(cli: nil, config: nil) }
     fixture = true
     self.stats = stats
     self.updatedAt = updatedAt
     self.rangeDays = rangeDays
-    showWordsPerDay = true
+    self.showWordsPerDay = showWordsPerDay
     self.celebrating = celebrating
     self.refreshFailed = refreshFailed
   }

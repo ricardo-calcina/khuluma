@@ -187,13 +187,26 @@ private struct Activity: View {
   // Not @State: the Command Line Tools have no SwiftUI macro plugin.
   @StateObject private var hover = Hover()
 
-  /// Cells narrow as the range grows, so the heatmap and the chart always
-  /// share one row and the window keeps the same height for every range.
-  /// The window never changes width: the heatmap gets a fixed area and its
-  /// cells shrink to fit the range's weeks.
+  /// The content width inside the 560-point window's 20-point insets.
+  static let width: CGFloat = 520
+
+  /// Heatmap only (Words per day off); 30 days with the chart beside it;
+  /// longer ranges with the chart under it, so both get the full width.
+  private enum Layout { case heatmapOnly, sideBySide, stacked }
+
+  private var layout: Layout {
+    guard showWords else { return .heatmapOnly }
+    return rangeDays > 30 ? .stacked : .sideBySide
+  }
+
+  /// The window never changes width: beside the chart the heatmap gets a
+  /// fixed area with cells of at most 24 points; on its own row its cells
+  /// stretch so the weeks fill the width.
   private func cellWidth(weeks: Int) -> CGFloat {
     let columns = CGFloat(max(weeks, 1))
-    return min(24, ((Heatmap.area - Heatmap.labelColumn) / columns - Heatmap.gap).rounded(.down))
+    let area = layout == .sideBySide ? Heatmap.area : Self.width
+    let width = ((area - Heatmap.labelColumn) / columns - Heatmap.gap).rounded(.down)
+    return layout == .sideBySide ? min(24, width) : width
   }
 
   var body: some View {
@@ -219,24 +232,38 @@ private struct Activity: View {
       Text(Format.rangeLine(range, since: stats.dailySince))
         .font(.callout)
         .foregroundStyle(.secondary)
-      HStack(alignment: .top, spacing: 24) {
-        Heatmap(weeks: weeks, today: stats.today, coverageComplete: stats.coverageComplete,
-                cellWidth: cellWidth(weeks: weeks.count), hovered: $hover.cell)
-        if showWords {
-          WordsPerDay(days: days, height: Heatmap.cellHeight * 7 + Heatmap.gap * 6, hovered: $hover.cell)
+      let heatmap = Heatmap(weeks: weeks, today: stats.today, coverageComplete: stats.coverageComplete,
+                            cellWidth: cellWidth(weeks: weeks.count), hovered: $hover.cell)
+      Group {
+        switch layout {
+        case .heatmapOnly:
+          heatmap
+        case .sideBySide:
+          HStack(alignment: .top, spacing: 24) {
+            heatmap
+            WordsPerDay(days: days, height: Heatmap.cellHeight * 7 + Heatmap.gap * 6, hovered: $hover.cell)
+          }
+        case .stacked:
+          VStack(alignment: .leading, spacing: 10) {
+            heatmap
+            WordsPerDay(days: days, height: WordsPerDay.stackedHeight, hovered: $hover.cell)
+          }
         }
       }
       .padding(.top, 2)
-      HStack(alignment: .center) {
+      HStack(alignment: .center, spacing: 8) {
+        // Takes whatever width the legend leaves, whatever it says, so
+        // hovering from day to day never moves anything.
         Text(hover.cell.map { Format.cellLine($0, coverageComplete: stats.coverageComplete) } ?? " ")
           .font(.callout)
           .monospacedDigit()
           .lineLimit(1)
           .minimumScaleFactor(0.8)
           .truncationMode(.tail)
-        Spacer(minLength: 8)
+          .frame(maxWidth: .infinity, alignment: .leading)
         Legend(showUntracked: weeks.joined().contains { $0.state == .untracked })
       }
+      .frame(width: Self.width)
     }
   }
 }
@@ -332,6 +359,9 @@ private struct WordsPerDay: View {
   let height: CGFloat
   @Binding var hovered: UsageStats.Cell?
 
+  /// Under the heatmap the bars are wide, so they can be shorter.
+  static let stackedHeight: CGFloat = 64
+
   var body: some View {
     let peak = days.map(\.words).max() ?? 0
     VStack(alignment: .leading, spacing: Heatmap.gap) {
@@ -401,7 +431,7 @@ private struct Legend: View {
       ForEach(1...4, id: \.self) { level in
         RoundedRectangle(cornerRadius: 3).fill(HeatColor.fill(level)).frame(width: 11, height: 11)
       }
-      Text("More dictations")
+      Text("More")
     }
     .font(.caption)
     .foregroundStyle(.secondary)
