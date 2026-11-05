@@ -59,8 +59,8 @@ Each slice: a worker builds it, a Codex reviewer reviews it, fixes go back to th
 2. **Native writers and a durable spool**: `HistoryWriter`, `BenchWriter`, `UsageLedger`, `SharedLog`, `RecordingLock` in `KhulumaCore`, same locks and idempotency. Pending records keep per-destination done flags, are fsynced, never expire while unresolved, and unreadable ones are quarantined, not deleted (today: deleted, and anything older than 7 days dropped). Shared fixtures in `tests/fixtures/shared-data/` drive Swift and shell writers. Kill-between-every-step, duplicate-submission, disk-full, lock-timeout and paused-trim tests, plus Swift vs CLI (new and frozen v0.11) concurrent writers with exact totals. `TakePersister` switches off `inline record`; build-415 spooled records still replay.
 3. **Minimal standalone path** (proves the big risk early): native config reader (full TOML, overrides, last-good fallback; parity fixtures against `app-config --json`), bundled `khulumad` started by the app, native Stats/menu figures from `usage.json` and recent dictations from `history/`. Remove CLI-era eligibility gates that would strand a take without the CLI: ffmpeg/ffprobe required, non-C locales refused, numeric overrides forcing the CLI route. Gate: one real take with no CLI, ffmpeg or Python reachable.
 4. **Settings and vocabulary writes**: native Settings writer under the config lock (same atomic, symlink-keeping rules), vocabulary show/validate/save under `.vocabulary.lock`.
-5. **First run**: model download through FluidAudio with progress in the menu; bundled sounds (`~/.local/share/sounds/khuluma` still overrides); microphone and PostEvent permission gates with plain prompts. Denied or revoked PostEvent makes delivery fail (take kept, no usage), not log-and-continue as today.
-6. **Cut the cord**: delete `CLIBridge`, the CLI route and `app_contract`. A take that can't be processed natively goes to recovered and retries; never lost. A config set to ElevenLabs is handled explicitly (decision 1), never silently switched.
+5. **First run**: model download through FluidAudio with progress in the menu; bundled sounds (`~/.local/share/sounds/khuluma` still overrides); microphone and PostEvent permission gates with plain prompts. Denied or revoked PostEvent makes delivery fail (take kept, no usage), not log-and-continue as today. Native ElevenLabs Scribe (decision 1), with the queued take's provider fixed at capture as today.
+6. **Cut the cord**: delete `CLIBridge`, the CLI route and `app_contract`. A take that can't be processed natively goes to recovered and retries; never lost.
 7. **Acceptance and merge** (below): merge to main after isolated acceptance and Ricardo's OK on an installed build; the 14-day observation runs after the merge as its own LOG item.
 
 ## Acceptance
@@ -74,8 +74,8 @@ Each slice: a worker builds it, a Codex reviewer reviews it, fixes go back to th
 
 Signing/notarisation, Apple Developer Program, trademark, website, Homebrew releases, the cleanup round, ROADMAP.md, `integrations/` and the rest of the CLI's behaviour (split tab).
 
-## Open decisions for Ricardo
+## Decisions (Ricardo, 2026-11-05)
 
-1. ElevenLabs Scribe: proposed app is Parakeet-only for now; if config selects ElevenLabs the app says so in the menu and records locally only after Ricardo switches back (no silent switch). Port with a Keychain key later.
-2. Logs: one shared `khuluma.log` replacing `app.log` (proposed; both reviewers agree).
-3. Daemons: separate for app and CLI at first (proposed; both reviewers agree).
+1. ElevenLabs Scribe is ported to the app now (slice 5): native upload, key from the Keychain first, then the same read-only zshrc lookup the CLI uses, so today's setup keeps working. Never sent in logs, arguments or settings JSON.
+2. One shared `khuluma.log`; `app.log` is kept and stops growing; `tools/khuluma-report.sh` reads both.
+3. Separate daemons for app and CLI at first.
