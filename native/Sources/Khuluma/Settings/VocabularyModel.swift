@@ -28,6 +28,10 @@ final class VocabularyModel: ObservableObject {
   /// Command-F bumps this to focus the search field (the Command Line Tools
   /// have no SwiftUI macro plugin for @State).
   @Published var searchRequest = 0
+  /// Bumped to give the table keyboard focus after an edit ends.
+  @Published var tableFocusRequest = 0
+  /// The cell last typed in, so an edit paused by dictation resumes there.
+  var editingWrite = false
   @Published var working = false
   @Published var loaded = false
   @Published var message: String?
@@ -148,33 +152,43 @@ final class VocabularyModel: ObservableObject {
   @discardableResult func beginEdit(_ id: String) -> Bool {
     guard canEdit, let entry = entries.first(where: { $0.heard == id }) else { return false }
     if editing == .existing(id) { return true }
-    settleFields()
-    guard editing == nil else { return false }
+    guard settleFields() else { return false }
     editing = .existing(id); heard = entry.heard; write = entry.write
     selection = [id]
     return true
   }
   /// + and New from Recent: a new row at the end, optionally with Said text.
   @discardableResult func beginNew(heard text: String = "") -> Bool {
-    guard canEdit else { return false }
-    settleFields()
-    guard editing == nil else { return false }
+    guard canEdit, settleFields() else { return false }
     editing = .new; heard = text; write = ""
     selection = [Self.newRowID]
+    return true
+  }
+  /// Escape from anywhere in the window while a row is open: cancels it.
+  /// While dictation locks editing the row is kept, and Escape is still
+  /// consumed so the tab does not change.
+  func escape() -> Bool {
+    guard editing != nil else { return false }
+    if canEdit { cancelEdit(); tableFocusRequest += 1 }
     return true
   }
   /// Escape: leaves the draft as it was and drops a new row.
   func cancelEdit() {
     if editing == .new { selection = [] }
+    if editError != nil { message = nil; failed = false }
     editing = nil; heard = ""; write = ""; editError = nil
   }
   /// Return in the last cell, or moving on: puts a finished row into the
   /// draft (Undo can take it back), drops an unfinished one. Only an invalid
   /// row, such as a duplicate, stays open with its warning.
-  func settleFields() {
-    guard editing != nil else { return }
-    guard formDirty else { cancelEdit(); return }
+  /// True when no row is left open. While dictation locks editing nothing
+  /// is settled: the row and its text wait for dictation to finish.
+  @discardableResult func settleFields() -> Bool {
+    guard editing != nil else { return true }
+    guard canEdit else { return false }
+    guard formDirty else { cancelEdit(); return true }
     if fieldsComplete { addOrUpdate() } else { cancelEdit() }
+    return editing == nil
   }
   /// The table's selection. Selecting another row settles the one being
   /// typed; an invalid row keeps the selection.
@@ -182,14 +196,12 @@ final class VocabularyModel: ObservableObject {
     guard value != selection else { return }
     if editing != nil {
       if value == [editingOriginal ?? Self.newRowID] { return }
-      settleFields()
-      guard editing == nil else { return }
+      guard settleFields() else { return }
     }
     selection = value.filter { id in entries.contains { $0.heard == id } }
   }
   func changeSection(_ value: Section) {
-    settleFields()
-    guard editing == nil else { return }
+    guard settleFields() else { return }
     section = value; selection = []
     if value == .examples { loadRecent() }
   }
@@ -238,8 +250,10 @@ final class VocabularyModel: ObservableObject {
   func revert() {
     if dirty || formDirty { confirmReload = true } else { load() }
   }
+  /// Replaces the draft with the reviewed import. An open row settles first,
+  /// so an accepted edit stays one Undo step behind the import.
   func useImport() {
-    guard let imported, canEdit else { return }
+    guard let imported, canEdit, settleFields() else { return }
     do { try change(imported); self.imported = nil; query = "" } catch { report(error) }
   }
   var importSummary: String {
@@ -256,7 +270,7 @@ final class VocabularyModel: ObservableObject {
     let removed = old.keys.filter { new[$0] == nil }.count
     let changed = new.keys.filter { old[$0] != nil && old[$0] != new[$0] }.count
     func count(_ value: Int, _ word: String) -> String { "\(value.formatted()) \(word)\(value == 1 ? "" : "s")" }
-    return "\(count(imported.fillers.count, "filler")), \(count(imported.brands.count, "brand")) and \(count(imported.words.count, "other word")).\n\n\(added.formatted()) added, \(changed.formatted()) changed, \(removed.formatted()) removed. Review the draft, then Save Changes to apply it."
+    return "\(count(imported.fillers.count, "filler")), \(count(imported.brands.count, "brand")), \(count(imported.words.count, "other word")) and \(count(imported.examples?.count ?? 0, "example")).\n\n\(added.formatted()) added, \(changed.formatted()) changed, \(removed.formatted()) removed. Review the draft, then Save Changes to apply it."
   }
 
   /// Takes a freshly read vocabulary as the saved baseline and the draft.
@@ -284,8 +298,7 @@ final class VocabularyModel: ObservableObject {
   /// Saving with failing examples asks first: they show a rule change broke
   /// something that used to come out right.
   func save(confirmed: Bool = false) {
-    settleFields()
-    guard canEdit, editing == nil, let baseline else { return }
+    guard settleFields(), canEdit, let baseline else { return }
     if !confirmed, !exampleFailures.isEmpty {
       confirmFailingSave = true
       return

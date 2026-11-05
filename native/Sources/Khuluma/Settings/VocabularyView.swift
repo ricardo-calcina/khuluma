@@ -9,7 +9,6 @@ struct VocabularyView: View {
   @ObservedObject var model: VocabularyModel
   @ObservedObject var settings: SettingsModel
   @FocusState private var focus: Column?
-  @FocusState private var tableFocused: Bool
   private enum Column: Hashable { case heard, write }
   private typealias Entry = VocabularyModel.Entry
 
@@ -54,9 +53,21 @@ struct VocabularyView: View {
     .background { shortcuts }
     .onAppear { if !model.loaded { model.load() } }
     .onChange(of: focus) { _, value in
-      // Leaving the edited row settles it, like any other move.
-      guard value == nil, model.editing != nil else { return }
-      DispatchQueue.main.async { if focus == nil { model.settleFields() } }
+      if let value { model.editingWrite = value == .write; return }
+      // Leaving the edited row settles it, like any other move. Losing focus
+      // to the dictation lock keeps the row and its text instead.
+      guard model.editing != nil, model.canEdit else { return }
+      DispatchQueue.main.async { if focus == nil && model.canEdit { model.settleFields() } }
+    }
+    .onChange(of: model.canEdit) { _, editable in
+      // Dictation finished: carry on typing where the row was left.
+      guard editable, model.editing != nil else { return }
+      let column: Column = model.editingWrite && model.section != .fillers ? .write : .heard
+      DispatchQueue.main.async {
+        focus = column
+        // Focusing selects the whole text; put the cursor back at the end.
+        DispatchQueue.main.async { (NSApp.keyWindow?.firstResponder as? NSTextView)?.moveToEndOfDocument(nil) }
+      }
     }
     .confirmationDialog("Revert to the saved vocabulary?", isPresented: $model.confirmReload) {
       Button("Revert and Discard Draft", role: .destructive) { model.load() }
@@ -100,7 +111,7 @@ struct VocabularyView: View {
     }
     .tableStyle(.bordered(alternatesRowBackgrounds: true))
     .frame(minHeight: 120)
-    .focused($tableFocused)
+    .background(TableFocus(request: model.tableFocusRequest))
     .contextMenu(forSelectionType: String.self) { ids in
       let saved = ids.subtracting([VocabularyModel.newRowID])
       if saved.count == 1, let id = saved.first { Button("Edit") { edit(id) } }
@@ -118,10 +129,9 @@ struct VocabularyView: View {
       return .handled
     }
     .onKeyPress(.escape) {
-      // Escape cancels an open row; otherwise the window takes it (back to Stats).
-      guard model.editing != nil else { return .ignored }
-      model.cancelEdit()
-      return .handled
+      // Escape cancels an open row; otherwise the window takes it (back to
+      // Stats). The window also asks the model first, as a backstop.
+      model.escape() ? .handled : .ignored
     }
     .onDeleteCommand { model.remove() }
     .overlay {
@@ -150,7 +160,7 @@ struct VocabularyView: View {
           .textFieldStyle(.plain)
           .focused($focus, equals: column)
           .onSubmit { submit(from: column) }
-          .onExitCommand { model.cancelEdit(); DispatchQueue.main.async { tableFocused = true } }
+          .onExitCommand { _ = model.escape() }
           .accessibilityLabel(title(column))
         if column == .heard, model.section != .examples, let error = model.editError { warning(error) }
       }
@@ -223,8 +233,8 @@ struct VocabularyView: View {
       }
       Button("Undo") { model.undo() }.disabled(!model.canUndo)
       Divider()
-      Button("Import…") { model.settleFields(); chooseImport() }.disabled(!model.canEdit)
-      Button(model.dirty ? "Export Draft…" : "Export…") { model.settleFields(); export() }
+      Button("Import…") { if model.settleFields() { chooseImport() } }.disabled(!model.canEdit)
+      Button(model.dirty ? "Export Draft…" : "Export…") { if model.settleFields() { export() } }
         .disabled(!model.loaded || model.working)
       Divider()
       Button("Revert to Saved…") { model.revert() }.disabled(!model.loaded || model.working)
@@ -319,8 +329,7 @@ struct VocabularyView: View {
       focus = model.heard.trimmingCharacters(in: .whitespaces).isEmpty ? .heard : .write
       return
     }
-    model.settleFields()
-    if model.editing == nil { DispatchQueue.main.async { tableFocused = true } }
+    if model.settleFields() { model.tableFocusRequest += 1 }
     else { DispatchQueue.main.async { focus = column } }
   }
 
@@ -375,6 +384,35 @@ struct VocabularyView: View {
       try model.document.encoded().write(to: url, options: .atomic)
       model.failed = false; model.message = "Vocabulary exported."
     } catch { model.report(error) }
+  }
+}
+
+/// Gives the table's NSTableView keyboard focus when `request` changes, so
+/// arrow keys work straight after an edit ends. SwiftUI focus does not
+/// reach the table itself.
+private struct TableFocus: NSViewRepresentable {
+  var request: Int
+
+  final class Coordinator { var request = 0 }
+  func makeCoordinator() -> Coordinator { Coordinator() }
+  func makeNSView(context: Context) -> NSView {
+    context.coordinator.request = request
+    return NSView()
+  }
+  func updateNSView(_ view: NSView, context: Context) {
+    guard context.coordinator.request != request else { return }
+    context.coordinator.request = request
+    // After SwiftUI has removed the edit field.
+    DispatchQueue.main.async {
+      guard let window = view.window, let root = window.contentView,
+            let table = Self.table(in: root) else { return }
+      window.makeFirstResponder(table)
+    }
+  }
+  private static func table(in view: NSView) -> NSTableView? {
+    if let table = view as? NSTableView { return table }
+    for child in view.subviews { if let table = table(in: child) { return table } }
+    return nil
   }
 }
 

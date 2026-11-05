@@ -44,10 +44,11 @@ final class StatsWindowController: NSWindowController, NSWindowDelegate, NSToolb
     window.toolbar = toolbar
     window.onSelect = { [weak self] page in self?.navigation.selection = page }
     window.onRefresh = { [weak self] in self?.refreshStats() }
-    window.onDismissUsageInfo = { [weak self] in
-      guard let self, self.detailsPopover.isShown else { return false }
-      self.detailsPopover.performClose(nil)
-      return true
+    window.onEscape = { [weak self] in
+      guard let self else { return false }
+      if self.detailsPopover.isShown { self.detailsPopover.performClose(nil); return true }
+      // An open vocabulary row takes Escape; it never switches the tab.
+      return self.navigation.selection == .vocabulary && self.vocabulary.escape()
     }
     settings.onManageVocabulary = { [weak self] in self?.navigation.selection = .vocabulary }
     navigation.onChange = { [weak self] in self?.updateChrome() }
@@ -222,12 +223,13 @@ struct AppView: View {
 private final class StatsWindow: NSWindow {
   var onSelect: (AppNavigation.Page) -> Void = { _ in }
   var onRefresh: () -> Void = {}
-  var onDismissUsageInfo: () -> Bool = { false }
+  /// Usage information or an open vocabulary row handles Escape first.
+  var onEscape: () -> Bool = { false }
   var page = AppNavigation.Page.stats
 
   /// Escape closes usage information, then returns to Stats, then closes.
   override func cancelOperation(_ sender: Any?) {
-    if onDismissUsageInfo() { return }
+    if onEscape() { return }
     if page != .stats { onSelect(.stats) } else { performClose(sender) }
   }
 
