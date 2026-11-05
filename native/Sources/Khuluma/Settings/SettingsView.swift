@@ -2,40 +2,206 @@ import AppKit
 import KhulumaCore
 import SwiftUI
 
+/// The Settings tab's pages, in sidebar order.
+enum SettingsPage: String, CaseIterable, Identifiable {
+  case general, dictation, cleanup, advanced
+  var id: String { rawValue }
+
+  var title: String {
+    switch self {
+    case .general: "General"
+    case .dictation: "Dictation"
+    case .cleanup: "Cleanup"
+    case .advanced: "Advanced"
+    }
+  }
+
+  var symbol: String {
+    switch self {
+    case .general: "gearshape"
+    case .dictation: "mic"
+    case .cleanup: "wand.and.stars"
+    case .advanced: "wrench.and.screwdriver"
+    }
+  }
+}
+
 struct SettingsView: View {
   @ObservedObject var model: SettingsModel
 
   var body: some View {
-    Form {
-      Section {
-        LabeledContent("Shortcut") {
-          ShortcutRecorder(value: model.config?.hotkey ?? "", isEnabled: model.editable,
-                           onCapture: { model.save("app.hotkey", $0) },
-                           onRecordingChange: model.onShortcutRecordingChange)
-            .fixedSize()
+    HStack(spacing: 0) {
+      sidebar
+      Rectangle().fill(Ink.rule).frame(width: 1)
+      ScrollView {
+        VStack(alignment: .leading, spacing: 0) {
+          Text(model.page.title)
+            .font(.system(size: 20, weight: .semibold, design: .rounded))
+            .padding(.bottom, 14)
+            .accessibilityAddTraits(.isHeader)
+          page
+          status
         }
-        .help("Click to record a shortcut. Press it once to start dictation, then again to finish. Control–Escape cancels dictation.")
+        .padding(.horizontal, 20)
+        .padding(.vertical, 18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+      }
+    }
+    .toggleStyle(.switch)
+    .tint(Ember.accent)
+    .background(Color(nsColor: .windowBackgroundColor))
+  }
+
+  // MARK: Sidebar
+
+  private var sidebar: some View {
+    VStack(alignment: .leading, spacing: 2) {
+      ForEach(SettingsPage.allCases) { page in
+        SidebarRow(page: page, selected: model.page == page) { model.page = page }
+      }
+      Spacer()
+    }
+    .padding(.horizontal, 10)
+    .padding(.vertical, 18)
+    .frame(width: 150)
+    .focusable()
+    .focusEffectDisabled()
+    .onMoveCommand { direction in
+      let pages = SettingsPage.allCases
+      guard let index = pages.firstIndex(of: model.page) else { return }
+      switch direction {
+      case .up where index > 0: model.page = pages[index - 1]
+      case .down where index < pages.count - 1: model.page = pages[index + 1]
+      default: break
+      }
+    }
+  }
+
+  @ViewBuilder private var page: some View {
+    switch model.page {
+    case .general: general
+    case .dictation: dictation
+    case .cleanup: cleanup
+    case .advanced: advanced
+    }
+  }
+
+  // MARK: Pages
+
+  @ViewBuilder private var general: some View {
+    SettingsGroup("Startup") {
+      SettingsRow("Start at login") {
+        Toggle("Start at login", isOn: Binding(
+          get: { model.loginStatus == .enabled || model.loginStatus == .requiresApproval },
+          set: { _ in model.onToggleLogin(); model.loginStatus = LoginItem.status }))
+          .labelsHidden()
+          .disabled(AppRuntimePaths.isolated || model.preview)
+      }
+      if model.loginStatus == .requiresApproval {
+        SettingsRow("Needs approval", note: "macOS asks you to allow Khuluma as a login item.") {
+          Button("Approve in System Settings") { model.onToggleLogin() }
+        }
+      }
+    }
+    SettingsGroup("Menu bar") {
+      SettingsRow("Menu bar icons",
+                  note: "Both use the same Ready emblem. Full emblem keeps the symbol visible while recording and processing.") {
+        Picker("Menu bar icons", selection: Binding(get: { model.iconTheme }, set: model.selectIconTheme)) {
+          ForEach(StatusIconTheme.allCases, id: \.self) { theme in Text(theme.title).tag(theme) }
+        }
+        .labelsHidden().fixedSize()
+        .help("Changes immediately, including during dictation.")
+      }
+      SettingsRow("Menu figures", note: "Words, time saved and words per minute cover all time or today.") {
+        Picker("Menu figures", selection: Binding(get: { model.menuFigures }, set: model.selectMenuFigures)) {
+          ForEach(MenuFigures.allCases, id: \.self) { Text($0.title).tag($0) }
+        }
+        .labelsHidden().fixedSize()
+        .help("Words, time saved and words per minute in the menu cover all time or today.")
+      }
+      SettingsRow("Show last 7 days in menu", last: true) {
+        Toggle("Show last 7 days in menu", isOn: Binding(get: { model.menuShowsWeek }, set: model.setMenuShowsWeek))
+          .labelsHidden()
+      }
+    }
+  }
+
+  @ViewBuilder private var dictation: some View {
+    SettingsGroup("Recording") {
+      SettingsRow("Shortcut", note: "Press once to start, again to finish. Control–Escape cancels.") {
+        ShortcutRecorder(value: model.config?.hotkey ?? "", isEnabled: model.editable,
+                         onCapture: { model.save("app.hotkey", $0) },
+                         onRecordingChange: model.onShortcutRecordingChange)
+          .fixedSize()
+      }
+      .help("Click to record a shortcut. Press it once to start dictation, then again to finish. Control–Escape cancels dictation.")
+      microphoneRow
+      SettingsRow("Sounds", last: true) {
+        Toggle("Sounds", isOn: setting("audio.sounds.enabled", model.config?.soundsEnabled ?? true))
+          .labelsHidden()
+          .disabled(!model.editable)
+          .help("Play sounds during dictation.")
+      }
+    }
+    SettingsGroup("Transcription") {
+      SettingsRow("Model", note: model.provider == "elevenlabs"
+                  ? "Scribe uploads new and recovered recordings to ElevenLabs and uses your credits. Internet required."
+                  : "Runs offline on this Mac.", last: model.provider != "elevenlabs") {
+        Picker("Model", selection: Binding(get: { model.provider }, set: { model.save("transcription.provider", $0) })) {
+          Text(localModelTitle).tag("parakeet")
+          Text("ElevenLabs Scribe v2").tag("elevenlabs")
+        }
+        .labelsHidden().fixedSize()
+        .disabled(!model.editable)
+      }
+      if model.provider == "elevenlabs" {
+        SettingsRow("Language") {
+          Picker("Language", selection: Binding(get: { model.config?.transcription.language ?? "en" },
+                                                set: { model.save("transcription.language", $0) })) {
+            ForEach(languageCodes, id: \.self) { Text(languageTitle($0)).tag($0) }
+          }
+          .labelsHidden().fixedSize()
+          .disabled(!model.editable)
+          .help("Auto-detect lets Scribe recognise the language of each recording.")
+        }
+        let available = model.config?.transcription.keyAvailable == true
+        SettingsRow("API key", note: available ? nil : "Export ELEVENLABS_API_KEY in your shell, then click Reload Settings in Advanced.",
+                    last: true) {
+          Label(available ? "Available" : "Missing",
+                systemImage: available ? "checkmark.circle" : "exclamationmark.triangle")
+            .foregroundStyle(available ? Color.secondary : Ember.accent)
+        }
+      }
+    }
+    SettingsGroup("Delivery") {
+      SettingsRow("Auto-send", note: "Paste the transcript, then send it with your send key.") {
         Toggle("Auto-send", isOn: setting("inline.autosend", model.config?.inline.autosend ?? false))
+          .labelsHidden()
           .disabled(!model.editable)
           .help("Paste the transcript, then send it with your configured send key.")
+      }
+      SettingsRow("Paste without sending",
+                  note: model.config?.inline.autosend == true && model.pasteOnlyModifier != .off ? pasteOnlyNote : nil,
+                  last: true) {
         Picker("Paste without sending", selection: Binding(get: { model.pasteOnlyModifier },
                                                            set: model.selectPasteOnlyModifier)) {
           ForEach(PasteOnlyModifier.allCases, id: \.self) { Text($0.title).tag($0) }
         }
+        .labelsHidden().fixedSize()
         .disabled(model.config?.inline.autosend != true)
         .help("Hold this key with your shortcut when you finish a take to paste it without sending.")
-        if model.config?.inline.autosend == true, model.pasteOnlyModifier != .off {
-          Text(pasteOnlyNote).font(.caption).foregroundStyle(.secondary)
-        }
-        microphonePicker
-        Toggle("Sounds", isOn: setting("audio.sounds.enabled", model.config?.soundsEnabled ?? true))
-          .disabled(!model.editable)
-          .help("Play sounds during dictation.")
-      } header: { Text("Dictation") }
+      }
+    }
+  }
 
-      Section {
+  @ViewBuilder private var cleanup: some View {
+    SettingsGroup("Cleanup") {
+      SettingsRow("Clean up dictation", note: "Removes the fillers in your vocabulary.") {
         Toggle("Clean up dictation", isOn: setting("clean.enabled", model.config?.cleanup.clean == "1"))
+          .labelsHidden()
           .disabled(!model.editable)
+      }
+      SettingsRow("Repetition", note: "Sentence cleanup keeps changed wording and short emphasis.", last: true) {
         Picker("Repetition", selection: Binding(
           get: { model.config?.cleanup.repeatsLevel ?? "0" },
           set: { model.save("clean.repeats_level", $0) })) {
@@ -44,83 +210,60 @@ struct SettingsView: View {
           Text("Words and short phrases").tag("2")
           Text("Exact repeated sentences").tag("3")
         }
+        .labelsHidden().fixedSize()
         .disabled(!model.editable || model.config?.cleanup.clean != "1")
-        Text("Removes the fillers in your vocabulary. Sentence cleanup keeps changed wording and short emphasis.")
-          .font(.caption).foregroundStyle(.secondary)
-        Button("Manage Vocabulary") { model.onManageVocabulary() }
-        Text("One vocabulary for fillers, brands, other words and examples, in the Vocabulary tab.")
-          .font(.caption).foregroundStyle(.secondary)
-      } header: { Text("Cleanup & vocabulary") }
-
-      Section {
-        Picker("Model", selection: Binding(get: { model.provider }, set: { model.save("transcription.provider", $0) })) {
-          Text(localModelTitle).tag("parakeet")
-          Text("ElevenLabs Scribe v2").tag("elevenlabs")
-        }
-        .disabled(!model.editable)
-        if model.provider == "elevenlabs" {
-          Picker("Language", selection: Binding(get: { model.config?.transcription.language ?? "en" },
-                                                set: { model.save("transcription.language", $0) })) {
-            ForEach(languageCodes, id: \.self) { Text(languageTitle($0)).tag($0) }
-          }
-          .disabled(!model.editable)
-          .help("Auto-detect lets Scribe recognise the language of each recording.")
-          LabeledContent("API key") {
-            Label(model.config?.transcription.keyAvailable == true ? "Available" : "Missing",
-                  systemImage: model.config?.transcription.keyAvailable == true ? "checkmark.circle" : "exclamationmark.triangle")
-              .foregroundStyle(.secondary)
-          }
-          if model.config?.transcription.keyAvailable != true {
-            Text("Export ELEVENLABS_API_KEY in your shell, then click Reload Settings below.")
+      }
+    }
+    SettingsGroup("Vocabulary") {
+      Button { model.onManageVocabulary() } label: {
+        HStack(spacing: 12) {
+          RingMark(symbol: "character.book.closed", size: 22)
+          VStack(alignment: .leading, spacing: 2) {
+            Text("Manage Vocabulary")
+            Text("One vocabulary for fillers, brands, other words and examples, in the Vocabulary tab.")
               .font(.caption).foregroundStyle(.secondary)
+              .fixedSize(horizontal: false, vertical: true)
           }
+          Spacer(minLength: 12)
+          Image(systemName: "arrow.right").foregroundStyle(Ember.accent).fontWeight(.semibold)
         }
-        Text("Scribe uploads new and recovered recordings to ElevenLabs and uses your credits. Internet required.")
-          .font(.caption).foregroundStyle(.secondary)
-      } header: { Text("Transcription") }
+        .padding(.vertical, 8)
+        .contentShape(Rectangle())
+      }
+      .buttonStyle(.plain)
+      .accessibilityLabel("Manage Vocabulary")
+    }
+  }
 
-      Section {
-        Picker("Menu bar icons", selection: Binding(get: { model.iconTheme }, set: model.selectIconTheme)) {
-          ForEach(StatusIconTheme.allCases, id: \.self) { theme in
-            Text(theme.title).tag(theme)
-          }
-        }
-        .help("Changes immediately, including during dictation.")
-        Text("Both use the same Ready emblem. Full emblem keeps the symbol visible while recording and processing.")
-          .font(.caption).foregroundStyle(.secondary)
-        Picker("Menu figures", selection: Binding(get: { model.menuFigures }, set: model.selectMenuFigures)) {
-          ForEach(MenuFigures.allCases, id: \.self) { Text($0.title).tag($0) }
-        }
-        .help("Words, time saved and words per minute in the menu cover all time or today.")
-        Toggle("Show last 7 days in menu", isOn: Binding(get: { model.menuShowsWeek }, set: model.setMenuShowsWeek))
-      } header: { Text("Appearance") }
-
-      Section {
-        Toggle("Start at login", isOn: Binding(
-          get: { model.loginStatus == .enabled || model.loginStatus == .requiresApproval },
-          set: { _ in model.onToggleLogin(); model.loginStatus = LoginItem.status }))
-          .disabled(AppRuntimePaths.isolated || model.preview)
-        if model.loginStatus == .requiresApproval {
-          Button("Approve in System Settings") { model.onToggleLogin() }
-        }
-      } header: { Text("Startup") }
-
-      Section {
+  @ViewBuilder private var advanced: some View {
+    SettingsGroup("Diagnostics") {
+      SettingsRow("Diagnostic logging",
+                  note: "Keeps recording audio and debug files. Audio follows your history retention settings.",
+                  last: true) {
         Toggle("Diagnostic logging", isOn: setting("debug.keep_logs", model.config?.transcription.keepLogs ?? false))
+          .labelsHidden()
           .disabled(!model.editable)
-        Text("Keeps recording audio and debug files. Audio follows your history retention settings.")
-          .font(.caption).foregroundStyle(.secondary)
-        HStack {
-          Button("Open Log") { model.onOpenLog() }
-            .help("Open Khuluma’s diagnostic log. Usage stats contain counts and durations, never dictated text.")
-          Button("Open Config") { model.onOpenConfig() }.disabled(model.config == nil)
-            .help("Open the configuration file for advanced settings.")
-          Spacer()
-          Button("Reload Settings") { model.onReload() }.disabled(model.saving)
-            .help("Read changes to your configuration and shell environment.")
-        }
-      } header: { Text("Diagnostics") }
+      }
+    }
+    SettingsGroup("Files") {
+      SettingsRow("Log", note: "Usage stats contain counts and durations, never dictated text.") {
+        Button("Open Log") { model.onOpenLog() }
+          .help("Open Khuluma’s diagnostic log. Usage stats contain counts and durations, never dictated text.")
+      }
+      SettingsRow("Configuration", note: "The configuration file, for advanced settings.") {
+        Button("Open Config") { model.onOpenConfig() }.disabled(model.config == nil)
+          .help("Open the configuration file for advanced settings.")
+      }
+      SettingsRow("Reload", note: "Read changes to your configuration and shell environment.", last: true) {
+        Button("Reload Settings") { model.onReload() }.disabled(model.saving)
+          .help("Read changes to your configuration and shell environment.")
+      }
+    }
+  }
 
+  /// Recording, save and error feedback, shown on every page.
+  @ViewBuilder private var status: some View {
+    VStack(alignment: .leading, spacing: 6) {
       if model.recording {
         Label("Dictation controls are available when dictation finishes.", systemImage: "mic.fill")
           .font(.callout)
@@ -132,24 +275,25 @@ struct SettingsView: View {
       }
       if model.saving { ProgressView("Saving settings…").controlSize(.small) }
     }
-    .formStyle(.grouped)
+    .padding(.top, 4)
   }
 
   /// The same choice as the menu's Microphone row, for when that is hidden.
-  @ViewBuilder private var microphonePicker: some View {
+  private var microphoneRow: some View {
     let choice = model.microphoneChoice
-    Picker("Microphone", selection: Binding(get: { choice.stored?.uid ?? "" },
-                                            set: { model.selectMicrophone(uid: $0.isEmpty ? nil : $0) })) {
-      ForEach(Array(choice.options.enumerated()), id: \.offset) { index, option in
-        Text(option.detail.map { "\(option.title) (\($0))" } ?? option.title)
-          .tag(option.uid ?? "")
-          .disabled(!option.connected)
-        if index == 0, choice.options.count > 1 { Divider() }
+    return SettingsRow("Microphone", footnote: choice.note) {
+      Picker("Microphone", selection: Binding(get: { choice.stored?.uid ?? "" },
+                                              set: { model.selectMicrophone(uid: $0.isEmpty ? nil : $0) })) {
+        ForEach(Array(choice.options.enumerated()), id: \.offset) { index, option in
+          Text(option.detail.map { "\(option.title) (\($0))" } ?? option.title)
+            .tag(option.uid ?? "")
+            .disabled(!option.connected)
+          if index == 0, choice.options.count > 1 { Divider() }
+        }
       }
-    }
-    .help("Takes record from this input. A change applies from the next take.")
-    if let note = choice.note {
-      Text(note).font(.caption).foregroundStyle(.secondary)
+      .labelsHidden()
+      .frame(maxWidth: 250)
+      .help("Takes record from this input. A change applies from the next take.")
     }
   }
 
@@ -179,4 +323,102 @@ struct SettingsView: View {
     Binding(get: { value }, set: { model.save(key, $0 ? "true" : "false") })
   }
 
+}
+
+// MARK: Building blocks
+
+/// A sidebar page: ring mark and title, tinted ember when selected.
+private struct SidebarRow: View {
+  let page: SettingsPage
+  let selected: Bool
+  let action: () -> Void
+  // Not @State: the Command Line Tools have no SwiftUI macro plugin.
+  @StateObject private var hover = Hover()
+
+  var body: some View {
+    Button(action: action) {
+      HStack(spacing: 9) {
+        RingMark(symbol: page.symbol, size: 20, tint: selected ? Ember.accent : Ink.color.opacity(0.7))
+        Text(page.title)
+          .fontWeight(selected ? .semibold : .regular)
+          .foregroundStyle(selected ? Ember.accent : Color.primary)
+        Spacer(minLength: 0)
+      }
+      .padding(.horizontal, 8)
+      .padding(.vertical, 6)
+      .background(RoundedRectangle(cornerRadius: 7, style: .continuous)
+        .fill(selected ? Ember.accent.opacity(0.14) : hover.active ? Ink.track : .clear))
+      .contentShape(Rectangle())
+    }
+    .buttonStyle(.plain)
+    .onHover { hover.active = $0 }
+    .accessibilityLabel(page.title)
+    .accessibilityAddTraits(selected ? .isSelected : [])
+  }
+
+  private final class Hover: ObservableObject {
+    @Published var active = false
+  }
+}
+
+/// A group of rows under a small caps label.
+private struct SettingsGroup<Content: View>: View {
+  let title: String
+  @ViewBuilder let content: Content
+
+  init(_ title: String, @ViewBuilder content: () -> Content) {
+    self.title = title
+    self.content = content()
+  }
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 0) {
+      Ink.label(title).padding(.bottom, 4)
+      content
+    }
+    .padding(.bottom, 18)
+  }
+}
+
+/// Title and optional note on the left, the control on the right.
+private struct SettingsRow<Control: View>: View {
+  let title: String
+  var note: String?
+  /// A note under the whole row, for text too long beside the control.
+  var footnote: String?
+  var last = false
+  @ViewBuilder let control: Control
+
+  init(_ title: String, note: String? = nil, footnote: String? = nil, last: Bool = false,
+       @ViewBuilder control: () -> Control) {
+    self.title = title
+    self.note = note
+    self.footnote = footnote
+    self.last = last
+    self.control = control()
+  }
+
+  var body: some View {
+    VStack(spacing: 0) {
+      HStack(alignment: .center, spacing: 16) {
+        VStack(alignment: .leading, spacing: 2) {
+          Text(title).fixedSize()
+          if let note {
+            Text(note).font(.caption).foregroundStyle(.secondary)
+              .fixedSize(horizontal: false, vertical: true)
+          }
+        }
+        Spacer(minLength: 8)
+        control
+      }
+      .padding(.vertical, 7)
+      if let footnote {
+        Text(footnote).font(.caption).foregroundStyle(.secondary)
+          .fixedSize(horizontal: false, vertical: true)
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .padding(.bottom, 7)
+      }
+      if !last { Rule() }
+    }
+  }
 }

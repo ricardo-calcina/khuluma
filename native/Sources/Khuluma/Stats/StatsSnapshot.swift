@@ -66,11 +66,19 @@ enum StatsSnapshot {
       save("app-vocabulary", view: AnyView(AppView(stats: full, settings: local, navigation: vocabularyTab,
                                                    vocabulary: VocabularyModel(settings: local))),
            width: 560, height: 634)
-      for (name, model) in [("local", local), ("cloud", cloud), ("key-missing", missingKey)] {
+      // Each Settings page, plus the Scribe variants of Dictation.
+      for page in SettingsPage.allCases {
+        let model = try UISettingsFixture().model()
+        model.page = page
+        save("settings-\(page.rawValue)", view: AnyView(SettingsView(model: model)), width: 560, height: 634)
+      }
+      for (name, model) in [("dictation-cloud", cloud), ("dictation-key-missing", missingKey)] {
+        model.page = .dictation
         save("settings-\(name)", view: AnyView(SettingsView(model: model)), width: 560, height: 634)
       }
       // A chosen microphone that isn't connected: still chosen, with a note.
       let missingMicrophone = try UISettingsFixture().model()
+      missingMicrophone.page = .dictation
       missingMicrophone.selectMicrophone(PreviewInputs.missing)
       save("settings-microphone-missing", view: AnyView(SettingsView(model: missingMicrophone)), width: 560, height: 634)
       save("vocabulary", view: AnyView(VocabularyView(model: VocabularyModel(settings: local), settings: local)),

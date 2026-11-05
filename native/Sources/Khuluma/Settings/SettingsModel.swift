@@ -19,6 +19,8 @@ final class SettingsModel: ObservableObject {
   @Published var message: String?
   @Published var failed = false
   @Published var loginStatus = LoginItem.status
+  /// The Settings tab's page. Kept here so it survives tab switches; not saved.
+  @Published var page: SettingsPage = .dictation
   var onSave: (String, String) -> Void = { _, _ in }
   var onReload: () -> Void = {}
   var onToggleLogin: () -> Void = {}
