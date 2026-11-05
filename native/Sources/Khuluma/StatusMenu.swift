@@ -534,7 +534,7 @@ struct MenuSummary: View {
   private var content: some View {
     VStack(alignment: .leading, spacing: 10) {
       // The period is chosen in Settings → Appearance; the labels name it.
-      HStack(spacing: 12) {
+      HStack(alignment: .top, spacing: 12) {
         metric(today ? "Words today" : "Total words", value: figures.map { $0.words.formatted() } ?? "–")
         metric(today ? "Saved today" : "Time saved", value: timeSaved)
           .help("Estimated time saved compared with typing at \(stats.stats?.lifetime.typingWPM ?? 40) words per minute, including delivery time.")
@@ -568,9 +568,13 @@ struct MenuSummary: View {
   }
 
   private func metric(_ title: String, value: String) -> some View {
-    VStack(spacing: 3) {
-      Text(title).font(.caption).foregroundStyle(.secondary)
-      Text(value).font(.system(size: 22, weight: .semibold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
+    VStack(spacing: 4) {
+      Text(value)
+        .font(.system(size: 24, weight: .semibold, design: .rounded))
+        .monospacedDigit()
+        .lineLimit(1)
+        .minimumScaleFactor(0.6)
+      Ink.label(title)
     }
     .frame(maxWidth: .infinity)
     .accessibilityElement(children: .combine)
@@ -584,7 +588,13 @@ struct MenuSummary: View {
     if let text = model.activity {
       // While recording, Cancel sits on the same row, trailing and centred on the label.
       HStack(alignment: .center, spacing: 8) {
-        Label(text, systemImage: model.recording ? "mic.fill" : "waveform").font(.callout)
+        Label {
+          Text(text)
+        } icon: {
+          Image(systemName: model.recording ? "mic.fill" : "waveform")
+            .foregroundStyle(model.recording ? Ember.red : Color.primary)
+        }
+        .font(.callout)
         if model.recording {
           Spacer(minLength: 8)
           cancelRecording
@@ -636,7 +646,7 @@ struct MenuFooter: View {
       Toggle("Auto-send", isOn: Binding(
         get: { settings.config?.inline.autosend ?? false },
         set: { settings.save("inline.autosend", $0 ? "true" : "false") }))
-        .toggleStyle(.switch).controlSize(.mini)
+        .toggleStyle(.switch).controlSize(.mini).tint(Ember.accent)
         .font(.caption).foregroundStyle(.secondary)
         .disabled(!settings.editable)
         .help(autosendHelp)
@@ -672,10 +682,11 @@ private struct WeekBars: View {
         let isToday = index == days.count - 1
         VStack(spacing: 3) {
           ZStack(alignment: .bottom) {
-            Capsule().fill(Color(nsColor: .quaternaryLabelColor)).frame(height: 2)
+            Capsule().fill(Ink.track).frame(height: 2)
             if day.words > 0 {
-              RoundedRectangle(cornerRadius: 2)
-                .fill(Color.accentColor.opacity(isToday ? 1 : 0.6))
+              RoundedRectangle(cornerRadius: 2, style: .continuous)
+                .fill(Ember.vertical)
+                .opacity(isToday ? 1 : 0.8)
                 .frame(height: max(3, 22 * CGFloat(day.words) / CGFloat(peak)))
             }
           }
@@ -715,8 +726,8 @@ private struct MenuIconButtonStyle: ButtonStyle {
         .background {
           RoundedRectangle(cornerRadius: 5)
             .fill(configuration.isPressed
-                  ? Color(nsColor: .tertiaryLabelColor)
-                  : (hover.active ? Color(nsColor: .quaternaryLabelColor) : .clear))
+                  ? Ink.color.opacity(0.14)
+                  : (hover.active ? Ink.track : .clear))
         }
         .onHover { hover.active = $0 }
     }
