@@ -45,7 +45,7 @@ A small Mac utility you open for an answer and close immediately. A shallow, arr
 
 ## Colors
 
-Use primary and secondary text, native menu material, windowBackgroundColor, quaternary dividers and system accent for selection. Stats draws in one ink, like the app icon's black line art: the primary label colour at stepped opacities (heatmap 0.2/0.4/0.62/0.88, empty days and tracks 0.07, chart bars 0.45 and 0.9 hovered, milestone 0.85), so it is black on light and white on dark. Warnings use a labelled symbol and legible primary text. The operating system owns exact values, dark mode, increased contrast, reduced transparency and control focus colors. No hardcoded hex palette.
+Use primary and secondary text, native menu material, windowBackgroundColor, quaternary dividers and system accent for selection. Text and marks are one ink, like the app icon's black line art: the primary label colour at stepped opacities (empty days and tracks 0.07, hairlines 0.1), so black on light and white on dark. Colour is the ember ramp, amber #F6B44B, orange #F28C38, flame #EA5F2A, red #D93A26, the same in light and dark: heatmap levels 1–4, words-per-day bars (amber base to flame top), the milestone bar (amber to red) and, as the single accent, flame for selection. Tokens live in `native/Sources/Khuluma/Theme.swift` (Ink, Ember, HeatColor, RingMark, Rule); a blue throat-chakra ramp was tried as the alternative. Warnings use a labelled symbol and legible primary text. The operating system owns exact values, dark mode, increased contrast, reduced transparency and control focus colors. No hardcoded hex palette.
 
 ## Typography
 

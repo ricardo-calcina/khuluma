@@ -107,41 +107,6 @@ private struct SectionRule: View {
   }
 }
 
-/// Khuluma's own mark: a symbol inside an ink ring, like the eyes in the
-/// app icon. Monochrome, so it follows light and dark mode.
-private struct RingMark: View {
-  let symbol: String
-  var size: CGFloat = 24
-
-  var body: some View {
-    Circle()
-      .strokeBorder(Ink.color.opacity(0.85), lineWidth: 1.6)
-      .frame(width: size, height: size)
-      .overlay {
-        Image(systemName: symbol)
-          .font(.system(size: size * 0.42, weight: .semibold))
-          .foregroundStyle(Ink.color.opacity(0.85))
-      }
-      .accessibilityHidden(true)
-  }
-}
-
-/// One ink, in steps of opacity: black on light, white on dark, as the app
-/// icon is black line art.
-enum Ink {
-  static let color = Color.primary
-  static let track = Color.primary.opacity(0.07)
-  /// A small caps label under a figure.
-  static func label(_ text: String) -> some View {
-    Text(text.uppercased())
-      .font(.system(size: 10, weight: .medium))
-      .tracking(0.8)
-      .foregroundStyle(.secondary)
-      .lineLimit(1)
-      .minimumScaleFactor(0.8)
-  }
-}
-
 // MARK: - Hero
 
 /// The lifetime figures, as in the menu: the titles say it's all time.
@@ -408,7 +373,8 @@ private struct WordsPerDay: View {
             Color.clear
             if cell.words > 0 {
               RoundedRectangle(cornerRadius: 2, style: .continuous)
-                .fill(Ink.color.opacity(hover.cell?.date == cell.date ? 0.9 : 0.45))
+                .fill(Ember.vertical)
+                .opacity(hover.cell?.date == cell.date ? 1 : 0.8)
                 .frame(height: max(2, Self.height * Double(cell.words) / Double(peak)))
             }
           }
@@ -424,16 +390,6 @@ private struct WordsPerDay: View {
       .accessibilityHidden(true)
     }
     .frame(maxWidth: .infinity)
-  }
-}
-
-enum HeatColor {
-  /// Faint to solid; the faintest still stands apart from an empty day.
-  static let opacities = [0.2, 0.4, 0.62, 0.88]
-  static let empty = Ink.track
-
-  static func fill(_ level: Int) -> Color {
-    Ink.color.opacity(opacities[min(max(level, 1), opacities.count) - 1])
   }
 }
 
@@ -598,7 +554,7 @@ private struct MilestoneProgressStyle: ProgressViewStyle {
         .fill(Ink.track)
         .overlay(alignment: .leading) {
           Capsule()
-            .fill(Ink.color.opacity(0.85))
+            .fill(Ember.horizontal)
             .frame(width: geometry.size.width * progress)
         }
     }
