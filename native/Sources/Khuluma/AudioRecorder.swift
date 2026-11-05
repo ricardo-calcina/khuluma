@@ -403,7 +403,11 @@ final class AudioRecorder {
 
   private func append(_ buffer: AVAudioPCMBuffer) {
     let format = CaptureFormat(buffer.format)
-    let (current, builtFor, failed, take) = lock.withLock { (converter, converterFormat, converterFailed, takeNumber) }
+    // Explicit self and types: the local `converter` below otherwise makes
+    // this closure a circular reference for some Swift compilers (CI).
+    let (current, builtFor, failed, take): (AVAudioConverter?, CaptureFormat?, Bool, Int) = lock.withLock {
+      (self.converter, self.converterFormat, self.converterFailed, self.takeNumber)
+    }
     guard !failed else { return }
     var converter = current
     if CaptureStartPolicy.needsNewConverter(builtFor: builtFor, buffer: format) {
