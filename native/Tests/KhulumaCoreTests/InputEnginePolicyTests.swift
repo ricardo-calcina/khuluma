@@ -6,20 +6,21 @@ private let yeti: UInt32 = 97
 private let airPods: UInt32 = 120
 
 /// A pinned engine: its unit reports the device itself.
-private func built(_ device: UInt32?, generation: Int = 3, rate: Double = 48_000) -> InputEngineBuild {
-  InputEngineBuild(generation: generation, unitDevice: device, target: device, sampleRate: rate, channels: 1)
-}
-
-private func seen(_ device: UInt32?, running: Bool = false, alive: Bool = true, wanted: UInt32?,
-                  rate: Double = 48_000) -> InputEngineObservation {
-  InputEngineObservation(isRunning: running, unitDevice: device, targetAlive: alive, wanted: wanted,
-                         sampleRate: rate, channels: 1)
+private func pinned(_ device: UInt32, generation: Int = 3, rate: Double = 48_000) -> InputEngineBuild {
+  InputEngineBuild(generation: generation, unitDevice: device, target: .pinned(device), sampleRate: rate, channels: 1)
 }
 
 /// Following the default, the unit reports AVAudioEngine's aggregate, not the default.
 private let aggregate: UInt32 = 112
-private func followingDefault(_ target: UInt32, generation: Int = 3) -> InputEngineBuild {
-  InputEngineBuild(generation: generation, unitDevice: aggregate, target: target, sampleRate: 44_100, channels: 1)
+private func following(_ device: UInt32?, generation: Int = 3, defaultAtStart: UInt32? = nil) -> InputEngineBuild {
+  InputEngineBuild(generation: generation, unitDevice: aggregate, target: .followingDefault(device),
+                   sampleRate: 44_100, channels: 1, defaultAtStart: defaultAtStart)
+}
+
+private func seen(_ unit: UInt32?, running: Bool = false, alive: Bool = true, wanted: InputTarget,
+                  systemDefault: UInt32? = builtIn, rate: Double = 48_000) -> InputEngineObservation {
+  InputEngineObservation(isRunning: running, unitDevice: unit, targetAlive: alive, wanted: wanted,
+                         systemDefault: systemDefault, sampleRate: rate, channels: 1)
 }
 
 struct InputEnginePolicyTests {
@@ -27,76 +28,108 @@ struct InputEnginePolicyTests {
 
   @Test func aSelfInducedNoticeRightAfterPinningIsIgnored() {
     // Pinning Yeti on a fresh engine posts a change; the engine is where we put it.
-    let change = Policy.configurationChanged(notifiedGeneration: 3, built: built(yeti),
-                                             observed: seen(yeti, wanted: yeti), recording: false)
+    let change = Policy.configurationChanged(notifiedGeneration: 3, built: pinned(yeti),
+                                             observed: seen(yeti, wanted: .pinned(yeti)), recording: false)
     #expect(change == .ignore("same device and format (the engine's own device selection)"))
     // The same notice arriving once the take has started must not end it.
-    let during = Policy.configurationChanged(notifiedGeneration: 3, built: built(yeti),
-                                             observed: seen(yeti, running: true, wanted: yeti), recording: true)
+    let during = Policy.configurationChanged(notifiedGeneration: 3, built: pinned(yeti),
+                                             observed: seen(yeti, running: true, wanted: .pinned(yeti)), recording: true)
     #expect(during == .ignore("capture still running on the same device"))
   }
 
   @Test func aLateNoticeFromAReplacedEngineIsIgnored() {
     for recording in [false, true] {
-      let change = Policy.configurationChanged(notifiedGeneration: 2, built: built(yeti, generation: 3),
-                                               observed: seen(builtIn, running: false, wanted: yeti), recording: recording)
-      #expect(change == .ignore("late notice from a replaced engine"))
+      for build in [pinned(yeti, generation: 3), following(builtIn, generation: 3, defaultAtStart: builtIn)] {
+        let change = Policy.configurationChanged(notifiedGeneration: 2, built: build,
+                                                 observed: seen(builtIn, running: false, wanted: .pinned(yeti),
+                                                                systemDefault: airPods),
+                                                 recording: recording)
+        #expect(change == .ignore("late notice from a replaced engine"))
+      }
     }
   }
 
   @Test func idleRebuildsOncePerRealChange() {
     // The default moved (AirPods) while following the default.
-    #expect(Policy.configurationChanged(notifiedGeneration: 3, built: built(builtIn),
-                                        observed: seen(builtIn, wanted: airPods), recording: false)
+    #expect(Policy.configurationChanged(notifiedGeneration: 3, built: following(builtIn),
+                                        observed: seen(aggregate, wanted: .followingDefault(airPods), rate: 44_100),
+                                        recording: false)
             == .rebuild("a different input is wanted"))
-    // The rebuilt engine then reports AirPods: its own notice is ignored, so no loop.
-    #expect(Policy.configurationChanged(notifiedGeneration: 4, built: built(airPods, generation: 4),
-                                        observed: seen(airPods, wanted: airPods), recording: false)
+    // The rebuilt engine follows AirPods: its own notice is ignored, so no loop.
+    #expect(Policy.configurationChanged(notifiedGeneration: 4, built: following(airPods, generation: 4),
+                                        observed: seen(aggregate, wanted: .followingDefault(airPods), rate: 44_100),
+                                        recording: false)
             == .ignore("same device and format (the engine's own device selection)"))
     // The pinned device unplugged.
-    #expect(Policy.configurationChanged(notifiedGeneration: 3, built: built(yeti),
-                                        observed: seen(yeti, alive: false, wanted: builtIn), recording: false)
+    #expect(Policy.configurationChanged(notifiedGeneration: 3, built: pinned(yeti),
+                                        observed: seen(yeti, alive: false, wanted: .followingDefault(builtIn)),
+                                        recording: false)
             == .rebuild("input device disappeared"))
     // Same device, new sample rate.
-    #expect(Policy.configurationChanged(notifiedGeneration: 3, built: built(yeti),
-                                        observed: seen(yeti, wanted: yeti, rate: 44_100), recording: false)
+    #expect(Policy.configurationChanged(notifiedGeneration: 3, built: pinned(yeti),
+                                        observed: seen(yeti, wanted: .pinned(yeti), rate: 44_100), recording: false)
             == .rebuild("input format changed"))
   }
 
-  @Test func aTakeStopsOnlyWhenCaptureReallyBroke() {
-    #expect(Policy.configurationChanged(notifiedGeneration: 3, built: built(builtIn),
-                                        observed: seen(builtIn, running: false, wanted: builtIn), recording: true)
+  @Test func aPinnedTakeStopsOnlyWhenCaptureReallyBroke() {
+    #expect(Policy.configurationChanged(notifiedGeneration: 3, built: pinned(yeti),
+                                        observed: seen(yeti, running: false, wanted: .pinned(yeti)), recording: true)
             == .stopTake("capture stopped"))
-    #expect(Policy.configurationChanged(notifiedGeneration: 3, built: built(builtIn),
-                                        observed: seen(airPods, running: true, wanted: airPods), recording: true)
+    #expect(Policy.configurationChanged(notifiedGeneration: 3, built: pinned(yeti),
+                                        observed: seen(airPods, running: true, wanted: .pinned(yeti)), recording: true)
             == .stopTake("input device changed"))
-    #expect(Policy.configurationChanged(notifiedGeneration: 3, built: built(yeti),
-                                        observed: seen(yeti, running: true, alive: false, wanted: builtIn), recording: true)
+    #expect(Policy.configurationChanged(notifiedGeneration: 3, built: pinned(yeti),
+                                        observed: seen(yeti, running: true, alive: false, wanted: .followingDefault(builtIn)),
+                                        recording: true)
             == .stopTake("input device disappeared"))
-    // The default moved but the pinned take keeps running: finish it, rebuild after.
-    #expect(Policy.configurationChanged(notifiedGeneration: 3, built: built(builtIn),
-                                        observed: seen(builtIn, running: true, wanted: airPods), recording: true)
-            == .rebuild("a different input is wanted"))
+    // The default moved but the pinned take keeps running: finish it, nothing to redo.
+    #expect(Policy.configurationChanged(notifiedGeneration: 3, built: pinned(yeti),
+                                        observed: seen(yeti, running: true, wanted: .pinned(yeti), systemDefault: airPods),
+                                        recording: true)
+            == .ignore("capture still running on the same device"))
   }
 
-  @Test func anEngineFollowingTheDefaultIsJudgedByItsTarget() {
-    // Unit reports the aggregate; nothing changed: no rebuild, no loop.
-    #expect(Policy.configurationChanged(notifiedGeneration: 3, built: followingDefault(builtIn),
-                                        observed: seen(aggregate, wanted: builtIn, rate: 44_100), recording: false)
-            == .ignore("same device and format (the engine's own device selection)"))
-    #expect(!Policy.rebuildBeforeTake(flagged: false, built: followingDefault(builtIn), wanted: builtIn))
-    // The default moved to AirPods.
-    #expect(Policy.configurationChanged(notifiedGeneration: 3, built: followingDefault(builtIn),
-                                        observed: seen(aggregate, wanted: airPods, rate: 44_100), recording: false)
+  @Test func aDefaultTakeStopsWhenTheDefaultMovesLikeBefore() {
+    // The aggregate keeps its ID and format when its input moves: compare the default itself.
+    let take = following(builtIn, defaultAtStart: builtIn)
+    #expect(Policy.configurationChanged(notifiedGeneration: 3, built: take,
+                                        observed: seen(aggregate, running: true, wanted: .followingDefault(airPods),
+                                                       systemDefault: airPods, rate: 44_100),
+                                        recording: true)
+            == .stopTake("system default input changed"))
+    #expect(Policy.configurationChanged(notifiedGeneration: 3, built: take,
+                                        observed: seen(aggregate, running: false, wanted: .followingDefault(builtIn),
+                                                       systemDefault: builtIn, rate: 44_100),
+                                        recording: true)
+            == .stopTake("capture stopped"))
+    // Same default, still running (e.g. another device was plugged in): keep recording.
+    #expect(Policy.configurationChanged(notifiedGeneration: 3, built: take,
+                                        observed: seen(aggregate, running: true, wanted: .followingDefault(builtIn),
+                                                       systemDefault: builtIn, rate: 44_100),
+                                        recording: true)
+            == .ignore("capture still running on the same default input"))
+  }
+
+  @Test func choosingTheCurrentDefaultExplicitlyPinsIt() {
+    // Following the default on the built-in mic, then choosing that same mic:
+    // the device matches but the mode doesn't, so the engine is rebuilt pinned.
+    #expect(Policy.rebuildBeforeTake(flagged: false, built: following(builtIn), wanted: .pinned(builtIn)))
+    #expect(Policy.configurationChanged(notifiedGeneration: 3, built: following(builtIn),
+                                        observed: seen(aggregate, wanted: .pinned(builtIn), rate: 44_100), recording: false)
             == .rebuild("a different input is wanted"))
-    #expect(Policy.rebuildBeforeTake(flagged: false, built: followingDefault(builtIn), wanted: airPods))
+    // And back to System Default while the default is still that mic.
+    #expect(Policy.rebuildBeforeTake(flagged: false, built: pinned(builtIn), wanted: .followingDefault(builtIn)))
+    // Retrying a failed choice that equals the default (fallback followed the default).
+    #expect(Policy.rebuildBeforeTake(flagged: false, built: following(builtIn), wanted: .pinned(builtIn)))
   }
 
   @Test func beforeATake() {
-    #expect(!Policy.rebuildBeforeTake(flagged: false, built: built(yeti), wanted: yeti))
-    #expect(Policy.rebuildBeforeTake(flagged: true, built: built(yeti), wanted: yeti))
-    #expect(Policy.rebuildBeforeTake(flagged: false, built: built(builtIn), wanted: yeti))
-    #expect(Policy.rebuildBeforeTake(flagged: false, built: built(nil), wanted: builtIn))
+    #expect(!Policy.rebuildBeforeTake(flagged: false, built: pinned(yeti), wanted: .pinned(yeti)))
+    #expect(!Policy.rebuildBeforeTake(flagged: false, built: following(builtIn), wanted: .followingDefault(builtIn)))
+    #expect(Policy.rebuildBeforeTake(flagged: true, built: pinned(yeti), wanted: .pinned(yeti)))
+    #expect(Policy.rebuildBeforeTake(flagged: false, built: pinned(builtIn), wanted: .pinned(yeti)))
+    #expect(Policy.rebuildBeforeTake(flagged: false, built: following(nil), wanted: .followingDefault(builtIn)))
+    #expect(Policy.rebuildBeforeTake(flagged: false, built: following(builtIn), wanted: .followingDefault(airPods)))
   }
 
   @Test func selectionIsCheckedAgainstTheReadBack() {
@@ -108,5 +141,13 @@ struct InputEnginePolicyTests {
             == .fallBack("the engine reports device 81, not 97"))
     #expect(Policy.selection(requested: yeti, setStatus: 0, actual: nil) == .fallBack("the engine reports no device"))
     #expect(Policy.selection(requested: yeti, setStatus: nil, actual: nil) == .fallBack("the device was not set"))
+  }
+
+  @Test func aDeviceIsAliveOnlyWhenCoreAudioSaysSo() {
+    #expect(CoreAudioReading.isAlive(1))
+    #expect(!CoreAudioReading.isAlive(0))
+    // A removed device often can't be queried at all: that is not alive.
+    #expect(!CoreAudioReading.isAlive(nil))
+    #expect(!CoreAudioReading.isAlive(2))
   }
 }

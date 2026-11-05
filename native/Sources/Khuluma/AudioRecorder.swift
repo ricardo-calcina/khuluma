@@ -20,7 +20,8 @@ final class AudioRecorder {
   /// Bumped for every engine; configuration notices carry the one they came from.
   private var generation = 0
   /// What the current engine was built for, read back from its input unit.
-  private var built = InputEngineBuild(generation: 0, unitDevice: nil, target: nil, sampleRate: 0, channels: 0)
+  private var built = InputEngineBuild(generation: 0, unitDevice: nil, target: .followingDefault(nil),
+                                                sampleRate: 0, channels: 0)
   /// The chosen device's UID when the current engine is pinned to it.
   private var pinnedUID: String?
   /// Why the current engine isn't on the chosen device, for the take log.
@@ -97,17 +98,18 @@ final class AudioRecorder {
     let format = try? ObjCException.catching { engine.inputNode.inputFormat(forBus: 0) }
     return InputEngineObservation(
       isRunning: engine.isRunning, unitDevice: Self.unitDevice(of: engine),
-      targetAlive: built.target.map { AudioInputDevices.isAlive($0) } ?? true,
-      wanted: intended().device, sampleRate: format?.sampleRate ?? 0, channels: format?.channelCount ?? 0)
+      targetAlive: built.target.device.map { AudioInputDevices.isAlive($0) } ?? true,
+      wanted: intended().target, systemDefault: AudioInputDevices.defaultInputID(),
+      sampleRate: format?.sampleRate ?? 0, channels: format?.channelCount ?? 0)
   }
 
   /// The device the next take should use: the chosen one if connected and
   /// not failed, otherwise the system default.
-  private func intended() -> (device: AudioDeviceID?, uid: String?) {
+  private func intended() -> (target: InputTarget, uid: String?) {
     if let uid = preferredInput()?.uid, uid != failedUID, let device = AudioInputDevices.deviceID(uid: uid) {
-      return (device, uid)
+      return (.pinned(device), uid)
     }
-    return (AudioInputDevices.defaultInputID(), nil)
+    return (.followingDefault(AudioInputDevices.defaultInputID()), nil)
   }
 
   /// The device the input unit reports (AVAudioEngine's aggregate when following the default).
@@ -164,26 +166,28 @@ final class AudioRecorder {
     self.engine = engine
     observeConfiguration()
     let preferred = preferredInput()
-    let target: (device: AudioDeviceID?, uid: String?) = useChoice ? intended() : (AudioInputDevices.defaultInputID(), nil)
+    let intent: (target: InputTarget, uid: String?) =
+      useChoice ? intended() : (.followingDefault(AudioInputDevices.defaultInputID()), nil)
+    let target = intent.target
     var setStatus: Int32?
-    if target.uid != nil, var device = target.device {
+    if target.pinned, var device = target.device {
       setStatus = (try? ObjCException.catching { () -> OSStatus in
         guard let unit = engine.inputNode.audioUnit else { return OSStatus(kAudioUnitErr_Uninitialized) }
         return AudioUnitSetProperty(unit, kAudioOutputUnitProperty_CurrentDevice, kAudioUnitScope_Global, 0,
                                     &device, UInt32(MemoryLayout<AudioDeviceID>.size))
       }) ?? OSStatus(kAudioUnitErr_InvalidProperty)
     }
-    let requested = target.uid == nil ? nil : target.device
+    let requested = target.pinned ? target.device : nil
     switch InputEnginePolicy.selection(requested: requested, setStatus: setStatus, actual: Self.unitDevice(of: engine)) {
     case .fallBack(let why):
-      let name = preferred?.name ?? target.uid ?? "the chosen microphone"
+      let name = preferred?.name ?? intent.uid ?? "the chosen microphone"
       Log.write("audio: could not use \(name): \(why); discarding that engine for the system default")
-      failedUID = target.uid
+      failedUID = intent.uid
       fallbackReason = why
       retire(engine)
       return build(useChoice: false)
     case .accepted:
-      pinnedUID = target.uid
+      pinnedUID = intent.uid
       fallbackReason = nil
     case .followDefault:
       pinnedUID = nil
@@ -194,28 +198,30 @@ final class AudioRecorder {
         fallbackReason = nil
       }
     }
-    var description = describe(unit: Self.unitDevice(of: engine), target: target.device)
+    var description = describe(unit: Self.unitDevice(of: engine), target: target)
     do {
       let format = try ObjCException.catching { () -> AVAudioFormat in
         let input = engine.inputNode
         engine.prepare()
         return input.inputFormat(forBus: 0)
       }
-      built = InputEngineBuild(generation: generation, unitDevice: Self.unitDevice(of: engine), target: target.device,
+      built = InputEngineBuild(generation: generation, unitDevice: Self.unitDevice(of: engine), target: target,
                                sampleRate: format.sampleRate, channels: format.channelCount)
       description += " (\(Int(format.sampleRate)) Hz, \(format.channelCount) ch)"
     } catch {
-      built = InputEngineBuild(generation: generation, unitDevice: Self.unitDevice(of: engine), target: target.device,
+      built = InputEngineBuild(generation: generation, unitDevice: Self.unitDevice(of: engine), target: target,
                                sampleRate: 0, channels: 0)
       description += " (not prepared: \(error.localizedDescription))"
     }
     return description
   }
 
-  /// The input by name: the pinned device, or the default this engine follows.
-  private func describe(unit: AudioDeviceID?, target: AudioDeviceID?) -> String {
-    if pinnedUID != nil, let unit { return AudioInputDevices.name(of: unit) }
-    return target.map { "\(AudioInputDevices.name(of: $0)) (system default)" } ?? "no default input"
+  /// The input by name: the pinned device as the unit reports it, or the
+  /// default this engine follows (`defaultDevice`, read when it matters).
+  private func describe(unit: AudioDeviceID?, target: InputTarget, defaultDevice: AudioDeviceID?? = nil) -> String {
+    if target.pinned, let unit { return AudioInputDevices.name(of: unit) }
+    let device = defaultDevice ?? target.device
+    return device.map { "\(AudioInputDevices.name(of: $0)) (system default)" } ?? "no default input"
   }
 
   /// The chosen microphone or the connected inputs changed: retry a failed
@@ -229,7 +235,7 @@ final class AudioRecorder {
 
   private func rebuildIfStale() {
     choiceChangedDuringTake = false
-    guard InputEnginePolicy.rebuildBeforeTake(flagged: false, built: built, wanted: intended().device) else { return }
+    guard InputEnginePolicy.rebuildBeforeTake(flagged: false, built: built, wanted: intended().target) else { return }
     rebuild(reason: "microphone choice changed")
   }
 
@@ -241,7 +247,7 @@ final class AudioRecorder {
   @discardableResult
   func start(onFirstAudio: (() -> Void)? = nil) throws -> Double {
     guard !isRecording else { return 0 }
-    if InputEnginePolicy.rebuildBeforeTake(flagged: needsRebuild, built: built, wanted: intended().device) {
+    if InputEnginePolicy.rebuildBeforeTake(flagged: needsRebuild, built: built, wanted: intended().target) {
       rebuild(reason: needsRebuild ? "input changed since the last take" : "microphone choice changed since the last take")
     }
     return try RetryOnce.run({ try startEngine(onFirstAudio: onFirstAudio) }, recover: { error in
@@ -295,16 +301,18 @@ final class AudioRecorder {
   /// take goes on, and the next one uses the system default.
   private func noteTakeInput(_ engine: AVAudioEngine) {
     let actual = Self.unitDevice(of: engine)
-    if let pinnedUID, case .fallBack(let why) = InputEnginePolicy.selection(
-      requested: built.target, setStatus: 0, actual: actual) {
+    if built.target.pinned, let pinnedUID, case .fallBack(let why) = InputEnginePolicy.selection(
+      requested: built.target.device, setStatus: 0, actual: actual) {
       Log.write("audio: the chosen microphone didn't hold after start (\(why)); next take uses the system default")
       failedUID = pinnedUID
       fallbackReason = why
       needsRebuild = true
     }
-    // Later notices compare against what is really capturing.
+    // Later notices compare against what is really capturing. Following the
+    // default, that is the default input read now, after start.
     built.unitDevice = actual
-    inputName = describe(unit: actual, target: built.target)
+    built.defaultAtStart = built.target.pinned ? nil : AudioInputDevices.defaultInputID()
+    inputName = describe(unit: actual, target: built.target, defaultDevice: .some(built.defaultAtStart))
     let requested = preferredInput().map(\.name) ?? "system default"
     Log.write("audio: take input requested=\(requested) actual=\(inputName) fallback=\(fallbackReason ?? "none")")
   }

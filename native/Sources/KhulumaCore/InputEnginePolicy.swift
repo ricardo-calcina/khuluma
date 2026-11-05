@@ -1,3 +1,28 @@
+/// The input an engine is meant for: a pinned device (the chosen one), or
+/// following the system default (with the default it resolved to). The mode
+/// matters on its own: following A and pinned to A behave differently when
+/// the default later moves.
+public struct InputTarget: Equatable, Sendable {
+  public var device: UInt32?
+  public var pinned: Bool
+
+  public init(device: UInt32?, pinned: Bool) {
+    self.device = device
+    self.pinned = pinned
+  }
+
+  public static func pinned(_ device: UInt32) -> InputTarget { InputTarget(device: device, pinned: true) }
+  public static func followingDefault(_ device: UInt32?) -> InputTarget { InputTarget(device: device, pinned: false) }
+}
+
+/// CoreAudio readings mapped to decisions; a failed query (nil) is never
+/// taken as good news.
+public enum CoreAudioReading {
+  /// `kAudioDevicePropertyDeviceIsAlive`: alive only when it reads exactly 1.
+  /// A removed device often can't be queried at all.
+  public static func isAlive(_ value: UInt32?) -> Bool { value == 1 }
+}
+
 /// What an input engine was built for. `unitDevice` is what its input unit
 /// reported after any selection: the chosen device when pinned, but
 /// AVAudioEngine's own aggregate when following the default (verified on
@@ -6,16 +31,21 @@
 public struct InputEngineBuild: Equatable, Sendable {
   public var generation: Int
   public var unitDevice: UInt32?
-  public var target: UInt32?
+  public var target: InputTarget
   public var sampleRate: Double
   public var channels: UInt32
+  /// Following the default: the system default input read right after the
+  /// take started (the aggregate keeps its ID when its input moves).
+  public var defaultAtStart: UInt32?
 
-  public init(generation: Int, unitDevice: UInt32?, target: UInt32?, sampleRate: Double, channels: UInt32) {
+  public init(generation: Int, unitDevice: UInt32?, target: InputTarget, sampleRate: Double, channels: UInt32,
+              defaultAtStart: UInt32? = nil) {
     self.generation = generation
     self.unitDevice = unitDevice
     self.target = target
     self.sampleRate = sampleRate
     self.channels = channels
+    self.defaultAtStart = defaultAtStart
   }
 }
 
@@ -26,18 +56,21 @@ public struct InputEngineObservation: Equatable, Sendable {
   public var unitDevice: UInt32?
   /// Whether the engine's target device still exists.
   public var targetAlive: Bool
-  /// The device the recorder intends to use now: the chosen one if usable,
-  /// otherwise the current system default.
-  public var wanted: UInt32?
+  /// What the recorder intends now: the chosen device pinned if usable,
+  /// otherwise following the current system default.
+  public var wanted: InputTarget
+  /// The system default input now.
+  public var systemDefault: UInt32?
   public var sampleRate: Double
   public var channels: UInt32
 
-  public init(isRunning: Bool, unitDevice: UInt32?, targetAlive: Bool, wanted: UInt32?,
-              sampleRate: Double, channels: UInt32) {
+  public init(isRunning: Bool, unitDevice: UInt32?, targetAlive: Bool, wanted: InputTarget,
+              systemDefault: UInt32? = nil, sampleRate: Double, channels: UInt32) {
     self.isRunning = isRunning
     self.unitDevice = unitDevice
     self.targetAlive = targetAlive
     self.wanted = wanted
+    self.systemDefault = systemDefault
     self.sampleRate = sampleRate
     self.channels = channels
   }
@@ -59,6 +92,13 @@ public enum InputEnginePolicy {
   public static func configurationChanged(notifiedGeneration: Int, built: InputEngineBuild,
                                           observed: InputEngineObservation, recording: Bool) -> Change {
     guard notifiedGeneration == built.generation else { return .ignore("late notice from a replaced engine") }
+    if recording, !built.target.pinned {
+      // Following the default, as before pinning existed: the aggregate keeps
+      // its ID and format when its input moves, so compare the default itself.
+      if !observed.isRunning { return .stopTake("capture stopped") }
+      if observed.systemDefault != built.defaultAtStart { return .stopTake("system default input changed") }
+      return .ignore("capture still running on the same default input")
+    }
     let moved = observed.unitDevice != built.unitDevice || !observed.targetAlive
     let reformatted = observed.sampleRate != built.sampleRate || observed.channels != built.channels
     let stale = observed.wanted != built.target
@@ -77,8 +117,8 @@ public enum InputEnginePolicy {
   }
 
   /// Before a take: rebuild if a change was flagged or the engine is on
-  /// another device than the one wanted now.
-  public static func rebuildBeforeTake(flagged: Bool, built: InputEngineBuild, wanted: UInt32?) -> Bool {
+  /// another device, or in another mode, than the one wanted now.
+  public static func rebuildBeforeTake(flagged: Bool, built: InputEngineBuild, wanted: InputTarget) -> Bool {
     flagged || built.target != wanted
   }
 

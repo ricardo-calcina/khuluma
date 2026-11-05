@@ -83,7 +83,10 @@ enum AudioInputDevices {
     }
     return string(device, kAudioDevicePropertyDeviceUID)?.hasPrefix("CADefaultDeviceAggregate") == true
   }
-  static func isAlive(_ device: AudioDeviceID) -> Bool { uint32(device, kAudioDevicePropertyDeviceIsAlive) != 0 }
+  /// A device that can't be queried (often a removed one) is not alive.
+  static func isAlive(_ device: AudioDeviceID) -> Bool {
+    CoreAudioReading.isAlive(uint32(device, kAudioDevicePropertyDeviceIsAlive))
+  }
 
   private static func uint32(_ object: AudioObjectID, _ selector: AudioObjectPropertySelector) -> UInt32? {
     var address = address(selector)
