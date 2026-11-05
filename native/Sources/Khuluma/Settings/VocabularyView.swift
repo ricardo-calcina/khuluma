@@ -9,14 +9,19 @@ struct VocabularyView: View {
   @ObservedObject var model: VocabularyModel
   @ObservedObject var settings: SettingsModel
   @FocusState private var focus: Column?
+  @FocusState private var tabFocus: VocabularyModel.Section?
   private enum Column: Hashable { case heard, write }
+  private static let statusWidth: CGFloat = 16
+  private static let cellInset: CGFloat = 8
+  /// Table spacing and cell insets around the status column (measured from snapshots).
+  private static let statusGap: CGFloat = 17
   private typealias Entry = VocabularyModel.Entry
 
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
       header
       tabStrip
-      if #available(macOS 14.4, *) { columnHeader }
+      columnHeader
       table
       controlBar
       if model.section == .examples {
@@ -122,29 +127,55 @@ struct VocabularyView: View {
             .contentShape(Rectangle())
           }
           .buttonStyle(.plain)
+          .focusable()
+          .focusEffectDisabled()
+          .focused($tabFocus, equals: section)
+          .overlay {
+            if tabFocus == section {
+              RoundedRectangle(cornerRadius: 4).stroke(Ember.accent.opacity(0.7), lineWidth: 1.5).padding(.horizontal, -4)
+            }
+          }
           .accessibilityAddTraits(selected ? .isSelected : [])
         }
         Spacer(minLength: 0)
       }
+      .onKeyPress(.leftArrow) { moveTab(-1) }
+      .onKeyPress(.rightArrow) { moveTab(1) }
+      .accessibilityElement(children: .contain)
+      .accessibilityLabel("Section")
       .disabled(!model.canEdit)
       Rule()
     }
   }
 
-  /// Our own column titles, drawn above the table when the native header is
-  /// hidden (macOS 14.4+). Offsets match the table's cell insets.
+  /// Arrow keys move between sections; focus and selection move together.
+  private func moveTab(_ step: Int) -> KeyPress.Result {
+    guard model.canEdit, let current = tabFocus else { return .ignored }
+    let all = VocabularyModel.Section.allCases
+    guard let index = all.firstIndex(of: current) else { return .ignored }
+    let next = all[(index + step + all.count) % all.count]
+    model.changeSection(next)
+    tabFocus = next
+    return .handled
+  }
+
+  /// Our own column titles, drawn above the table (the native header is
+  /// hidden). The Table gives its flexible columns equal shares of the width
+  /// left after fixed ones, so the header does the same: equal flexible
+  /// frames after the fixed status column. Only the constant cell inset is
+  /// a point value, so it holds at any window width.
   private var columnHeader: some View {
     HStack(spacing: 0) {
       switch model.section {
       case .fillers:
         Ink.label("Filler").frame(maxWidth: .infinity, alignment: .leading)
       case .examples:
-        Color.clear.frame(width: 33, height: 1)
+        Color.clear.frame(width: Self.statusWidth + Self.statusGap, height: 1)
         Ink.label("Said").frame(maxWidth: .infinity, alignment: .leading)
-        Ink.label("Expect").padding(.leading, 8).frame(maxWidth: .infinity, alignment: .leading)
+        Ink.label("Expect").padding(.leading, Self.cellInset).frame(maxWidth: .infinity, alignment: .leading)
       case .brands, .words:
         Ink.label("Heard as").frame(maxWidth: .infinity, alignment: .leading)
-        Ink.label("Write as").padding(.leading, 8).frame(maxWidth: .infinity, alignment: .leading)
+        Ink.label("Write as").padding(.leading, Self.cellInset).frame(maxWidth: .infinity, alignment: .leading)
       }
     }
     .padding(.leading, 16).padding(.trailing, 16)
@@ -165,7 +196,7 @@ struct VocabularyView: View {
         }
       case .examples:
         Table(model.rows, selection: selection) {
-          TableColumn("") { exampleStatus($0) }.width(16)
+          TableColumn("") { exampleStatus($0) }.width(Self.statusWidth)
           TableColumn("Said") { cell($0, .heard) }
           TableColumn("Expect") { cell($0, .write) }
         }
@@ -177,7 +208,7 @@ struct VocabularyView: View {
       }
     }
     .tableStyle(.inset(alternatesRowBackgrounds: false))
-    .modifier(HiddenColumnHeaders())
+    .tableColumnHeaders(.hidden)
     .scrollContentBackground(.hidden)
     .frame(minHeight: 120)
     .background(TableFocus(request: model.tableFocusRequest))
@@ -525,13 +556,5 @@ private struct SearchField: NSViewRepresentable {
       guard let field = notification.object as? NSSearchField else { return }
       text.wrappedValue = field.stringValue
     }
-  }
-}
-
-/// Hides the native column header where the OS allows it; our own row
-/// replaces it. Before macOS 14.4 the native header stays.
-private struct HiddenColumnHeaders: ViewModifier {
-  func body(content: Content) -> some View {
-    if #available(macOS 14.4, *) { content.tableColumnHeaders(.hidden) } else { content }
   }
 }
