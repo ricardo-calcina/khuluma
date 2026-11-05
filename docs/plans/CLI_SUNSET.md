@@ -24,9 +24,9 @@ All ten go once the app is independent; none survive as CLI commands.
 
 | Feature | CLI today | In the app today | Call |
 |---|---|---|---|
-| **File transcription** `transcribe <file>…` with `-q`, `--format json`, `-o`, `--out-dir`, `--beside`, `-c`, `--force`, stdin `-`, `--no-tail-rescue` | yes; the transcribe-audio skill (Claude and Codex copies) runs `khuluma transcribe "<file>" -q [--format json] [-o file]` | no | **Keep.** A helper in the app bundle, linked to `~/.local/bin/khuluma` from Settings, with the same call shape (`transcribe <file>… -q`, `--format json`, `-o`) so the skill keeps working. The link must not replace the CLI at that path until the CLI is retired (the app calls it there today). A mac-tools to-do wants segment timestamps from it later. |
+| **File transcription** `transcribe <file>…` with `-q`, `--format json`, `-o`, `--out-dir`, `--beside`, `-c`, `--force`, stdin `-`, `--no-tail-rescue` | yes; the transcribe-audio skill (Claude and Codex copies) runs `khuluma transcribe "<file>" -q [--format json] [-o file]` | no | **Keep.** A helper in the app bundle, linked to `~/.local/bin/khuluma` from Settings, with the same call shape (`transcribe <file>… -q`, `--format json`, `-o`) so the skill keeps working. Flags (Ricardo, 2026-11-05): `-q`, `--format json`, `-o`, several files, `--beside`, `--force`; `-c`, `--out-dir`, stdin `-` and `--no-tail-rescue` are dropped. The link must not replace the CLI at that path until the CLI is retired (the app calls it there today). A mac-tools to-do wants segment timestamps from it later. |
 | **ElevenLabs Scribe** | `providers.py`, via `inline process` | provider picker in Settings, runs through the CLI | **Keep.** App tab slice 5 (Keychain first, then the zshrc lookup). |
-| **Finder Quick Action** "Transcribe with Khuluma" (`finder install/remove/status`, `integrations/finder/`) | yes; installed on Ricardo's Mac | no | **Ask Ricardo.** Keep = the app provides it (Services or a Quick Action the app installs) calling the built-in command. Drop = remove the workflow at retirement. |
+| **Finder Quick Action** "Transcribe with Khuluma" (`finder install/remove/status`, `integrations/finder/`) | yes; installed on Ricardo's Mac | no | **Keep** (Ricardo, 2026-11-05). The app provides the right-click action, calling its built-in command: `<name>.txt` beside the file, text copied, a notification, as today. The CLI's workflow is replaced at retirement. |
 | Delivery: `autosend`, Settings and menu switch | yes | yes | Keep (native already) |
 | Delivery: `send-mode enter/ctrl_j/cmd_enter`, `target origin/current` | yes (Ricardo: `current`, `enter`) | read from config only, no UI | **Keep** as app settings (imported from `config.toml`); Settings rows optional later |
 | Sounds: master `sound on/off` | yes | yes | Keep (native) |
@@ -60,6 +60,6 @@ All ten go once the app is independent; none survive as CLI commands.
 
 ## Order
 
-1. Ricardo confirms the calls above (open: Finder Quick Action).
+1. Ricardo confirmed the calls above on 2026-11-05.
 2. The app tab ports what's kept, including the built-in transcribe command, and confirms the app runs with no CLI.
 3. Here: final CLI release with a notice pointing to the app (Ricardo's yes), formula `disable!` (yes), tap archive (yes), then remove the CLI code, CI and docs, update the skill, and remove the CLI from Ricardo's Mac (yes, with rollback).
