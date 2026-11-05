@@ -8,6 +8,12 @@ final class SettingsModel: ObservableObject {
   @Published private(set) var pasteOnlyModifier: PasteOnlyModifier
   @Published private(set) var menuFigures: MenuFigures
   @Published private(set) var menuShowsWeek: Bool
+  /// The chosen input (nil = System Default), as UID and the name it had.
+  @Published private(set) var microphone: AudioInput?
+  /// Connected inputs, from CoreAudio or sample data in previews.
+  @Published private(set) var audioInputs = AudioInputs()
+  /// The chosen device the recorder couldn't use (takes use the default).
+  @Published private(set) var unusableMicrophoneUID: String?
   @Published var saving = false
   @Published var recording = false
   @Published var message: String?
@@ -18,6 +24,11 @@ final class SettingsModel: ObservableObject {
   var onToggleLogin: () -> Void = {}
   var onShortcutRecordingChange: (Bool) -> Void = { _ in }
   var onIconThemeChange: (StatusIconTheme) -> Void = { _ in }
+  /// Each runs when anything the Microphone row shows changes.
+  private var microphoneObservers: [() -> Void] = []
+  /// Each runs only when the choice or the connected inputs change (the
+  /// recorder), never for its own fallback report, so they can't loop.
+  private var microphoneChoiceObservers: [() -> Void] = []
   var onOpenLog: () -> Void = { NSWorkspace.shared.open(Log.fileURL) }
   var onOpenConfig: () -> Void = {}
   /// Shows the window's Vocabulary tab.
@@ -34,6 +45,8 @@ final class SettingsModel: ObservableObject {
   private static let pasteOnlyModifierKey = "pasteOnlyModifier"
   private static let menuFiguresKey = "menuFigures"
   private static let menuShowsWeekKey = "menuShowsWeek"
+  private static let microphoneUIDKey = "microphoneUID"
+  private static let microphoneNameKey = "microphoneName"
 
   init(defaults: UserDefaults = AppRuntimePaths.defaults, isolated: Bool = AppRuntimePaths.isolated) {
     self.defaults = defaults
@@ -42,6 +55,9 @@ final class SettingsModel: ObservableObject {
     pasteOnlyModifier = PasteOnlyModifier(storedValue: defaults.string(forKey: Self.pasteOnlyModifierKey))
     menuFigures = MenuFigures(storedValue: defaults.string(forKey: Self.menuFiguresKey))
     menuShowsWeek = defaults.object(forKey: Self.menuShowsWeekKey) as? Bool ?? true
+    microphone = defaults.string(forKey: Self.microphoneUIDKey).map {
+      AudioInput(uid: $0, name: defaults.string(forKey: Self.microphoneNameKey) ?? "Chosen microphone")
+    }
   }
 
   var editable: Bool { config != nil && !saving && !recording }
@@ -70,6 +86,62 @@ final class SettingsModel: ObservableObject {
   func setMenuShowsWeek(_ shows: Bool) {
     menuShowsWeek = shows
     if !preview || isolated { defaults.set(shows, forKey: Self.menuShowsWeekKey) }
+  }
+
+  var microphoneChoice: MicrophoneChoice {
+    MicrophoneChoice(stored: microphone, inputs: audioInputs, unusableUID: unusableMicrophoneUID)
+  }
+
+  func observeMicrophone(_ observer: @escaping () -> Void) { microphoneObservers.append(observer) }
+  func observeMicrophoneChoice(_ observer: @escaping () -> Void) { microphoneChoiceObservers.append(observer) }
+
+  /// From the recorder: the chosen device failed (its UID) or works again (nil).
+  func reportMicrophoneFallback(_ uid: String?) {
+    guard unusableMicrophoneUID != uid else { return }
+    unusableMicrophoneUID = uid
+    microphoneObservers.forEach { $0() }
+  }
+
+  private func microphoneChanged() {
+    microphoneChoiceObservers.forEach { $0() }
+    microphoneObservers.forEach { $0() }
+  }
+
+  /// Nil chooses System Default. Applies from the next take, never mid-take.
+  func selectMicrophone(_ input: AudioInput?) {
+    // Choosing the same device again retries one that failed.
+    guard microphone != input || (input != nil && input?.uid == unusableMicrophoneUID) else { return }
+    microphone = input
+    if !preview || isolated {
+      if let input {
+        defaults.set(input.uid, forKey: Self.microphoneUIDKey)
+        defaults.set(input.name, forKey: Self.microphoneNameKey)
+      } else {
+        defaults.removeObject(forKey: Self.microphoneUIDKey)
+        defaults.removeObject(forKey: Self.microphoneNameKey)
+      }
+    }
+    microphoneChanged()
+  }
+
+  /// Picks by UID from the options shown (connected or the stored one).
+  func selectMicrophone(uid: String?) {
+    guard let uid else { selectMicrophone(nil); return }
+    if let input = audioInputs.devices.first(where: { $0.uid == uid }) ?? (microphone?.uid == uid ? microphone : nil) {
+      selectMicrophone(input)
+    }
+  }
+
+  func adoptAudioInputs(_ inputs: AudioInputs) {
+    guard audioInputs != inputs else { return }
+    audioInputs = inputs
+    // Keep the stored name current while the device is connected.
+    if let microphone, let connected = inputs.devices.first(where: { $0.uid == microphone.uid }),
+       connected.name != microphone.name {
+      self.microphone = connected
+      if !preview || isolated { defaults.set(connected.name, forKey: Self.microphoneNameKey) }
+    }
+    microphoneChanged()
   }
 
   /// The paste-only shortcut for the current hotkey, if it can be bound.

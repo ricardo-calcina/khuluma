@@ -17,6 +17,8 @@ final class AppController: NSObject, NSApplicationDelegate {
   }
   private lazy var settingsModel = MainActor.assumeIsolated { SettingsModel() }
   private let recorder = AudioRecorder()
+  /// Keeps Settings' input list current; nil until launch.
+  private var inputMonitor: AudioInputMonitor?
   private let sounds = SoundPlayer()
   private lazy var hotkey = HotkeyMonitor { [weak self] in self?.toggle() }
   /// Ctrl+Esc cancels a recording. Bound only while
@@ -78,8 +80,15 @@ final class AppController: NSObject, NSApplicationDelegate {
     Log.write("launch: Khuluma \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev")"
               + ", start at login \(LoginItem.text(LoginItem.status))")
 
+    let settings = settingsModel
+    recorder.preferredInput = { settings.microphone }
+    recorder.onFallbackChange = { settings.reportMicrophoneFallback($0) }
     recorder.prepare()
     recorder.onConfigurationChange = { [weak self] in self?.handleDeviceChange() }
+    inputMonitor = AudioInputMonitor { settings.adoptAudioInputs($0) }
+    // A new choice, or the chosen device coming and going, rebuilds the
+    // engine while idle; during a take it waits for the take to end.
+    settings.observeMicrophoneChoice { [weak self] in self?.recorder.inputChoiceChanged() }
     AudioRecorder.requestPermission { granted in
       if !granted { Log.write("permission: microphone denied") }
     }
@@ -464,8 +473,8 @@ final class AppController: NSObject, NSApplicationDelegate {
           Log.write("hotkey: \(pasteOnly.display) to paste without sending is unavailable this take: \(error.localizedDescription)")
         }
       }
-      Log.write(String(format: "start: engine.start %.1fms, hotkey→capturing %.1fms, app=%@",
-                       engineMs, startedAt - hotkeyAt, original?.localizedName ?? "-"))
+      Log.write(String(format: "start: engine.start %.1fms, hotkey→capturing %.1fms, app=%@, input=%@",
+                       engineMs, startedAt - hotkeyAt, original?.localizedName ?? "-", recorder.inputName))
       // While you speak: make sure the daemon is up with the model loaded
       // (a ping when it is; the CLI's warmup when it isn't).
       supervisor?.trigger(.recordingStart)

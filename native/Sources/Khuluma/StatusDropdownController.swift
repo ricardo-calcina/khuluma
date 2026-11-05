@@ -1,13 +1,16 @@
 import AppKit
 import SwiftUI
 
-/// A rich view in a native menu, using the same container as Sys Stats.
-/// AppKit owns placement, material, highlighting and all menu tracking.
+/// Rich views in a native menu, using the same container as Sys Stats, with
+/// native items (such as a submenu) between them. AppKit owns placement,
+/// material, highlighting and all menu tracking.
 final class StatusDropdownController: NSObject, NSMenuDelegate {
   let menu = NSMenu()
   var onOpen: () -> Void = {}
   var onClose: () -> Void = {}
-  private let item = NSMenuItem()
+  /// Runs before each open, after the hosted views are fitted.
+  var onNeedsUpdate: () -> Void = {}
+  private var hosted: [NSMenuItem] = []
   private var fitting = false
   private(set) var isPresented = false
 
@@ -16,19 +19,30 @@ final class StatusDropdownController: NSObject, NSMenuDelegate {
     menu.autoenablesItems = false
     menu.showsStateColumn = false
     menu.delegate = self
-    menu.addItem(item)
   }
 
-  func setContent(_ view: NSView) {
+  /// Appends a hosted SwiftUI view, fitted to its content.
+  func addHosted(_ view: NSView) {
+    let item = NSMenuItem()
     item.view = view
     view.autoresizingMask = [.width]
+    hosted.append(item)
+    menu.addItem(item)
     fitToContent()
   }
 
+  /// Appends a native item (separator, submenu, action).
+  func addNative(_ item: NSMenuItem) { menu.addItem(item) }
+
   func fitToContent() {
-    guard !fitting, let view = item.view else { return }
+    guard !fitting else { return }
     fitting = true
     defer { fitting = false }
+    for item in hosted { fit(item) }
+  }
+
+  private func fit(_ item: NSMenuItem) {
+    guard let view = item.view else { return }
     view.layoutSubtreeIfNeeded()
     let natural = view.fittingSize
     guard natural.width.isFinite, natural.height.isFinite,
@@ -40,7 +54,7 @@ final class StatusDropdownController: NSObject, NSMenuDelegate {
   }
 
   func dismiss() { menu.cancelTracking() }
-  func menuNeedsUpdate(_ menu: NSMenu) { fitToContent() }
+  func menuNeedsUpdate(_ menu: NSMenu) { fitToContent(); onNeedsUpdate() }
   func menuWillOpen(_ menu: NSMenu) { isPresented = true; onOpen() }
   func menuDidClose(_ menu: NSMenu) { isPresented = false; onClose() }
 }

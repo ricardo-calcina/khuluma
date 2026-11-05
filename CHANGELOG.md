@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Choose the microphone from the menu (a native Microphone submenu) or Settings → Dictation. System Default stays the default; a chosen device that is unplugged stays chosen and takes use the system default until it returns. A change applies from the next take, never mid-take. If the chosen device can't be used, takes fall back to the system default and the menu says so; each take logs the requested and actual input and any fallback.
 - Make the Vocabulary tab a standard Mac list editor: a headed, editable table (double-click or Return to edit, Tab between cells, Escape to cancel, multiple selection), a +/− bar with an actions menu for Undo, Import, Export, Revert and New from Recent, a native search field (Command-F), inline warnings on invalid rows, and Revert and Save Changes (Command-S) at the bottom. Size limits move to the Import panel.
 - Finish a take with the shortcut plus Shift (configurable in Settings → Dictation, or off) to paste it without sending, while auto-send stays on for other takes. The extra shortcut is bound only while recording.
 - Add an Auto-send switch to the menu footer.

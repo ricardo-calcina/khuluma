@@ -31,6 +31,8 @@ final class StatusMenu: NSObject {
 
   private var statusItem: NSStatusItem?
   private var dropdown: StatusDropdownController?
+  private var microphone: MicrophoneMenu?
+  private var previewBaseline: StatusDropdownController?
   private let model: MenuModel
   private let stats: StatsModel
   private let settings: SettingsModel
@@ -120,13 +122,23 @@ final class StatusMenu: NSObject {
     item.button?.toolTip = sampleData ? "Khuluma Preview · sample data" : "Khuluma"
     item.button?.setAccessibilityLabel(sampleData ? "Khuluma Preview" : "Khuluma")
     let dropdown = StatusDropdownController()
-    let hosting = StatusMenuHostingView(rootView: MenuPanel(
-      model: model, stats: stats, settings: settings,
+    let action: (MenuAction) -> Void = { [weak self] action in self?.perform { self?.run(action) } }
+    let summary = StatusMenuHostingView(rootView: MenuSummary(model: model, stats: stats, settings: settings, action: action, divided: true))
+    let footer = StatusMenuHostingView(rootView: MenuFooter(
+      settings: settings, divided: true,
       openStats: { [weak self] in self?.perform { self?.onShowStats() } },
       openSettings: { [weak self] in self?.perform { self?.onShowSettings() } },
-      action: { [weak self] action in self?.perform { self?.run(action) } }, sampleData: sampleData))
-    hosting.onSizeChange = { [weak dropdown] in dropdown?.fitToContent() }
-    dropdown.setContent(hosting)
+      action: action))
+    summary.onSizeChange = { [weak dropdown] in dropdown?.fitToContent() }
+    footer.onSizeChange = { [weak dropdown] in dropdown?.fitToContent() }
+    // Native rows between the hosted views: a real submenu can open there.
+    let microphone = MicrophoneMenu(settings: settings, width: MenuSummary.width)
+    self.microphone = microphone
+    dropdown.addHosted(summary)
+    dropdown.addNative(microphone.item)
+    dropdown.addHosted(footer)
+    dropdown.onNeedsUpdate = { [weak microphone] in microphone?.refresh() }
+    settings.observeMicrophone { [weak microphone] in microphone?.refresh() }
     dropdown.onOpen = { [weak self] in
       guard let self else { return }
       self.onWillOpen()
@@ -183,6 +195,23 @@ final class StatusMenu: NSObject {
     finishingFrame = frame
     statusItem?.button?.image = finishingFrames[frame]
   }
+
+  /// The Microphone row's submenu, for the isolated menu captures.
+  var previewMicrophoneSubmenu: NSMenu? { sampleData ? microphone?.item.submenu : nil }
+  func dismissPreviewMenu() { dropdown?.dismiss() }
+  var previewMenuIsOpen: Bool { dropdown?.isPresented == true }
+  /// The pre-microphone menu (one hosted view with a SwiftUI divider), for comparing captures.
+  func previewBaselineMenu() -> NSMenu? {
+    guard sampleData else { return nil }
+    let baseline = StatusDropdownController()
+    let view = StatusMenuHostingView(rootView: MenuPanel(model: model, stats: stats, settings: settings,
+                                                         openStats: {}, openSettings: {}, action: { _ in }))
+    baseline.addHosted(view)
+    previewBaseline = baseline
+    return baseline.menu
+  }
+  /// The status menu follows the menu bar, not the app; captures pick a look.
+  func setPreviewAppearance(_ appearance: NSAppearance?) { if sampleData { dropdown?.menu.appearance = appearance } }
 
   /// Exercise AppKit's normal menu opening in the isolated UI fixture.
   func showPreviewMenu() {
@@ -464,6 +493,9 @@ final class StatusMenu: NSObject {
 
 enum MenuAction { case cancel, retry, paste, discard, discardUnsaved, recovered, quit }
 
+/// The whole panel as one view, for the fixed-data renders. The live menu
+/// hosts `MenuSummary` and `MenuFooter` as separate items with the native
+/// Microphone row between them.
 struct MenuPanel: View {
   @ObservedObject var model: MenuModel
   @ObservedObject var stats: StatsModel
@@ -475,61 +507,57 @@ struct MenuPanel: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
-      VStack(alignment: .leading, spacing: 10) {
-        // The period is chosen in Settings → Appearance; the labels name it.
-        HStack(spacing: 12) {
-          metric(today ? "Words today" : "Total words", value: figures.map { $0.words.formatted() } ?? "–")
-          metric(today ? "Saved today" : "Time saved", value: timeSaved)
-            .help("Estimated time saved compared with typing at \(stats.stats?.lifetime.typingWPM ?? 40) words per minute, including delivery time.")
-          metric(today ? "WPM today" : "Average WPM", value: figures?.wordsPerMinute.map { $0.formatted() } ?? "–")
-            .help("Words per minute of recording, including pauses.")
-        }
-        .fixedSize(horizontal: false, vertical: true)
-        if settings.menuShowsWeek, let days = stats.stats?.lastDays(7), stats.stats?.hasDaily == true {
-          WeekBars(days: days)
-        }
-        if stats.refreshFailed {
-          Label(stats.stats == nil ? "Couldn't load stats. Open Khuluma to retry." : "Couldn't refresh. Showing the last stats.",
-                systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.secondary)
-        }
-        notices
-      }
-      .padding(.horizontal, 16)
-      .padding(.vertical, 12)
+      MenuSummary(model: model, stats: stats, settings: settings, action: action)
       Divider()
-      HStack(spacing: 8) {
-        Button(action: openStats) { Image(systemName: "macwindow") }
-          .accessibilityLabel("Open Khuluma").help("Open Khuluma")
-          .keyboardShortcut("o")
-        Spacer()
-        Toggle("Auto-send", isOn: Binding(
-          get: { settings.config?.inline.autosend ?? false },
-          set: { settings.save("inline.autosend", $0 ? "true" : "false") }))
-          .toggleStyle(.switch).controlSize(.mini)
-          .font(.caption).foregroundStyle(.secondary)
-          .disabled(!settings.editable)
-          .help(autosendHelp)
-          .padding(.trailing, 4)
-        Button(action: openSettings) { Image(systemName: "gearshape") }
-          .accessibilityLabel("Settings").help("Settings")
-          .keyboardShortcut(",")
-        Button { action(.quit) } label: { Image(systemName: "power") }
-          .accessibilityLabel("Quit Khuluma").help("Quit Khuluma")
-          .keyboardShortcut("q")
-      }
-      .font(.system(size: 12))
-      .foregroundStyle(.primary)
-      .buttonStyle(MenuIconButtonStyle())
-      .padding(.horizontal, 12)
-      .padding(.vertical, 4)
+      MenuFooter(settings: settings, openStats: openStats, openSettings: openSettings, action: action)
     }
-    .frame(width: 400)
+  }
+}
+
+/// Figures, the optional 7-day strip and notices.
+struct MenuSummary: View {
+  @ObservedObject var model: MenuModel
+  @ObservedObject var stats: StatsModel
+  @ObservedObject var settings: SettingsModel
+  var action: (MenuAction) -> Void
+  /// The live menu draws the full-width divider above the native Microphone row.
+  var divided = false
+
+  var body: some View {
+    VStack(spacing: 0) {
+      content
+      if divided { Divider() }
+    }
+    .frame(width: MenuSummary.width)
   }
 
-  private var autosendHelp: String {
-    guard let shortcut = settings.pasteOnlyShortcut else { return "Paste, then press your send key." }
-    return "Paste, then press your send key. Finish with \(shortcut.display) to paste one take without sending."
+  private var content: some View {
+    VStack(alignment: .leading, spacing: 10) {
+      // The period is chosen in Settings → Appearance; the labels name it.
+      HStack(spacing: 12) {
+        metric(today ? "Words today" : "Total words", value: figures.map { $0.words.formatted() } ?? "–")
+        metric(today ? "Saved today" : "Time saved", value: timeSaved)
+          .help("Estimated time saved compared with typing at \(stats.stats?.lifetime.typingWPM ?? 40) words per minute, including delivery time.")
+        metric(today ? "WPM today" : "Average WPM", value: figures?.wordsPerMinute.map { $0.formatted() } ?? "–")
+          .help("Words per minute of recording, including pauses.")
+      }
+      .fixedSize(horizontal: false, vertical: true)
+      if settings.menuShowsWeek, let days = stats.stats?.lastDays(7), stats.stats?.hasDaily == true {
+        WeekBars(days: days)
+      }
+      if stats.refreshFailed {
+        Label(stats.stats == nil ? "Couldn't load stats. Open Khuluma to retry." : "Couldn't refresh. Showing the last stats.",
+              systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.secondary)
+      }
+      notices
+    }
+    .padding(.horizontal, 16)
+    .padding(.vertical, 12)
+    .frame(maxWidth: .infinity, alignment: .leading)
   }
+
+  /// The panel width; the native rows between the hosted views fit inside it.
+  static let width: CGFloat = 400
 
   private var today: Bool { settings.menuFigures == .today }
   private var figures: UsageStats.Figures? { stats.stats?.figures(settings.menuFigures) }
@@ -566,6 +594,57 @@ struct MenuPanel: View {
     if let text = model.paste { Button(text) { action(.paste) } }
     if let text = model.discard { Button(text) { action(.discard) } }
     if let text = model.unsaved { Button(text) { action(.discardUnsaved) } }
+  }
+}
+
+/// Open the app; Auto-send, Settings and Quit.
+struct MenuFooter: View {
+  @ObservedObject var settings: SettingsModel
+  /// The live menu draws the full-width divider below the native Microphone row.
+  var divided = false
+  var openStats: () -> Void
+  var openSettings: () -> Void
+  var action: (MenuAction) -> Void
+
+  var body: some View {
+    VStack(spacing: 0) {
+      if divided { Divider() }
+      controls
+    }
+    .frame(width: MenuSummary.width)
+  }
+
+  private var controls: some View {
+    HStack(spacing: 8) {
+      Button(action: openStats) { Image(systemName: "macwindow") }
+        .accessibilityLabel("Open Khuluma").help("Open Khuluma")
+        .keyboardShortcut("o")
+      Spacer()
+      Toggle("Auto-send", isOn: Binding(
+        get: { settings.config?.inline.autosend ?? false },
+        set: { settings.save("inline.autosend", $0 ? "true" : "false") }))
+        .toggleStyle(.switch).controlSize(.mini)
+        .font(.caption).foregroundStyle(.secondary)
+        .disabled(!settings.editable)
+        .help(autosendHelp)
+        .padding(.trailing, 4)
+      Button(action: openSettings) { Image(systemName: "gearshape") }
+        .accessibilityLabel("Settings").help("Settings")
+        .keyboardShortcut(",")
+      Button { action(.quit) } label: { Image(systemName: "power") }
+        .accessibilityLabel("Quit Khuluma").help("Quit Khuluma")
+        .keyboardShortcut("q")
+    }
+    .font(.system(size: 12))
+    .foregroundStyle(.primary)
+    .buttonStyle(MenuIconButtonStyle())
+    .padding(.horizontal, 12)
+    .padding(.vertical, 4)
+  }
+
+  private var autosendHelp: String {
+    guard let shortcut = settings.pasteOnlyShortcut else { return "Paste, then press your send key." }
+    return "Paste, then press your send key. Finish with \(shortcut.display) to paste one take without sending."
   }
 }
 

@@ -27,6 +27,7 @@ struct SettingsView: View {
         if model.config?.inline.autosend == true, model.pasteOnlyModifier != .off {
           Text(pasteOnlyNote).font(.caption).foregroundStyle(.secondary)
         }
+        microphonePicker
         Toggle("Sounds", isOn: setting("audio.sounds.enabled", model.config?.soundsEnabled ?? true))
           .disabled(!model.editable)
           .help("Play sounds during dictation.")
@@ -132,6 +133,24 @@ struct SettingsView: View {
       if model.saving { ProgressView("Saving settings…").controlSize(.small) }
     }
     .formStyle(.grouped)
+  }
+
+  /// The same choice as the menu's Microphone row, for when that is hidden.
+  @ViewBuilder private var microphonePicker: some View {
+    let choice = model.microphoneChoice
+    Picker("Microphone", selection: Binding(get: { choice.stored?.uid ?? "" },
+                                            set: { model.selectMicrophone(uid: $0.isEmpty ? nil : $0) })) {
+      ForEach(Array(choice.options.enumerated()), id: \.offset) { index, option in
+        Text(option.detail.map { "\(option.title) (\($0))" } ?? option.title)
+          .tag(option.uid ?? "")
+          .disabled(!option.connected)
+        if index == 0, choice.options.count > 1 { Divider() }
+      }
+    }
+    .help("Takes record from this input. A change applies from the next take.")
+    if let note = choice.note {
+      Text(note).font(.caption).foregroundStyle(.secondary)
+    }
   }
 
   private var localModelTitle: String {
