@@ -3,13 +3,15 @@ import CoreAudio
 import Foundation
 import KhulumaCore
 
-/// Captures the default input device with AVAudioEngine and converts it to
-/// 16 kHz mono Float32 in memory.
+/// Captures the chosen input device (or the system default) with
+/// AVAudioEngine and converts it to 16 kHz mono Float32 in memory.
 ///
 /// The engine is prepared at launch and started per take, so the macOS
 /// mic-in-use indicator is only on while recording. When the input device
 /// changes, the engine is replaced by a fresh one for the new device: a
-/// stale engine raises an Objective-C exception at the next start.
+/// stale engine raises an Objective-C exception at the next start. A chosen
+/// device is set on a fresh engine's input unit before prepare; a changed
+/// choice rebuilds the engine while idle and never touches a take.
 final class AudioRecorder {
   private var engine = AVAudioEngine()
   private var configurationObserver: NSObjectProtocol?
@@ -25,6 +27,14 @@ final class AudioRecorder {
   private var needsRebuild = false
   /// Called on the main queue when the input device changes mid-take.
   var onConfigurationChange: (() -> Void)?
+  /// The chosen input's UID; nil follows the system default. Read on the main thread.
+  var preferredInputUID: () -> String? = { nil }
+  /// The device set on the current engine; nil when it follows the system default.
+  private var engineDevice: AudioDeviceID?
+  /// The input the current take records from, for the take's log line.
+  private(set) var inputName = "no input"
+  /// Checked once the take ends, off the stop path.
+  private var choiceChangedDuringTake = false
 
   init() {
     observeConfiguration()
@@ -77,22 +87,67 @@ final class AudioRecorder {
   }
 
   /// Instantiates the input graph early. Returns the input, for the log.
-  private func prepareEngine() -> String {
+  private func prepareEngine(useChoice: Bool = true) -> String {
     let engine = self.engine
+    let device = useChoice ? selectDevice(on: engine) : nil
+    if !useChoice { engineDevice = nil }
+    let name = describe(device)
     do {
       let format = try ObjCException.catching { () -> AVAudioFormat in
         let input = engine.inputNode
         engine.prepare()
         return input.inputFormat(forBus: 0)
       }
-      return "\(Self.defaultInputName()) (\(Int(format.sampleRate)) Hz, \(format.channelCount) ch)"
+      return "\(name) (\(Int(format.sampleRate)) Hz, \(format.channelCount) ch)"
     } catch {
-      return "\(Self.defaultInputName()) (not prepared: \(error.localizedDescription))"
+      return "\(name) (not prepared: \(error.localizedDescription))"
     }
   }
 
-  /// Replaces the engine with a fresh one for the current default input.
-  private func rebuild(reason: String) {
+  /// The chosen device if it is connected; nil means the system default.
+  private func wantedDevice() -> AudioDeviceID? {
+    preferredInputUID().flatMap { AudioInputDevices.deviceID(uid: $0) }
+  }
+
+  /// Points a fresh engine's input unit at the chosen device. Anything that
+  /// fails leaves the engine on the system default: a take never fails
+  /// because of this preference.
+  private func selectDevice(on engine: AVAudioEngine) -> AudioDeviceID? {
+    engineDevice = nil
+    guard let uid = preferredInputUID() else { return nil }
+    guard var device = AudioInputDevices.deviceID(uid: uid) else {
+      Log.write("audio: chosen microphone \(uid) isn't connected; using the system default")
+      return nil
+    }
+    let status = (try? ObjCException.catching { () -> OSStatus in
+      guard let unit = engine.inputNode.audioUnit else { return OSStatus(kAudioUnitErr_Uninitialized) }
+      return AudioUnitSetProperty(unit, kAudioOutputUnitProperty_CurrentDevice, kAudioUnitScope_Global, 0,
+                                  &device, UInt32(MemoryLayout<AudioDeviceID>.size))
+    }) ?? OSStatus(kAudioUnitErr_InvalidProperty)
+    guard status == noErr else {
+      Log.write("audio: could not select \(AudioInputDevices.name(of: device)) (OSStatus \(status)); using the system default")
+      return nil
+    }
+    engineDevice = device
+    return device
+  }
+
+  private func describe(_ device: AudioDeviceID?) -> String {
+    if let device { return AudioInputDevices.name(of: device) }
+    return AudioInputDevices.defaultInputID().map { "\(AudioInputDevices.name(of: $0)) (system default)" } ?? "no default input"
+  }
+
+  /// The chosen microphone or the connected inputs changed: rebuild while
+  /// idle if the engine is on the wrong device. A take is never touched;
+  /// it ends on its device and the next one uses the new choice.
+  func inputChoiceChanged() {
+    guard !isRecording else { choiceChangedDuringTake = true; return }
+    choiceChangedDuringTake = false
+    if wantedDevice() != engineDevice { rebuild(reason: "microphone choice changed") }
+  }
+
+  /// Replaces the engine with a fresh one for the chosen or default input.
+  private func rebuild(reason: String, useChoice: Bool = true) {
     let old = engine
     _ = try? ObjCException.catching {
       old.stop()
@@ -101,7 +156,8 @@ final class AudioRecorder {
     engine = AVAudioEngine()
     observeConfiguration()
     needsRebuild = false
-    Log.write("audio: \(reason); rebuilt the engine for \(prepareEngine())")
+    choiceChangedDuringTake = false
+    Log.write("audio: \(reason); rebuilt the engine for \(prepareEngine(useChoice: useChoice))")
   }
 
   /// Starts capture. Returns how long engine start took, in ms. A failure
@@ -112,9 +168,16 @@ final class AudioRecorder {
   func start(onFirstAudio: (() -> Void)? = nil) throws -> Double {
     guard !isRecording else { return 0 }
     if needsRebuild { rebuild(reason: "input changed since the last take") }
+    else if wantedDevice() != engineDevice { rebuild(reason: "microphone choice changed since the last take") }
     return try RetryOnce.run({ try startEngine(onFirstAudio: onFirstAudio) }, recover: { error in
       Log.write("audio: could not start capture (\(error.localizedDescription)); retrying once on a fresh engine")
-      rebuild(reason: "start failed")
+      // A chosen device that won't start must not cost the take.
+      if engineDevice != nil {
+        Log.write("audio: falling back to the system default for this take")
+        rebuild(reason: "start failed", useChoice: false)
+      } else {
+        rebuild(reason: "start failed")
+      }
     })
   }
 
@@ -147,7 +210,9 @@ final class AudioRecorder {
       throw error
     }
     isRecording = true
-    return monotonicMs() - started
+    let elapsed = monotonicMs() - started
+    inputName = describe(engineDevice)
+    return elapsed
   }
 
   /// Stops capture and returns the take.
@@ -166,6 +231,9 @@ final class AudioRecorder {
       return take
     }
     if needsRebuild { rebuild(reason: "input changed during the take") }
+    else if choiceChangedDuringTake {
+      RunLoop.main.perform(inModes: [.common]) { [weak self] in self?.inputChoiceChanged() }
+    }
     return take
   }
 
@@ -201,23 +269,5 @@ final class AudioRecorder {
       return onFirstAudio
     }
     first?()
-  }
-
-  /// The default input device's name, for the log.
-  private static func defaultInputName() -> String {
-    var address = AudioObjectPropertyAddress(mSelector: kAudioHardwarePropertyDefaultInputDevice,
-                                             mScope: kAudioObjectPropertyScopeGlobal,
-                                             mElement: kAudioObjectPropertyElementMain)
-    var device = AudioDeviceID(0)
-    var size = UInt32(MemoryLayout<AudioDeviceID>.size)
-    guard AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &address, 0, nil, &size, &device) == noErr,
-          device != kAudioObjectUnknown else { return "no default input" }
-    address.mSelector = kAudioObjectPropertyName
-    var name: Unmanaged<CFString>?
-    size = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
-    guard AudioObjectGetPropertyData(device, &address, 0, nil, &size, &name) == noErr, let name else {
-      return "input device \(device)"
-    }
-    return name.takeRetainedValue() as String
   }
 }

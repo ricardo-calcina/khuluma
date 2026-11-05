@@ -69,6 +69,10 @@ enum StatsSnapshot {
       for (name, model) in [("local", local), ("cloud", cloud), ("key-missing", missingKey)] {
         save("settings-\(name)", view: AnyView(SettingsView(model: model)), width: 560, height: 634)
       }
+      // A chosen microphone that isn't connected: still chosen, with a note.
+      let missingMicrophone = try UISettingsFixture().model()
+      missingMicrophone.selectMicrophone(PreviewInputs.missing)
+      save("settings-microphone-missing", view: AnyView(SettingsView(model: missingMicrophone)), width: 560, height: 634)
       save("vocabulary", view: AnyView(VocabularyView(model: VocabularyModel(settings: local), settings: local)),
            width: 560, height: 634)
       let navigation = AppNavigation()
@@ -216,6 +220,8 @@ private struct UISettingsFixture {
     model.preview = true
     model.loginStatus = .notRegistered
     model.adopt(try config())
+    model.selectMicrophone(nil)
+    model.adoptAudioInputs(PreviewInputs.connected)
     model.onOpenLog = { [weak model] in model?.message = "Preview: diagnostic logs are disabled." }
     model.onOpenConfig = { [weak model] in model?.message = "Preview settings are kept in memory." }
     installPreviewVocabulary(model)
@@ -265,6 +271,8 @@ final class UIPreviewController: NSObject, NSApplicationDelegate {
     settings.loginStatus = .notRegistered
     do { settings.adopt(try fixture.config()) }
     catch { NSApp.terminate(nil); return }
+    // Sample inputs only: the preview never reads CoreAudio or records.
+    settings.adoptAudioInputs(PreviewInputs.connected)
     settings.onSave = { [weak self] key, value in self?.save(key, value: value) }
     settings.onReload = { [weak self] in self?.settings.message = "Preview settings reloaded from memory." }
     settings.onOpenLog = { [weak self] in self?.settings.message = "Preview: diagnostic logs are disabled." }
@@ -281,6 +289,11 @@ final class UIPreviewController: NSObject, NSApplicationDelegate {
         }
       }
       RunLoop.main.add(timer, forMode: .common)
+      return
+    }
+    if let directory = UserDefaults.standard.string(forKey: "KhulumaPreviewMenuSnapshots") {
+      guard AppRuntimePaths.isolated else { NSApp.terminate(nil); return }
+      MenuSnapshots(menu: menu, settings: settings, directory: directory).run { NSApp.terminate(nil) }
       return
     }
     if let directory = UserDefaults.standard.string(forKey: "KhulumaPreviewIconSnapshots") {
@@ -331,4 +344,15 @@ private func installPreviewVocabulary(_ settings: SettingsModel) {
     store.snapshot = snapshot
     return snapshot
   }
+}
+
+/// Sample inputs for previews and renders; no CoreAudio.
+enum PreviewInputs {
+  static let builtIn = AudioInput(uid: "preview-built-in", name: "MacBook Pro Microphone")
+  static let display = AudioInput(uid: "preview-display", name: "Studio Display Microphone")
+  static let airPods = AudioInput(uid: "preview-airpods", name: "AirPods Pro")
+  static let missing = AudioInput(uid: "preview-yeti", name: "Yeti Stereo Microphone")
+  static let connected = AudioInputs(devices: [builtIn, display], defaultUID: builtIn.uid)
+  /// AirPods connect and become the default.
+  static let withAirPods = AudioInputs(devices: [builtIn, display, airPods], defaultUID: airPods.uid)
 }
