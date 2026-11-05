@@ -2,7 +2,7 @@
 
 ## Now
 
-Focus from 2026-11-05: first make the app work without the CLI (tab "Khuluma app without the CLI", branch `wip/app-independence`, worktree `../khuluma-wt-app-independence`), then the two-product split and the CLI side (tab "Khuluma two-product split", branch `wip/product-split`, worktree `../khuluma-wt-product-split`). The app tab owns the shared data contract. Apple Developer Program and the trademark search wait until both land; the khuluma.app website can happen any time, separately.
+Focus from 2026-11-05: Khuluma is the app only; the CLI and Homebrew tap are being sunset (Decisions). Tab "Khuluma app without the CLI" (branch `wip/app-independence`, worktree `../khuluma-wt-app-independence`) makes the app independent and brings over what's kept: file transcription as a small command built into the app, and ElevenLabs Scribe. Tab "Khuluma CLI sunset" (branch `wip/product-split`, worktree `../khuluma-wt-product-split`) lists what the CLI does, then retires the CLI, formula and tap once the app no longer needs them. Apple Developer Program and the trademark search wait until then; the khuluma.app website runs in its own tab in VPS `products/Khuluma/site`.
 
 Window and menu restyle (2026-11-05) is installed as build 415 from main: Stats, Settings and Vocabulary share one ink-and-ember look (Theme.swift; DESIGN.md), Settings has a four-page sidebar, and Activity keeps one height for every range. Ricardo approved it from a preview build. The menu dropdown matches, and the window now shows in Cmd-Tab and the Dock while open (Ricardo confirmed Cmd-Tab in the preview). Wired headphones and AirPods are still to try on the microphone picker (Next). App rollback is `~/Applications/.khuluma-app.aX5hsD/previous.app` (build 411).
 
@@ -18,7 +18,7 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 
 ## Next
 
-- [ ] P1 · Split Khuluma into two products: the free CLI stays on the Homebrew tap with the SwiftBar integrations brought back; the native dictation app becomes a paid product, signed and notarised, from the App Store or a website download, not Homebrew. Re-plan phases 2, 4 and 5 and the SwiftBar, cask and App Store decisions to match · added 2026-10-27
+- [ ] P1 · Sunset the CLI: list what it does, move what's kept into the app (file transcription as a built-in command, ElevenLabs Scribe), then a final release with a notice and retire the formula and tap (publishing needs Ricardo's yes); re-plan phases 2, 4 and 5 to match · added 2026-10-27, changed 2026-11-05
 - [x] P1 · Enable cleanup and exact repeated sentences; import the prepared vocabulary and verify active output · added 2026-10-24
 - [x] P1 · Combine the approved menu, icon, audio and vocabulary branches on main; verify the integrated source · added 2026-10-24
 - [x] P1 · Audit saved dictation and prepare conservative hesitation/sentence/brand cleanup in source · added 2026-10-23
@@ -71,7 +71,7 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 ## Decisions
 
 - App independence (Ricardo, 2026-11-05): the app ports ElevenLabs Scribe now (Keychain, then the CLI's zshrc lookup); app and CLI share one tagged `~/Library/Logs/Khuluma/khuluma.log`; app and CLI run separate daemons at first. Details in docs/plans/APP_INDEPENDENCE.md.
-- App and CLI (Ricardo, 2026-11-05): app independence comes before the CLI split. Each must work alone; when both are installed they share the same logs, history and usage tracking, and every record says which one wrote it, so a problem can be traced to its source.
+- CLI sunset (Ricardo, 2026-11-05; replaces the 2026-10-27 two-product split): Khuluma is the native app only. Ricardo doesn't use the CLI from the terminal or tmux and won't maintain a separate tool or tap. What's kept moves into the app (file transcription as a small command built into the app, which the transcribe-audio skill uses; ElevenLabs Scribe). Then the CLI, its formula and the tap are retired. No long-term app and CLI sharing of data: a one-time import into the app instead.
 - Microphone choice stays a submenu row in the menu, not an inline ticked list (tried in f983018, reverted 2026-11-05): Ricardo rarely switches and mostly stays on System Default; the row only needs to show the input in use. The case for choosing is two inputs at once, e.g. recording a video on the phone while Khuluma keeps the MacBook mic.
 - Icon/theme recovery: `/Users/admin/Applications/.khuluma-app.74v7dj/previous.app` retains signed build 353; current QA is at `/private/tmp/khuluma-themes-qa.RxaJYA/`. `.khuluma-app.xMyT3X/previous.app` retains build 351, `.khuluma-app.atWD6N/previous.app` build 347, `.khuluma-app.LYC8GT/previous.app` build 342 and `.khuluma-app.LYfteh/previous.app` build 340. Earlier motion/status/app-icon QA remains under `/private/tmp/khuluma-{motion,status,icons}-qa.*` as recorded in `assets/icons/README.md`. Preserve newer user data when recovering.
 
