@@ -35,7 +35,11 @@ final class AudioRecorder {
   private let targetFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16_000, channels: 1, interleaved: false)!
   private let lock = NSLock()
   private var samples: [Float] = []
+  /// The 16 kHz converter and the buffer format it was built for. Built
+  /// from the tap's format and replaced if the buffers that arrive differ
+  /// (a device settling after it starts). Guarded by `lock`.
   private var converter: AVAudioConverter?
+  private var converterFormat: CaptureFormat?
   private var firstBufferAt: Double?
   /// Called once, on the audio thread, when the take's first buffer arrives.
   private var onFirstAudio: (() -> Void)?
@@ -240,43 +244,69 @@ final class AudioRecorder {
   }
 
   /// Starts capture. Returns how long engine start took, in ms. A failure
-  /// (including an exception from AVAudioEngine) is retried once on a
-  /// fresh engine, then thrown; a chosen device that won't start makes the
-  /// retry use the system default. `onFirstAudio` runs on the audio thread
-  /// when the first buffer arrives: the moment speech is really captured.
+  /// (including an exception from AVAudioEngine) is retried on a fresh
+  /// engine (`CaptureStartPolicy.recovery`): a chosen device gets one more
+  /// try with its formats read again, then the take uses the system
+  /// default; the default gets one fresh retry. The last failure is thrown.
+  /// `onFirstAudio` runs on the audio thread when the first buffer arrives:
+  /// the moment speech is really captured.
   @discardableResult
   func start(onFirstAudio: (() -> Void)? = nil) throws -> Double {
     guard !isRecording else { return 0 }
     if InputEnginePolicy.rebuildBeforeTake(flagged: needsRebuild, built: built, wanted: intended().target) {
       rebuild(reason: needsRebuild ? "input changed since the last take" : "microphone choice changed since the last take")
     }
-    return try RetryOnce.run({ try startEngine(onFirstAudio: onFirstAudio) }, recover: { error in
-      Log.write("audio: could not start capture (\(error.localizedDescription)); retrying once on a fresh engine")
-      if let pinnedUID {
+    return try RetryWhile.run({ try startEngine(onFirstAudio: onFirstAudio) }, recover: { error, failures in
+      let why = error.localizedDescription
+      let pinned = built.target.pinned && pinnedUID != nil
+      switch CaptureStartPolicy.recovery(afterFailure: failures, pinned: pinned) {
+      case .sameDevice:
+        Log.write("audio: could not start capture (\(why)); retrying once on a fresh engine for the same microphone")
+        rebuild(reason: "start failed")
+      case .systemDefault:
         // The chosen device must not cost the take.
+        Log.write("audio: could not start capture on the chosen microphone again (\(why)); the retry uses the system default")
         failedUID = pinnedUID
-        fallbackReason = "start failed: \(error.localizedDescription)"
-        Log.write("audio: the retry uses the system default")
+        fallbackReason = "start failed: \(why)"
+        rebuild(reason: "start failed on the chosen microphone")
+      case .freshEngine:
+        Log.write("audio: could not start capture (\(why)); retrying once on a fresh engine")
+        rebuild(reason: "start failed")
+      case nil:
+        Log.write("audio: could not start capture (\(why)); giving up")
+        return false
       }
-      rebuild(reason: "start failed")
+      return true
     })
   }
 
   private func startEngine(onFirstAudio: (() -> Void)?) throws -> Double {
     let engine = self.engine
-    let inputFormat = try ObjCException.catching { engine.inputNode.outputFormat(forBus: 0) }
-    guard inputFormat.sampleRate > 0, inputFormat.channelCount > 0 else {
+    // Read now, after pinning and prepare: the hardware format is the one
+    // the tap must match, and it may have moved since the engine was built.
+    let (hardware, node) = try ObjCException.catching { () -> (AVAudioFormat, AVAudioFormat) in
+      (engine.inputNode.inputFormat(forBus: 0), engine.inputNode.outputFormat(forBus: 0))
+    }
+    let hardwareFormat = CaptureFormat(hardware), nodeFormat = CaptureFormat(node)
+    guard let tap = CaptureStartPolicy.tapFormat(hardware: hardwareFormat, node: nodeFormat) else {
       throw NSError(domain: "Khuluma", code: 1, userInfo: [NSLocalizedDescriptionKey: "no input device available"])
     }
-    converter = AVAudioConverter(from: inputFormat, to: targetFormat)
+    let prepared = CaptureFormat(sampleRate: built.sampleRate, channels: built.channels)
+    if tap != prepared || tap != nodeFormat {
+      Log.write("audio: input format at start is \(tap) (prepared as \(prepared), node \(nodeFormat)); the tap uses \(tap)")
+    }
+    let tapFormat = AVAudioFormat(standardFormatWithSampleRate: tap.sampleRate, channels: tap.channels)
+      ?? (nodeFormat == tap ? node : hardware)
     lock.withLock {
+      converter = AVAudioConverter(from: tapFormat, to: targetFormat)
+      converterFormat = CaptureFormat(tapFormat)
       samples.removeAll(keepingCapacity: true)
       firstBufferAt = nil
       self.onFirstAudio = onFirstAudio
     }
 
     try ObjCException.catching {
-      engine.inputNode.installTap(onBus: 0, bufferSize: 1024, format: inputFormat) { [weak self] buffer, _ in
+      engine.inputNode.installTap(onBus: 0, bufferSize: 1024, format: tapFormat) { [weak self] buffer, _ in
         self?.append(buffer)
       }
     }
@@ -292,6 +322,9 @@ final class AudioRecorder {
     }
     isRecording = true
     let elapsed = monotonicMs() - started
+    // Later configuration notices compare against the format really in use.
+    built.sampleRate = tap.sampleRate
+    built.channels = tap.channels
     noteTakeInput(engine)
     return elapsed
   }
@@ -348,6 +381,14 @@ final class AudioRecorder {
   }
 
   private func append(_ buffer: AVAudioPCMBuffer) {
+    let format = CaptureFormat(buffer.format)
+    let converter = lock.withLock { () -> AVAudioConverter? in
+      if CaptureStartPolicy.needsNewConverter(builtFor: converterFormat, buffer: format) {
+        converter = AVAudioConverter(from: buffer.format, to: targetFormat)
+        converterFormat = format
+      }
+      return converter
+    }
     guard let converter else { return }
     let ratio = targetFormat.sampleRate / buffer.format.sampleRate
     let capacity = AVAudioFrameCount(Double(buffer.frameLength) * ratio) + 32
@@ -374,5 +415,11 @@ final class AudioRecorder {
       return onFirstAudio
     }
     first?()
+  }
+}
+
+private extension CaptureFormat {
+  init(_ format: AVAudioFormat) {
+    self.init(sampleRate: format.sampleRate, channels: format.channelCount)
   }
 }

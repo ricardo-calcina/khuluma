@@ -179,3 +179,29 @@ private final class Locked<Value>: @unchecked Sendable {
   var value: Value { lock.withLock { stored } }
   func update(_ body: (inout Value) -> Void) { lock.withLock { body(&stored) } }
 }
+
+struct RetryWhileTests {
+  @Test func retriesWhileRecoverSaysSoThenThrowsTheLastError() {
+    var attempts = 0
+    var seen: [Int] = []
+    #expect(throws: CaptureFailed()) {
+      try RetryWhile.run({ () -> Int in
+        attempts += 1
+        throw CaptureFailed()
+      }, recover: { _, failures in seen.append(failures); return failures < 3 })
+    }
+    #expect(attempts == 3)
+    #expect(seen == [1, 2, 3])
+  }
+
+  @Test func stopsAtTheFirstSuccess() throws {
+    var attempts = 0
+    let value = try RetryWhile.run({ () -> Int in
+      attempts += 1
+      if attempts < 3 { throw CaptureFailed() }
+      return 5
+    }, recover: { _, _ in true })
+    #expect(value == 5)
+    #expect(attempts == 3)
+  }
+}

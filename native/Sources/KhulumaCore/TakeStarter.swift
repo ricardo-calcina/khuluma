@@ -102,3 +102,19 @@ public final class OneShot: @unchecked Sendable {
     lock.withLock { done = true }
   }
 }
+
+/// Retries driven by a policy: after each failure `recover` gets the error
+/// and the failure count and returns false to stop (the last error is thrown).
+public enum RetryWhile {
+  public static func run<T>(_ attempt: () throws -> T, recover: (Error, Int) throws -> Bool) throws -> T {
+    var failures = 0
+    while true {
+      do {
+        return try attempt()
+      } catch {
+        failures += 1
+        guard try recover(error, failures) else { throw error }
+      }
+    }
+  }
+}

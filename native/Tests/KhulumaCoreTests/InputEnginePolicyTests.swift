@@ -151,3 +151,44 @@ struct InputEnginePolicyTests {
     #expect(!CoreAudioReading.isAlive(2))
   }
 }
+
+struct CaptureStartPolicyTests {
+  typealias Policy = CaptureStartPolicy
+  private let prepared = CaptureFormat(sampleRate: 48_000, channels: 1)
+  private let settled = CaptureFormat(sampleRate: 24_000, channels: 1)
+
+  @Test func theTapFollowsTheHardwareFormatReadAtStart() {
+    // Continuity: prepared at 48 kHz, the iPhone mic reports 24 kHz once active.
+    #expect(Policy.tapFormat(hardware: settled, node: prepared) == settled)
+    #expect(Policy.tapFormat(hardware: prepared, node: prepared) == prepared)
+  }
+
+  @Test func theNodeFormatIsOnlyAFallbackAndNothingUsableThrows() {
+    #expect(Policy.tapFormat(hardware: CaptureFormat(sampleRate: 0, channels: 0), node: prepared) == prepared)
+    #expect(Policy.tapFormat(hardware: nil, node: prepared) == prepared)
+    #expect(Policy.tapFormat(hardware: nil, node: CaptureFormat(sampleRate: 48_000, channels: 0)) == nil)
+  }
+
+  @Test func theConverterIsRebuiltWhenBuffersArriveInAnotherFormat() {
+    #expect(!Policy.needsNewConverter(builtFor: prepared, buffer: prepared))
+    #expect(Policy.needsNewConverter(builtFor: prepared, buffer: settled))
+    #expect(Policy.needsNewConverter(builtFor: nil, buffer: prepared))
+  }
+
+  @Test func aChosenMicGetsOneMoreTryThenTheDefaultKeepsTheTake() {
+    #expect(Policy.recovery(afterFailure: 1, pinned: true) == .sameDevice)
+    #expect(Policy.recovery(afterFailure: 2, pinned: true) == .systemDefault)
+    // Now on the default: its failure ends it (three attempts in all).
+    #expect(Policy.recovery(afterFailure: 3, pinned: false) == nil)
+  }
+
+  @Test func theDefaultGetsOneFreshRetryAsBefore() {
+    #expect(Policy.recovery(afterFailure: 1, pinned: false) == .freshEngine)
+    #expect(Policy.recovery(afterFailure: 2, pinned: false) == nil)
+  }
+
+  @Test func aSameDeviceRetryThatFellBackWhileBuildingDoesNotRetryAgain() {
+    // The rebuild for the same device couldn't pin and built on the default.
+    #expect(Policy.recovery(afterFailure: 2, pinned: false) == nil)
+  }
+}

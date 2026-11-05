@@ -141,3 +141,60 @@ public enum InputEnginePolicy {
     return .accepted
   }
 }
+
+/// A capture format: sample rate and channel count.
+public struct CaptureFormat: Equatable, Sendable, CustomStringConvertible {
+  public var sampleRate: Double
+  public var channels: UInt32
+
+  public init(sampleRate: Double, channels: UInt32) {
+    self.sampleRate = sampleRate
+    self.channels = channels
+  }
+
+  public var isUsable: Bool { sampleRate > 0 && channels > 0 }
+  public var description: String { "\(Int(sampleRate)) Hz, \(channels) ch" }
+}
+
+/// How capture starts and recovers. Continuity (iPhone), and some Bluetooth
+/// and USB microphones, settle their hardware format only once activated, so
+/// the format read when the engine was prepared can be stale by the time the
+/// tap goes on; AVAudioEngine then refuses the tap
+/// (`format.sampleRate == inputHWFormat.sampleRate`).
+public enum CaptureStartPolicy {
+  /// The tap's format, from the input's hardware format read right before
+  /// the tap is installed. The node's output format is only a fallback: it
+  /// is the one that goes stale.
+  public static func tapFormat(hardware: CaptureFormat?, node: CaptureFormat?) -> CaptureFormat? {
+    if let hardware, hardware.isUsable { return hardware }
+    if let node, node.isUsable { return node }
+    return nil
+  }
+
+  /// The 16 kHz converter is built from the buffers that really arrive and
+  /// replaced when their format differs from the one it was built for.
+  public static func needsNewConverter(builtFor: CaptureFormat?, buffer: CaptureFormat) -> Bool {
+    builtFor != buffer
+  }
+
+  public enum Recovery: Equatable, Sendable {
+    /// A fresh engine on the same chosen device, formats read again.
+    case sameDevice
+    /// The chosen device won't start: a fresh engine on the system default.
+    case systemDefault
+    /// A fresh engine on the system default (it was already following it).
+    case freshEngine
+  }
+
+  /// What to do after the `failures`-th failed start, or nil to give up.
+  /// A chosen device gets one more try before the take falls back to the
+  /// system default; the default itself gets one fresh retry, as before.
+  public static func recovery(afterFailure failures: Int, pinned: Bool) -> Recovery? {
+    switch (pinned, failures) {
+    case (true, 1): return .sameDevice
+    case (true, 2): return .systemDefault
+    case (false, 1): return .freshEngine
+    default: return nil
+    }
+  }
+}
