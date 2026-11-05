@@ -49,6 +49,7 @@ import Testing
       try put(".cache/recorded-takes-history", "take-a\ntake-c\n\n")
       try put(".cache/recorded-takes-bench", "take-d\n")
       try put("config.toml", "hotkey = \"fn\"\n")
+      try put("vocab", "Khuluma\nParakeet\n")
     }
 
     func run(_ checkpoint: @escaping (LegacyImport.Checkpoint) throws -> Void = { _ in }) -> LegacyImport.Result {
@@ -369,5 +370,44 @@ import Testing
     #expect(receipt.counts.debug_files == 5002)
     print("legacy import of 5,002 debug files took \(Int(r.duration * 1000)) ms")
     #expect(r.duration < 60)
+  }
+
+  @Test func importsTheLegacyVocabList() throws {
+    let f = try Fixture(); defer { f.cleanup() }
+    try f.populate()
+    let r = try receipt(f.run())
+    #expect(r.legacy_vocab)
+    let copy = f.dest.appendingPathComponent("vocab")
+    #expect(try Data(contentsOf: copy) == Data(contentsOf: f.root.appendingPathComponent("vocab")))
+    var st = stat(); lstat(copy.path, &st)
+    #expect(st.st_mode & 0o777 == 0o600)
+  }
+
+  @Test func legacyVocabMustBeARegularFileAndNotAlreadyInTheApp() throws {
+    let f = try Fixture(); defer { f.cleanup() }
+    try f.populate()
+    let src = f.root.appendingPathComponent("vocab")
+    try FileManager.default.removeItem(at: src)
+    #expect(mkfifo(src.path, 0o600) == 0)
+    let r = try receipt(f.run())
+    #expect(!r.legacy_vocab && r.skipped.contains { $0.path == src.path })
+
+    let g = try Fixture(); defer { g.cleanup() }
+    try g.populate()
+    try write(g.dest.appendingPathComponent("vocab"), "mine\n")
+    guard case .refused(let why) = g.run().outcome else { Issue.record("expected refusal"); return }
+    #expect(why.contains("vocab"))
+  }
+
+  @Test func failedDirectorySyncFailsBeforeTheReceipt() throws {
+    let f = try Fixture(); defer { f.cleanup() }
+    try f.populate()
+    let r = LegacyImport.$syncOverride.withValue({ _ in throw DataFiles.Failure("simulated fsync failure") }) {
+      f.run()
+    }
+    guard case .failed(let why) = r.outcome else { Issue.record(Comment(rawValue: r.logLine)); return }
+    #expect(why.contains("simulated fsync failure"))
+    #expect(!FileManager.default.fileExists(atPath: f.dest.appendingPathComponent("import.json").path))
+    #expect(try receipt(f.run()).counts.history == 3)
   }
 }

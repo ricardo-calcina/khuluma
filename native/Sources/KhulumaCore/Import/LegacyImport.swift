@@ -73,6 +73,9 @@ public enum LegacyImport {
     public var counts: Counts
     public var usage: UsageReceipt
     public var vocabulary: Bool
+    /// The CLI's plain-text `vocab` list, offered by the vocabulary editor when
+    /// there's no vocabulary.json (as `vocab-sheet show` did).
+    public var legacy_vocab: Bool
     public var legacy_take_ids: Int
     public var skipped: [Skipped]
     public var settings: String
@@ -98,7 +101,7 @@ public enum LegacyImport {
         let c = r.counts
         let u = r.usage.imported.map { "usage \($0.count) takes/\($0.processed_words) words" } ?? "usage not imported"
         return "legacy import: done from \(r.source_root): history \(c.history) (+\(c.history_invalid) invalid), "
-          + "debug \(c.debug_files), vocabulary \(r.vocabulary ? "yes" : "no") (+\(c.vocabulary_backups) backups), "
+          + "debug \(c.debug_files), vocabulary \(r.vocabulary ? "yes" : "no") (+\(c.vocabulary_backups) backups), vocab \(r.legacy_vocab ? "yes" : "no"), "
           + "\(u), take ids \(r.legacy_take_ids), skipped \(r.skipped.count), \(ms) ms"
       case .alreadyImported: return "legacy import: already done (\(ms) ms)"
       case .noSource(let p): return "legacy import: no CLI data at \(p) (\(ms) ms)"
@@ -190,7 +193,7 @@ public enum LegacyImport {
       if isDirectory(debug) {
         counts.debug_files = try copyTree(debug, rel: "history/inline-debug", stage: stage)
       }
-      fsyncDirectory(stagedHistory)
+      try syncDirectory(stagedHistory)
       try copyTimes(history, stagedHistory)
     }
 
@@ -210,6 +213,14 @@ public enum LegacyImport {
       } else {
         stage.skipped.append(Skipped(path: src.usage.path, reason: "usage.json unreadable or not schema_version 1; not imported"))
       }
+    }
+
+    // The legacy text vocab list.
+    let legacyVocab = src.root.appendingPathComponent("vocab")
+    var hasLegacyVocab = false
+    if lstatMode(legacyVocab) != nil,
+       try copyFile(legacyVocab, rel: "vocab", stage: stage, keepData: false) != nil {
+      hasLegacyVocab = true
     }
 
     // Vocabulary and its backups.
@@ -235,7 +246,7 @@ public enum LegacyImport {
 
     // Every staged copy was size-checked against its source and fsynced as it
     // was written; usage totals were re-read from the staged bytes above.
-    fsyncDirectory(staging)
+    try syncDirectory(staging)
     try checkpoint(.staged)
 
     // Promote. The journal gets a line per file only after its move succeeds.
@@ -245,20 +256,20 @@ public enum LegacyImport {
     try checkpoint(.moved)
 
     let receipt = Receipt(imported_at: iso8601(now), source_root: src.root.path, counts: counts, usage: usage,
-                          vocabulary: vocabulary, legacy_take_ids: ids.count, skipped: stage.skipped + kept,
+                          vocabulary: vocabulary, legacy_vocab: hasLegacyVocab, legacy_take_ids: ids.count, skipped: stage.skipped + kept,
                           settings: "pending")
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
     try DataFiles.replace(dest.appendingPathComponent(receiptName), with: try encoder.encode(receipt))
     unlink(dest.appendingPathComponent(journalName).path)
     try? removeStaging(staging)
-    fsyncDirectory(dest)
+    try? syncDirectory(dest)  // receipt already durable via replace
     return .imported(receipt)
   }
 
   // MARK: Checks
 
-  static let appEntries = ["history", "history/inline-debug", "usage.json", "vocabulary.json",
+  static let appEntries = ["history", "history/inline-debug", "usage.json", "vocabulary.json", "vocab",
                            "vocabulary-backups", legacyTakeIDsName, stagingName, journalName]
 
   /// Newer app data that an import must never merge over.
@@ -271,7 +282,7 @@ public enum LegacyImport {
     if countFiles(history.appendingPathComponent("inline-debug")) > 0 {
       return "the app already has a debug archive in \(history.path)"
     }
-    for name in ["usage.json", "vocabulary.json", legacyTakeIDsName]
+    for name in ["usage.json", "vocabulary.json", "vocab", legacyTakeIDsName]
     where lstatMode(dest.appendingPathComponent(name)) != nil {
       return "the app already has \(name)"
     }
@@ -489,7 +500,7 @@ public enum LegacyImport {
       default: stage.skipped.append(Skipped(path: s.path, reason: "not a regular file"))
       }
     }
-    fsyncDirectory(to)
+    try syncDirectory(to)
     try copyTimes(from, to)
     return n
   }
@@ -514,7 +525,7 @@ public enum LegacyImport {
       fd = open(url.path, O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW | O_CLOEXEC, 0o600)
       guard fd >= 0 else { throw DataFiles.posix("cannot create", url.path) }
       guard fsync(fd) == 0 else { throw DataFiles.posix("cannot sync", url.path) }
-      fsyncDirectory(url.deletingLastPathComponent())
+      try syncDirectory(url.deletingLastPathComponent())
     }
     func append(_ lines: [String]) throws {
       guard !lines.isEmpty else { return }
@@ -557,7 +568,7 @@ public enum LegacyImport {
         throw failure("refusing to replace \(d.path)")
       }
     }
-    fsyncDirectory(dest)
+    try syncDirectory(dest)
   }
 
   /// Undoes a crashed run's promotions: deletes a journaled file only when it
@@ -600,7 +611,7 @@ public enum LegacyImport {
     for dir in dirs.sorted(by: { $0.count > $1.count }) { rmdir(dest.appendingPathComponent(dir).path) }
     guard !failed else { throw failure("could not undo an interrupted import; journal kept at \(url.path)") }
     unlink(url.path)
-    fsyncDirectory(dest)
+    try syncDirectory(dest)
     return kept
   }
 
@@ -644,7 +655,9 @@ public enum LegacyImport {
     return n
   }
 
-  static func fsyncDirectory(_ url: URL) { DataFiles.fsyncDirectory(url) }
+  /// Test seam: tests swap in a failing sync for one task only.
+  @TaskLocal static var syncOverride: DataFiles.SyncDirectory?
+  static func syncDirectory(_ url: URL) throws { try (syncOverride ?? DataFiles.syncDirectory)(url) }
 
   static func iso8601(_ date: Date) -> String {
     let f = ISO8601DateFormatter()
