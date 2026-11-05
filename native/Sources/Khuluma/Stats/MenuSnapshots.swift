@@ -68,6 +68,16 @@ final class MenuSnapshots {
         at(time + 3.2) { [self] in openPopUp?.cancelTracking(); openPopUp = nil }
         time += 3.6
       }
+      // Recording: the activity label and Cancel Recording share one row.
+      at(time) { [self] in
+        settings.selectMicrophone(nil)
+        var recording = ActivityStatus(); recording.recordingStarted()
+        menu.show(recording, recording: true)
+      }
+      at(time + 0.1) { [self] in menu.showPreviewMenu() }
+      at(time + 0.8) { [self] in capture("menu-recording-\(look)") }
+      at(time + 1.0) { [self] in menu.dismissPreviewMenu(); menu.show(ActivityStatus(), recording: false) }
+      time += 1.4
       // The menu before this change, for comparing separators and spacing.
       at(time) { [self] in
         settings.adoptAudioInputs(PreviewInputs.connected)

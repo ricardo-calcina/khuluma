@@ -581,7 +581,16 @@ struct MenuSummary: View {
       Label("ElevenLabs API key not found. Check Settings.", systemImage: "key")
         .font(.callout).foregroundStyle(.primary)
     }
-    if let text = model.activity { Label(text, systemImage: model.recording ? "mic.fill" : "waveform").font(.callout) }
+    if let text = model.activity {
+      // While recording, Cancel sits on the same row, trailing and centred on the label.
+      HStack(alignment: .center, spacing: 8) {
+        Label(text, systemImage: model.recording ? "mic.fill" : "waveform").font(.callout)
+        if model.recording {
+          Spacer(minLength: 8)
+          cancelRecording
+        }
+      }
+    }
     ForEach([model.configWarning, model.daemon].compactMap { $0 }, id: \.self) { text in
       Label(text, systemImage: "exclamationmark.triangle").font(.callout).foregroundStyle(.primary)
     }
@@ -589,11 +598,15 @@ struct MenuSummary: View {
       if model.canShowRecovered { Button(text) { action(.recovered) } }
       else { Text(text).font(.callout).foregroundStyle(.secondary) }
     }
-    if model.recording { Button("Cancel Recording") { action(.cancel) } }
+    if model.recording, model.activity == nil { cancelRecording }
     if let text = model.retry { Button(text) { action(.retry) } }
     if let text = model.paste { Button(text) { action(.paste) } }
     if let text = model.discard { Button(text) { action(.discard) } }
     if let text = model.unsaved { Button(text) { action(.discardUnsaved) } }
+  }
+
+  private var cancelRecording: some View {
+    Button("Cancel Recording") { action(.cancel) }.controlSize(.small)
   }
 }
 
