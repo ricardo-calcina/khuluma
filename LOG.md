@@ -6,7 +6,7 @@ Focus from 2026-11-05: first make the app work without the CLI (tab "Khuluma app
 
 Window and menu restyle (2026-11-05) is installed as build 415 from main: Stats, Settings and Vocabulary share one ink-and-ember look (Theme.swift; DESIGN.md), Settings has a four-page sidebar, and Activity keeps one height for every range. Ricardo approved it from a preview build. The menu dropdown matches, and the window now shows in Cmd-Tab and the Dock while open (Ricardo confirmed Cmd-Tab in the preview). Wired headphones and AirPods are still to try on the microphone picker (Next). App rollback is `~/Applications/.khuluma-app.aX5hsD/previous.app` (build 411).
 
-Direction from 2026-10-27: Khuluma splits into two products. The Khuluma CLI, the free tool that grew out of the tmux-whisper setup, stays on the Homebrew tap and gets its SwiftBar integrations back. The native Swift dictation app becomes its own paid product, signed and notarised, installed from the App Store or a website download, not Homebrew. Phases 2, 4 and 5 and the SwiftBar, cask and App Store decisions below predate this and need re-planning (Next P1).
+Direction from 2026-10-27: Khuluma splits into two products. The Khuluma CLI, the free tool that grew out of the tmux-whisper setup, stays on the Homebrew tap and gets its SwiftBar integrations back. The native Swift dictation app becomes its own paid product, signed and notarised, installed from the App Store or a website download, not Homebrew. Re-planned 2026-11-05 in ROADMAP.md (Decisions below): the CLI gets its own paste dictation and a SwiftBar plugin back; the app ships as a notarised khuluma.app download, no cask.
 
 The user accepts the current dictation cleanup and Settings as working well; this work is closed for now. Further settings expansion, repeated-word cleanup and provider comparisons are parked below for a later session.
 
@@ -18,7 +18,11 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 
 ## Next
 
-- [ ] P1 · Split Khuluma into two products: the free CLI stays on the Homebrew tap with the SwiftBar integrations brought back; the native dictation app becomes a paid product, signed and notarised, from the App Store or a website download, not Homebrew. Re-plan phases 2, 4 and 5 and the SwiftBar, cask and App Store decisions to match · added 2026-10-27
+- [x] P1 · Split Khuluma into two products: re-plan phases 2, 4 and 5 and the SwiftBar, cask and App Store decisions (ROADMAP.md, approved 2026-11-05) · added 2026-10-27
+- [ ] P1 · CLI track 1: standalone paste dictation (`khuluma start|stop|toggle|cancel`, retry), history/usage as cli; private-profile tests only · branch wip/product-split · added 2026-11-05
+- [ ] P1 · CLI track 2: SwiftBar plugin with state, Start/Stop shortcut, usage and settings; `khuluma swiftbar install|remove` · branch wip/product-split · added 2026-11-05
+- [ ] P1 · CLI track 3: `khuluma model download`; README, INTEGRATIONS and formula desc/caveats/test for the standalone CLI (no publish without Ricardo's yes) · added 2026-11-05
+- [ ] P1 · CLI track 4, after the shared contract lands: one recording at a time across app and CLI, cli writer tag, doctor reports the app · added 2026-11-05
 - [x] P1 · Enable cleanup and exact repeated sentences; import the prepared vocabulary and verify active output · added 2026-10-24
 - [x] P1 · Combine the approved menu, icon, audio and vocabulary branches on main; verify the integrated source · added 2026-10-24
 - [x] P1 · Audit saved dictation and prepare conservative hesitation/sentence/brand cleanup in source · added 2026-10-23
@@ -60,15 +64,13 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 - [x] P2 · Slowly rotate the Processing fang seal, including menu tracking and Reduce Motion stop/resume · added 2026-10-23
 - [x] P2 · Install and verify rounder Recording mouth and immediate Settings switch between both status icon themes · added 2026-10-23
 - [ ] P2 · Lowkey ideas parked from 3c, only with evidence: config file watcher, warm mic/pre-roll · added 2026-10-16
-- [ ] P2 · Phase 2 after CLI independence: Developer ID signing/notarization, versioned app distribution and khuluma cask; Settings, History, Transcribe File and bundled agent CLI; verify fresh-Mac permissions and file transcription · added 2026-10-22
-- [ ] P2 · Decide the future signed-app cask/update approach before phase 2 distribution; paid membership/domain require separate authorization · added 2026-10-22
-- [ ] P2 · Phase 3: repeatable import of legacy config/vocab/history/usage into Khuluma Application Support; preserve old data and totals/streak, keep ledger export shape, redirect or stop old CLI writes · added 2026-10-22
-- [ ] P2 · Phase 4 after replacement is usable: interactive CLI deprecation notice, formula and Finder notices; preserve JSON contracts; check remaining integrations over a 30-day notice period · added 2026-10-22
-- [ ] P2 · Phase 5 after deprecation: final supported CLI release and replacement links, then formula disable/repository archive with explicit release authorization; retain public history · added 2026-10-22
+- [ ] P2 · Phase 2 after app independence: Developer ID signing/notarisation, versioned .dmg on khuluma.app with Sparkle (no cask, no bundled CLI); History and Transcribe File in the app; verify fresh-Mac permissions · added 2026-10-22
+- [ ] P2 · Before phase 2 ships: decide whether the paid app's source stays in this public MIT repo, moves to a private one or changes licence · added 2026-11-05
 - [ ] P3 · Deferred separate labs: voxtral-inline API/realtime dictation and faster-whisper-tool batch/subtitle/offline exploration; only after core reliability is stable · added 2026-10-22
 
 ## Decisions
 
+- Two products (Ricardo, 2026-11-05; ROADMAP.md): the free CLI dictates on its own again (paste into the front app, no tmux flow) with a SwiftBar plugin whose shortcut starts and stops a take (no Raycast). The paid app ships only as a notarised khuluma.app download with Sparkle: no Homebrew cask, no bundled CLI; the App Store is parked (sandbox can't read the shared data without a folder grant; auto-paste review risk). Old phases 3, 4 and 5 (data move, CLI deprecation, archive) are cancelled; the shared contract replaces the data move. The app's source licence is decided before it ships. Supersedes the direct-distribution, dropped-integrations and cask lines below.
 - App and CLI (Ricardo, 2026-11-05): app independence comes before the CLI split. Each must work alone; when both are installed they share the same logs, history and usage tracking, and every record says which one wrote it, so a problem can be traced to its source.
 - Microphone choice stays a submenu row in the menu, not an inline ticked list (tried in f983018, reverted 2026-11-05): Ricardo rarely switches and mostly stays on System Default; the row only needs to show the input in use. The case for choosing is two inputs at once, e.g. recording a video on the phone while Khuluma keeps the MacBook mic.
 - Icon/theme recovery: `/Users/admin/Applications/.khuluma-app.74v7dj/previous.app` retains signed build 353; current QA is at `/private/tmp/khuluma-themes-qa.RxaJYA/`. `.khuluma-app.xMyT3X/previous.app` retains build 351, `.khuluma-app.atWD6N/previous.app` build 347, `.khuluma-app.LYC8GT/previous.app` build 342 and `.khuluma-app.LYfteh/previous.app` build 340. Earlier motion/status/app-icon QA remains under `/private/tmp/khuluma-{motion,status,icons}-qa.*` as recorded in `assets/icons/README.md`. Preserve newer user data when recovering.
@@ -78,14 +80,14 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 - Prefer canonical-only interfaces. v0.11.0 removed ordinary old command/environment/app compatibility after concrete caller and daily-workflow checks, superseding the former 30-day identity wait. Preserve data, historical releases, explicit recovery and wrong-profile/competing-writer refusals. The completed per-file removal plan remains in Git at `8da982b:LOG.md`; source #85 records implementation.
 - Recovery on this Mac remains under `/Users/admin/Documents/Codex/2026-10-22/all-right-next-i-want-to/work/`: `khuluma-live-cutover/`, `khuluma-implementation-evidence/local-brew-recovery-3kf3c92v/` and `khuluma-compat-2026-10-23/`. The committed data manifest is `~/.config/khuluma/.migration/rename-v1/manifest.json`. Closed controller journals are historical: never replay them or restore an old snapshot over newer user work.
 
-- Khuluma is the product; local, fast dictation and never losing a take remain the priorities. The CLI is its back end until native replacements are proven. Keep shared-file and locking contracts while the app and CLI share those files.
+- Local, fast dictation and never losing a take remain the priorities for both products. Keep shared-file and locking contracts while the app and CLI share those files.
 - Name chosen: Khuluma. Approved rename target is bundle `com.ricardo-nth.khuluma` with a separate `Khuluma Local Code Signing` identity; preserve the existing Lowkey identity and data for other apps/rollback. The controlled cutover and final v0.10.0 app acceptance passed. Name research is dated in `docs/plans/KHULUMA_NAME_CHECK.md`; official UK/EU checks remain open above.
-- Direct distribution is the planned channel. Mac App Store phase 6 is parked; the old roadmap keeps the sandbox research. Free/paid store distribution is undecided.
-- Tmux capture, CLI recording, LLM rewriting, silence trim, bash chunking, Raycast and SwiftBar were dropped; reintroduce none without evidence. Usage, Stats and logs keep counts/timings, not transcript text; history and pending recovery are the intentional text stores.
-- Rename the existing repository in place to preserve all history; retain neutral `ricardo-calcina/tap` and rename its formula to `khuluma`. The in-place repository rename, immutable v0.10.0 release and canonical formula/map are published and verified. The app continues to depend on its matching CLI; cask/CLI-independence/deprecation/archive are separate future work.
+- Tmux capture, LLM rewriting, silence trim, bash chunking and Raycast stay dropped; CLI recording and SwiftBar return under the two-product decision. Usage, Stats and logs keep counts/timings, not transcript text; history and pending recovery are the intentional text stores.
+- Rename the existing repository in place to preserve all history; retain neutral `ricardo-calcina/tap` and rename its formula to `khuluma`. The in-place repository rename, immutable v0.10.0 release and canonical formula/map are published and verified. CLI deprecation and archive are cancelled (two-product decision).
 
 ## Done
 
+- 2026-11-05 · Two-product plan approved: ROADMAP.md rewritten, LOG decisions and phases updated · wip/product-split
 - 2026-11-05 · Ricardo bought the khuluma.app domain · Next
 - 2026-11-05 · Ricardo confirmed a take on the iPhone Continuity mic on build 398 (requested = actual, fallback none, delivered); design refresh settled · app.log 11:16Z
 - 2026-11-05 · Installed build 398 (app only; daemon kept, doctor healthy) · ~/Applications/.khuluma-app.TEUOtl/previous.app
