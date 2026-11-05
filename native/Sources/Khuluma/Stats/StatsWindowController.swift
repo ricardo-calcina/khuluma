@@ -68,6 +68,8 @@ final class StatsWindowController: NSWindowController, NSWindowDelegate, NSToolb
 
   func show(settings: Bool = false) {
     navigation.selection = settings ? .settings : .stats
+    // A normal app while the window is open, so it's in Cmd-Tab and the Dock.
+    NSApp.setActivationPolicy(.regular)
     NSApp.activate()
     showWindow(nil)
     window?.makeKeyAndOrderFront(nil)
@@ -174,6 +176,15 @@ final class StatsWindowController: NSWindowController, NSWindowDelegate, NSToolb
   func windowWillClose(_ notification: Notification) {
     detailsPopover.performClose(nil)
     model.windowClosed()
+    // Back to menu bar only once the window is gone. `.common` so it also runs
+    // while the status menu is tracking.
+    RunLoop.main.perform(inModes: [.common]) { [weak self] in
+      MainActor.assumeIsolated {
+        guard self?.window?.isVisible != true else { return }
+        NSApp.setActivationPolicy(.accessory)
+      }
+    }
+    CFRunLoopWakeUp(CFRunLoopGetMain())
   }
 }
 

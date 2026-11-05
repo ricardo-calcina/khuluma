@@ -591,8 +591,8 @@ struct MenuSummary: View {
         Label {
           Text(text)
         } icon: {
-          Image(systemName: model.recording ? "mic.fill" : "waveform")
-            .foregroundStyle(model.recording ? Ember.red : Color.primary)
+          if model.recording { RecordingEmblem() }
+          else { Image(systemName: "waveform").foregroundStyle(Color.primary) }
         }
         .font(.callout)
         if model.recording {
@@ -616,7 +616,109 @@ struct MenuSummary: View {
   }
 
   private var cancelRecording: some View {
-    Button("Cancel Recording") { action(.cancel) }.controlSize(.small)
+    Button { action(.cancel) } label: {
+      Label("Cancel", systemImage: "xmark")
+    }
+    .buttonStyle(MenuCapsuleButtonStyle())
+    .accessibilityLabel("Cancel Recording")
+  }
+}
+
+/// A filled ember circle with a white mic, in RingMark's proportions; easier to
+/// see on the menu's glass than a red glyph alone.
+private struct RecordingEmblem: View {
+  var size: CGFloat = 20
+
+  var body: some View {
+    Circle()
+      .fill(Ember.red)
+      .frame(width: size, height: size)
+      .overlay {
+        Image(systemName: "mic.fill")
+          .font(.system(size: size * 0.5, weight: .semibold))
+          .foregroundStyle(.white)
+      }
+      .accessibilityHidden(true)
+  }
+}
+
+/// A compact ink capsule. AppKit's bordered button draws as inactive grey in a
+/// menu window, so this one is drawn in SwiftUI.
+private struct MenuCapsuleButtonStyle: ButtonStyle {
+  func makeBody(configuration: Configuration) -> some View {
+    CapsuleBody(configuration: configuration)
+  }
+
+  private struct CapsuleBody: View {
+    let configuration: ButtonStyleConfiguration
+    // @StateObject, not @State: keeps source previews compatible with the Command Line Tools.
+    @StateObject private var hover = Hover()
+    @Environment(\.isEnabled) private var isEnabled
+
+    var body: some View {
+      configuration.label
+        .labelStyle(CompactLabelStyle())
+        .font(.system(size: 11, weight: .medium))
+        .foregroundStyle(.primary)
+        .padding(.horizontal, 9)
+        .padding(.vertical, 3)
+        .background(Capsule().fill(Ink.color.opacity(configuration.isPressed ? 0.18 : hover.active ? 0.12 : 0.07)))
+        .overlay(Capsule().strokeBorder(Ink.color.opacity(0.12), lineWidth: 0.5))
+        .contentShape(Capsule())
+        .opacity(isEnabled ? 1 : 0.45)
+        .onHover { hover.active = $0 }
+    }
+  }
+
+  private final class Hover: ObservableObject {
+    @Published var active = false
+  }
+
+  private struct CompactLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+      HStack(spacing: 4) {
+        configuration.icon.font(.system(size: 9, weight: .bold))
+        configuration.title
+      }
+    }
+  }
+}
+
+/// A small switch drawn in SwiftUI. AppKit draws its switch as inactive (grey)
+/// in a menu window, which isn't key, so `.tint` has no effect there.
+private struct MenuSwitchStyle: ToggleStyle {
+  func makeBody(configuration: Configuration) -> some View {
+    SwitchBody(configuration: configuration)
+  }
+
+  private struct SwitchBody: View {
+    let configuration: ToggleStyleConfiguration
+    @Environment(\.isEnabled) private var isEnabled
+
+    var body: some View {
+      Button { configuration.isOn.toggle() } label: {
+        HStack(spacing: 6) {
+          configuration.label
+          ZStack(alignment: configuration.isOn ? .trailing : .leading) {
+            Capsule()
+              .fill(configuration.isOn ? Ember.accent : Ink.track)
+              .overlay(Capsule().strokeBorder(Ink.color.opacity(configuration.isOn ? 0 : 0.12), lineWidth: 0.5))
+            Circle()
+              .fill(.white)
+              .shadow(color: .black.opacity(0.25), radius: 1, y: 0.5)
+              .padding(1.5)
+          }
+          .frame(width: 26, height: 15)
+          .animation(.easeOut(duration: 0.15), value: configuration.isOn)
+        }
+        .contentShape(Rectangle())
+      }
+      .buttonStyle(.plain)
+      .opacity(isEnabled ? 1 : 0.45)
+      .accessibilityElement(children: .combine)
+      .accessibilityAddTraits(.isToggle)
+      .accessibilityValue(configuration.isOn ? "On" : "Off")
+    }
   }
 }
 
@@ -646,7 +748,7 @@ struct MenuFooter: View {
       Toggle("Auto-send", isOn: Binding(
         get: { settings.config?.inline.autosend ?? false },
         set: { settings.save("inline.autosend", $0 ? "true" : "false") }))
-        .toggleStyle(.switch).controlSize(.mini).tint(Ember.accent)
+        .toggleStyle(MenuSwitchStyle())
         .font(.caption).foregroundStyle(.secondary)
         .disabled(!settings.editable)
         .help(autosendHelp)

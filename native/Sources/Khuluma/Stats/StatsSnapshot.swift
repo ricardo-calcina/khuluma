@@ -61,6 +61,16 @@ enum StatsSnapshot {
         model: MenuModel(), stats: full, settings: options, openStats: {}, openSettings: {}, action: { _ in })
         .background(Color(nsColor: .windowBackgroundColor))), width: 400)
       options.setMenuShowsWeek(true)
+      // The fixture has Auto-send on; this shows the switch off, while recording.
+      var offFixture = UISettingsFixture()
+      try offFixture.save("inline.autosend", value: "false")
+      let autosendOff = try offFixture.model()
+      let recordingOff = MenuModel()
+      recordingOff.activity = "Recording…"
+      recordingOff.recording = true
+      save("menu-recording-autosend-off", view: AnyView(MenuPanel(
+        model: recordingOff, stats: full, settings: autosendOff, openStats: {}, openSettings: {}, action: { _ in })
+        .background(Color(nsColor: .windowBackgroundColor))), width: 400)
       let vocabularyTab = AppNavigation()
       vocabularyTab.selection = .vocabulary
       save("app-vocabulary", view: AnyView(AppView(stats: full, settings: local, navigation: vocabularyTab,

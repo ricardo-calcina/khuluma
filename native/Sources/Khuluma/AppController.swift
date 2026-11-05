@@ -76,6 +76,7 @@ final class AppController: NSObject, NSApplicationDelegate {
   func applicationDidFinishLaunching(_ notification: Notification) {
     connectMenu()
     menu.install()
+    MainActor.assumeIsolated { AppMainMenu.install { [weak self] in self?.showStats(settings: true) } }
     sweepStaleMarkers()
     Log.write("launch: Khuluma \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev")"
               + ", start at login \(LoginItem.text(LoginItem.status))")
@@ -203,6 +204,12 @@ final class AppController: NSObject, NSApplicationDelegate {
   /// persistence get up to 30 s; whatever doesn't finish is recovered at the
   /// next launch (saved audio, spooled records). Before replying, every
   /// take's audio is checked to be on disk (`finishQuitting`).
+  /// Clicking the Dock icon (only there while the window is open) brings the window back.
+  func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+    if !flag { showStats() }
+    return true
+  }
+
   func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
     guard !quitting else { return .terminateLater }
     if take != nil || !unsaved.isEmpty {
