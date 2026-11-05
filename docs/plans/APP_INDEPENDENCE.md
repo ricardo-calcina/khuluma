@@ -76,7 +76,7 @@ Retiring the CLI, formula and tap (sunset tab), signing/notarisation, Apple Deve
 2. ElevenLabs Scribe and file transcription move into the app.
 3. The app runs its own bundled daemon.
 
-## Proposed, for Ricardo's OK
+## Approved by Ricardo (2026-11-05)
 
 4. Settings live in `settings.json` in the app folder (not `config.toml`, not UserDefaults): plain JSON that agents can read and edit.
 5. `bench.tsv` is dropped; `app.log` keeps per-take timings.
