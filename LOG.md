@@ -2,6 +2,8 @@
 
 ## Now
 
+Pick up (split tab, 2026-11-05): CLI track paused before any code; Ricardo is weighing dropping the CLI and the tap and moving what's needed into the app (the transcribe-audio skill calls `khuluma transcribe <file> -q`, so the app would need a small built-in file-transcription command) · next: his decision; if the CLI stays, build CLI track 1-2 to the shared contract in docs/plans/APP_INDEPENDENCE.md (recording.lock, take_id and writer tag, khuluma_log, data-contract.json); if it goes, re-plan ROADMAP.md as an app-only sunset · branch: wip/product-split
+
 Focus from 2026-11-05: first make the app work without the CLI (tab "Khuluma app without the CLI", branch `wip/app-independence`, worktree `../khuluma-wt-app-independence`), then the two-product split and the CLI side (tab "Khuluma two-product split", branch `wip/product-split`, worktree `../khuluma-wt-product-split`). The app tab owns the shared data contract. Apple Developer Program and the trademark search wait until both land; the khuluma.app website can happen any time, separately.
 
 Window and menu restyle (2026-11-05) is installed as build 415 from main: Stats, Settings and Vocabulary share one ink-and-ember look (Theme.swift; DESIGN.md), Settings has a four-page sidebar, and Activity keeps one height for every range. Ricardo approved it from a preview build. The menu dropdown matches, and the window now shows in Cmd-Tab and the Dock while open (Ricardo confirmed Cmd-Tab in the preview). Wired headphones and AirPods are still to try on the microphone picker (Next). App rollback is `~/Applications/.khuluma-app.aX5hsD/previous.app` (build 411).
