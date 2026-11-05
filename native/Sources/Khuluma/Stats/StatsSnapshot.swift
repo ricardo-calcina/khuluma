@@ -71,6 +71,18 @@ enum StatsSnapshot {
       }
       save("vocabulary", view: AnyView(VocabularyView(model: VocabularyModel(settings: local), settings: local)),
            width: 560, height: 634)
+      // Examples with the failing one selected, so the inspector offers its fix.
+      let checks = VocabularyModel(settings: local)
+      checks.adopt(try local.onLoadVocabulary())
+      checks.changeSection(.examples)
+      checks.select(["Build it in X code with core ml."])
+      save("vocabulary-examples", view: AnyView(VocabularyView(model: checks, settings: local)),
+           width: 560, height: 634)
+      let brands = VocabularyModel(settings: local)
+      brands.adopt(try local.onLoadVocabulary())
+      brands.changeSection(.brands)
+      save("vocabulary-short", view: AnyView(VocabularyView(model: brands, settings: local)),
+           width: 560, height: 420)
       let navigation = AppNavigation()
       save("app-stats", view: AnyView(AppView(stats: full, settings: local, navigation: navigation, vocabulary: VocabularyModel(settings: local))),
            width: 560, height: 634)
@@ -319,14 +331,23 @@ final class UIPreviewController: NSObject, NSApplicationDelegate {
 /// Sample vocabulary remains in memory, including saves, reloads and imports.
 private func installPreviewVocabulary(_ settings: SettingsModel) {
   final class Store {
-    var snapshot = VocabularySnapshot(document: VocabularySheet(
-      fillers: VocabularySheet.defaults.fillers,
-      brands: [.init(heard: "Kaluma", write: "Khuluma"), .init(heard: "PN PM", write: "pnpm"),
-               .init(heard: "X code", write: "Xcode")],
-      words: [.init(heard: "core ml", write: "CoreML")]), revision: "preview")
+    var snapshot: VocabularySnapshot = {
+      var sheet = VocabularySheet(
+        fillers: VocabularySheet.defaults.fillers,
+        brands: [.init(heard: "Kaluma", write: "Khuluma"), .init(heard: "PN PM", write: "pnpm"),
+                 .init(heard: "X code", write: "Xcode")],
+        words: [.init(heard: "core ml", write: "CoreML")])
+      // One passing and one failing example, so Examples shows both.
+      sheet.examples = [.init(said: "Open Kaluma with PN PM.", expect: "Open Khuluma with pnpm."),
+                        .init(said: "Build it in X code with core ml.", expect: "Build it in Xcode with Core ML.")]
+      return VocabularySnapshot(document: sheet, revision: "preview")
+    }()
   }
   let store = Store()
   settings.onLoadVocabulary = { store.snapshot }
+  settings.onLoadRecentDictations = {
+    ["So the Kaluma menu shows today's words.", "Ship it with PN PM and X code."]
+  }
   settings.onSaveVocabulary = { snapshot in
     store.snapshot = snapshot
     return snapshot
