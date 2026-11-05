@@ -10,6 +10,9 @@ final class TakePipeline {
     case handled(TakeResult)
     /// Nothing visible happened: the take goes through the CLI instead.
     case fallback(String)
+    /// The daemon or its model wasn't ready (starting, loading): keep the
+    /// take in recovered/ until the supervisor reports ready.
+    case notReady(String)
   }
 
   /// The CLI, for takes the native path can't handle (until slice G); nil
@@ -111,6 +114,14 @@ final class TakePipeline {
                                          modelVersion: transcription.modelVersion, timeout: timeout)
       }
     } catch let failure as NativeTranscriber.Failure {
+      if let reason = DaemonReadiness.notReadyReason(
+        failure.underlying, modelPath: modelPath, modelVersion: transcription.modelVersion ?? "v3",
+        statusAfter: { client.status(timeout: 1) }) {
+        if let kept = failure.keptWAV { try? FileManager.default.removeItem(at: kept) }
+        Log.write("pipeline: daemon not ready (\(reason): \(failure.underlying.localizedDescription)); keeping the take until it is")
+        onUnreachable()
+        return .notReady(reason)
+      }
       if case DaemonClient.ClientError.timedOut(let seconds) = failure.underlying {
         // Re-running through the CLI would wait on the same daemon again.
         // No automatic retry: keep the audio for an hour for Retry/Discard.
@@ -189,8 +200,8 @@ final class TakePipeline {
           line.add("clean", ms: cleanedAt - transcribedAt)
           line.add("error", Self.errorCategory(error))
         }
-        persister.persist(record)
-        return .handled(.failed(error.localizedDescription))
+        let recorded = persister.persist(record)
+        return .handled(.pasteFailed(error.localizedDescription, recorded: recorded))
       }
       let deliveredAt = monotonicMs()
       let deliveredDate = Date()
@@ -319,6 +330,7 @@ final class TakePipeline {
     if error.domain == "Khuluma" {
       switch error.code {
       case 2: return "accessibility_missing"
+      case 5: return "postevent_missing"
       case 3: return "no_paste_key"
       case 4: return "target_is_self"
       default: return "app_\(error.code)"

@@ -41,7 +41,19 @@ final class AppController: NSObject, NSApplicationDelegate {
   private var cli: CLIBridge?
   /// Settings live in settings.json in the app folder.
   private let settingsStore = SettingsStore.standard()
-  private let settingsEnvironment = SettingsEnvironment.current()
+  /// The model folder resolves through FluidAudio (its shared cache, and
+  /// whether a folder holds a complete model).
+  private let settingsEnvironment: SettingsEnvironment = {
+    var environment = SettingsEnvironment.current()
+    environment.defaultModelPath = SpeechModel.defaultPath
+    environment.modelAvailable = { SpeechModel.isComplete($0, version: $1) }
+    // An unsafe socket folder: no socket at all (takes find the daemon
+    // unreachable and are kept in recovered; the supervisor says why).
+    environment.defaultSocketPath = AppController.daemonSocket.issue == nil ? AppController.daemonSocket.resolved.path : ""
+    return environment
+  }()
+  /// The app daemon's socket, resolved and checked once per launch.
+  private static let daemonSocket = DaemonSocketPath.prepared(support: AppRuntimePaths.support)
   /// Reads the settings as AppConfig; safe on any queue.
   private var loadConfig: @Sendable () -> AppConfig {
     let store = settingsStore, environment = settingsEnvironment
@@ -64,8 +76,12 @@ final class AppController: NSObject, NSApplicationDelegate {
   private var markerDirectory: String { config?.transcription.processingDir ?? TakeMarker.defaultDirectory }
   /// Marker dirs already swept for a previous run's leftovers.
   private var sweptMarkerDirectories: Set<String> = []
-  /// Keeps the daemon warm; nil until the CLI is found.
+  /// Keeps the app's daemon warm; nil until initialization.
   private var supervisor: DaemonSupervisor?
+  /// The bundled khulumad this app runs (stopped on quit).
+  private var daemon: DaemonProcess?
+  /// First-run model download.
+  private var models: ModelProvisioner?
   /// Why supervision is off, as last logged ("" = on).
   private var supervisionNote: String?
   private var supervisedTarget: DaemonSupervisor.Target?
@@ -104,12 +120,13 @@ final class AppController: NSObject, NSApplicationDelegate {
     // A new choice, or the chosen device coming and going, rebuilds the
     // engine while idle; during a take it waits for the take to end.
     settings.observeMicrophoneChoice { [weak self] in self?.recorder.inputChoiceChanged() }
-    AudioRecorder.requestPermission { granted in
-      if !granted { Log.write("permission: microphone denied") }
+    AudioRecorder.requestPermission { [weak self] granted in
+      if !granted { Log.write("permission: microphone denied"); self?.menu.showPermission(PermissionPolicy.microphoneNotice) }
     }
     if !Deliverer.isTrusted(prompt: true) {
       Log.write("permission: accessibility not granted yet (prompted)")
     }
+    if let notice = Permissions.checkKeyboardAtLaunch() { menu.showPermission(notice) }
 
     // The one-time import of the CLI's data (settings included) runs before
     // settings load and before the persister's replay. Then the CLI, only
@@ -136,14 +153,13 @@ final class AppController: NSObject, NSApplicationDelegate {
     }
   }
 
-  /// A CLI was found: takes the native path can't handle can use it, and
-  /// the supervisor can warm the daemon with it.
+  /// A CLI was found: takes the native path can't handle can use it (until
+  /// slice G). Daemon supervision doesn't need it.
   private func adoptCLI(_ cli: CLIBridge) {
     self.cli = cli
     pipeline?.cli = cli
     Log.write("cli: found, used only for takes the native path can't handle")
     if let config {
-      configureSupervision(config, trigger: .settings)
       // Leftovers that needed the CLI before it was found get another go.
       recoverLeftoverTakes(config: config)
     }
@@ -154,11 +170,29 @@ final class AppController: NSObject, NSApplicationDelegate {
       self?.supervisor?.trigger(.unreachable)
     }
     self.pipeline = pipeline
+    let schedule: @Sendable (TimeInterval, @escaping @Sendable () -> Void) -> Void = { delay, work in
+      DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + delay, execute: work)
+    }
+    // The app's own daemon on its own socket; never the CLI's.
+    let (socket, socketIssue) = Self.daemonSocket
+    if socket.isFallback {
+      Log.write("daemon: the app folder's path is too long for a socket; using \(socket.path)")
+    }
+    let refusal = socketIssue.map { "unsafe socket folder: \($0)" }
+    if let refusal { Log.write("daemon: \(refusal); not starting or connecting") }
+    let daemon = DaemonProcess(
+      binary: DaemonProcess.locateBinary(), socketPath: socket.path, support: AppRuntimePaths.support,
+      logDirectory: AppRuntimePaths.logs, environment: .live(schedule: schedule), refusal: refusal,
+      log: { Log.write($0) })
+    self.daemon = daemon
+    models = ModelProvisioner(environment: SpeechModel.environment) { [weak self] state in
+      DispatchQueue.main.async { self?.showModelState(state) }
+    }
     supervisor = DaemonSupervisor(
       environment: DaemonSupervisor.Environment(
         probe: { path, timeout in DaemonClient(socketPath: path).status(timeout: timeout) },
-        warmup: { try pipeline.requireCLI().warmup() },
-        schedule: { delay, work in DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + delay, execute: work) }),
+        warmup: DaemonSupervisor.ownedWarmup(process: daemon),
+        schedule: schedule),
       onChange: { [weak self] state, line in
         Log.write("supervisor: \(line)")
         DispatchQueue.main.async { self?.showDaemonState(state) }
@@ -314,6 +348,8 @@ final class AppController: NSObject, NSApplicationDelegate {
     if !drained {
       Log.write("quit: pending work did not finish within 30s; quitting (saved audio and spooled takes are recovered at next launch)")
     }
+    // SIGTERM our khulumad; it drains in-flight work itself. Waits ≤ 2 s.
+    daemon?.stop(timeout: 2)
     NSApp.reply(toApplicationShouldTerminate: true)
   }
 
@@ -447,6 +483,15 @@ final class AppController: NSObject, NSApplicationDelegate {
         reloadSettings()
         return
       }
+      // A denied microphone still delivers buffers, of silence: don't start.
+      if let notice = PermissionPolicy.microphoneNotice(for: Permissions.microphoneStatus) {
+        Log.write("start: refused, microphone access denied")
+        sounds.play(.error)
+        menu.showPermission(notice)
+        fail("microphone access is off")
+        return
+      }
+      menu.clearPermission(.microphone)
       startRecording(hotkeyAt: hotkeyAt)
     } else {
       stopRecording()
@@ -658,16 +703,32 @@ final class AppController: NSObject, NSApplicationDelegate {
       // How the take reaches the CLI path, for the take log.
       let route: (path: String, reason: String)
       if let fresh {
-        if let blocker = fresh.nativePipelineBlocker {
+        if fresh.nativePipelineBlocker == TranscriptionSettings.modelMissing {
+          // No CLI detour: keep the take; it's recovered once the model is in.
+          self.keepUntilDaemonReady(takeId: takeId, recordMs: recordMs, reason: TranscriptionSettings.modelMissing,
+                                    category: "model_missing")
+          return
+        } else if let blocker = fresh.nativePipelineBlocker {
           route = ("cli", blocker)
         } else {
           switch pipeline.processNatively(samples: samples, take: take, recordMs: recordMs, appName: appName,
                                           config: fresh, stopAt: stopAt) {
           case .handled(let result):
             settled = result.settlesAudio
+            if case .pasteFailed(_, recorded: false) = result {
+              // The text is on the clipboard only: keep the audio to recover it.
+              if (try? inFlight.keep(takeId)) != nil {
+                DispatchQueue.main.async { self.menu.showRecovered("Saved recording waiting: Show in Finder", action: true) }
+              } else {
+                Log.write("pipeline: paste failed and the recording could not be saved; held until Quit")
+              }
+            }
             DispatchQueue.main.async { self.finish(result) }
             return
           case .fallback(let reason): route = ("fallback", reason)
+          case .notReady(let reason):
+            self.keepUntilDaemonReady(takeId: takeId, recordMs: recordMs, reason: reason, category: "daemon_not_ready")
+            return
           }
         }
       } else {
@@ -697,11 +758,13 @@ final class AppController: NSObject, NSApplicationDelegate {
     switch result {
     case .delivered:
       sounds.play(.stop)
+      menu.clearPermission(.keyboard)
       finishProcessing(error: nil)
     case .noSpeech:
       finishProcessing(error: nil, note: "No speech detected")
-    case .failed(let message):
+    case .failed(let message), .pasteFailed(let message, _):
       sounds.play(.error)
+      if let notice = PermissionPolicy.notice(forFailure: message) { menu.showPermission(notice) }
       finishProcessing(error: message)
     case .timedOut(let message, _):
       sounds.play(.error)
@@ -742,6 +805,47 @@ final class AppController: NSObject, NSApplicationDelegate {
       self.finishProcessing(error: mismatch.localizedDescription + (kept ? " (recording saved)" : " (recording kept until Quit)"))
       // The mismatch may be older than a reinstall since: check again.
       self.reloadSettings()
+    }
+  }
+
+  /// The speech model is still downloading, or the daemon/model isn't
+  /// ready (starting, loading): the take is saved to recovered/ and
+  /// transcribed into history once the supervisor reports ready (or the
+  /// model arrives). Runs on `work`.
+  private func keepUntilDaemonReady(takeId: String, recordMs: Int, reason: String, category: String) {
+    let kept: Bool
+    do {
+      let url = try inFlight.keep(takeId)
+      Log.write("pipeline: \(reason); saved the recording to \(url.lastPathComponent)")
+      kept = true
+    } catch {
+      Log.write("pipeline: \(reason); could not save the recording: \(error.localizedDescription)")
+      kept = false
+    }
+    var line = TakeLog()
+    line.add("path", "none")
+    line.add("outcome", "failed")
+    line.add("record", recordMs)
+    line.add("error", category)
+    line.add("kept", kept ? 1 : 0)
+    Log.write(line.line)
+    // Settings as of now, not as of the take (the model may have arrived).
+    let fresh = kept ? loadConfig() : nil
+    DispatchQueue.main.async {
+      if kept {
+        self.menu.showRecovered("Saved dictations waiting (\(self.leftoverTakes().count)): Show in Finder", action: true)
+      }
+      if let fresh {
+        switch KeptTakeFollowUp.decide(settingsChanged: fresh != self.config,
+                                       supervisorReady: self.supervisor?.currentState.isReady == true) {
+        case .applySettings: self.apply(fresh)
+        case .recoverNow: self.recoverLeftoverTakes(config: fresh)
+        case .waitForReady: break
+        }
+      }
+      self.sounds.play(.error)
+      let shown = reason.prefix(1).uppercased() + reason.dropFirst()
+      self.finishProcessing(error: shown + (kept ? " (recording saved)" : " (recording kept until Quit)"))
     }
   }
 
@@ -914,13 +1018,36 @@ final class AppController: NSObject, NSApplicationDelegate {
       Log.write("supervisor: " + (note.isEmpty ? "keeping the daemon warm" : "off (\(note))"))
       supervisionNote = note
     }
+    // No model yet: get it (FluidAudio's cache), without blocking takes.
+    if config.transcription.provider == "parakeet", config.transcription.modelPath == nil {
+      models?.ensure(configured: nil, fallback: SpeechModel.defaultPath)
+    }
     guard target != supervisedTarget else { return }
     supervisedTarget = target
     supervisor?.configure(target)
     if target == nil {
-      menu.showDaemon(nil)
+      menu.showDaemon(models?.currentState.menuTitle)
     } else {
       supervisor?.trigger(trigger)
+    }
+  }
+
+  /// Download progress in the menu; once the model is in, settings are
+  /// re-resolved so supervision starts, and saved takes are retried.
+  private func showModelState(_ state: ModelProvisioner.State) {
+    switch state {
+    case .present(let path):
+      Log.write("model: ready at \(path)")
+      menu.showDaemon(nil)
+      reloadSettings()
+      if let config, contractMismatch == nil { recoverLeftoverTakes(config: config) }
+    case .downloading:
+      if supervisedTarget == nil { menu.showDaemon(state.menuTitle) }
+    case .failed(let reason):
+      Log.write("model: download failed: \(reason)")
+      if supervisedTarget == nil { menu.showDaemon(state.menuTitle) }
+    case .unknown:
+      break
     }
   }
 
@@ -928,7 +1055,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     guard config?.transcription.provider != "elevenlabs" else { menu.showDaemon(nil); return }
     switch state {
     case .unknown:
-      menu.showDaemon(nil)
+      menu.showDaemon(models?.currentState.menuTitle)
     case .ready:
       menu.showDaemon(nil)
       // Saved takes that failed while the daemon was down or loading.
@@ -1005,6 +1132,7 @@ final class AppController: NSObject, NSApplicationDelegate {
           self.finishProcessing(error: nil, note: "No speech detected")
         case .failed(let message):
           self.sounds.play(.error)
+          if let notice = PermissionPolicy.notice(forFailure: message) { self.menu.showPermission(notice) }
           self.finishProcessing(error: message)
         }
         self.refreshTimedOutItems()

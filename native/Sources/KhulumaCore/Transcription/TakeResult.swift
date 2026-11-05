@@ -6,6 +6,10 @@ public enum TakeResult: Equatable, Sendable {
   case delivered(recorded: Bool)
   case noSpeech
   case failed(String)
+  /// The text couldn't be pasted. `recorded`: its record is durably spooled,
+  /// so the audio isn't needed (the history entry has the text); otherwise
+  /// the audio is kept for recovery.
+  case pasteFailed(String, recorded: Bool)
   /// Transcription timed out; `kept` says whether the audio was kept for Retry.
   case timedOut(String, kept: Bool)
 
@@ -17,6 +21,7 @@ public enum TakeResult: Equatable, Sendable {
     case .delivered(let recorded): return recorded
     case .noSpeech: return true
     case .failed: return false
+    case .pasteFailed(_, let recorded): return recorded
     case .timedOut(_, let kept): return kept
     }
   }

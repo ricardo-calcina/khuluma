@@ -92,7 +92,7 @@ import Testing
     try f.populate()
     let before = f.digest(f.root)
     let r = try receipt(f.run())
-    #expect(r.counts == LegacyImport.Counts(history: 3, history_invalid: 0, debug_files: 2, vocabulary_backups: 1))
+    #expect((r.counts.history, r.counts.history_invalid, r.counts.debug_files, r.counts.vocabulary_backups, r.counts.sounds) == (3, 0, 2, 1, 0))
     #expect(r.usage.source == LegacyImport.UsageTotals(count: 42, processed_words: 1234, recording_duration_ms: 98765))
     #expect(r.usage.imported == r.usage.source)
     #expect(r.vocabulary && r.settings == "imported" && r.legacy_take_ids == 4)
@@ -339,6 +339,116 @@ import Testing
     #expect(r.skipped.filter { $0.reason.contains("regular file") }.count == 3)
     #expect(LegacyImport.lstatMode(f.dest.appendingPathComponent("usage.json")) == nil)
     #expect(LegacyImport.lstatMode(f.dest.appendingPathComponent("vocabulary.json")) == nil)
+  }
+
+  // MARK: Sounds
+
+  /// A tiny valid WAV (a few ms of silence).
+  func tinyWAV() -> Data { WAVEncoder.encode(samples: [Float](repeating: 0, count: 160)) }
+
+  func putSound(_ f: Fixture, _ name: String, _ data: Data) throws -> URL {
+    let url = f.home.appendingPathComponent(".local/share/sounds/khuluma/\(name)")
+    try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try data.write(to: url)
+    return url
+  }
+
+  func settings(_ f: Fixture) throws -> AppSettings {
+    try JSONDecoder().decode(AppSettings.self, from: Data(contentsOf: f.dest.appendingPathComponent("settings.json")))
+  }
+
+  @Test func importCopiesReferencedSoundsAndRepointsSettings() throws {
+    let f = try Fixture(); defer { f.cleanup() }
+    try f.populate()
+    let start = try putSound(f, "start-custom.wav", tinyWAV())
+    _ = try putSound(f, "stop.WAV", tinyWAV())
+    try f.put("config.toml", """
+      [audio.sounds]
+      start = "\(start.path)"
+      stop = "$SOUNDS_DIR/khuluma/stop.WAV"
+      """)
+    let before = f.digest(f.home)
+    let r = try receipt(f.run())
+    #expect(r.counts.sounds == 2 && r.settings == "imported")
+    #expect(f.digest(f.home) == before, "source sounds untouched")
+    let s = try settings(f)
+    #expect(s.sounds.sound("start").path == f.dest.appendingPathComponent("sounds/start.wav").path)
+    #expect(s.sounds.sound("stop").path == f.dest.appendingPathComponent("sounds/stop.wav").path)
+    #expect(s.sounds.sound("process").path == "")
+    for event in ["start", "stop"] {
+      let copy = f.dest.appendingPathComponent("sounds/\(event).wav")
+      #expect(try Data(contentsOf: copy) == tinyWAV())
+      var st = stat(); #expect(lstat(copy.path, &st) == 0 && (st.st_mode & 0o777) == 0o600)
+    }
+    var dirStat = stat(); #expect(lstat(f.dest.appendingPathComponent("sounds").path, &dirStat) == 0 && (dirStat.st_mode & 0o777) == 0o700)
+    #expect(r.skipped.allSatisfy { !$0.reason.hasPrefix("sound ") })
+    #expect(LegacyImport.Result(outcome: .imported(r), duration: 0).logLine.contains("sounds 2"))
+  }
+
+  @Test func anUnreadableSoundIsSkippedAndTheImportStillFinishes() throws {
+    let f = try Fixture(); defer { f.cleanup() }
+    try f.populate()
+    let locked = try putSound(f, "locked.wav", tinyWAV())
+    #expect(chmod(locked.path, 0) == 0)
+    defer { chmod(locked.path, 0o600) }
+    try f.put("config.toml", "[audio.sounds]\nstart = \"\(locked.path)\"\n")
+    let r = try receipt(f.run())
+    #expect(r.counts.sounds == 0 && r.settings == "imported")
+    #expect(r.skipped.contains { $0.path == locked.path && $0.reason.hasPrefix("sound start:") })
+    #expect(try settings(f).sounds.sound("start").path == "")
+    #expect(!FileManager.default.fileExists(atPath: f.dest.appendingPathComponent("sounds").path))
+  }
+
+  /// A crash right after the sounds moved (or just before) is undone by the
+  /// journal, and the next run finishes and writes the receipt.
+  @Test(arguments: ["promoting", "promoted"])
+  func crashAroundPromotingSoundsRetriesCleanly(when: String) throws {
+    let f = try Fixture(); defer { f.cleanup() }
+    try f.populate()
+    let start = try putSound(f, "start.wav", tinyWAV())
+    try f.put("config.toml", "[audio.sounds]\nstart = \"\(start.path)\"\n")
+    struct Crash: Error {}
+    let first = f.run { point in
+      if (when == "promoting" && point == .promoting("sounds")) || (when == "promoted" && point == .promoted("sounds")) { throw Crash() }
+    }
+    guard case .failed = first.outcome else { Issue.record("expected the crash to fail the run"); return }
+    #expect(!FileManager.default.fileExists(atPath: f.dest.appendingPathComponent("import.json").path))
+    let r = try receipt(f.run())
+    #expect(r.counts.sounds == 1)
+    #expect(try Data(contentsOf: f.dest.appendingPathComponent("sounds/start.wav")) == tinyWAV())
+    #expect(try settings(f).sounds.sound("start").path == f.dest.appendingPathComponent("sounds/start.wav").path)
+  }
+
+  @Test func importRefusesUnsafeSoundsAndKeepsTheBundledDefault() throws {
+    let f = try Fixture(); defer { f.cleanup() }
+    try f.populate()
+    let real = try putSound(f, "real.wav", tinyWAV())
+    let link = f.home.appendingPathComponent(".local/share/sounds/khuluma/link.wav")
+    try FileManager.default.createSymbolicLink(at: link, withDestinationURL: real)
+    let big = try putSound(f, "big.wav", Data(count: 10 * 1024 * 1024 + 1))
+    let text = try putSound(f, "notes.txt", Data("not audio".utf8))
+    let missing = f.home.appendingPathComponent(".local/share/sounds/khuluma/gone.wav")
+    try f.put("config.toml", """
+      [audio.sounds]
+      start = "\(link.path)"
+      stop = "\(big.path)"
+      process = "\(text.path)"
+      cancel = "\(missing.path)"
+      error = "\(real.path)"
+      """)
+    let r = try receipt(f.run())
+    #expect(r.counts.sounds == 1)
+    let s = try settings(f)
+    for event in ["start", "stop", "process", "cancel"] { #expect(s.sounds.sound(event).path == "", "\(event)") }
+    #expect(s.sounds.sound("error").path == f.dest.appendingPathComponent("sounds/error.wav").path)
+    let reasons = Dictionary(uniqueKeysWithValues: r.skipped.filter { $0.reason.hasPrefix("sound ") }.map { ($0.path, $0.reason) })
+    #expect(reasons[link.path]?.contains("sound start: not a regular file") == true)
+    #expect(reasons[big.path]?.contains("sound stop: larger than 10 MB") == true)
+    #expect(reasons[text.path]?.contains("sound process: not an audio file") == true)
+    #expect(reasons[missing.path]?.contains("sound cancel: file not found") == true)
+    let files = try FileManager.default.contentsOfDirectory(atPath: f.dest.appendingPathComponent("sounds").path)
+    #expect(files == ["error.wav"])
+    #expect(FileManager.default.fileExists(atPath: link.path) && FileManager.default.fileExists(atPath: big.path))
   }
 
   @Test func copiesArePrivate() throws {

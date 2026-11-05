@@ -62,7 +62,9 @@ let package = Package(
     ),
     .executableTarget(
       name: "Khuluma",
-      dependencies: ["KhulumaCore"],
+      // FluidAudio only for the first-run model download and its cache path;
+      // transcription itself runs in the bundled khulumad.
+      dependencies: ["KhulumaCore", .product(name: "FluidAudio", package: "FluidAudio")],
       path: "Sources/Khuluma",
       // AppKit/Carbon/AVAudioEngine callbacks predate strict concurrency;
       // the app shell uses Swift 5 mode, the core stays in Swift 6 mode.

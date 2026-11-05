@@ -89,6 +89,17 @@ public struct DaemonClient: Sendable {
                         modelLoaded: response.modelLoaded, activeRequests: response.activeRequests)
   }
 
+  /// Loads the model (the daemon's `warmup` op); returns its load time in ms.
+  @discardableResult
+  public func warmup(modelPath: String, modelVersion: String, timeout: TimeInterval) throws -> Int? {
+    let request = Request(id: UUID().uuidString, op: "warmup", modelPath: modelPath, modelVersion: modelVersion)
+    let response = try send(request, timeout: timeout)
+    guard response.ok else {
+      throw ClientError.daemon(code: response.errorCode ?? "unknown", message: response.message ?? "unknown error")
+    }
+    return response.durationMs
+  }
+
   /// Transcribes a 16 kHz mono 16-bit WAV the daemon can read.
   public func transcribe(
     wav: URL, language: String, flow: String, modelPath: String, modelVersion: String?, timeout: TimeInterval

@@ -40,6 +40,12 @@ import Testing
       text = text.replacingOccurrences(of: "@ROOT@", with: path)
       var object = try JSONSerialization.jsonObject(with: Data(text.utf8)) as! [String: Any]
       object["cli_version"] = AppConfig.nativeCLIVersion
+      // Slice D: the app ignores a configured socket_path and always uses
+      // its own daemon's socket (the environment's default).
+      if var transcription = object["transcription"] as? [String: Any] {
+        transcription["socket_path"] = path + "/config/.cache/khulumad.sock"
+        object["transcription"] = transcription
+      }
       return try AppContract.decodeAppConfig(JSONSerialization.data(withJSONObject: object))
     }
 

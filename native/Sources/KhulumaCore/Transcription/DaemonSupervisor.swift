@@ -1,14 +1,14 @@
 import Foundation
 
-/// Keeps the Parakeet daemon warm for Khuluma without owning it: probes the
-/// socket, and when the daemon isn't ready asks the CLI (`warmup --json`,
-/// which starts it under the CLI's lifecycle lock and loads the model).
+/// Keeps the app's own Parakeet daemon warm: probes the socket, and when the
+/// daemon isn't ready makes sure the bundled `khulumad` runs (DaemonProcess)
+/// and sends it the `warmup` op for the configured model. No CLI involved.
 ///
 /// Event-driven, no background polling: launch, wake, recording start and a
 /// native take finding the daemon unreachable. At most one check runs at a
 /// time (later triggers are dropped while one is in flight), and failures
-/// back off 30 s → 2 min → 10 min. While the CLI reports `warming` (a build
-/// or another caller's start), it rechecks every 30 s for up to 10 minutes.
+/// back off 30 s → 2 min → 10 min. While the daemon is starting or restarting
+/// (`warming`), it rechecks every 30 s for up to 10 minutes.
 public final class DaemonSupervisor: @unchecked Sendable {
   public enum State: Equatable, Sendable {
     case unknown
@@ -36,7 +36,9 @@ public final class DaemonSupervisor: @unchecked Sendable {
       self.modelVersion = modelVersion
     }
 
-    /// From app-config, or nil when supervision must stay off.
+    /// From the app's settings (model path, the app's own socket), or nil
+    /// when there is nothing to keep warm: cloud transcription, or no model
+    /// yet (still downloading).
     public init?(config: AppConfig) {
       guard config.supervisionBlocker == nil, let modelPath = config.transcription.modelPath else { return nil }
       self.init(socketPath: config.transcription.socketPath, modelPath: modelPath,
@@ -48,15 +50,15 @@ public final class DaemonSupervisor: @unchecked Sendable {
   public struct Environment: Sendable {
     /// One bounded ping.
     public var probe: @Sendable (_ socketPath: String, _ timeout: TimeInterval) -> DaemonStatus?
-    /// `khuluma warmup --json`.
-    public var warmup: @Sendable () throws -> WarmupReport
+    /// Starts the app's daemon if needed and loads the target's model.
+    public var warmup: @Sendable (Target) throws -> WarmupReport
     public var now: @Sendable () -> Date
     /// Runs `work` after `delay` seconds (rechecks while warming).
     public var schedule: @Sendable (_ delay: TimeInterval, _ work: @escaping @Sendable () -> Void) -> Void
 
     public init(
       probe: @escaping @Sendable (String, TimeInterval) -> DaemonStatus?,
-      warmup: @escaping @Sendable () throws -> WarmupReport,
+      warmup: @escaping @Sendable (Target) throws -> WarmupReport,
       now: @escaping @Sendable () -> Date = { Date() },
       schedule: @escaping @Sendable (TimeInterval, @escaping @Sendable () -> Void) -> Void
     ) {
@@ -160,21 +162,21 @@ public final class DaemonSupervisor: @unchecked Sendable {
     }
 
     if let retryAt = lock.withLock({ self.retryAt }), environment.now() < retryAt {
-      // Backing off: keep the last state (the take falls back to the CLI,
-      // which starts the daemon itself if it can).
+      // Backing off: keep the last state (a take that can't reach the
+      // daemon is kept and retried).
       return
     }
 
     let report: WarmupReport
     do {
-      report = try environment.warmup()
+      report = try environment.warmup(target)
     } catch {
       fail("warmup failed: \(error.localizedDescription)", trigger: trigger, configuration: configuration)
       return
     }
     switch report.state {
     case .ready:
-      // The CLI read its own settings: confirm it warmed *our* target.
+      // Confirm the daemon on our socket holds *our* model.
       guard let status = probe(target) else {
         warming("the daemon doesn't report the configured model yet", trigger: trigger, configuration: configuration)
         return
@@ -252,5 +254,47 @@ extension DaemonSupervisor.State {
   public var isReady: Bool {
     if case .ready = self { return true }
     return false
+  }
+}
+
+extension DaemonSupervisor {
+  /// Warmup through the app's own daemon: ensure `process` runs it, wait
+  /// briefly for the socket, then send `warmup` with the target's model.
+  public static func ownedWarmup(
+    process: DaemonProcess,
+    answers: @escaping @Sendable (String) -> Bool = { DaemonClient(socketPath: $0).status(timeout: 0.25) != nil },
+    warm: @escaping @Sendable (Target) throws -> Int? = { target in
+      try DaemonClient(socketPath: target.socketPath)
+        .warmup(modelPath: target.modelPath, modelVersion: target.modelVersion, timeout: 300)
+    },
+    startupWait: TimeInterval = 10,
+    sleep: @escaping @Sendable (TimeInterval) -> Void = { Thread.sleep(forTimeInterval: $0) }
+  ) -> @Sendable (Target) throws -> WarmupReport {
+    { target in
+      switch process.ensureRunning() {
+      case .unavailable(let reason):
+        return WarmupReport(state: .unavailable, reason: "daemon", message: reason)
+      case .restarting:
+        return WarmupReport(state: .warming, reason: "restarting", message: "the daemon is restarting")
+      case .running, .external:
+        break
+      }
+      var waited: TimeInterval = 0
+      while !answers(target.socketPath) {
+        guard waited < startupWait else {
+          return WarmupReport(state: .warming, reason: "starting", message: "the daemon is starting")
+        }
+        sleep(0.2)
+        waited += 0.2
+      }
+      do {
+        let took = try warm(target)
+        return WarmupReport(state: .ready, durationMs: took)
+      } catch DaemonClient.ClientError.daemon(let code, let message) {
+        return WarmupReport(state: .unavailable, reason: code, message: message)
+      } catch DaemonClient.ClientError.timedOut {
+        return WarmupReport(state: .warming, reason: "loading", message: "the model is still loading")
+      }
+    }
   }
 }

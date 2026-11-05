@@ -62,6 +62,17 @@ public enum LegacyImport {
     public var history_invalid = 0
     public var debug_files = 0
     public var vocabulary_backups = 0
+    /// Sound files copied into the app folder.
+    public var sounds = 0
+    public init() {}
+    public init(from d: Decoder) throws {
+      let c = try d.container(keyedBy: CodingKeys.self)
+      history = try c.decodeIfPresent(Int.self, forKey: .history) ?? 0
+      history_invalid = try c.decodeIfPresent(Int.self, forKey: .history_invalid) ?? 0
+      debug_files = try c.decodeIfPresent(Int.self, forKey: .debug_files) ?? 0
+      vocabulary_backups = try c.decodeIfPresent(Int.self, forKey: .vocabulary_backups) ?? 0
+      sounds = try c.decodeIfPresent(Int.self, forKey: .sounds) ?? 0
+    }
   }
 
   public struct UsageReceipt: Equatable, Sendable, Codable {
@@ -104,7 +115,7 @@ public enum LegacyImport {
         let c = r.counts
         let u = r.usage.imported.map { "usage \($0.count) takes/\($0.processed_words) words" } ?? "usage not imported"
         return "legacy import: done from \(r.source_root): history \(c.history) (+\(c.history_invalid) invalid), "
-          + "debug \(c.debug_files), vocabulary \(r.vocabulary ? "yes" : "no") (+\(c.vocabulary_backups) backups), vocab \(r.legacy_vocab ? "yes" : "no"), "
+          + "debug \(c.debug_files), sounds \(c.sounds), vocabulary \(r.vocabulary ? "yes" : "no") (+\(c.vocabulary_backups) backups), vocab \(r.legacy_vocab ? "yes" : "no"), "
           + "\(u), take ids \(r.legacy_take_ids), skipped \(r.skipped.count), \(ms) ms"
       case .alreadyImported: return "legacy import: already done (\(ms) ms)"
       case .noSource(let p): return "legacy import: no CLI data at \(p) (\(ms) ms)"
@@ -117,7 +128,7 @@ public enum LegacyImport {
   /// Test seam: called after staging is verified, before anything moves into
   /// place (`.staged`), after each promoted item (`.promoted(relative path)`)
   /// and after all moves, before the receipt (`.moved`).
-  public enum Checkpoint: Sendable, Equatable { case staged, promoted(String), moved }
+  public enum Checkpoint: Sendable, Equatable { case staged, promoting(String), promoted(String), moved }
 
 
   // MARK: Entry point
@@ -136,7 +147,7 @@ public enum LegacyImport {
     do {
       try DataFiles.ensureDirectory(destination)
       outcome = try DataFiles.withLock(destination.appendingPathComponent(lockName), timeout: lockTimeout) {
-        try locked(src, destination, now, checkpoint)
+        try locked(src, destination, now, checkpoint, environment: environment, home: home)
       }
     } catch {
       outcome = .failed(error.localizedDescription)
@@ -156,7 +167,9 @@ public enum LegacyImport {
   }
 
   static func locked(_ src: Source, _ dest: URL, _ now: Date,
-                     _ checkpoint: (Checkpoint) throws -> Void) throws -> Outcome {
+                     _ checkpoint: (Checkpoint) throws -> Void,
+                     environment: [String: String] = ProcessInfo.processInfo.environment,
+                     home: URL = FileManager.default.homeDirectoryForCurrentUser) throws -> Outcome {
     if lstatMode(dest.appendingPathComponent(receiptName)) != nil { return .alreadyImported }
     guard lstatMode(src.root) != nil, isDirectory(src.root) || isDirectoryFollowing(src.root) else {
       return .noSource(src.root.path)
@@ -246,7 +259,8 @@ public enum LegacyImport {
                     rel: legacyTakeIDsName, stage: stage)
 
     // Settings: config.toml -> settings.json, only the keys the app uses.
-    let settingsOutcome = try importSettings(src.root, stage: stage)
+    let settingsOutcome = try importSettings(src.root, stage: stage, counts: &counts, dest: dest,
+                                             environment: environment, home: home)
 
     // Every staged copy was size-checked against its source and fsynced as it
     // was written; usage totals were re-read from the staged bytes above.
@@ -274,11 +288,12 @@ public enum LegacyImport {
   // MARK: Checks
 
   static let appEntries = ["history", "history/inline-debug", "usage.json", "vocabulary.json", "vocab",
-                           "vocabulary-backups", legacyTakeIDsName, stagingName, journalName]
+                           "vocabulary-backups", legacyTakeIDsName, "sounds", stagingName, journalName]
 
   /// Newer app data that an import must never merge over.
   /// Stages settings.json from the CLI's config. "imported" or "defaults".
-  static func importSettings(_ root: URL, stage: Stage) throws -> String {
+  static func importSettings(_ root: URL, stage: Stage, counts: inout Counts, dest: URL,
+                             environment: [String: String], home: URL) throws -> String {
     let result = LegacySettings.convert(configDir: root)
     for problem in result.problems {
       stage.skipped.append(Skipped(path: problem.path, reason: problem.reason))
@@ -296,9 +311,59 @@ public enum LegacyImport {
     for item in conversion.skipped {
       stage.skipped.append(Skipped(path: source.path + " " + item.key, reason: item.reason))
     }
-    let data = try SettingsStore.encode(conversion.settings, over: [:])
+    var settings = conversion.settings
+    counts.sounds = try importSounds(&settings, stage: stage, dest: dest, environment: environment, home: home)
+    let data = try SettingsStore.encode(settings, over: [:])
     try writeStaged(data, rel: AppSettings.fileName, stage: stage)
     return "imported"
+  }
+
+  static let soundExtensions: Set<String> = ["wav", "aiff", "aif", "caf", "m4a", "mp3"]
+  static let maxSoundBytes: Int64 = 10 * 1024 * 1024
+
+  /// Copies each sound file the CLI's config names into `sounds/<event>.<ext>`
+  /// (staged, so it's promoted with everything else) and points the settings at
+  /// the copy. A file that's missing or refused (symlink, not regular, over
+  /// 10 MB, not audio) is listed in `skipped` and its event keeps the bundled
+  /// default. The source is only read. Returns the number copied.
+  static func importSounds(_ settings: inout AppSettings, stage: Stage, dest: URL,
+                           environment: [String: String], home: URL) throws -> Int {
+    let env = SettingsEnvironment.current(environment: environment, home: home, appFolder: dest)
+    let stagedDir = stage.root.appendingPathComponent("sounds", isDirectory: true)
+    var copied = 0
+    for event in AppSettings.soundEvents {
+      let configured = settings.sounds.sound(event).path
+      guard !configured.isEmpty else { continue }
+      let source = URL(fileURLWithPath: env.expandSound(configured))
+      func refuse(_ reason: String) {
+        stage.skipped.append(Skipped(path: source.path, reason: "sound \(event): \(reason); using the bundled default"))
+        settings.sounds.events[event]?.path = ""
+      }
+      let ext = source.pathExtension.lowercased()
+      guard soundExtensions.contains(ext) else { refuse("not an audio file (wav, aiff, aif, caf, m4a, mp3)"); continue }
+      guard let mode = lstatMode(source) else { refuse("file not found"); continue }
+      guard mode == S_IFREG else { refuse("not a regular file"); continue }
+      if lstatMode(stagedDir) == nil { try makePrivateDirectory(stagedDir) }
+      let rel = "sounds/\(event).\(ext)"
+      let before = stage.skipped.count
+      let ok: Bool
+      do {
+        ok = try copyFile(source, rel: rel, stage: stage, keepData: false, maxBytes: maxSoundBytes) != nil
+      } catch {
+        // Unreadable or changed while reading: skipped, never aborts the import.
+        unlink(stage.root.appendingPathComponent(rel).path)
+        refuse(error.localizedDescription); continue
+      }
+      guard ok else {
+        // copyFile noted why (too big, not regular, raced): restate it for the event.
+        let reason = stage.skipped.count > before ? stage.skipped.removeLast().reason : "file changed while importing"
+        refuse(reason); continue
+      }
+      settings.sounds.events[event]?.path = dest.appendingPathComponent(rel).path
+      copied += 1
+    }
+    if copied > 0 { try syncDirectory(stagedDir) } else { rmdir(stagedDir.path) }
+    return copied
   }
 
   static func existingAppData(_ dest: URL) -> String? {
@@ -445,7 +510,7 @@ public enum LegacyImport {
   /// skipped) for anything that isn't a regular file. With `keepData`, returns
   /// the bytes so callers can parse them without a second read.
   @discardableResult
-  static func copyFile(_ from: URL, rel: String, stage: Stage, keepData: Bool) throws -> Data? {
+  static func copyFile(_ from: URL, rel: String, stage: Stage, keepData: Bool, maxBytes: Int64? = nil) throws -> Data? {
     guard safeName(rel) else {
       stage.skipped.append(Skipped(path: from.path, reason: "name contains a control character")); return nil
     }
@@ -454,6 +519,10 @@ public enum LegacyImport {
       stage.skipped.append(Skipped(path: from.path, reason: "not a regular file")); return nil
     }
     defer { close(src) }
+    // The limit is enforced on the opened descriptor, then while reading.
+    if let maxBytes, Int64(st.st_size) > maxBytes {
+      stage.skipped.append(Skipped(path: from.path, reason: "larger than \(maxBytes / (1024 * 1024)) MB")); return nil
+    }
     let to = stage.root.appendingPathComponent(rel)
     let dst = open(to.path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0o600)
     guard dst >= 0 else { throw DataFiles.posix("cannot create", to.path) }
@@ -473,6 +542,10 @@ public enum LegacyImport {
         off += w
       }
       total += Int64(n)
+      if let maxBytes, total > maxBytes {
+        unlink(to.path)
+        stage.skipped.append(Skipped(path: from.path, reason: "larger than \(maxBytes / (1024 * 1024)) MB")); return nil
+      }
       if keepData { kept.append(buffer, count: n) }
     }
     guard total == Int64(st.st_size) else { throw failure("\(from.path) changed size while importing") }
@@ -582,13 +655,17 @@ public enum LegacyImport {
       let itemRel = rel.isEmpty ? name : rel + "/" + name
       switch lstatMode(d) {
       case nil:
-        guard rename(s.path, d.path) == 0 else { throw DataFiles.posix("cannot move into place", d.path) }
+        // Journaled before the move: a crash between the two can't leave
+        // copies the replay doesn't know about (rollback skips a journaled
+        // path that doesn't exist yet). Renaming keeps the identities.
         let prefix = itemRel + "/"
         let lines = stage.identities
           .filter { $0.key == itemRel || $0.key.hasPrefix(prefix) }
           .sorted { $0.key < $1.key }
           .map { "\($0.value.fields)\t\($0.key)" }
         try journal.append(lines)
+        try checkpoint(.promoting(itemRel))
+        guard rename(s.path, d.path) == 0 else { throw DataFiles.posix("cannot move into place", d.path) }
         try checkpoint(.promoted(itemRel))
       case S_IFDIR where lstatMode(s) == S_IFDIR:
         try promote(s, into: d, rel: itemRel, stage: stage, journal: journal, checkpoint: checkpoint)

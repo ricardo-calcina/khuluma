@@ -29,6 +29,9 @@ public struct HistoryWriter: Sendable {
     public var raw: String
     public var processed: String
     public var takeId: String?
+    /// False for a take whose paste failed: written as `"delivered": false`
+    /// (absent means delivered, as in the CLI's shape).
+    public var delivered = true
     /// record_ms, transcribe_ms, clean_ms, paste_ms, total_ms, in that order.
     public var metrics: [(String, Int)]
     /// Ints or strings, in the CLI's order.
@@ -127,6 +130,7 @@ public struct HistoryWriter: Sendable {
       "  \"processed\": \(Self.json(entry.processed))",
     ]
     if let takeId = entry.takeId, !takeId.isEmpty { lines.append("  \"take_id\": \(Self.json(takeId))") }
+    if !entry.delivered { lines.append("  \"delivered\": false") }
     if !entry.metrics.isEmpty {
       let body = entry.metrics.map { "    \"\($0.0)\": \($0.1)" }.joined(separator: ",\n")
       lines.append("  \"metrics\": {\n\(body)\n  }")

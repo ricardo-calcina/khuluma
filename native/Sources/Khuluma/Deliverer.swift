@@ -12,6 +12,9 @@ enum Deliverer {
     return AXIsProcessTrustedWithOptions(options)
   }
 
+  /// The post-event check, replaceable in tests.
+  nonisolated(unsafe) static var postEventAllowed: () -> Bool = { CGPreflightPostEventAccess() }
+
   /// Runs on a background queue; waits are real sleeps between steps.
   /// Returns the app that was frontmost when the first key was posted (the
   /// one that received the paste), for the log.
@@ -28,16 +31,13 @@ enum Deliverer {
       }
       remaining = remaining.dropFirst()
     }
-    guard isTrusted(prompt: false) else {
-      throw NSError(domain: "Khuluma", code: 2, userInfo: [
-        NSLocalizedDescriptionKey: "Accessibility permission missing: text is on the clipboard (System Settings → Privacy & Security → Accessibility → Khuluma)",
-      ])
-    }
-
-    // Accessibility normally implies this; without it macOS drops synthetic
-    // key events silently, so the take "succeeds" without pasting.
-    if !CGPreflightPostEventAccess() {
-      Log.write("deliver: no permission to post key events (CGPreflightPostEventAccess): the paste may be dropped")
+    // A denied or revoked permission fails the delivery: macOS would drop the
+    // key events silently and the take would look delivered. The text stays
+    // on the clipboard.
+    if let failure = PermissionPolicy.deliveryFailure(accessibilityTrusted: isTrusted(prompt: false),
+                                                      postEventAllowed: postEventAllowed()) {
+      Log.write("deliver: refused, \(failure.code == PermissionPolicy.postEventMissingCode ? "no permission to post key events" : "accessibility not granted")")
+      throw failure
     }
 
     var target: String?

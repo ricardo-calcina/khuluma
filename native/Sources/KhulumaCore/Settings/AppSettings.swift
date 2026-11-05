@@ -118,11 +118,14 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var provider = "parakeet"
     /// auto or an ISO 639 code.
     public var language = "en"
-    /// "" = the newest model in the models folder.
+    /// "" = FluidAudio's shared cache (downloaded on first run). Used only
+    /// when this folder exists.
     public var modelPath = ""
     /// "", v2 or v3 ("" = from the model folder's name).
     public var modelVersion = ""
-    /// "" = the daemon's default socket.
+    /// Unused since slice D: the app runs its own daemon on its own socket
+    /// (`DaemonSocketPath`). Imported settings point it at the CLI's socket,
+    /// which the app must never use; the key stays readable so old files load.
     public var socketPath = ""
     public init() {}
 
@@ -272,17 +275,29 @@ public struct SettingsEnvironment: Sendable {
   public var soundsDir: String
   /// `$SOUNDS_DIR` placeholder value in sound paths (the CLI's `SOUNDS_DIR`), if any.
   public var soundsPlaceholder: String?
+  /// The app's bundled default sounds (`Khuluma.app/Contents/Resources/sounds`),
+  /// nil when not running from a bundle (swift test, dev runs).
+  public var bundledSoundsDir: String?
   /// Where installed Parakeet models live.
   public var modelsDir: String
   /// The daemon socket when the settings name none.
   public var defaultSocketPath: String
+  /// FluidAudio's default cache folder for Parakeet v3 (the app sets it from
+  /// FluidAudio's own API; nil in tests unless set).
+  public var defaultModelPath: String?
+  /// A complete model of this version ("v2"/"v3") is in this folder (the
+  /// app checks the files FluidAudio loads for that version).
+  public var modelAvailable: @Sendable (_ path: String, _ version: String) -> Bool = { path, _ in
+    SettingsEnvironment.isDirectory(path)
+  }
   public var processingDir: String
   public var ffmpegAvailable: Bool
   public var keyAvailable: Bool
   public var fileExists: @Sendable (String) -> Bool
   public var directoryExists: @Sendable (String) -> Bool
 
-  public init(appFolder: URL, home: String, soundsDir: String, soundsPlaceholder: String? = nil, modelsDir: String,
+  public init(appFolder: URL, home: String, soundsDir: String, soundsPlaceholder: String? = nil,
+              bundledSoundsDir: String? = nil, modelsDir: String,
               defaultSocketPath: String, processingDir: String = TakeMarker.defaultDirectory,
               ffmpegAvailable: Bool, keyAvailable: Bool,
               fileExists: @escaping @Sendable (String) -> Bool = SettingsEnvironment.isRegularFile,
@@ -291,6 +306,7 @@ public struct SettingsEnvironment: Sendable {
     self.home = home
     self.soundsDir = soundsDir
     self.soundsPlaceholder = soundsPlaceholder
+    self.bundledSoundsDir = bundledSoundsDir
     self.modelsDir = modelsDir
     self.defaultSocketPath = defaultSocketPath
     self.processingDir = processingDir
@@ -317,7 +333,6 @@ public struct SettingsEnvironment: Sendable {
                              appFolder: URL = AppRuntimePaths.support) -> SettingsEnvironment {
     func value(_ key: String) -> String? { environment[key].flatMap { $0.isEmpty ? nil : $0 } }
     let data = value("XDG_DATA_HOME") ?? home.appendingPathComponent(".local/share").path
-    let legacy = LegacyImport.source(environment: environment, home: home).root
     let tools = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin"] + (value("PATH")?.split(separator: ":").map(String.init) ?? [])
     let has = { (name: String) in tools.contains { FileManager.default.isExecutableFile(atPath: $0 + "/" + name) } }
     // `$SOUNDS_DIR` in sound paths means what it meant to the CLI: the
@@ -327,8 +342,10 @@ public struct SettingsEnvironment: Sendable {
     return SettingsEnvironment(
       appFolder: appFolder, home: home.path,
       soundsDir: soundsParent + "/khuluma", soundsPlaceholder: soundsParent,
+      bundledSoundsDir: Bundle.main.resourceURL?.appendingPathComponent("sounds", isDirectory: true).path,
       modelsDir: data + "/khuluma/models",
-      defaultSocketPath: legacy.appendingPathComponent(".cache/khulumad.sock").path,
+      // The app's own daemon (slice D), never the CLI's.
+      defaultSocketPath: DaemonSocketPath.resolve(support: appFolder).path,
       ffmpegAvailable: has("ffmpeg") && has("ffprobe"),
       // Presence only, from the environment; the Keychain and zshrc lookup
       // come with native ElevenLabs (slice E).
@@ -338,6 +355,22 @@ public struct SettingsEnvironment: Sendable {
   /// `expand_path`: a leading `~` becomes `$HOME`.
   public func expand(_ path: String) -> String {
     path.hasPrefix("~") ? home + path.dropFirst() : path
+  }
+
+  /// `<bundled>/<name>` when it exists.
+  func bundledSound(_ name: String) -> String? {
+    guard let dir = bundledSoundsDir, !dir.isEmpty, !name.isEmpty, !name.contains("/") else { return nil }
+    let path = dir + "/" + name
+    return fileExists(path) ? path : nil
+  }
+
+  /// `$SOUNDS_DIR/khuluma/<name>` (as written in settings.json) maps to the
+  /// bundled `<name>`; anything else has no bundled counterpart.
+  func bundledSound(forPlaceholderPath configured: String) -> String? {
+    for prefix in ["$SOUNDS_DIR/khuluma/", "${SOUNDS_DIR}/khuluma/"] where configured.hasPrefix(prefix) {
+      return bundledSound(String(configured.dropFirst(prefix.count)))
+    }
+    return nil
   }
 
   func expandSound(_ path: String) -> String {
@@ -350,23 +383,45 @@ public struct SettingsEnvironment: Sendable {
 }
 
 extension AppSettings {
-  /// `khuluma_sound_path`: the configured file, else `<soundsDir>/<event>.wav`,
-  /// and only if it exists.
+  /// The sound file for an event, and only if it exists; nil is silent.
+  /// - No path set: the bundled `sounds/<event>.wav`, else (no bundle: dev and
+  ///   test runs) `<soundsDir>/<event>.wav`.
+  /// - A path set: that file (`~` and `$SOUNDS_DIR` expanded) when it exists;
+  ///   else `$SOUNDS_DIR/khuluma/<name>` falls back to the bundled `sounds/<name>`.
   public func soundPath(_ event: String, in env: SettingsEnvironment) -> String? {
     let configured = sounds.sound(event).path
-    let path = configured.isEmpty ? env.soundsDir + "/" + event + ".wav" : env.expandSound(configured)
-    return env.fileExists(path) ? path : nil
+    if configured.isEmpty {
+      if let bundled = env.bundledSound(event + ".wav") { return bundled }
+      let path = env.soundsDir + "/" + event + ".wav"
+      return env.fileExists(path) ? path : nil
+    }
+    let path = env.expandSound(configured)
+    if env.fileExists(path) { return path }
+    return env.bundledSound(forPlaceholderPath: configured)
   }
 
   /// `resolve_swift_parakeet_model_path`.
   public func resolvedModelPath(in env: SettingsEnvironment) -> String? {
-    if !transcription.modelPath.isEmpty { return env.expand(transcription.modelPath) }
-    for name in ["parakeet-tdt-0.6b-v3-coreml", "parakeet-tdt-0.6b-v2-coreml"] {
-      let candidate = env.modelsDir + "/" + name
-      if env.directoryExists(candidate) { return candidate }
+    resolvedModel(in: env)?.path
+  }
+
+  /// The model folder and its version, resolved together: the settings'
+  /// folder (with the settings' version, if any) if it holds a model, else
+  /// FluidAudio's shared cache, which is always the downloaded v3 (an
+  /// explicit v2 meant for the missing folder doesn't carry over).
+  public func resolvedModel(in env: SettingsEnvironment) -> (path: String, version: String)? {
+    if !transcription.modelPath.isEmpty {
+      let configured = env.expand(transcription.modelPath)
+      // Checked as the version it resolves to (an explicit v2 in a custom
+      // folder name is still v2).
+      let version = AppSettings.modelVersion(explicit: transcription.modelVersion, modelPath: configured)
+      if env.modelAvailable(configured, version) { return (configured, version) }
     }
+    if let fallback = env.defaultModelPath, env.modelAvailable(fallback, "v3") { return (fallback, "v3") }
     return nil
   }
+
+
 
   /// `resolve_swift_parakeet_model_version`.
   public static func modelVersion(explicit: String, modelPath: String) -> String {
@@ -406,12 +461,14 @@ extension AppConfig {
                                   britishSpelling: s.cleanup.britishSpelling ? "1" : "0",
                                   localeCtype: "", localeCollate: "")
     let cloud = s.transcription.provider == "elevenlabs"
-    let modelPath = s.resolvedModelPath(in: env)
+    let model = s.resolvedModel(in: env)
+    let modelPath = model?.path
     let label = cloud ? "scribe_v2" : modelPath.map { ($0 as NSString).lastPathComponent } ?? "parakeet-unresolved"
-    let socket = s.transcription.socketPath.isEmpty ? env.defaultSocketPath : env.expand(s.transcription.socketPath)
+    // settings.json's socket_path is ignored: always the app's own daemon.
+    let socket = env.defaultSocketPath
     let transcription = TranscriptionSettings(
       socketPath: socket, modelPath: modelPath,
-      modelVersion: modelPath.map { AppSettings.modelVersion(explicit: s.transcription.modelVersion, modelPath: $0) },
+      modelVersion: model?.version,
       modelLabel: label, language: s.transcription.language, tailPadMs: "500", tailRescue: true,
       tailRescueMs: "", tailRescueMinMs: "", keepLogs: s.debug.keepLogs, ffmpeg: env.ffmpegAvailable,
       timeoutSeconds: "600", processingDir: env.processingDir, provider: s.transcription.provider,

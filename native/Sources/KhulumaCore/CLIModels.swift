@@ -182,11 +182,12 @@ public struct AppConfig: Decodable, Equatable, Sendable {
     case usage
   }
 
-  /// Why Khuluma must not keep the daemon warm, or nil if it may.
+  /// Why Khuluma must not keep its daemon warm, or nil if it may. The app
+  /// owns its daemon now and takes need it, so `supervise_daemon` (a CLI-era
+  /// switch for the CLI's shared daemon) no longer turns it off.
   public var supervisionBlocker: String? {
     guard transcription.provider == "parakeet" else { return "cloud transcription selected" }
-    guard pipeline.supervise else { return "[app] supervise_daemon = false" }
-    guard transcription.modelPath?.isEmpty == false else { return "no Parakeet model path" }
+    guard transcription.modelPath?.isEmpty == false else { return TranscriptionSettings.modelMissing }
     return nil
   }
 

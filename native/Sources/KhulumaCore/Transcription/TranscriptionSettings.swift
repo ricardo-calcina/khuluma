@@ -93,9 +93,12 @@ public struct TranscriptionSettings: Codable, Equatable, Sendable {
   public var cliReason: String? {
     if provider == "elevenlabs" { return "ElevenLabs Scribe uses the CLI" }
     if provider != "parakeet" { return "unsupported transcription provider" }
-    if modelPath?.isEmpty ?? true { return "no Parakeet model path" }
+    if modelPath?.isEmpty ?? true { return Self.modelMissing }
     return nil
   }
+
+  /// No usable model yet: the app downloads it on first run.
+  public static let modelMissing = "speech model still downloading"
 
   /// Silence appended before ASR, in ms (0 = none).
   public var tailPad: Int? { Self.bashInt(tailPadMs.isEmpty ? "500" : tailPadMs, default: 500).map { max(0, $0) } }

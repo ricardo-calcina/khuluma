@@ -172,9 +172,14 @@ echo "Building Khuluma $version ($build_number)…"
 # An isolated scratch path prevents a preview from changing the source build
 # cache or using an unrelated cached binary. The workspace remains inspectable.
 swift build --package-path "$PKG" --scratch-path "$stage_root/swift-build" --jobs 1 -c release --product Khuluma
+# The app runs its own transcription daemon from Contents/Helpers (slice D).
+swift build --package-path "$PKG" --scratch-path "$stage_root/swift-build" --jobs 1 -c release --product khulumad
 binary="$stage_root/swift-build/release/Khuluma"
+daemon_binary="$stage_root/swift-build/release/khulumad"
 [[ -x "$binary" ]] || { echo "Build did not produce $binary" >&2; exit 1; }
-mkdir -p "$stage/Contents/MacOS" "$stage/Contents/Resources"
+[[ -x "$daemon_binary" ]] || { echo "Build did not produce $daemon_binary" >&2; exit 1; }
+mkdir -p "$stage/Contents/MacOS" "$stage/Contents/Resources" "$stage/Contents/Helpers"
+cp "$daemon_binary" "$stage/Contents/Helpers/khulumad"
 cp "$binary" "$stage/Contents/MacOS/Khuluma"
 cp "$APP_ICON" "$stage/Contents/Resources/Khuluma.icns"
 cp "$APP_CATALOG" "$stage/Contents/Resources/Assets.car"
@@ -185,6 +190,9 @@ cp "$EMBLEM_RECORDING_ICON" "$stage/Contents/Resources/KhulumaEmblemRecordingTem
 cp "$EMBLEM_FINISHING_ICON" "$stage/Contents/Resources/KhulumaEmblemFinishingTemplate.pdf"
 cp "$EMBLEM_FRAME_ICON" "$stage/Contents/Resources/KhulumaEmblemFrameTemplate.pdf"
 cp "$EMBLEM_ROTOR_ICON" "$stage/Contents/Resources/KhulumaEmblemRotorTemplate.pdf"
+# Default sounds ship in the app (Resources/sounds/<event>.wav).
+mkdir -p "$stage/Contents/Resources/sounds"
+cp "$ROOT"/assets/sounds/khuluma/*.wav "$stage/Contents/Resources/sounds/"
 python3 - "$stage/Contents/Info.plist" "$BUNDLE_ID" "$version" "$build_number" <<'PY'
 import plistlib, sys
 path, identifier, version, build = sys.argv[1:]
@@ -192,6 +200,10 @@ with open(path, "wb") as handle:
     plistlib.dump({"CFBundleIdentifier": identifier, "CFBundleName": "Khuluma", "CFBundleDisplayName": "Khuluma", "CFBundleExecutable": "Khuluma", "CFBundleIconFile": "Khuluma.icns", "CFBundleIconName": "AppIcon", "CFBundlePackageType": "APPL", "CFBundleShortVersionString": version, "CFBundleVersion": build, "CFBundleInfoDictionaryVersion": "6.0", "LSMinimumSystemVersion": "14.0", "LSUIElement": True, "NSHighResolutionCapable": True, "NSMicrophoneUsageDescription": "Khuluma records your voice while dictation is active. Parakeet transcribes on this Mac; audio is sent to ElevenLabs only when you choose Scribe."}, handle)
 PY
 plutil -lint "$stage/Contents/Info.plist" >/dev/null
+# Nested code first: the helper is signed before the app seals it. No
+# entitlements: the daemon reads files and serves a socket, nothing more.
+codesign --force --options runtime --timestamp=none --keychain "$KEYCHAIN" \
+  --sign "$IDENTITY_HASH" "$stage/Contents/Helpers/khulumad"
 codesign --force --options runtime --timestamp=none --keychain "$KEYCHAIN" \
   --entitlements "$PKG/App/Khuluma.entitlements" --sign "$IDENTITY_HASH" "$stage"
 codesign --verify --strict "$stage"

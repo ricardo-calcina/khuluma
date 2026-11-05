@@ -153,7 +153,10 @@ struct StorageTests {
   @Test func statusRules() throws {
     let rec = recorder(try makeRoot())
     #expect(rec.record(take("rec", status: "recovered", delivered: false)) == .init(history: .written, usage: .notNeeded))
-    #expect(rec.record(take("pf", status: "paste_failed", delivered: false)) == .init(history: .notNeeded, usage: .notNeeded))
+    #expect(rec.record(take("pf", status: "paste_failed", delivered: false)) == .init(history: .written, usage: .notNeeded))
+    var noText = take("pf-empty", status: "paste_failed", delivered: false, text: "")
+    noText.rawText = ""
+    #expect(rec.record(noText) == .init(history: .notNeeded, usage: .notNeeded))
     #expect(rec.record(take("nd", status: "ok", delivered: false)) == .init(history: .notNeeded, usage: .notNeeded))
     var usageOnly = take("uo")
     usageOnly.usageOnly = true
@@ -161,10 +164,31 @@ struct StorageTests {
     var empty = take("noapp")
     empty.app = nil
     _ = rec.record(empty)
-    #expect(historyFiles(rec).count == 2)
+    #expect(historyFiles(rec).count == 3)
     let apps = try historyFiles(rec).map { (try JSONSerialization.jsonObject(with: Data(contentsOf: $0)) as? [String: Any])?["app"] as? String }
     #expect(apps.contains("current"))
     #expect((try usage(rec)["delivered_dictations"] as? [String: Any])?["count"] as? Int == 2)
+  }
+
+  @Test func pasteFailedTakeKeepsHistoryMarkedUndeliveredAndIsNeverCounted() throws {
+    let root = try makeRoot()
+    let rec = recorder(root)
+    let pf = take("pf1", status: "paste_failed", delivered: false)
+    #expect(rec.record(pf) == .init(history: .written, usage: .notNeeded))
+    // Replay (spool flags lost, or already done): written once, still not counted.
+    #expect(rec.record(pf) == .init(history: .alreadyThere, usage: .notNeeded))
+    #expect(rec.record(pf, done: .init(history: true, usage: false)) == .init(history: .alreadyThere, usage: .notNeeded))
+    let files = historyFiles(rec)
+    #expect(files.count == 1)
+    let json = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: files[0])) as? [String: Any])
+    #expect(json["delivered"] as? Bool == false)
+    #expect(json["take_id"] as? String == "pf1" && json["raw"] as? String == "héllo wörld" && json["processed"] as? String == "Héllo, wörld!")
+    #expect(!FileManager.default.fileExists(atPath: rec.usageURL.path))
+    // A delivered take carries no such key, and the editor's examples read raw text as usual.
+    _ = rec.record(take("ok1"))
+    let all = try historyFiles(rec).map { try #require(JSONSerialization.jsonObject(with: Data(contentsOf: $0)) as? [String: Any]) }
+    #expect(all.filter { $0["delivered"] != nil }.count == 1)
+    #expect(RecentDictations.raw(history: rec.historyDirectory) == ["héllo wörld", "héllo wörld"])
   }
 
   /// History fails after usage was written; the replay with the spool's

@@ -447,6 +447,20 @@ struct InFlightTakesTests {
     #expect(WAVEncoder.pcm16(try RecoveredTakes.samples(at: copy)) == WAVEncoder.pcm16(samples))
   }
 
+  /// A paste that fails during Quit: once its record is spooled the Quit copy
+  /// goes (recovery would transcribe and save the take a second time); if the
+  /// record isn't spooled the copy stays for recovery.
+  @Test(arguments: [true, false])
+  func pasteFailedDuringQuitSettlesTheCopyOnlyWhenRecorded(recorded: Bool) {
+    let store = makeStore()
+    let takes = InFlightTakes(store: store)
+    takes.add(samples: [0.5], takeId: "pf")
+    takes.saveAll()
+    #expect(store.all().count == 1)
+    if TakeResult.pasteFailed("x", recorded: recorded).settlesAudio { takes.finish("pf") } else { takes.release("pf") }
+    #expect(store.all().count == (recorded ? 0 : 1))
+  }
+
   @Test func aTakeThatFinishesDuringTheDrainDropsItsCopy() {
     let store = makeStore()
     let takes = InFlightTakes(store: store)
@@ -573,6 +587,8 @@ struct TakeResultTests {
     #expect(TakeResult.timedOut("timed out", kept: true).settlesAudio) // Retry holds the audio
     #expect(!TakeResult.timedOut("timed out", kept: false).settlesAudio)
     #expect(!TakeResult.failed("paste failed").settlesAudio)
+    #expect(TakeResult.pasteFailed("paste failed", recorded: true).settlesAudio) // the history entry has the text
+    #expect(!TakeResult.pasteFailed("paste failed", recorded: false).settlesAudio) // clipboard only: keep the audio
   }
 }
 

@@ -21,7 +21,7 @@ private final class World: @unchecked Sendable {
   func environment() -> DaemonSupervisor.Environment {
     DaemonSupervisor.Environment(
       probe: { _, _ in self.lock.withLock { self.status } },
-      warmup: {
+      warmup: { _ in
         self.gate?.wait()
         self.duringWarmup?()
         return try self.lock.withLock { () -> Result<WarmupReport, Error> in
@@ -218,7 +218,7 @@ struct DaemonSupervisorTests {
     #expect(supervisor.currentState == .unknown)
   }
 
-  @Test func supervisionNeedsTheSwitchAndAModel() throws {
+  @Test func supervisionNeedsAModelNotTheCLIEraSwitch() throws {
     func config(supervise: Bool, modelPath: String = #""/m""#) throws -> AppConfig {
       try AppConfigFixture.decode(AppConfigFixture.json
         .replacingOccurrences(of: #""pipeline":{"supervise":true}"#, with: #""pipeline":{"supervise":\#(supervise)}"#)
@@ -227,10 +227,14 @@ struct DaemonSupervisorTests {
     let ok = try config(supervise: true)
     #expect(ok.supervisionBlocker == nil)
     #expect(DaemonSupervisor.Target(config: ok) == target)
+    // The app owns its daemon and takes need it: the CLI-era switch no
+    // longer turns supervision off.
     let off = try config(supervise: false)
-    #expect(off.supervisionBlocker == "[app] supervise_daemon = false")
-    #expect(DaemonSupervisor.Target(config: off) == nil)
-    #expect(try config(supervise: true, modelPath: "null").supervisionBlocker == "no Parakeet model path")
+    #expect(off.supervisionBlocker == nil)
+    #expect(DaemonSupervisor.Target(config: off) == target)
+    let noModel = try config(supervise: true, modelPath: "null")
+    #expect(noModel.supervisionBlocker == "speech model still downloading")
+    #expect(DaemonSupervisor.Target(config: noModel) == nil)
   }
 
   @Test func decodesTheCLIsWarmupReport() throws {

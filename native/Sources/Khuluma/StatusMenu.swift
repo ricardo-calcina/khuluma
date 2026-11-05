@@ -9,6 +9,7 @@ final class MenuModel: ObservableObject {
   @Published var configWarning: String?
   @Published var recovered: String?
   @Published var canShowRecovered = false
+  @Published var permission: String?
   @Published var daemon: String?
   @Published var retry: String?
   @Published var paste: String?
@@ -25,6 +26,8 @@ final class StatusMenu: NSObject {
   var onDiscardTimedOut: () -> Void = {}
   var onDiscardUnsaved: () -> Void = {}
   var onShowRecovered: () -> Void = {}
+  /// The Settings pane the shown permission notice opens.
+  private var permissionPane: PermissionPolicy.Pane?
   var onShowStats: () -> Void = {}
   var onShowSettings: () -> Void = {}
   var onWillOpen: () -> Void = {}
@@ -452,6 +455,7 @@ final class StatusMenu: NSObject {
     case .discard: onDiscardTimedOut()
     case .discardUnsaved: onDiscardUnsaved()
     case .recovered: onShowRecovered()
+    case .permission: if let pane = permissionPane { Permissions.open(pane) }
     case .quit: NSApp.terminate(nil)
     }
   }
@@ -484,6 +488,14 @@ final class StatusMenu: NSObject {
     model.canShowRecovered = action
   }
   func showDaemon(_ title: String?) { model.daemon = title }
+  func showPermission(_ notice: PermissionPolicy.Notice?) {
+    permissionPane = notice?.pane
+    model.permission = notice?.title
+  }
+  /// Clears the permission notice if it is for `pane` (it was granted).
+  func clearPermission(_ pane: PermissionPolicy.Pane) {
+    if permissionPane == pane { showPermission(nil) }
+  }
   func showTimedOut(retry: String?, paste: String?, discard: String?) {
     model.retry = retry; model.paste = paste; model.discard = discard
   }
@@ -491,7 +503,7 @@ final class StatusMenu: NSObject {
   func showLogin(_ status: LoginItem.Status) { settings.loginStatus = status }
 }
 
-enum MenuAction { case cancel, retry, paste, discard, discardUnsaved, recovered, quit }
+enum MenuAction { case cancel, retry, paste, discard, discardUnsaved, recovered, permission, quit }
 
 /// The whole panel as one view, for the fixed-data renders. The live menu
 /// hosts `MenuSummary` and `MenuFooter` as separate items with the native
@@ -604,6 +616,7 @@ struct MenuSummary: View {
     ForEach([model.configWarning, model.daemon].compactMap { $0 }, id: \.self) { text in
       Label(text, systemImage: "exclamationmark.triangle").font(.callout).foregroundStyle(.primary)
     }
+    if let text = model.permission { Button(text) { action(.permission) } }
     if let text = model.recovered {
       if model.canShowRecovered { Button(text) { action(.recovered) } }
       else { Text(text).font(.callout).foregroundStyle(.secondary) }

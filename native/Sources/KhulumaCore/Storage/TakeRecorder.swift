@@ -95,7 +95,12 @@ public struct TakeRecorder: Sendable {
 
   public static func wantsUsage(_ r: TakeRecord) -> Bool { r.status == "ok" && r.delivered }
   public static func needsHistory(_ r: TakeRecord) -> Bool {
-    r.usageOnly != true && (wantsUsage(r) || r.status == "recovered")
+    r.usageOnly != true && (wantsUsage(r) || r.status == "recovered" || keepsUndelivered(r))
+  }
+  /// A take whose paste failed keeps its text in history (marked not
+  /// delivered) so it survives the clipboard being overwritten. Never counted.
+  static func keepsUndelivered(_ r: TakeRecord) -> Bool {
+    r.status == "paste_failed" && !r.delivered && !r.text.isEmpty
   }
 
   /// Applies the record to every destination not already `done`.
@@ -172,12 +177,13 @@ public struct TakeRecorder: Sendable {
           }
         }
         let ms = { (v: Int) in max(v, 0) }
-        let entry = HistoryWriter.Entry(
+        var entry = HistoryWriter.Entry(
           app: (r.app?.isEmpty ?? true) ? "current" : r.app!, raw: r.rawText, processed: r.text,
           takeId: r.takeId.isEmpty ? nil : r.takeId,
           metrics: [("record_ms", ms(r.recordMs)), ("transcribe_ms", ms(r.transcribeMs)), ("clean_ms", ms(r.cleanMs)),
                     ("paste_ms", ms(r.pasteMs)), ("total_ms", ms(r.totalMs))],
           audio: audio)
+        entry.delivered = !Self.keepsUndelivered(r)
         switch try writer.save(entry, protectedTakeIds: protectedTakeIds, log: log) {
         case .saved: return .written
         case .alreadySaved: return .alreadyThere
