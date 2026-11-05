@@ -2,11 +2,14 @@ import AppKit
 import KhulumaCore
 
 final class VocabularyModel: ObservableObject {
-  enum Section: String, CaseIterable, Identifiable {
-    case fillers = "Fillers", brands = "Brands", words = "Other words", examples = "Examples"
-    var id: String { rawValue }
-  }
-  struct Entry: Identifiable { var heard: String; var write: String; var id: String { heard } }
+  typealias Section = VocabularySheet.Section
+  typealias Entry = VocabularySheet.Row
+  /// The row being edited in place: an existing entry, or the new row that
+  /// + adds at the end of the table.
+  enum Edit: Equatable { case existing(String), new }
+  /// The new row's table id. Validation rejects control characters, so no
+  /// saved entry can have it.
+  static let newRowID = "\u{1}new"
   @Published var document = VocabularySheet.empty { didSet { checkExamples() } }
   /// Failing examples' heard text → what cleanup gives now, against the draft.
   @Published private(set) var exampleFailures: [String: String] = [:]
@@ -14,10 +17,17 @@ final class VocabularyModel: ObservableObject {
   @Published var recent: [String] = []
   @Published var confirmFailingSave = false
   @Published var section = Section.fillers
-  @Published var selected: String?
+  @Published private(set) var selection: Set<String> = []
+  @Published private(set) var editing: Edit?
+  /// The edited row's text while it is being typed.
+  @Published var heard = "" { didSet { if heard != oldValue { clearEditError() } } }
+  @Published var write = "" { didSet { if write != oldValue { clearEditError() } } }
+  /// Why the edited row could not go into the draft, such as a duplicate.
+  @Published private(set) var editError: String?
   @Published var query = ""
-  @Published var heard = ""
-  @Published var write = ""
+  /// Command-F bumps this to focus the search field (the Command Line Tools
+  /// have no SwiftUI macro plugin for @State).
+  @Published var searchRequest = 0
   @Published var working = false
   @Published var loaded = false
   @Published var message: String?
@@ -30,14 +40,7 @@ final class VocabularyModel: ObservableObject {
   init(settings: SettingsModel) { self.settings = settings }
 
   var dirty: Bool { baseline.map { $0.document != document } ?? false }
-  var entries: [Entry] {
-    switch section {
-    case .fillers: return document.fillers.map { Entry(heard: $0, write: "") }
-    case .brands: return document.brands.map { Entry(heard: $0.heard, write: $0.write) }
-    case .words: return document.words.map { Entry(heard: $0.heard, write: $0.write) }
-    case .examples: return (document.examples ?? []).map { Entry(heard: $0.said, write: $0.expect) }
-    }
-  }
+  var entries: [Entry] { document.rows(section) }
 
   /// Cleanup as a take would run it now, except with the draft vocabulary.
   /// Nil until settings load or when only the CLI can clean (non-C locale).
@@ -50,20 +53,36 @@ final class VocabularyModel: ObservableObject {
     exampleFailures = Dictionary(failures.map { ($0.example.said, $0.got) }, uniquingKeysWith: { first, _ in first })
   }
 
-  /// What the draft does to the text in the Heard field (Examples only).
+  /// The one selected entry, when exactly one saved row is selected.
+  var selectedEntry: Entry? {
+    guard selection.count == 1, let id = selection.first else { return nil }
+    return entries.first { $0.heard == id }
+  }
+
+  /// The Said text the Examples inspector describes: the row being typed, or
+  /// the one selected example.
+  private var inspectedSaid: String? {
+    guard section == .examples else { return nil }
+    return editing != nil ? heard : selectedEntry?.heard
+  }
+
+  /// What the draft does to the inspected Said text (Examples only).
   var preview: (text: String, changes: [TextChange])? {
-    guard section == .examples, !heard.trimmingCharacters(in: .whitespaces).isEmpty, let pipeline else { return nil }
-    switch pipeline.preview(transcript: heard, sheet: document) {
+    guard let said = inspectedSaid, !said.trimmingCharacters(in: .whitespaces).isEmpty, let pipeline else { return nil }
+    switch pipeline.preview(transcript: said, sheet: document) {
     case .needsCLI: return nil
-    case .noSpeech: return ("", [TextChange(before: heard, after: "")])
-    case .text(_, let text): return (text, TextChange.between(heard, text))
+    case .noSpeech: return ("", [TextChange(before: said, after: "")])
+    case .text(_, let text): return (text, TextChange.between(said, text))
     }
   }
 
+  /// The Expect text the inspector compares against the preview.
+  var inspectedExpect: String? { editing != nil ? write : selectedEntry?.write }
+
   /// For the selected failing example: the rule that would make it pass.
   var suggestedRule: VocabularySheet.Correction? {
-    guard section == .examples, let selected, let got = exampleFailures[selected],
-          let entry = entries.first(where: { $0.heard == selected }) else { return nil }
+    guard section == .examples, editing == nil, let entry = selectedEntry,
+          let got = exampleFailures[entry.heard] else { return nil }
     return TextChange.suggestedRule(got: got, expected: entry.write)
   }
 
@@ -71,9 +90,16 @@ final class VocabularyModel: ObservableObject {
     guard canEdit else { return }
     var next = document
     next.words.append(rule)
-    let keep = selected
-    do { try change(next); select(keep); message = "Added “\(rule.heard)” → “\(rule.write)” to Other words." }
+    let keep = selection
+    do { try change(next); selection = keep; message = "Added “\(rule.heard)” → “\(rule.write)” to Other words." }
     catch { report(error) }
+  }
+
+  /// Use as Expected: into the row being typed, or straight into the draft.
+  func useAsExpected(_ text: String) {
+    if editing != nil { write = text; return }
+    guard canEdit, section == .examples, let entry = selectedEntry else { return }
+    commit(Entry(heard: entry.heard, write: text), replacing: entry.heard)
   }
 
   func loadRecent() {
@@ -87,38 +113,84 @@ final class VocabularyModel: ObservableObject {
   var filtered: [Entry] {
     entries.filter { query.isEmpty || $0.heard.localizedCaseInsensitiveContains(query) || $0.write.localizedCaseInsensitiveContains(query) }
   }
+  /// The table's rows: the filtered entries, plus the new row while it is typed.
+  var rows: [Entry] { editing == .new ? filtered + [Entry(heard: Self.newRowID)] : filtered }
+
+  private var editingOriginal: String? {
+    if case .existing(let id) = editing { return id }
+    return nil
+  }
+  /// The edited row differs from what the draft holds.
   var formDirty: Bool {
-    if let entry = entries.first(where: { $0.heard == selected }) {
+    switch editing {
+    case nil: return false
+    case .new: return !heard.isEmpty || !write.isEmpty
+    case .existing(let id):
+      guard let entry = entries.first(where: { $0.heard == id }) else { return true }
       return heard != entry.heard || write != entry.write
     }
-    return !heard.isEmpty || !write.isEmpty
   }
   var canEdit: Bool { loaded && !working && !settings.recording && !settings.saving }
+  var canUndo: Bool { canEdit && editing == nil && !undoStack.isEmpty }
 
-  func clearFields() { selected = nil; heard = ""; write = "" }
   var fieldsComplete: Bool {
     !heard.trimmingCharacters(in: .whitespaces).isEmpty
       && (section == .fillers || !write.trimmingCharacters(in: .whitespaces).isEmpty)
   }
-  /// Moving on never blocks: a finished entry goes into the draft (Undo can
-  /// take it back), an unfinished one is dropped. Only an invalid entry, such
-  /// as a duplicate, stays in the fields with its message.
-  func settleFields() {
-    guard formDirty else { return }
-    if fieldsComplete { addOrUpdate() } else { clearFields() }
+
+  /// Typing a fix clears the row's warning and its status message.
+  private func clearEditError() {
+    guard editError != nil else { return }
+    editError = nil; message = nil; failed = false
   }
-  func select(_ value: String?) {
-    guard value != selected else { return }
+  /// Starts editing a saved row in place. False if the row being typed
+  /// cannot be settled, such as a duplicate.
+  @discardableResult func beginEdit(_ id: String) -> Bool {
+    guard canEdit, let entry = entries.first(where: { $0.heard == id }) else { return false }
+    if editing == .existing(id) { return true }
     settleFields()
-    guard !formDirty else { return }
-    selected = value
-    let entry = entries.first { $0.heard == value }
-    heard = entry?.heard ?? ""; write = entry?.write ?? ""
+    guard editing == nil else { return false }
+    editing = .existing(id); heard = entry.heard; write = entry.write
+    selection = [id]
+    return true
+  }
+  /// + and New from Recent: a new row at the end, optionally with Said text.
+  @discardableResult func beginNew(heard text: String = "") -> Bool {
+    guard canEdit else { return false }
+    settleFields()
+    guard editing == nil else { return false }
+    editing = .new; heard = text; write = ""
+    selection = [Self.newRowID]
+    return true
+  }
+  /// Escape: leaves the draft as it was and drops a new row.
+  func cancelEdit() {
+    if editing == .new { selection = [] }
+    editing = nil; heard = ""; write = ""; editError = nil
+  }
+  /// Return in the last cell, or moving on: puts a finished row into the
+  /// draft (Undo can take it back), drops an unfinished one. Only an invalid
+  /// row, such as a duplicate, stays open with its warning.
+  func settleFields() {
+    guard editing != nil else { return }
+    guard formDirty else { cancelEdit(); return }
+    if fieldsComplete { addOrUpdate() } else { cancelEdit() }
+  }
+  /// The table's selection. Selecting another row settles the one being
+  /// typed; an invalid row keeps the selection.
+  func select(_ value: Set<String>) {
+    guard value != selection else { return }
+    if editing != nil {
+      if value == [editingOriginal ?? Self.newRowID] { return }
+      settleFields()
+      guard editing == nil else { return }
+    }
+    selection = value.filter { id in entries.contains { $0.heard == id } }
   }
   func changeSection(_ value: Section) {
     settleFields()
-    guard !formDirty else { return }
-    section = value; clearFields()
+    guard editing == nil else { return }
+    section = value; selection = []
     if value == .examples { loadRecent() }
   }
   func report(_ error: Error) { failed = true; message = error.localizedDescription }
@@ -126,46 +198,45 @@ final class VocabularyModel: ObservableObject {
     let validated = try value.validated()
     undoStack.append(document)
     document = validated
-    clearFields(); failed = false; message = "Changes are ready to save."
+    editing = nil; heard = ""; write = ""; editError = nil
+    failed = false; message = nil
+  }
+  private func commit(_ row: Entry, replacing original: String?) {
+    do {
+      try change(document.upserting(row, in: section, replacing: original))
+      // Validation trims rules; select the row as saved.
+      let id = section == .examples ? row.heard : row.heard.trimmingCharacters(in: .whitespacesAndNewlines)
+      selection = entries.contains { $0.heard == id } ? [id] : []
+    } catch {
+      report(error)
+      if editing != nil { editError = error.localizedDescription }
+    }
   }
   func addOrUpdate() {
-    guard canEdit else { return }
-    var next = document
-    let entry = VocabularySheet.Correction(heard: heard, write: write)
-    switch section {
-    case .fillers:
-      if let index = next.fillers.firstIndex(where: { $0 == selected }) { next.fillers[index] = heard }
-      else { next.fillers.append(heard) }
-    case .brands:
-      if let index = next.brands.firstIndex(where: { $0.heard == selected }) { next.brands[index] = entry }
-      else { next.brands.append(entry) }
-    case .words:
-      if let index = next.words.firstIndex(where: { $0.heard == selected }) { next.words[index] = entry }
-      else { next.words.append(entry) }
-    case .examples:
-      var examples = next.examples ?? []
-      let example = VocabularySheet.Example(said: heard, expect: write)
-      // Heard text identifies an example; a repeat replaces it.
-      if let index = examples.firstIndex(where: { $0.said == (selected ?? heard) }) { examples[index] = example }
-      else { examples.append(example) }
-      next.examples = examples
-    }
-    do { try change(next) } catch { report(error) }
+    guard canEdit, editing != nil else { return }
+    commit(Entry(heard: heard, write: section == .fillers ? "" : write), replacing: editingOriginal)
   }
+  /// − and Delete: removes the selected rows, or drops the new row.
   func remove() {
-    guard canEdit, let selected else { return }
-    var next = document
-    switch section {
-    case .fillers: next.fillers.removeAll { $0 == selected }
-    case .brands: next.brands.removeAll { $0.heard == selected }
-    case .words: next.words.removeAll { $0.heard == selected }
-    case .examples: next.examples?.removeAll { $0.said == selected }
-    }
-    do { try change(next) } catch { report(error) }
+    guard canEdit else { return }
+    if editing != nil { cancelEdit(); if selection.isEmpty { return } }
+    let ids = selection.subtracting([Self.newRowID])
+    guard !ids.isEmpty else { return }
+    let next = VocabularySheet.selectionAfterRemoving(ids, from: filtered)
+    do {
+      try change(document.removing(ids, from: section))
+      selection = next.map { [$0] } ?? []
+      message = ids.count == 1 ? "Entry removed. Undo restores it." : "\(ids.count.formatted()) entries removed. Undo restores them."
+    } catch { report(error) }
   }
   func undo() {
-    guard canEdit, let previous = undoStack.popLast() else { return }
-    document = previous; clearFields(); failed = false; message = "Previous vocabulary restored in the draft."
+    guard canUndo, let previous = undoStack.popLast() else { return }
+    document = previous; selection = []; failed = false; message = "Previous vocabulary restored in the draft."
+  }
+  /// Revert: reads the saved vocabulary again, confirming first when that
+  /// would lose edits.
+  func revert() {
+    if dirty || formDirty { confirmReload = true } else { load() }
   }
   func useImport() {
     guard let imported, canEdit else { return }
@@ -188,6 +259,12 @@ final class VocabularyModel: ObservableObject {
     return "\(count(imported.fillers.count, "filler")), \(count(imported.brands.count, "brand")) and \(count(imported.words.count, "other word")).\n\n\(added.formatted()) added, \(changed.formatted()) changed, \(removed.formatted()) removed. Review the draft, then Save Changes to apply it."
   }
 
+  /// Takes a freshly read vocabulary as the saved baseline and the draft.
+  func adopt(_ snapshot: VocabularySnapshot) {
+    baseline = snapshot; document = snapshot.document; loaded = true
+    undoStack = []; cancelEdit(); selection = []; message = nil
+  }
+
   func load() {
     guard !working else { return }
     working = true; failed = false; message = nil
@@ -198,9 +275,7 @@ final class VocabularyModel: ObservableObject {
         guard let self else { return }
         self.working = false
         switch result {
-        case .success(let snapshot):
-          self.baseline = snapshot; self.document = snapshot.document; self.loaded = true
-          self.undoStack = []; self.clearFields(); self.message = nil
+        case .success(let snapshot): self.adopt(snapshot)
         case .failure(let error): self.report(error)
         }
       }
@@ -210,7 +285,7 @@ final class VocabularyModel: ObservableObject {
   /// something that used to come out right.
   func save(confirmed: Bool = false) {
     settleFields()
-    guard canEdit, !formDirty, let baseline else { return }
+    guard canEdit, editing == nil, let baseline else { return }
     if !confirmed, !exampleFailures.isEmpty {
       confirmFailingSave = true
       return

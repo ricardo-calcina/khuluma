@@ -3,157 +3,65 @@ import KhulumaCore
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// The Vocabulary tab. The window owns the model, so a draft survives
-/// switching tabs until it is saved or reloaded.
+/// The Vocabulary tab: a standard Mac list editor. The window owns the
+/// model, so a draft survives switching tabs until it is saved or reverted.
 struct VocabularyView: View {
   @ObservedObject var model: VocabularyModel
   @ObservedObject var settings: SettingsModel
-  @FocusState private var focus: Field?
-  private enum Field { case heard, write }
+  @FocusState private var focus: Column?
+  @FocusState private var tableFocused: Bool
+  private enum Column: Hashable { case heard, write }
+  private typealias Entry = VocabularyModel.Entry
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 12) {
-      HStack {
+    VStack(alignment: .leading, spacing: 0) {
+      HStack(spacing: 12) {
         Picker("Section", selection: Binding(get: { model.section }, set: { model.changeSection($0) })) {
           ForEach(VocabularyModel.Section.allCases) { Text($0.rawValue).tag($0) }
         }
-        .pickerStyle(.segmented).labelsHidden().disabled(!model.canEdit)
-        if model.working { ProgressView().controlSize(.small).accessibilityLabel("Updating vocabulary") }
+        .pickerStyle(.segmented).labelsHidden().fixedSize().disabled(!model.canEdit)
+        Spacer(minLength: 0)
+        SearchField(text: $model.query, focusRequest: model.searchRequest)
+          .frame(minWidth: 120, idealWidth: 170, maxWidth: 170)
+          .disabled(model.working)
       }
-      HStack {
-        TextField("Search vocabulary", text: $model.query)
-          .textFieldStyle(.roundedBorder).accessibilityLabel("Search vocabulary")
-        if !model.query.isEmpty {
-          Button { model.query = "" } label: { Image(systemName: "xmark.circle.fill") }
-            .buttonStyle(.plain).help("Clear search").accessibilityLabel("Clear search")
-        }
+      .padding(.bottom, 10)
+      VStack(spacing: 0) {
+        table
+        controlBar
       }
-      .disabled(model.working)
-      HStack {
-        Text(model.section == .fillers ? "Remove when heard" : heardTitle)
-        Spacer()
-        if model.section != .fillers { Text(writeTitle) }
+      if model.section == .examples {
+        inspector.padding(.top, 8).disabled(!model.canEdit)
       }
-      .font(.caption).foregroundStyle(.secondary)
-
-      List(selection: Binding(get: { model.selected }, set: { model.select($0) })) {
-        ForEach(model.filtered) { entry in
-          HStack {
-            if model.section == .examples {
-              let got = model.exampleFailures[entry.heard]
-              Image(systemName: got == nil ? "checkmark.circle" : "xmark.circle.fill")
-                .foregroundStyle(got == nil ? Color.secondary : Color.red)
-                .help(got.map { "Now gives: \($0.isEmpty ? "no speech" : $0)" } ?? "Passes with this draft")
-            }
-            Text(entry.heard).lineLimit(2)
-            if model.section != .fillers {
-              Spacer(minLength: 16)
-              Text(entry.write).foregroundStyle(.secondary).lineLimit(2)
-            }
-          }
-          .padding(.vertical, 2).tag(entry.id)
-          .accessibilityElement(children: .ignore)
-          .accessibilityLabel(rowLabel(entry))
-        }
-      }
-      .listStyle(.bordered(alternatesRowBackgrounds: true))
-      .frame(minHeight: 120)
-      .overlay {
-        if model.loaded && model.filtered.isEmpty {
-          Text(model.query.isEmpty ? "No entries in this section. Add one below." : "No matching entries. Clear the search to see everything.")
-            .font(.callout).foregroundStyle(.secondary).padding().allowsHitTesting(false)
-        }
-      }
-      .disabled(!model.canEdit)
-      HStack {
-        Text("\(model.filtered.count.formatted()) of \(model.entries.count.formatted()) \(model.entries.count == 1 ? "entry" : "entries")")
-          .font(.caption).foregroundStyle(.secondary)
-        Spacer()
-        Button("Undo") { model.undo() }.disabled(!model.canEdit || model.undoStack.isEmpty || model.formDirty)
-      }
-
-      VStack(alignment: .leading, spacing: 8) {
-        HStack(alignment: .top) {
-          VStack(alignment: .leading, spacing: 4) {
-            HStack {
-              Text(model.section == .fillers ? "Filler or phrase" : heardTitle).font(.caption)
-              if model.section == .examples && !model.recent.isEmpty {
-                Spacer()
-                Menu("Recent") {
-                  ForEach(model.recent, id: \.self) { text in
-                    Button(String(text.prefix(80)) + (text.count > 80 ? "…" : "")) { model.heard = text }
-                  }
-                }
-                .menuStyle(.borderlessButton).fixedSize().font(.caption)
-                .help("Use a recent dictation (after filler and repetition cleanup, before vocabulary).")
-              }
-            }
-            TextField(heardPlaceholder, text: $model.heard)
-              .focused($focus, equals: .heard)
-              .accessibilityLabel(model.section == .fillers ? "Filler or phrase" : heardTitle)
-          }
-          if model.section != .fillers {
-            VStack(alignment: .leading, spacing: 4) {
-              Text(writeTitle).font(.caption)
-              TextField(model.section == .examples ? "The text you want pasted" : "e.g. pnpm", text: $model.write)
-                .focused($focus, equals: .write)
-                .accessibilityLabel(writeTitle)
-            }
-          }
-        }
-        .textFieldStyle(.roundedBorder)
-        .onSubmit(addEntry)
-        HStack {
-          Button(model.selected == nil ? "Add Entry" : "Update Entry", action: addEntry)
-            .disabled(model.heard.trimmingCharacters(in: .whitespaces).isEmpty || (model.section != .fillers && model.write.trimmingCharacters(in: .whitespaces).isEmpty))
-          Button("Clear Fields") { model.clearFields() }.disabled(model.heard.isEmpty && model.write.isEmpty)
-          Spacer()
-          Button("Remove", role: .destructive) { model.remove() }.disabled(model.selected == nil)
-        }
-        if model.section == .examples {
-          examplesHelp.font(.caption).frame(minHeight: 28, alignment: .topLeading)
-        } else {
-          Text(model.formDirty ? "Return adds it. Choosing another entry or section keeps it in the draft." :
-            (model.section == .fillers ? "Literal phrases, ignoring case. Quoted words and filenames are preserved." : "Use one heard spelling per entry. Add another entry for each variation."))
-            .font(.caption).foregroundStyle(.secondary).frame(minHeight: 28, alignment: .topLeading)
-        }
-      }
-      .disabled(!model.canEdit)
-      Divider()
-      if settings.recording {
-        Label("Editing resumes when dictation finishes.", systemImage: "mic.fill").font(.caption)
-      }
-      VStack(alignment: .leading, spacing: 3) {
-        if let message = model.message {
-          Label(message, systemImage: model.failed ? "exclamationmark.triangle" : "checkmark.circle")
-            .font(.caption).foregroundStyle(model.failed ? Color.primary : Color.secondary)
-            .textSelection(.enabled).accessibilityLabel(message)
-        } else {
-          Text(model.dirty ? "Unsaved changes" : "JSON · Up to 5,000 entries · 1 MB maximum")
-            .font(.caption).foregroundStyle(.secondary)
-        }
-      }.frame(minHeight: 30, alignment: .topLeading)
-      HStack {
-        Button("Import…") { model.settleFields(); chooseImport() }.disabled(!model.canEdit)
-        Button(model.dirty ? "Export Draft…" : "Export…") { model.settleFields(); export() }.disabled(!model.loaded || model.working)
-        Button("Reload") {
-          if model.dirty || model.formDirty { model.confirmReload = true } else { model.load() }
-        }.disabled(model.working)
-        Spacer()
+      HStack(spacing: 8) {
+        status
+        Spacer(minLength: 8)
+        Button("Revert") { model.revert() }
+          .disabled(!model.loaded || model.working)
+          .help("Discard the draft and read the saved vocabulary again")
         Button("Save Changes") { model.save() }
-          .keyboardShortcut(.defaultAction)
-          .disabled(!model.canEdit || !(model.dirty || (model.formDirty && model.fieldsComplete)))
+          .keyboardShortcut("s")
+          .buttonStyle(.borderedProminent)
+          .disabled(!model.canEdit || model.editError != nil || !(model.dirty || (model.formDirty && model.fieldsComplete)))
+          .help("Save Changes (⌘S)")
       }
-      .controlSize(.small)
+      .frame(minHeight: 30)
+      .padding(.top, 12)
     }
     .padding(.horizontal, 20).padding(.vertical, 14)
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(Color(nsColor: .windowBackgroundColor))
+    .background { shortcuts }
     .onAppear { if !model.loaded { model.load() } }
-    .confirmationDialog("Reload saved vocabulary?", isPresented: $model.confirmReload) {
-      Button("Reload and Discard Draft", role: .destructive) { model.load() }
+    .onChange(of: focus) { _, value in
+      // Leaving the edited row settles it, like any other move.
+      guard value == nil, model.editing != nil else { return }
+      DispatchQueue.main.async { if focus == nil { model.settleFields() } }
+    }
+    .confirmationDialog("Revert to the saved vocabulary?", isPresented: $model.confirmReload) {
+      Button("Revert and Discard Draft", role: .destructive) { model.load() }
       Button("Keep Editing", role: .cancel) {}
-    } message: { Text("This discards unsaved entries and reads the latest vocabulary from disk.") }
+    } message: { Text("This discards unsaved entries and reads the saved vocabulary again.") }
     .confirmationDialog("Some examples no longer match", isPresented: $model.confirmFailingSave) {
       Button("Save Anyway") { model.save(confirmed: true) }
       Button("Keep Editing", role: .cancel) {}
@@ -167,24 +75,275 @@ struct VocabularyView: View {
       } message: { Text(model.importSummary) }
   }
 
-  /// Adds or updates, then returns to Heard for the next entry.
-  private func addEntry() {
-    guard model.fieldsComplete else { focus = model.heard.isEmpty ? .heard : .write; return }
-    model.addOrUpdate()
-    if !model.formDirty { focus = .heard }
+  // MARK: Table
+
+  @ViewBuilder private var table: some View {
+    let selection = Binding(get: { model.selection }, set: { model.select($0) })
+    Group {
+      switch model.section {
+      case .fillers:
+        Table(model.rows, selection: selection) {
+          TableColumn("Filler") { cell($0, .heard) }
+        }
+      case .examples:
+        Table(model.rows, selection: selection) {
+          TableColumn("") { exampleStatus($0) }.width(16)
+          TableColumn("Said") { cell($0, .heard) }
+          TableColumn("Expect") { cell($0, .write) }
+        }
+      case .brands, .words:
+        Table(model.rows, selection: selection) {
+          TableColumn("Heard as") { cell($0, .heard) }
+          TableColumn("Write as") { cell($0, .write) }
+        }
+      }
+    }
+    .tableStyle(.bordered(alternatesRowBackgrounds: true))
+    .frame(minHeight: 120)
+    .focused($tableFocused)
+    .contextMenu(forSelectionType: String.self) { ids in
+      let saved = ids.subtracting([VocabularyModel.newRowID])
+      if saved.count == 1, let id = saved.first { Button("Edit") { edit(id) } }
+      if !saved.isEmpty {
+        Button(saved.count == 1 ? "Remove" : "Remove \(saved.count.formatted()) Entries") {
+          model.select(saved); model.remove()
+        }
+      }
+    } primaryAction: { ids in
+      if ids.count == 1, let id = ids.first { edit(id) }
+    }
+    .onKeyPress(.return) {
+      guard model.editing == nil, model.selection.count == 1, let id = model.selection.first else { return .ignored }
+      edit(id)
+      return .handled
+    }
+    .onKeyPress(.escape) {
+      // Escape cancels an open row; otherwise the window takes it (back to Stats).
+      guard model.editing != nil else { return .ignored }
+      model.cancelEdit()
+      return .handled
+    }
+    .onDeleteCommand { model.remove() }
+    .overlay {
+      if model.loaded && model.rows.isEmpty {
+        Text(model.query.isEmpty ? "No entries in this section. Click + to add one." : "No matching entries.")
+          .font(.callout).foregroundStyle(.secondary).padding().allowsHitTesting(false)
+      }
+    }
+    .disabled(!model.canEdit)
   }
 
-  private var heardTitle: String { model.section == .examples ? "Said" : "Heard as" }
-  private var writeTitle: String { model.section == .examples ? "Expect" : "Write as" }
-  private var heardPlaceholder: String {
-    switch model.section {
-    case .fillers: return "e.g. ahhh"
-    case .examples: return "e.g. Um, open Kaluma with PN PM."
-    default: return "e.g. PN PM"
+  private func isEditing(_ row: Entry) -> Bool {
+    switch model.editing {
+    case .new: return row.id == VocabularyModel.newRowID
+    case .existing(let id): return row.id == id
+    case nil: return false
     }
   }
 
-  private func rowLabel(_ entry: VocabularyModel.Entry) -> String {
+  /// A cell edits in place while its row is open; otherwise plain text.
+  @ViewBuilder private func cell(_ row: Entry, _ column: Column) -> some View {
+    if isEditing(row) {
+      HStack(spacing: 4) {
+        TextField(title(column), text: column == .heard ? $model.heard : $model.write,
+                  prompt: Text(placeholder(column)))
+          .textFieldStyle(.plain)
+          .focused($focus, equals: column)
+          .onSubmit { submit(from: column) }
+          .onExitCommand { model.cancelEdit(); DispatchQueue.main.async { tableFocused = true } }
+          .accessibilityLabel(title(column))
+        if column == .heard, model.section != .examples, let error = model.editError { warning(error) }
+      }
+    } else {
+      let text = column == .heard ? row.heard : row.write
+      Text(text).lineLimit(1).truncationMode(.tail)
+        .help(text.count > 40 ? text : "")
+        .accessibilityLabel(column == .heard ? rowLabel(row) : text)
+    }
+  }
+
+  @ViewBuilder private func exampleStatus(_ row: Entry) -> some View {
+    if isEditing(row) {
+      if let error = model.editError { warning(error) }
+    } else {
+      let got = model.exampleFailures[row.heard]
+      Image(systemName: got == nil ? "checkmark.circle" : "xmark.circle.fill")
+        .foregroundStyle(got == nil ? Color.secondary : Color.red)
+        .help(got.map { "Now gives: \($0.isEmpty ? "no speech" : $0)" } ?? "Passes with this draft")
+        .accessibilityLabel(got == nil ? "Passes" : "Fails")
+    }
+  }
+
+  private func warning(_ message: String) -> some View {
+    Image(systemName: "exclamationmark.triangle.fill").symbolRenderingMode(.multicolor)
+      .help(message).accessibilityLabel("Warning: \(message)")
+  }
+
+  // MARK: +/− bar
+
+  private var controlBar: some View {
+    HStack(spacing: 0) {
+      barButton("plus", label: "Add entry") { add() }
+        .disabled(!model.canEdit)
+      Divider().frame(height: 14)
+      barButton("minus", label: "Remove selected entries") { model.remove() }
+        .disabled(!model.canEdit || (model.selection.isEmpty && model.editing == nil))
+      Divider().frame(height: 14)
+      actionMenu
+      Spacer(minLength: 8)
+      Text("\(model.filtered.count.formatted()) of \(model.entries.count.formatted()) \(model.entries.count == 1 ? "entry" : "entries")")
+        .font(.caption).foregroundStyle(.secondary).monospacedDigit().lineLimit(1)
+        .padding(.trailing, 8)
+    }
+    .frame(height: 22)
+    .background(Color(nsColor: .controlBackgroundColor))
+    .overlay { Rectangle().strokeBorder(Color(nsColor: .gridColor), lineWidth: 1) }
+    .padding(.top, -1)
+  }
+
+  private func barButton(_ symbol: String, label: String, action: @escaping () -> Void) -> some View {
+    Button(action: action) {
+      Image(systemName: symbol).font(.system(size: 11, weight: .medium))
+        .frame(width: 26, height: 22).contentShape(Rectangle())
+    }
+    .buttonStyle(.borderless)
+    .help(label).accessibilityLabel(label)
+  }
+
+  private var actionMenu: some View {
+    Menu {
+      if model.section == .examples {
+        Menu("New from Recent") {
+          ForEach(model.recent, id: \.self) { text in
+            Button(String(text.prefix(80)) + (text.count > 80 ? "…" : "")) { newExample(text) }
+          }
+        }
+        .disabled(model.recent.isEmpty || !model.canEdit)
+        Divider()
+      }
+      Button("Undo") { model.undo() }.disabled(!model.canUndo)
+      Divider()
+      Button("Import…") { model.settleFields(); chooseImport() }.disabled(!model.canEdit)
+      Button(model.dirty ? "Export Draft…" : "Export…") { model.settleFields(); export() }
+        .disabled(!model.loaded || model.working)
+      Divider()
+      Button("Revert to Saved…") { model.revert() }.disabled(!model.loaded || model.working)
+    } label: {
+      Image(systemName: "ellipsis.circle")
+    }
+    .menuStyle(.borderlessButton)
+    .fixedSize()
+    .padding(.horizontal, 6)
+    .help("Undo, import, export and revert")
+    .accessibilityLabel("Vocabulary actions")
+  }
+
+  // MARK: Examples inspector
+
+  /// For the selected or edited example: what the draft gives (Use as
+  /// Expected) or, for a failing one, the one-rule fix (Add Rule).
+  private var inspector: some View {
+    HStack(alignment: .firstTextBaseline, spacing: 6) {
+      if let rule = model.suggestedRule {
+        Text("Fails. Add “\(rule.heard)” → “\(rule.write)”?").lineLimit(1)
+        Spacer(minLength: 4)
+        Button("Add Rule") { model.addRule(rule) }.controlSize(.small)
+      } else if let preview = model.preview {
+        Text(preview.text.isEmpty ? "Gives no speech." : "Gives: \(preview.text)")
+          .lineLimit(2).textSelection(.enabled)
+          .help(preview.changes.map { "\($0.before.isEmpty ? "+" : $0.before) → \($0.after.isEmpty ? "removed" : $0.after)" }
+            .joined(separator: "\n"))
+        Spacer(minLength: 4)
+        if model.inspectedExpect != preview.text {
+          Button("Use as Expected") { model.useAsExpected(preview.text) }.controlSize(.small)
+        }
+      } else {
+        Text("Examples are checked against your vocabulary before every save. Cleanup never uses them as rules.")
+      }
+    }
+    .font(.caption).foregroundStyle(.secondary)
+    .frame(maxWidth: .infinity, minHeight: 22, alignment: .leading)
+  }
+
+  // MARK: Status
+
+  @ViewBuilder private var status: some View {
+    Group {
+      if settings.recording {
+        Label("Editing resumes when dictation finishes.", systemImage: "mic.fill")
+      } else if model.working {
+        HStack(spacing: 6) {
+          ProgressView().controlSize(.small)
+          Text(model.loaded ? "Updating vocabulary…" : "Loading vocabulary…")
+        }
+        .accessibilityElement(children: .combine)
+      } else if let message = model.message {
+        Label(message, systemImage: model.failed ? "exclamationmark.triangle" : "checkmark.circle")
+          .foregroundStyle(model.failed ? Color.primary : Color.secondary)
+          .textSelection(.enabled).accessibilityLabel(message)
+      } else if model.dirty {
+        Text("Unsaved changes")
+      }
+    }
+    .font(.caption).foregroundStyle(.secondary).lineLimit(2)
+  }
+
+  /// Command-F and Command-Z. Undo stays off while a row is typed, so the
+  /// text field keeps its own undo.
+  private var shortcuts: some View {
+    ZStack {
+      Button("Find") { model.searchRequest += 1 }.keyboardShortcut("f")
+      Button("Undo") { model.undo() }.keyboardShortcut("z").disabled(!model.canUndo)
+    }
+    .opacity(0).allowsHitTesting(false).accessibilityHidden(true)
+  }
+
+  // MARK: Actions
+
+  private func edit(_ id: String, column: Column = .heard) {
+    guard model.beginEdit(id) else { return }
+    DispatchQueue.main.async { focus = column }
+  }
+  private func add() {
+    guard model.beginNew() else { return }
+    DispatchQueue.main.async { focus = .heard }
+  }
+  private func newExample(_ text: String) {
+    guard model.beginNew(heard: text) else { return }
+    DispatchQueue.main.async { focus = .write }
+  }
+
+  /// Return ends the edit; with a cell still empty it moves there instead.
+  private func submit(from column: Column) {
+    if model.formDirty && !model.fieldsComplete {
+      focus = model.heard.trimmingCharacters(in: .whitespaces).isEmpty ? .heard : .write
+      return
+    }
+    model.settleFields()
+    if model.editing == nil { DispatchQueue.main.async { tableFocused = true } }
+    else { DispatchQueue.main.async { focus = column } }
+  }
+
+  private func title(_ column: Column) -> String {
+    switch (model.section, column) {
+    case (.fillers, _): return "Filler"
+    case (.examples, .heard): return "Said"
+    case (.examples, .write): return "Expect"
+    case (_, .heard): return "Heard as"
+    case (_, .write): return "Write as"
+    }
+  }
+  private func placeholder(_ column: Column) -> String {
+    switch (model.section, column) {
+    case (.fillers, _): return "e.g. ahhh"
+    case (.examples, .heard): return "e.g. Um, open Kaluma with PN PM."
+    case (.examples, .write): return "The text you want pasted"
+    case (_, .heard): return "e.g. PN PM"
+    case (_, .write): return "e.g. pnpm"
+    }
+  }
+
+  private func rowLabel(_ entry: Entry) -> String {
     switch model.section {
     case .fillers: return "Remove \(entry.heard)"
     case .examples:
@@ -193,36 +352,10 @@ struct VocabularyView: View {
     }
   }
 
-  /// Examples: what the draft does to the Said text, or a fix for the
-  /// selected failing example.
-  @ViewBuilder private var examplesHelp: some View {
-    if !model.formDirty, let rule = model.suggestedRule {
-      HStack(spacing: 6) {
-        Text("Fails. Add “\(rule.heard)” → “\(rule.write)”?").foregroundStyle(.secondary).lineLimit(1)
-        Spacer(minLength: 4)
-        Button("Add Rule") { model.addRule(rule) }.controlSize(.small)
-      }
-    } else if let preview = model.preview {
-      HStack(alignment: .firstTextBaseline, spacing: 6) {
-        Text(preview.text.isEmpty ? "Gives no speech." : "Gives: \(preview.text)")
-          .foregroundStyle(.secondary).lineLimit(2).textSelection(.enabled)
-          .help(preview.changes.map { "\($0.before.isEmpty ? "+" : $0.before) → \($0.after.isEmpty ? "removed" : $0.after)" }
-            .joined(separator: "\n"))
-        Spacer(minLength: 4)
-        if model.write != preview.text {
-          Button("Use as Expected") { model.write = preview.text }.controlSize(.small)
-        }
-      }
-    } else {
-      Text("Examples are checked against your vocabulary before every save. Cleanup never uses them as rules.")
-        .foregroundStyle(.secondary)
-    }
-  }
-
   private func chooseImport() {
     let panel = NSOpenPanel()
     panel.allowedContentTypes = [.json]; panel.allowsMultipleSelection = false
-    panel.message = "Choose a vocabulary JSON file. Review it before saving."
+    panel.message = "Choose a vocabulary JSON file: up to 5,000 entries and 1 MB. You review it before saving."
     guard panel.runModal() == .OK, let url = panel.url else { return }
     do {
       let handle = try FileHandle(forReadingFrom: url)
@@ -242,5 +375,42 @@ struct VocabularyView: View {
       try model.document.encoded().write(to: url, options: .atomic)
       model.failed = false; model.message = "Vocabulary exported."
     } catch { model.report(error) }
+  }
+}
+
+/// The native search field, with Command-F focusing it through `focusRequest`.
+private struct SearchField: NSViewRepresentable {
+  @Binding var text: String
+  var focusRequest: Int
+
+  func makeCoordinator() -> Coordinator { Coordinator(text: $text) }
+  func makeNSView(context: Context) -> NSSearchField {
+    let field = NSSearchField()
+    field.placeholderString = "Search"
+    field.sendsSearchStringImmediately = true
+    field.delegate = context.coordinator
+    field.setAccessibilityLabel("Search vocabulary")
+    field.toolTip = "Search vocabulary (⌘F)"
+    context.coordinator.request = focusRequest
+    return field
+  }
+  func updateNSView(_ field: NSSearchField, context: Context) {
+    context.coordinator.text = $text
+    if field.stringValue != text { field.stringValue = text }
+    field.isEnabled = context.environment.isEnabled
+    if context.coordinator.request != focusRequest {
+      context.coordinator.request = focusRequest
+      DispatchQueue.main.async { field.window?.makeFirstResponder(field) }
+    }
+  }
+
+  final class Coordinator: NSObject, NSSearchFieldDelegate {
+    var text: Binding<String>
+    var request = 0
+    init(text: Binding<String>) { self.text = text }
+    func controlTextDidChange(_ notification: Notification) {
+      guard let field = notification.object as? NSSearchField else { return }
+      text.wrappedValue = field.stringValue
+    }
   }
 }

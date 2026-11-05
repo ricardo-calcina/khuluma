@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Make the Vocabulary tab a standard Mac list editor: a headed, editable table (double-click or Return to edit, Tab between cells, Escape to cancel, multiple selection), a +/− bar with an actions menu for Undo, Import, Export, Revert and New from Recent, a native search field (Command-F), inline warnings on invalid rows, and Revert and Save Changes (Command-S) at the bottom. Size limits move to the Import panel.
 - Finish a take with the shortcut plus Shift (configurable in Settings → Dictation, or off) to paste it without sending, while auto-send stays on for other takes. The extra shortcut is bound only while recording.
 - Add an Auto-send switch to the menu footer.
 - Drop the menu's All time caption. Settings → Appearance → Menu figures shows all-time or today's words, time saved and WPM, and an optional 7-day bar strip (on by default) sits under them.

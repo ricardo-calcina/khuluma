@@ -59,3 +59,48 @@ struct VocabularySheetTests {
     #expect(TextChange.suggestedRule(got: "a kaluma b pn pm", expected: "a Khuluma b pnpm") == nil)
   }
 }
+
+struct VocabularyRowsTests {
+  private let sheet: VocabularySheet = {
+    var sheet = VocabularySheet(fillers: ["um", "uh"], brands: [.init(heard: "Kaluma", write: "Khuluma")],
+                                words: [.init(heard: "core ml", write: "CoreML"), .init(heard: "x code", write: "Xcode")])
+    sheet.examples = [.init(said: "open kaluma", expect: "open Khuluma")]
+    return sheet
+  }()
+
+  @Test func rowsShowEachSection() {
+    #expect(sheet.rows(.fillers).map(\.heard) == ["um", "uh"])
+    #expect(sheet.rows(.fillers).allSatisfy { $0.write.isEmpty })
+    #expect(sheet.rows(.brands) == [.init(heard: "Kaluma", write: "Khuluma")])
+    #expect(sheet.rows(.examples) == [.init(heard: "open kaluma", write: "open Khuluma")])
+  }
+
+  @Test func editingReplacesInPlaceAndNewRowsAppend() {
+    let renamed = sheet.upserting(.init(heard: "core m l", write: "Core ML"), in: .words, replacing: "core ml")
+    #expect(renamed.words.map(\.heard) == ["core m l", "x code"])
+    #expect(renamed.words[0].write == "Core ML")
+    let added = sheet.upserting(.init(heard: "er"), in: .fillers, replacing: nil)
+    #expect(added.fillers == ["um", "uh", "er"])
+    #expect(added.brands == sheet.brands)
+  }
+
+  @Test func aRepeatedExampleReplacesTheOldOne() {
+    let repeated = sheet.upserting(.init(heard: "open kaluma", write: "Open Khuluma."), in: .examples, replacing: nil)
+    #expect(repeated.examples == [.init(said: "open kaluma", expect: "Open Khuluma.")])
+  }
+
+  @Test func removesEverySelectedRow() {
+    let removed = sheet.removing(["core ml", "x code"], from: .words)
+    #expect(removed.words.isEmpty)
+    #expect(removed.fillers == sheet.fillers)
+    #expect(sheet.removing(["open kaluma"], from: .examples).examples == [])
+  }
+
+  @Test func selectionMovesToTheNextRemainingRow() {
+    let rows = ["a", "b", "c", "d"].map { VocabularySheet.Row(heard: $0) }
+    #expect(VocabularySheet.selectionAfterRemoving(["b", "c"], from: rows) == "d")
+    #expect(VocabularySheet.selectionAfterRemoving(["d"], from: rows) == "c")
+    #expect(VocabularySheet.selectionAfterRemoving(["a", "b", "c", "d"], from: rows) == nil)
+    #expect(VocabularySheet.selectionAfterRemoving(["z"], from: rows) == nil)
+  }
+}
