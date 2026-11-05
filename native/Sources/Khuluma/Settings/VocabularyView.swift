@@ -3,7 +3,7 @@ import KhulumaCore
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// The Vocabulary tab: a standard Mac list editor. The window owns the
+/// The Vocabulary tab: an editable list in Khuluma's ink-and-ember style. The window owns the
 /// model, so a draft survives switching tabs until it is saved or reverted.
 struct VocabularyView: View {
   @ObservedObject var model: VocabularyModel
@@ -14,40 +14,31 @@ struct VocabularyView: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
-      HStack(spacing: 12) {
-        Picker("Section", selection: Binding(get: { model.section }, set: { model.changeSection($0) })) {
-          ForEach(VocabularyModel.Section.allCases) { Text($0.rawValue).tag($0) }
-        }
-        .pickerStyle(.segmented).labelsHidden().fixedSize().disabled(!model.canEdit)
-        Spacer(minLength: 0)
-        SearchField(text: $model.query, focusRequest: model.searchRequest)
-          .frame(minWidth: 120, idealWidth: 170, maxWidth: 170)
-          .disabled(model.working)
-      }
-      .padding(.bottom, 10)
-      VStack(spacing: 0) {
-        table
-        controlBar
-      }
+      header
+      tabStrip
+      table
+      controlBar
       if model.section == .examples {
-        inspector.padding(.top, 8).disabled(!model.canEdit)
+        inspector.padding(.top, 10).disabled(!model.canEdit)
       }
       HStack(spacing: 8) {
         status
         Spacer(minLength: 8)
         Button("Revert") { model.revert() }
+          .buttonStyle(.borderless)
           .disabled(!model.loaded || model.working)
           .help("Discard the draft and read the saved vocabulary again")
         Button("Save Changes") { model.save() }
           .keyboardShortcut("s")
           .buttonStyle(.borderedProminent)
+          .tint(Ember.accent)
           .disabled(!model.canEdit || model.editError != nil || !(model.dirty || (model.formDirty && model.fieldsComplete)))
           .help("Save Changes (⌘S)")
       }
       .frame(minHeight: 30)
-      .padding(.top, 12)
+      .padding(.top, 10)
     }
-    .padding(.horizontal, 20).padding(.vertical, 14)
+    .padding(.horizontal, 20).padding(.top, 18).padding(.bottom, 14)
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(Color(nsColor: .windowBackgroundColor))
     .background { shortcuts }
@@ -86,6 +77,59 @@ struct VocabularyView: View {
       } message: { Text(model.importSummary) }
   }
 
+  // MARK: Header and sections
+
+  private var header: some View {
+    HStack(alignment: .firstTextBaseline, spacing: 12) {
+      VStack(alignment: .leading, spacing: 2) {
+        Text("Vocabulary").font(.system(size: 20, weight: .semibold, design: .rounded))
+        Text(blurb(model.section)).font(.callout).foregroundStyle(.secondary).lineLimit(1)
+      }
+      Spacer(minLength: 0)
+      SearchField(text: $model.query, focusRequest: model.searchRequest)
+        .frame(minWidth: 120, idealWidth: 170, maxWidth: 170)
+        .disabled(model.working)
+    }
+    .padding(.bottom, 12)
+  }
+
+  private func blurb(_ section: VocabularyModel.Section) -> String {
+    switch section {
+    case .fillers: return "Hesitations removed from every dictation."
+    case .brands: return "Spellings fixed as you dictate."
+    case .words: return "Words Khuluma should always write your way."
+    case .examples: return "Said and expected pairs checked before every save."
+    }
+  }
+
+  private var tabStrip: some View {
+    VStack(spacing: 0) {
+      HStack(spacing: 20) {
+        ForEach(VocabularyModel.Section.allCases) { section in
+          let selected = model.section == section
+          Button { model.changeSection(section) } label: {
+            HStack(spacing: 5) {
+              Text(section.rawValue).font(.system(size: 13, weight: selected ? .semibold : .regular))
+              Text(model.document.rows(section).count.formatted())
+                .font(.system(size: 11)).monospacedDigit().foregroundStyle(.secondary)
+            }
+            .foregroundStyle(selected ? Color.primary : Color.secondary)
+            .padding(.vertical, 7)
+            .overlay(alignment: .bottom) {
+              Rectangle().fill(selected ? Ember.accent : Color.clear).frame(height: 2)
+            }
+            .contentShape(Rectangle())
+          }
+          .buttonStyle(.plain)
+          .accessibilityAddTraits(selected ? .isSelected : [])
+        }
+        Spacer(minLength: 0)
+      }
+      .disabled(!model.canEdit)
+      Rule()
+    }
+  }
+
   // MARK: Table
 
   @ViewBuilder private var table: some View {
@@ -109,7 +153,8 @@ struct VocabularyView: View {
         }
       }
     }
-    .tableStyle(.bordered(alternatesRowBackgrounds: true))
+    .tableStyle(.inset(alternatesRowBackgrounds: false))
+    .scrollContentBackground(.hidden)
     .frame(minHeight: 120)
     .background(TableFocus(request: model.tableFocusRequest))
     .contextMenu(forSelectionType: String.self) { ids in
@@ -192,28 +237,26 @@ struct VocabularyView: View {
   // MARK: +/− bar
 
   private var controlBar: some View {
-    HStack(spacing: 0) {
-      barButton("plus", label: "Add entry") { add() }
-        .disabled(!model.canEdit)
-      Divider().frame(height: 14)
-      barButton("minus", label: "Remove selected entries") { model.remove() }
-        .disabled(!model.canEdit || (model.selection.isEmpty && model.editing == nil))
-      Divider().frame(height: 14)
-      actionMenu
-      Spacer(minLength: 8)
-      Text("\(model.filtered.count.formatted()) of \(model.entries.count.formatted()) \(model.entries.count == 1 ? "entry" : "entries")")
-        .font(.caption).foregroundStyle(.secondary).monospacedDigit().lineLimit(1)
-        .padding(.trailing, 8)
+    VStack(spacing: 0) {
+      Rule()
+      HStack(spacing: 2) {
+        barButton("plus", label: "Add entry") { add() }
+          .disabled(!model.canEdit)
+        barButton("minus", label: "Remove selected entries") { model.remove() }
+          .disabled(!model.canEdit || (model.selection.isEmpty && model.editing == nil))
+        actionMenu
+        Spacer(minLength: 8)
+        Text("\(model.filtered.count.formatted()) of \(model.entries.count.formatted()) \(model.entries.count == 1 ? "entry" : "entries")")
+          .font(.caption).foregroundStyle(.secondary).monospacedDigit().lineLimit(1)
+      }
+      .frame(height: 28)
     }
-    .frame(height: 22)
-    .background(Color(nsColor: .controlBackgroundColor))
-    .overlay { Rectangle().strokeBorder(Color(nsColor: .gridColor), lineWidth: 1) }
-    .padding(.top, -1)
   }
 
   private func barButton(_ symbol: String, label: String, action: @escaping () -> Void) -> some View {
     Button(action: action) {
       Image(systemName: symbol).font(.system(size: 11, weight: .medium))
+        .foregroundStyle(Ink.color.opacity(0.7))
         .frame(width: 26, height: 22).contentShape(Rectangle())
     }
     .buttonStyle(.borderless)
@@ -239,7 +282,7 @@ struct VocabularyView: View {
       Divider()
       Button("Revert to Saved…") { model.revert() }.disabled(!model.loaded || model.working)
     } label: {
-      Image(systemName: "ellipsis.circle")
+      Image(systemName: "ellipsis.circle").foregroundStyle(Ink.color.opacity(0.7))
     }
     .menuStyle(.borderlessButton)
     .fixedSize()
@@ -253,6 +296,14 @@ struct VocabularyView: View {
   /// For the selected or edited example: what the draft gives (Use as
   /// Expected) or, for a failing one, the one-rule fix (Add Rule).
   private var inspector: some View {
+    VStack(alignment: .leading, spacing: 6) {
+      Rule()
+      Ink.label("Check").padding(.top, 4)
+      inspectorBody
+    }
+  }
+
+  private var inspectorBody: some View {
     HStack(alignment: .firstTextBaseline, spacing: 6) {
       if let rule = model.suggestedRule {
         Text("Fails. Add “\(rule.heard)” → “\(rule.write)”?").lineLimit(1)
