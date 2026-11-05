@@ -42,7 +42,6 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 - [ ] P2 · Compare Parakeet and ElevenLabs Scribe on real repeats, intonation and laughter/non-speech output; verify provider behavior before choosing cleanup rules · added 2026-10-24
 - [x] P2 · Remove old command/env/app compatibility after canonical-only caller and daily-app checks · added 2026-10-23
 - [x] P2 · Align formula updater and intact source/tap siblings at khuluma and homebrew-tap · added 2026-10-22
-- [ ] P2 · Skip auto-send for one take: hold a key (Shift or similar, to decide) so the take pastes without pressing Enter; auto-send stays the default · added 2026-10-17 · source done 2026-10-30 (shortcut + Shift, configurable; menu Auto-send switch); Swift CI passed; installed 2026-11-05 as build 383; eight real takes delivered on the native path; a Shift (paste without sending) take still to confirm
 - [ ] P2 · Finish the microphone picker hardware checks (iPhone Continuity mic confirmed on build 398; it takes ~2.2 s to start, so speak after the chime): wired headphones and AirPods, pick the current default explicitly, unplug the chosen mic between takes and mid-take; each take's `audio: take input requested=… actual=… fallback=…` line in ~/Library/Logs/Khuluma/app.log should match · added 2026-11-05
 - [ ] P3 · Vocabulary examples are keyed by Said text: a repeat replaces, and duplicate Said rows in an imported file share one table row (Terra review, same as before the editor change) · added 2026-11-05
 - [x] P2 · Menu: microphone picker (native submenu under the figures, current input shown; same choice in Settings → Dictation; falls back to the system default when the chosen mic is missing) · added 2026-11-05
@@ -85,6 +84,7 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 - 2026-11-05 · Pinned mics start on their real hardware format (iPhone Continuity mic failed on 391), checked converter per Codex Terra review, Cancel Recording on the Recording row; inline mic list tried and reverted · 15793b2, 7dc3db8
 - 2026-11-05 · Installed build 391 from d99bd84 (app only; CLI and daemon unchanged, doctor healthy) · ~/Applications/.khuluma-app.f7GuFA/previous.app
 - 2026-11-05 · Microphone picker in the menu and Settings with a take-safe engine policy; two Codex Sol reviews, fixes in b8fd358 and 7bf864e · d99bd84
+- 2026-11-05 · Paste without sending confirmed on build 398: a real Shift+F5 take pasted and was not sent · app.log 12:46Z
 - 2026-11-05 · Vocabulary tab rebuilt as a standard Mac list editor; Codex Terra review fixes in a7bb4fe · 4d904cc
 - 2026-11-05 · Installed build 383 and matching CLI from main (30 Oct tabs, menu figures/7-day strip, Auto-send switch, paste without sending); daemon kept, doctor healthy · ~/Applications/.khuluma-app.5r9WGE/previous.app
 - 2026-10-27 · #88 merged; app rebuilt from main and installed as build 377 (rollback ~/Applications/.khuluma-app.1OP0aL/previous.app); a real 14 s take delivered warm on the native path (total 1.3 s) with the shared FluidAudio model · app.log 12:15Z
