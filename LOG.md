@@ -2,7 +2,7 @@
 
 ## Now
 
-Window restyle (2026-11-05) is installed as build 411 from main: Stats, Settings and Vocabulary share one ink-and-ember look (Theme.swift; DESIGN.md), Settings has a four-page sidebar, and Activity keeps one height for every range. Ricardo approved it from a preview build. The menu panel still uses the system accent and the old styling; bringing it into the same look is open (Next). Wired headphones and AirPods are still to try on the microphone picker (Next). App rollback is `~/Applications/.khuluma-app.d3jzzj/previous.app` (build 398).
+Window restyle (2026-11-05) is installed as build 411 from main: Stats, Settings and Vocabulary share one ink-and-ember look (Theme.swift; DESIGN.md), Settings has a four-page sidebar, and Activity keeps one height for every range. Ricardo approved it from a preview build. The menu dropdown restyle is merged and awaiting Ricardo's preview OK before install. Wired headphones and AirPods are still to try on the microphone picker (Next). App rollback is `~/Applications/.khuluma-app.d3jzzj/previous.app` (build 398).
 
 Direction from 2026-10-27: Khuluma splits into two products. The Khuluma CLI, the free tool that grew out of the tmux-whisper setup, stays on the Homebrew tap and gets its SwiftBar integrations back. The native Swift dictation app becomes its own paid product, signed and notarised, installed from the App Store or a website download, not Homebrew. Phases 2, 4 and 5 and the SwiftBar, cask and App Store decisions below predate this and need re-planning (Next P1).
 
@@ -43,7 +43,6 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 - [x] P2 · Remove old command/env/app compatibility after canonical-only caller and daily-app checks · added 2026-10-23
 - [x] P2 · Align formula updater and intact source/tap siblings at khuluma and homebrew-tap · added 2026-10-22
 - [ ] P2 · Check live on build 411: hovering Activity never moves the layout; Settings sidebar Tab/arrow focus and VoiceOver; Vocabulary tab-strip arrows and in-place editing · added 2026-11-05
-- [ ] P3 · Bring the menu panel (figures, 7-day strip, footer) into the ink-and-ember look · added 2026-11-05
 - [ ] P2 · Finish the microphone picker hardware checks (iPhone Continuity mic confirmed on build 398; it takes ~2.2 s to start, so speak after the chime): wired headphones and AirPods, pick the current default explicitly, unplug the chosen mic between takes and mid-take; each take's `audio: take input requested=… actual=… fallback=…` line in ~/Library/Logs/Khuluma/app.log should match · added 2026-11-05
 - [ ] P3 · Vocabulary examples are keyed by Said text: a repeat replaces, and duplicate Said rows in an imported file share one table row (Terra review, same as before the editor change) · added 2026-11-05
 - [x] P2 · Menu: microphone picker (native submenu under the figures, current input shown; same choice in Settings → Dictation; falls back to the system default when the chosen mic is missing) · added 2026-11-05
@@ -86,6 +85,7 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 - 2026-11-05 · Pinned mics start on their real hardware format (iPhone Continuity mic failed on 391), checked converter per Codex Terra review, Cancel Recording on the Recording row; inline mic list tried and reverted · 15793b2, 7dc3db8
 - 2026-11-05 · Installed build 391 from d99bd84 (app only; CLI and daemon unchanged, doctor healthy) · ~/Applications/.khuluma-app.f7GuFA/previous.app
 - 2026-11-05 · Microphone picker in the menu and Settings with a take-safe engine policy; two Codex Sol reviews, fixes in b8fd358 and 7bf864e · d99bd84
+- 2026-11-05 · Menu dropdown restyled to match (ink figures, ember 7-day bars, red recording mic); not installed yet · 2b40e75
 - 2026-11-05 · Installed build 411 (app only; CLI unchanged): ink-and-ember Stats, Settings sidebar, Vocabulary restyle; doctor 0 issues/0 warnings · ~/Applications/.khuluma-app.d3jzzj/previous.app
 - 2026-11-05 · Settings sidebar (4 pages) and Vocabulary restyle in the Stats language, ember accent; built by Opus/Sonnet workers, reviewed by Codex Terra, review fixes in c58a8e8 and 89400bd; not installed yet · CHANGELOG Unreleased
 - 2026-11-05 · Stats window restyled in one ink (like the icon), hairlines not boxes, ring marks, small caps labels; Activity one height for all ranges, heatmap centred, hover readout in the range line; window starts 560×712; not installed yet · CHANGELOG Unreleased
