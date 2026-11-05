@@ -1,6 +1,6 @@
 # CLI sunset: what the `khuluma` CLI does and what happens to it
 
-Ricardo, 2026-11-05: Khuluma is the native app only; the CLI, its Homebrew formula and the tap are retired once the app no longer needs them. This is the inventory behind that, from `bin/khuluma` help and dispatch, `bin/khuluma-lib/`, `native/Sources/Khuluma/CLIBridge.swift`, `install.sh`, the formula and the callers found on Ricardo's Mac. The porting is done by the app-independence work ([APP_INDEPENDENCE.md](APP_INDEPENDENCE.md), branch `wip/app-independence`); this file is the keep/drop list it works from.
+Ricardo, 2026-11-05: Khuluma is the native app only; the CLI, its Homebrew formula and the tap are retired once the app no longer needs them. This is the inventory behind that, from `bin/khuluma` help and dispatch, `bin/khuluma-lib/`, `native/Sources/Khuluma/CLIBridge.swift`, `install.sh`, the formula and the callers found on Ricardo's Mac. The app keeps its data in `~/Library/Application Support/Khuluma` after a one-time copy from `~/.config/khuluma` (the source stays as rollback). The porting is done by the app-independence work ([APP_INDEPENDENCE.md](APP_INDEPENDENCE.md), branch `wip/app-independence`); this file is the keep/drop list it works from.
 
 Calls: **Keep** = the app does it after the sunset (ported if it isn't native yet). **Drop** = gone with the CLI. **App tab** = already in the app-independence slices.
 
@@ -24,24 +24,24 @@ All ten go once the app is independent; none survive as CLI commands.
 
 | Feature | CLI today | In the app today | Call |
 |---|---|---|---|
-| **File transcription** `transcribe <file>…` with `-q`, `--format json`, `-o`, `--out-dir`, `--beside`, `-c`, `--force`, stdin `-`, `--no-tail-rescue` | yes; the transcribe-audio skill (Claude and Codex copies) runs `khuluma transcribe "<file>" -q [--format json] [-o file]` | no | **Keep.** Small command built into the app, same flags and output so the skill only changes its path if at all. A mac-tools to-do wants segment timestamps from it later. |
+| **File transcription** `transcribe <file>…` with `-q`, `--format json`, `-o`, `--out-dir`, `--beside`, `-c`, `--force`, stdin `-`, `--no-tail-rescue` | yes; the transcribe-audio skill (Claude and Codex copies) runs `khuluma transcribe "<file>" -q [--format json] [-o file]` | no | **Keep.** A helper in the app bundle, linked to `~/.local/bin/khuluma` from Settings, with the same call shape (`transcribe <file>… -q`, `--format json`, `-o`) so the skill keeps working. The link must not replace the CLI at that path until the CLI is retired (the app calls it there today). A mac-tools to-do wants segment timestamps from it later. |
 | **ElevenLabs Scribe** | `providers.py`, via `inline process` | provider picker in Settings, runs through the CLI | **Keep.** App tab slice 5 (Keychain first, then the zshrc lookup). |
 | **Finder Quick Action** "Transcribe with Khuluma" (`finder install/remove/status`, `integrations/finder/`) | yes; installed on Ricardo's Mac | no | **Ask Ricardo.** Keep = the app provides it (Services or a Quick Action the app installs) calling the built-in command. Drop = remove the workflow at retirement. |
 | Delivery: `autosend`, Settings and menu switch | yes | yes | Keep (native already) |
-| Delivery: `send-mode enter/ctrl_j/cmd_enter`, `target origin/current` | yes (Ricardo: `current`, `enter`) | read from config only, no UI | **Keep as config keys** the app reads; Settings rows optional later |
+| Delivery: `send-mode enter/ctrl_j/cmd_enter`, `target origin/current` | yes (Ricardo: `current`, `enter`) | read from config only, no UI | **Keep** as app settings (imported from `config.toml`); Settings rows optional later |
 | Sounds: master `sound on/off` | yes | yes | Keep (native) |
-| Sounds: per event `sound start/stop/process/error on/off`, `inline process-sound` | yes | config only | Keep as config keys |
+| Sounds: per event `sound start/stop/process/error on/off`, `inline process-sound` | yes | config only | Keep as app settings (imported) |
 | Cleanup: `repeats 0-3`, cleanup on/off | yes | yes | Keep (native) |
 | British spelling (`KHULUMA_BRITISH_SPELLING`, default on) | env | Swift cleanup | Keep as is; env override dropped |
 | Vocabulary JSON (`vocab-sheet`) | yes | Vocabulary editor with import/export | Keep (native, app tab) |
 | Legacy text vocab: `vocab`, `vocab add/import/export/clipboard/dedupe/edit/rm` | yes, refuses once JSON is active (it is on Ricardo's Mac) | no | **Drop.** The app reads the old `vocab` file only if no JSON exists (app tab first run). |
 | `migrate-modes` | v0.10 leftover folding | no | Drop |
-| History readers: `history`, `history list/search/export/N/stats/sessions/clear`, `last` | yes | no window; editor shows recent takes | **Drop from the CLI.** A History window in the app stays a phase 2 item. Retention (`history.retention_days`, `audio_retention_days`) stays as config keys the app honours. |
+| History readers: `history`, `history list/search/export/N/stats/sessions/clear`, `last` | yes | no window; editor shows recent takes | **Drop from the CLI.** A History window in the app stays a phase 2 item. Retention (`history.retention_days`, `audio_retention_days`) stays as app settings. |
 | `usage [--json] [--days]` | yes | Stats window and menu | Drop (Stats covers it) |
 | Debug audio: `keep-logs on/off` | yes | Settings → Advanced | Keep (native) |
 | Diagnostics: `doctor`, `status`, `version`, `changelog`, `bench`, `bench export` | yes | Open Log, Open Config in Settings | **Drop.** `tools/khuluma-report.sh` (reads the logs and bench) stays as a repo tool. |
 | Config: `config`, `config path/get/defaults/repair` | yes | Open Config, Reload Settings | Drop; the app writes missing defaults itself (app tab first run) |
-| Tunables via env: tail pad, tail rescue, activate and send delays, typing wpm, bench rows, `KHULUMA_CLEAN`, `KHULUMA_VOCAB_CLEAN` | env | defaults built in | Drop the env overrides; keep current defaults (`history.typing_wpm` stays a config key if the app reads it) |
+| Tunables via env: tail pad, tail rescue, activate and send delays, typing wpm, bench rows, `KHULUMA_CLEAN`, `KHULUMA_VOCAB_CLEAN` | env | defaults built in | Drop the env overrides; keep current defaults (`history.typing_wpm` stays an app setting if the app uses it) |
 
 ## 3. Install, distribution and repo
 
