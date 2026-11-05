@@ -157,22 +157,38 @@ struct CaptureStartPolicyTests {
   private let prepared = CaptureFormat(sampleRate: 48_000, channels: 1)
   private let settled = CaptureFormat(sampleRate: 24_000, channels: 1)
 
-  @Test func theTapFollowsTheHardwareFormatReadAtStart() {
-    // Continuity: prepared at 48 kHz, the iPhone mic reports 24 kHz once active.
-    #expect(Policy.tapFormat(hardware: settled, node: prepared) == settled)
-    #expect(Policy.tapFormat(hardware: prepared, node: prepared) == prepared)
+  @Test func theTapKeepsTheNodeFormatWhenItMatchesTheHardware() {
+    // The ordinary path: the node's own format object, as before the fix,
+    // even if the hardware format differs in sample format or interleaving.
+    let hardware = CaptureFormat(sampleRate: 48_000, channels: 1, commonFormat: 0, interleaved: true)
+    #expect(Policy.tapSource(hardware: hardware, node: prepared) == .node)
   }
 
-  @Test func theNodeFormatIsOnlyAFallbackAndNothingUsableThrows() {
-    #expect(Policy.tapFormat(hardware: CaptureFormat(sampleRate: 0, channels: 0), node: prepared) == prepared)
-    #expect(Policy.tapFormat(hardware: nil, node: prepared) == prepared)
-    #expect(Policy.tapFormat(hardware: nil, node: CaptureFormat(sampleRate: 48_000, channels: 0)) == nil)
+  @Test func theTapUsesTheHardwareFormatWhenTheNodeIsStale() {
+    // Continuity: prepared at 48 kHz, the iPhone mic reports 24 kHz once active.
+    #expect(Policy.tapSource(hardware: settled, node: prepared) == .hardware)
+    #expect(Policy.tapSource(hardware: CaptureFormat(sampleRate: 48_000, channels: 2), node: prepared) == .hardware)
+  }
+
+  @Test func theNodeFormatIsTheFallbackAndNothingUsableThrows() {
+    #expect(Policy.tapSource(hardware: CaptureFormat(sampleRate: 0, channels: 0), node: prepared) == .node)
+    #expect(Policy.tapSource(hardware: nil, node: prepared) == .node)
+    #expect(Policy.tapSource(hardware: nil, node: CaptureFormat(sampleRate: 48_000, channels: 0)) == nil)
   }
 
   @Test func theConverterIsRebuiltWhenBuffersArriveInAnotherFormat() {
     #expect(!Policy.needsNewConverter(builtFor: prepared, buffer: prepared))
     #expect(Policy.needsNewConverter(builtFor: prepared, buffer: settled))
     #expect(Policy.needsNewConverter(builtFor: nil, buffer: prepared))
+  }
+
+  @Test func aSameRateSameChannelChangeStillNeedsANewConverter() {
+    let int16 = CaptureFormat(sampleRate: 48_000, channels: 1, commonFormat: 3, interleaved: false)
+    let interleaved = CaptureFormat(sampleRate: 48_000, channels: 1, commonFormat: 1, interleaved: true)
+    let laidOut = CaptureFormat(sampleRate: 48_000, channels: 1, layoutTag: 6_553_601)
+    #expect(Policy.needsNewConverter(builtFor: prepared, buffer: int16))
+    #expect(Policy.needsNewConverter(builtFor: prepared, buffer: interleaved))
+    #expect(Policy.needsNewConverter(builtFor: prepared, buffer: laidOut))
   }
 
   @Test func aChosenMicGetsOneMoreTryThenTheDefaultKeepsTheTake() {

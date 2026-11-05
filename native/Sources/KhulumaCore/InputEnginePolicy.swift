@@ -142,18 +142,35 @@ public enum InputEnginePolicy {
   }
 }
 
-/// A capture format: sample rate and channel count.
+/// A capture format as AVAudioFormat describes it. Equality is the whole
+/// format (rate, channels, sample format, interleaving, channel layout);
+/// `sameShape` compares only rate and channels.
 public struct CaptureFormat: Equatable, Sendable, CustomStringConvertible {
   public var sampleRate: Double
   public var channels: UInt32
+  /// `AVAudioCommonFormat` raw value (0 = other, such as packed integers).
+  public var commonFormat: UInt
+  public var interleaved: Bool
+  /// The channel layout tag, if the format has a layout.
+  public var layoutTag: UInt32?
 
-  public init(sampleRate: Double, channels: UInt32) {
+  public init(sampleRate: Double, channels: UInt32, commonFormat: UInt = 1, interleaved: Bool = false,
+              layoutTag: UInt32? = nil) {
     self.sampleRate = sampleRate
     self.channels = channels
+    self.commonFormat = commonFormat
+    self.interleaved = interleaved
+    self.layoutTag = layoutTag
   }
 
   public var isUsable: Bool { sampleRate > 0 && channels > 0 }
-  public var description: String { "\(Int(sampleRate)) Hz, \(channels) ch" }
+  public func sameShape(_ other: CaptureFormat) -> Bool { sampleRate == other.sampleRate && channels == other.channels }
+  public var description: String {
+    var text = "\(Int(sampleRate)) Hz, \(channels) ch"
+    if commonFormat != 1 { text += ", sample format \(commonFormat)" }
+    if interleaved { text += ", interleaved" }
+    return text
+  }
 }
 
 /// How capture starts and recovers. Continuity (iPhone), and some Bluetooth
@@ -162,17 +179,26 @@ public struct CaptureFormat: Equatable, Sendable, CustomStringConvertible {
 /// tap goes on; AVAudioEngine then refuses the tap
 /// (`format.sampleRate == inputHWFormat.sampleRate`).
 public enum CaptureStartPolicy {
-  /// The tap's format, from the input's hardware format read right before
-  /// the tap is installed. The node's output format is only a fallback: it
-  /// is the one that goes stale.
-  public static func tapFormat(hardware: CaptureFormat?, node: CaptureFormat?) -> CaptureFormat? {
-    if let hardware, hardware.isUsable { return hardware }
-    if let node, node.isUsable { return node }
-    return nil
+  public enum TapSource: Equatable, Sendable {
+    /// The input node's output format object, exactly as before.
+    case node
+    /// The input's hardware format object (`inputFormat(forBus: 0)`).
+    case hardware
   }
 
-  /// The 16 kHz converter is built from the buffers that really arrive and
-  /// replaced when their format differs from the one it was built for.
+  /// Which format object the tap uses, from both read right before the tap
+  /// is installed. When they agree on rate and channels the node's own
+  /// format is used, so the ordinary path is unchanged; when they differ the
+  /// node's format is the stale one. Nil: nothing usable to tap.
+  public static func tapSource(hardware: CaptureFormat?, node: CaptureFormat?) -> TapSource? {
+    let nodeUsable = node?.isUsable == true, hardwareUsable = hardware?.isUsable == true
+    if let hardware, let node, nodeUsable, hardwareUsable, node.sameShape(hardware) { return .node }
+    if hardwareUsable { return .hardware }
+    return nodeUsable ? .node : nil
+  }
+
+  /// The 16 kHz converter is built for the tap's format and replaced when
+  /// the buffers that arrive differ from it in any way.
   public static func needsNewConverter(builtFor: CaptureFormat?, buffer: CaptureFormat) -> Bool {
     builtFor != buffer
   }

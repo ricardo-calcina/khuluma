@@ -40,6 +40,10 @@ final class AudioRecorder {
   /// (a device settling after it starts). Guarded by `lock`.
   private var converter: AVAudioConverter?
   private var converterFormat: CaptureFormat?
+  /// No converter could be made mid-take: the take is being stopped.
+  private var converterFailed = false
+  /// Bumped per take, so a late mid-take failure can't stop the next take.
+  private var takeNumber = 0
   private var firstBufferAt: Double?
   /// Called once, on the audio thread, when the take's first buffer arrives.
   private var onFirstAudio: (() -> Void)?
@@ -288,18 +292,25 @@ final class AudioRecorder {
       (engine.inputNode.inputFormat(forBus: 0), engine.inputNode.outputFormat(forBus: 0))
     }
     let hardwareFormat = CaptureFormat(hardware), nodeFormat = CaptureFormat(node)
-    guard let tap = CaptureStartPolicy.tapFormat(hardware: hardwareFormat, node: nodeFormat) else {
+    guard let source = CaptureStartPolicy.tapSource(hardware: hardwareFormat, node: nodeFormat) else {
       throw NSError(domain: "Khuluma", code: 1, userInfo: [NSLocalizedDescriptionKey: "no input device available"])
     }
+    // Normally the node's own format, as always; the hardware format only
+    // when the node's has gone stale.
+    let tapFormat = source == .node ? node : hardware
+    let tap = CaptureFormat(tapFormat)
     let prepared = CaptureFormat(sampleRate: built.sampleRate, channels: built.channels)
-    if tap != prepared || tap != nodeFormat {
-      Log.write("audio: input format at start is \(tap) (prepared as \(prepared), node \(nodeFormat)); the tap uses \(tap)")
+    if source == .hardware || !tap.sameShape(prepared) {
+      Log.write("audio: input format at start is \(hardwareFormat) (prepared as \(prepared), node \(nodeFormat)); the tap uses the \(source == .node ? "node" : "hardware") format")
     }
-    let tapFormat = AVAudioFormat(standardFormatWithSampleRate: tap.sampleRate, channels: tap.channels)
-      ?? (nodeFormat == tap ? node : hardware)
+    guard let converter = AVAudioConverter(from: tapFormat, to: targetFormat) else {
+      throw NSError(domain: "Khuluma", code: 2, userInfo: [NSLocalizedDescriptionKey: "no 16 kHz converter for \(tap)"])
+    }
     lock.withLock {
-      converter = AVAudioConverter(from: tapFormat, to: targetFormat)
-      converterFormat = CaptureFormat(tapFormat)
+      self.converter = converter
+      converterFormat = tap
+      converterFailed = false
+      takeNumber += 1
       samples.removeAll(keepingCapacity: true)
       firstBufferAt = nil
       self.onFirstAudio = onFirstAudio
@@ -375,6 +386,16 @@ final class AudioRecorder {
     return take
   }
 
+  /// No converter for the buffers arriving mid-take: stop the take, keeping
+  /// what was captured, by the same route as a lost device.
+  private func converterFailedMidTake(_ format: CaptureFormat, take: Int) {
+    let current = lock.withLock { takeNumber }
+    guard isRecording, take == current else { return }
+    Log.write("audio: no 16 kHz converter for buffers in \(format) mid-take; stopping the take")
+    needsRebuild = true
+    onConfigurationChange?()
+  }
+
   /// Monotonic time at which the first audio buffer arrived, if any.
   var firstBufferTime: Double? {
     lock.withLock { firstBufferAt }
@@ -382,12 +403,30 @@ final class AudioRecorder {
 
   private func append(_ buffer: AVAudioPCMBuffer) {
     let format = CaptureFormat(buffer.format)
-    let converter = lock.withLock { () -> AVAudioConverter? in
-      if CaptureStartPolicy.needsNewConverter(builtFor: converterFormat, buffer: format) {
-        converter = AVAudioConverter(from: buffer.format, to: targetFormat)
+    let (current, builtFor, failed, take) = lock.withLock { (converter, converterFormat, converterFailed, takeNumber) }
+    guard !failed else { return }
+    var converter = current
+    if CaptureStartPolicy.needsNewConverter(builtFor: builtFor, buffer: format) {
+      // Rare: the device's format moved after start. Allocated outside the lock.
+      guard let fresh = AVAudioConverter(from: buffer.format, to: targetFormat) else {
+        lock.withLock {
+          converterFailed = true
+          self.converter = nil
+        }
+        // Common modes: the stop must not wait for an open menu to close.
+        RunLoop.main.perform(inModes: [.common]) { [weak self] in self?.converterFailedMidTake(format, take: take) }
+        CFRunLoopWakeUp(CFRunLoopGetMain())
+        return
+      }
+      lock.withLock {
+        self.converter = fresh
         converterFormat = format
       }
-      return converter
+      converter = fresh
+      let old = builtFor.map(String.init(describing:)) ?? "none"
+      RunLoop.main.perform(inModes: [.common]) {
+        Log.write("audio: buffers arrived as \(format), not \(old); rebuilt the 16 kHz converter (the old one's few buffered frames are dropped)")
+      }
     }
     guard let converter else { return }
     let ratio = targetFormat.sampleRate / buffer.format.sampleRate
@@ -420,6 +459,7 @@ final class AudioRecorder {
 
 private extension CaptureFormat {
   init(_ format: AVAudioFormat) {
-    self.init(sampleRate: format.sampleRate, channels: format.channelCount)
+    self.init(sampleRate: format.sampleRate, channels: format.channelCount, commonFormat: format.commonFormat.rawValue,
+              interleaved: format.isInterleaved, layoutTag: format.channelLayout?.layoutTag)
   }
 }
