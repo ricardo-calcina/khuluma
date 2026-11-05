@@ -2,7 +2,7 @@
 
 ## Now
 
-Design refresh (started 2026-11-05): native polish only. The menu keeps its big figures and gains a microphone picker; Vocabulary becomes a standard Mac list editor; Stats stays as is. Build 383 (main at f148f84, the 30 Oct menu/tabs work) is installed; app rollback is `~/Applications/.khuluma-app.5r9WGE/previous.app`.
+Design refresh (started 2026-11-05): native polish only. Built, reviewed (Codex Sol/Terra), merged and installed as build 391 from d99bd84: the menu keeps its big figures and gains a Microphone submenu (same choice in Settings → Dictation); Vocabulary is a standard Mac list editor; Stats unchanged. Waiting on Ricardo's real use: mic switching/unplug and the Vocabulary editor. App rollback is `~/Applications/.khuluma-app.f7GuFA/previous.app` (build 383).
 
 Direction from 2026-10-27: Khuluma splits into two products. The Khuluma CLI, the free tool that grew out of the tmux-whisper setup, stays on the Homebrew tap and gets its SwiftBar integrations back. The native Swift dictation app becomes its own paid product, signed and notarised, installed from the App Store or a website download, not Homebrew. Phases 2, 4 and 5 and the SwiftBar, cask and App Store decisions below predate this and need re-planning (Next P1).
 
@@ -42,9 +42,11 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 - [ ] P2 · Compare Parakeet and ElevenLabs Scribe on real repeats, intonation and laughter/non-speech output; verify provider behavior before choosing cleanup rules · added 2026-10-24
 - [x] P2 · Remove old command/env/app compatibility after canonical-only caller and daily-app checks · added 2026-10-23
 - [x] P2 · Align formula updater and intact source/tap siblings at khuluma and homebrew-tap · added 2026-10-22
-- [ ] P2 · Skip auto-send for one take: hold a key (Shift or similar, to decide) so the take pastes without pressing Enter; auto-send stays the default · added 2026-10-17 · source done 2026-10-30 (shortcut + Shift, configurable; menu Auto-send switch); Swift CI passed; installed 2026-11-05 as build 383; real take with and without Shift still to confirm
-- [ ] P2 · Menu: microphone picker (native submenu under the figures, current input shown; same choice in Settings → Dictation; falls back to the system default when the chosen mic is missing) · added 2026-11-05
-- [ ] P2 · Vocabulary tab as a standard Mac list editor: editable table, +/− under it, Import/Export in an action menu, keep the draft/Save model · added 2026-11-05
+- [ ] P2 · Skip auto-send for one take: hold a key (Shift or similar, to decide) so the take pastes without pressing Enter; auto-send stays the default · added 2026-10-17 · source done 2026-10-30 (shortcut + Shift, configurable; menu Auto-send switch); Swift CI passed; installed 2026-11-05 as build 383; eight real takes delivered on the native path; a Shift (paste without sending) take still to confirm
+- [ ] P1 · Confirm the microphone picker on real hardware: pick another mic, pick the current default explicitly, unplug the chosen mic between takes and mid-take; each take's `audio: take input requested=… actual=… fallback=…` line in ~/Library/Logs/Khuluma/app.log should match · added 2026-11-05
+- [ ] P3 · Vocabulary examples are keyed by Said text: a repeat replaces, and duplicate Said rows in an imported file share one table row (Terra review, same as before the editor change) · added 2026-11-05
+- [x] P2 · Menu: microphone picker (native submenu under the figures, current input shown; same choice in Settings → Dictation; falls back to the system default when the chosen mic is missing) · added 2026-11-05
+- [x] P2 · Vocabulary tab as a standard Mac list editor: editable table, +/− under it, Import/Export in an action menu, keep the draft/Save model · added 2026-11-05
 - [ ] P3 · Visual identity (colour, Ndebele/cursed-speech motifs) parked: 2026-10-30 Stats concepts read as non-Mac; keep the native look and current layout until a subtler direction comes up · added 2026-10-30
 - [ ] P2 · Stats stage 3 ideas (not committed): weeks view, wpm trend, typing_wpm config, time of day, opt-in per-app · added 2026-10-16
 - [x] P2 · Use total words, estimated time saved and average WPM in the menu and Stats summary · added 2026-10-23
@@ -77,6 +79,9 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 
 ## Done
 
+- 2026-11-05 · Installed build 391 from d99bd84 (app only; CLI and daemon unchanged, doctor healthy) · ~/Applications/.khuluma-app.f7GuFA/previous.app
+- 2026-11-05 · Microphone picker in the menu and Settings with a take-safe engine policy; two Codex Sol reviews, fixes in b8fd358 and 7bf864e · d99bd84
+- 2026-11-05 · Vocabulary tab rebuilt as a standard Mac list editor; Codex Terra review fixes in a7bb4fe · 4d904cc
 - 2026-11-05 · Installed build 383 and matching CLI from main (30 Oct tabs, menu figures/7-day strip, Auto-send switch, paste without sending); daemon kept, doctor healthy · ~/Applications/.khuluma-app.5r9WGE/previous.app
 - 2026-10-27 · #88 merged; app rebuilt from main and installed as build 377 (rollback ~/Applications/.khuluma-app.1OP0aL/previous.app); a real 14 s take delivered warm on the native path (total 1.3 s) with the shared FluidAudio model · app.log 12:15Z
 - 2026-10-27 · khulumad on FluidAudio 0.15.6 (exact); my config's model_path now points at FluidAudio's shared cache (~/Library/Application Support/FluidAudio/Models/parakeet-tdt-0.6b-v3), so Khuluma and the Kwik apps share one Parakeet v3 copy; same transcript as before on a 30 s clip at the same warm speed (2-3 s); 164 Swift tests and tests/ci.sh pass; the app was restarted to pick up the new path · CHANGELOG Unreleased
