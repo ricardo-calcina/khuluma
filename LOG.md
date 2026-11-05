@@ -42,7 +42,7 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 - [ ] P2 · Compare Parakeet and ElevenLabs Scribe on real repeats, intonation and laughter/non-speech output; verify provider behavior before choosing cleanup rules · added 2026-10-24
 - [x] P2 · Remove old command/env/app compatibility after canonical-only caller and daily-app checks · added 2026-10-23
 - [x] P2 · Align formula updater and intact source/tap siblings at khuluma and homebrew-tap · added 2026-10-22
-- [ ] P2 · Install the Stats restyle and adaptive Activity layout; check on the real window that hovering day to day no longer moves anything · added 2026-11-05
+- [ ] P2 · Install the Stats/Settings/Vocabulary restyle after Ricardo's preview OK; check live: hover never moves the layout, Settings sidebar Tab/arrow focus and VoiceOver, Vocabulary tab-strip arrows and in-place editing · added 2026-11-05
 - [ ] P2 · Finish the microphone picker hardware checks (iPhone Continuity mic confirmed on build 398; it takes ~2.2 s to start, so speak after the chime): wired headphones and AirPods, pick the current default explicitly, unplug the chosen mic between takes and mid-take; each take's `audio: take input requested=… actual=… fallback=…` line in ~/Library/Logs/Khuluma/app.log should match · added 2026-11-05
 - [ ] P3 · Vocabulary examples are keyed by Said text: a repeat replaces, and duplicate Said rows in an imported file share one table row (Terra review, same as before the editor change) · added 2026-11-05
 - [x] P2 · Menu: microphone picker (native submenu under the figures, current input shown; same choice in Settings → Dictation; falls back to the system default when the chosen mic is missing) · added 2026-11-05
@@ -85,6 +85,7 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 - 2026-11-05 · Pinned mics start on their real hardware format (iPhone Continuity mic failed on 391), checked converter per Codex Terra review, Cancel Recording on the Recording row; inline mic list tried and reverted · 15793b2, 7dc3db8
 - 2026-11-05 · Installed build 391 from d99bd84 (app only; CLI and daemon unchanged, doctor healthy) · ~/Applications/.khuluma-app.f7GuFA/previous.app
 - 2026-11-05 · Microphone picker in the menu and Settings with a take-safe engine policy; two Codex Sol reviews, fixes in b8fd358 and 7bf864e · d99bd84
+- 2026-11-05 · Settings sidebar (4 pages) and Vocabulary restyle in the Stats language, ember accent; built by Opus/Sonnet workers, reviewed by Codex Terra, review fixes in c58a8e8 and 89400bd; not installed yet · CHANGELOG Unreleased
 - 2026-11-05 · Stats window restyled in one ink (like the icon), hairlines not boxes, ring marks, small caps labels; Activity one height for all ranges, heatmap centred, hover readout in the range line; window starts 560×712; not installed yet · CHANGELOG Unreleased
 - 2026-11-05 · Stats Activity adapts: heatmap fills the width with Words per day off, chart beside it on 30 days and under it on 60/90; hover line fixed width;  203 Swift tests pass; not installed yet · CHANGELOG Unreleased
 - 2026-11-05 · Paste without sending confirmed on build 398: a real Shift+F5 take pasted and was not sent · app.log 12:46Z
