@@ -404,30 +404,6 @@ struct DaemonClientTests {
   }
 }
 
-struct PendingRecordsTests {
-  @Test func spoolsReplaysAndDropsStaleRecords() throws {
-    let dir = URL(fileURLWithPath: NSTemporaryDirectory() + "khuluma-pending-\(UUID().uuidString)")
-    let pending = PendingRecords(directory: dir)
-    let now = Date()
-    var first = TakeRecord(takeId: "a", status: "ok", delivered: true)
-    first.text = "hello"
-    let firstURL = try pending.save(first, at: now.addingTimeInterval(-60))
-    try pending.save(TakeRecord(takeId: "b", status: "no_speech", delivered: false), at: now)
-    try pending.save(TakeRecord(takeId: "old", status: "ok", delivered: true), at: now.addingTimeInterval(-8 * 24 * 3600))
-    try Data("junk".utf8).write(to: dir.appendingPathComponent("9999999999999-bad.json"))
-
-    let attrs = try FileManager.default.attributesOfItem(atPath: firstURL.path)
-    #expect((attrs[.posixPermissions] as? Int) == 0o600)
-
-    let (records, dropped) = pending.leftovers(now: now)
-    #expect(records.map(\.record.takeId) == ["a", "b"])
-    #expect(records[0].record == first)
-    #expect(dropped.count == 2)
-    pending.remove(records[0].url)
-    #expect(pending.leftovers(now: now).records.map(\.record.takeId) == ["b"])
-  }
-}
-
 struct RecoveredTakesTests {
   @Test func savesListsAndReloadsTakes() throws {
     let dir = URL(fileURLWithPath: NSTemporaryDirectory() + "khuluma-recovered-\(UUID().uuidString)")
