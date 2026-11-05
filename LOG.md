@@ -2,7 +2,7 @@
 
 ## Now
 
-Design refresh (started 2026-11-05): native polish only. Installed as build 398 from 7dc3db8: the menu keeps its big figures and gains a Microphone submenu (same choice in Settings → Dictation), Cancel Recording sits right of Recording… on one row, and Vocabulary is a standard Mac list editor; Stats unchanged. Build 391's iPhone (Continuity) mic failed every start on a sample-rate mismatch and fell back to the MacBook mic without losing a take; 398 starts pinned inputs on their real hardware format. Waiting on Ricardo's retest of the iPhone mic. App rollback is `~/Applications/.khuluma-app.TEUOtl/previous.app` (build 391).
+Design refresh (2026-11-05) is settled and installed as build 398 from 7dc3db8: the menu keeps its big figures and gains a Microphone submenu (same choice in Settings → Dictation), Cancel Recording sits right of Recording… on one row, and Vocabulary is a standard Mac list editor; Stats unchanged. Ricardo confirmed a take on his iPhone Continuity mic (requested = actual, no fallback); wired headphones and AirPods are still to try (Next). App rollback is `~/Applications/.khuluma-app.TEUOtl/previous.app` (build 391).
 
 Direction from 2026-10-27: Khuluma splits into two products. The Khuluma CLI, the free tool that grew out of the tmux-whisper setup, stays on the Homebrew tap and gets its SwiftBar integrations back. The native Swift dictation app becomes its own paid product, signed and notarised, installed from the App Store or a website download, not Homebrew. Phases 2, 4 and 5 and the SwiftBar, cask and App Store decisions below predate this and need re-planning (Next P1).
 
@@ -43,7 +43,7 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 - [x] P2 · Remove old command/env/app compatibility after canonical-only caller and daily-app checks · added 2026-10-23
 - [x] P2 · Align formula updater and intact source/tap siblings at khuluma and homebrew-tap · added 2026-10-22
 - [ ] P2 · Skip auto-send for one take: hold a key (Shift or similar, to decide) so the take pastes without pressing Enter; auto-send stays the default · added 2026-10-17 · source done 2026-10-30 (shortcut + Shift, configurable; menu Auto-send switch); Swift CI passed; installed 2026-11-05 as build 383; eight real takes delivered on the native path; a Shift (paste without sending) take still to confirm
-- [ ] P1 · Confirm the microphone picker on real hardware (build 398): a take on the iPhone Continuity mic should log actual=<iPhone> fallback=none at the right speed; then pick the current default explicitly, unplug the chosen mic between takes and mid-take; each take's `audio: take input requested=… actual=… fallback=…` line in ~/Library/Logs/Khuluma/app.log should match · added 2026-11-05
+- [ ] P2 · Finish the microphone picker hardware checks (iPhone Continuity mic confirmed on build 398; it takes ~2.2 s to start, so speak after the chime): wired headphones and AirPods, pick the current default explicitly, unplug the chosen mic between takes and mid-take; each take's `audio: take input requested=… actual=… fallback=…` line in ~/Library/Logs/Khuluma/app.log should match · added 2026-11-05
 - [ ] P3 · Vocabulary examples are keyed by Said text: a repeat replaces, and duplicate Said rows in an imported file share one table row (Terra review, same as before the editor change) · added 2026-11-05
 - [x] P2 · Menu: microphone picker (native submenu under the figures, current input shown; same choice in Settings → Dictation; falls back to the system default when the chosen mic is missing) · added 2026-11-05
 - [x] P2 · Vocabulary tab as a standard Mac list editor: editable table, +/− under it, Import/Export in an action menu, keep the draft/Save model · added 2026-11-05
@@ -80,6 +80,7 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 
 ## Done
 
+- 2026-11-05 · Ricardo confirmed a take on the iPhone Continuity mic on build 398 (requested = actual, fallback none, delivered); design refresh settled · app.log 11:16Z
 - 2026-11-05 · Installed build 398 (app only; daemon kept, doctor healthy) · ~/Applications/.khuluma-app.TEUOtl/previous.app
 - 2026-11-05 · Pinned mics start on their real hardware format (iPhone Continuity mic failed on 391), checked converter per Codex Terra review, Cancel Recording on the Recording row; inline mic list tried and reverted · 15793b2, 7dc3db8
 - 2026-11-05 · Installed build 391 from d99bd84 (app only; CLI and daemon unchanged, doctor healthy) · ~/Applications/.khuluma-app.f7GuFA/previous.app
