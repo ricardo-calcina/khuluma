@@ -2,6 +2,8 @@
 
 ## Now
 
+Pick up (app tab t4j): slices A-G built and isolated acceptance passed on wip/app-independence (a79c4fa) · next: Ricardo's clean-account test of /Users/Shared/Khuluma test/Khuluma.app, then install over build 415 with his OK (rollback: the previous app, ~/.config/khuluma untouched), merge, 14-day watch · branch: wip/app-independence
+
 Pick up (CLI sunset tab): keep list handed to the app tab (t4j) on 2026-11-05 · next: when it confirms the app runs without the CLI, prepare phase 4 (final v0.12.0 with notice, formula disable!) for Ricardo's yes · branch: wip/product-split
 
 Focus from 2026-11-05: Khuluma is the app only; the CLI and Homebrew tap are being sunset (Decisions). Tab "Khuluma app without the CLI" (branch `wip/app-independence`, worktree `../khuluma-wt-app-independence`) makes the app independent and brings over what's kept: file transcription as a small command built into the app, and ElevenLabs Scribe. Tab "Khuluma CLI sunset" (branch `wip/product-split`, worktree `../khuluma-wt-product-split`) lists what the CLI does, then retires the CLI, formula and tap once the app no longer needs them. Apple Developer Program and the trademark search wait until then; the khuluma.app website runs in its own tab in VPS `products/Khuluma/site`.
@@ -37,7 +39,7 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 - [x] P1 · Install raised adaptive light/dark app icon and 18 pt menu glyph; verify Finder automatic switching · added 2026-10-17
 - [ ] P1 · Join the Apple Developer Program before phase 2 (after app independence and the split, Ricardo 2026-11-05) · added 2026-10-15
 - [ ] P1 · Phase 0 gate: a week of daily use, then `tools/khuluma-report.sh` gates still met · added 2026-10-17
-- [ ] P1 · App independence (slices A-H in docs/plans/APP_INDEPENDENCE.md, branch wip/app-independence): own data folder with a copy-only import, no CLI calls, transcribe helper, Quick Action and Scribe in the app; A-G done on the branch (G 2026-11-06: the app no longer runs or checks the CLI; `khuluma transcribe` is Contents/Helpers/khuluma, Quick Action served by the app via NSServices), next H (isolated acceptance, clean-account check, install over build 415 with Ricardo's OK, merge). For the sunset tab: phase 4 can start once H's install is approved, not before; the app never touches ~/.local/bin/khuluma or ~/Library/Services · added 2026-11-05
+- [ ] P1 · App independence (slices A-H in docs/plans/APP_INDEPENDENCE.md, branch wip/app-independence): own data folder with a copy-only import, no CLI calls, transcribe helper, Quick Action and Scribe in the app; A-G done and H's isolated acceptance passed on the branch (2026-11-06; G: the app no longer runs or checks the CLI; `khuluma transcribe` is Contents/Helpers/khuluma, Quick Action served by the app via NSServices), next H's clean-account check by Ricardo, install over build 415 with Ricardo's OK, merge). For the sunset tab: phase 4 can start once H's install is approved, not before; the app never touches ~/.local/bin/khuluma or ~/Library/Services · added 2026-11-05
 - [ ] P1 · Phase 1 step 1: native usage ledger and history writer, proven against the CLI with shared fixtures (removes `inline record`) · added 2026-10-17
 - [ ] P1 · Phase 1 after the native writers: port config, bundle and supervise the daemon, add model download and bundled sounds, then port or drop CLI fallbacks; keep shared files/locks compatible while both writers exist · added 2026-10-22
 - [ ] P1 · Phase 1 delivery: use PostEvent permission gates and a bundled child daemon; verify clean-account dictation/Stats/history without CLI and 14 days without CLI invocations or usage mismatch before calling it independent · added 2026-10-22
@@ -88,6 +90,7 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 
 ## Done
 
+- 2026-11-06 · App independence: Scribe, khuluma transcribe/Quick Action and no CLI calls (slices E-G); three isolated acceptance runs (import matches his data, own daemon, model download, recovery, quit) · wip/app-independence a79c4fa
 - 2026-11-05 · CLI sunset inventory and keep list confirmed (Finder action and transcribe kept, history readers dropped); ROADMAP re-planned for phases 1, 4, 5 then 2 · docs/plans/CLI_SUNSET.md
 - 2026-11-05 · App-independence plan reviewed by two Codex Sol runs and re-planned app-only after the sunset decision; shared data contract withdrawn · docs/plans/APP_INDEPENDENCE.md
 - 2026-11-05 · Ricardo bought the khuluma.app domain · Next
