@@ -25,4 +25,7 @@ public enum TakeResult: Equatable, Sendable {
     case .timedOut(_, let kept): return kept
     }
   }
+
+  /// The audio must be saved for recovery: every ending that doesn't settle it.
+  public var keepsAudio: Bool { !settlesAudio }
 }

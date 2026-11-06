@@ -23,6 +23,8 @@ final class TakePipeline {
   }
   private var storedCLI: CLIBridge?
   private let cliLock = NSLock()
+  /// The ElevenLabs Scribe transport (the real network unless a test injects one).
+  var scribe = ScribeClient()
   /// The current settings (settings.json).
   let loadConfig: () -> AppConfig
   let persister: TakePersister
@@ -55,11 +57,10 @@ final class TakePipeline {
 
   /// The native path: transcribe through the daemon socket, clean up in
   /// Swift, deliver, then persist in the background.
-  func processNatively(samples: [Float], take: Take, recordMs: Int, appName: String?,
+  func processNatively(samples: [Float], take: Take, takeId: String, recordMs: Int, appName: String?,
                        config: AppConfig, stopAt: Double) -> NativeRoute {
     guard let native = config.native else { return .fallback("transcription settings missing") }
     let (transcription, cleanup, modelPath) = native
-    let takeId = UUID().uuidString.lowercased()
     let startedAt = monotonicMs()
 
     let client = DaemonClient(socketPath: transcription.socketPath)

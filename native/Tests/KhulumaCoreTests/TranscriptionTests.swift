@@ -96,7 +96,7 @@ struct TranscriptionSettingsTests {
       with: #""transcription":{"provider":"elevenlabs","key_available":true,"socket_path""#))
     #expect(cloud.transcription.provider == "elevenlabs")
     #expect(cloud.transcription.keyAvailable)
-    #expect(cloud.nativePipelineBlocker != nil)
+    #expect(cloud.nativePipelineBlocker == nil && cloud.scribe != nil)
     #expect(cloud.native == nil)
     #expect(cloud.supervisionBlocker != nil)
     #expect(DaemonSupervisor.Target(config: cloud) == nil)

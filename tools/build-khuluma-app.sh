@@ -174,12 +174,18 @@ echo "Building Khuluma $version ($build_number)…"
 swift build --package-path "$PKG" --scratch-path "$stage_root/swift-build" --jobs 1 -c release --product Khuluma
 # The app runs its own transcription daemon from Contents/Helpers (slice D).
 swift build --package-path "$PKG" --scratch-path "$stage_root/swift-build" --jobs 1 -c release --product khulumad
+# `khuluma transcribe` ships as Contents/Helpers/khuluma (slice F). The
+# product is khuluma-cli: `khuluma` collides with `Khuluma` on this disk.
+swift build --package-path "$PKG" --scratch-path "$stage_root/swift-build" --jobs 1 -c release --product khuluma-cli
 binary="$stage_root/swift-build/release/Khuluma"
 daemon_binary="$stage_root/swift-build/release/khulumad"
+helper_binary="$stage_root/swift-build/release/khuluma-cli"
 [[ -x "$binary" ]] || { echo "Build did not produce $binary" >&2; exit 1; }
 [[ -x "$daemon_binary" ]] || { echo "Build did not produce $daemon_binary" >&2; exit 1; }
+[[ -x "$helper_binary" ]] || { echo "Build did not produce $helper_binary" >&2; exit 1; }
 mkdir -p "$stage/Contents/MacOS" "$stage/Contents/Resources" "$stage/Contents/Helpers"
 cp "$daemon_binary" "$stage/Contents/Helpers/khulumad"
+cp "$helper_binary" "$stage/Contents/Helpers/khuluma"
 cp "$binary" "$stage/Contents/MacOS/Khuluma"
 cp "$APP_ICON" "$stage/Contents/Resources/Khuluma.icns"
 cp "$APP_CATALOG" "$stage/Contents/Resources/Assets.car"
@@ -197,13 +203,25 @@ python3 - "$stage/Contents/Info.plist" "$BUNDLE_ID" "$version" "$build_number" <
 import plistlib, sys
 path, identifier, version, build = sys.argv[1:]
 with open(path, "wb") as handle:
-    plistlib.dump({"CFBundleIdentifier": identifier, "CFBundleName": "Khuluma", "CFBundleDisplayName": "Khuluma", "CFBundleExecutable": "Khuluma", "CFBundleIconFile": "Khuluma.icns", "CFBundleIconName": "AppIcon", "CFBundlePackageType": "APPL", "CFBundleShortVersionString": version, "CFBundleVersion": build, "CFBundleInfoDictionaryVersion": "6.0", "LSMinimumSystemVersion": "14.0", "LSUIElement": True, "NSHighResolutionCapable": True, "NSMicrophoneUsageDescription": "Khuluma records your voice while dictation is active. Parakeet transcribes on this Mac; audio is sent to ElevenLabs only when you choose Scribe."}, handle)
+    plistlib.dump({"CFBundleIdentifier": identifier, "CFBundleName": "Khuluma", "CFBundleDisplayName": "Khuluma", "CFBundleExecutable": "Khuluma", "CFBundleIconFile": "Khuluma.icns", "CFBundleIconName": "AppIcon", "CFBundlePackageType": "APPL", "CFBundleShortVersionString": version, "CFBundleVersion": build, "CFBundleInfoDictionaryVersion": "6.0", "LSMinimumSystemVersion": "14.0", "LSUIElement": True, "NSHighResolutionCapable": True, "NSMicrophoneUsageDescription": "Khuluma records your voice while dictation is active. Parakeet transcribes on this Mac; audio is sent to ElevenLabs only when you choose Scribe.",
+        # Finder's "Transcribe with Khuluma" Quick Action, served by the
+        # running app (QuickActionService); macOS launches it if needed.
+        "NSServices": [{
+            "NSMenuItem": {"default": "Transcribe with Khuluma"},
+            "NSMessage": "transcribeFiles",
+            "NSPortName": "Khuluma",
+            "NSIconName": "NSActionTemplate",
+            "NSRequiredContext": {"NSApplicationIdentifier": "com.apple.finder"},
+            "NSSendFileTypes": ["public.audio", "public.movie"],
+        }]}, handle)
 PY
 plutil -lint "$stage/Contents/Info.plist" >/dev/null
 # Nested code first: the helper is signed before the app seals it. No
 # entitlements: the daemon reads files and serves a socket, nothing more.
 codesign --force --options runtime --timestamp=none --keychain "$KEYCHAIN" \
   --sign "$IDENTITY_HASH" "$stage/Contents/Helpers/khulumad"
+codesign --force --options runtime --timestamp=none --keychain "$KEYCHAIN" \
+  --sign "$IDENTITY_HASH" "$stage/Contents/Helpers/khuluma"
 codesign --force --options runtime --timestamp=none --keychain "$KEYCHAIN" \
   --entitlements "$PKG/App/Khuluma.entitlements" --sign "$IDENTITY_HASH" "$stage"
 codesign --verify --strict "$stage"

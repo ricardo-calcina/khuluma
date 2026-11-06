@@ -93,6 +93,27 @@ public struct TakeRecorder: Sendable {
                  audioRetentionDays: settings.audioRetentionDays, now: now, timeZone: timeZone)
   }
 
+  /// The take's result is durably saved: a history entry (written only for
+  /// takes with text) or a spooled record that carries text or no-speech.
+  /// A failed-transcription record doesn't count: its audio still matters.
+  /// A no-speech take leaves no history entry once its spool file is gone, so
+  /// a recovered copy of one costs at most one more transcription; it goes to
+  /// history without pasting.
+  public func isRecorded(takeId: String, pending: PendingRecords) -> Bool {
+    guard !takeId.isEmpty else { return false }
+    // Spool first, history second. Replay writes history (fsynced, directory
+    // synced) before it removes the spool file, so a take is always in at
+    // least one of them: if the spool no longer holds it, the history write
+    // that preceded the removal is already visible to the second check.
+    // (Checking history first could miss it between the two.)
+    let spooled = pending.leftovers().records.contains {
+      let r = $0.take.record
+      return r.takeId == takeId && (Self.needsHistory(r) || r.status == "no_speech")
+    }
+    if spooled { return true }
+    return history.entryURL(takeId: takeId) != nil
+  }
+
   public static func wantsUsage(_ r: TakeRecord) -> Bool { r.status == "ok" && r.delivered }
   public static func needsHistory(_ r: TakeRecord) -> Bool {
     r.usageOnly != true && (wantsUsage(r) || r.status == "recovered" || keepsUndelivered(r))

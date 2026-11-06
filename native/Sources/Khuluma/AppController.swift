@@ -102,9 +102,12 @@ final class AppController: NSObject, NSApplicationDelegate {
   private let inFlight = InFlightTakes(store: .standard)
   /// Made on first open, then reused.
   private var statsWindow: StatsWindowController?
+  /// Finder's "Transcribe with Khuluma" (NSServices in Info.plist).
+  private var quickAction: QuickActionService?
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     connectMenu()
+    registerQuickAction()
     menu.install()
     MainActor.assumeIsolated { AppMainMenu.install { [weak self] in self?.showStats(settings: true) } }
     sweepStaleMarkers()
@@ -151,6 +154,21 @@ final class AppController: NSObject, NSApplicationDelegate {
         }
       }
     }
+  }
+
+  /// Serves the Quick Action; macOS launches the app for it if needed. Its
+  /// files wait until initialization (the import) is done and while a take
+  /// is recording or in flight.
+  private func registerQuickAction() {
+    let load = loadConfig
+    let service = QuickActionService(loadConfig: { load() })
+    service.dictationBusy = { [weak self] in
+      guard let self, !self.quitting else { return false }
+      return self.pipeline == nil || self.take != nil || self.inFlight.count > 0
+    }
+    quickAction = service
+    NSApp.servicesProvider = service
+    NSUpdateDynamicServices()
   }
 
   /// A CLI was found: takes the native path can't handle can use it (until
@@ -703,7 +721,16 @@ final class AppController: NSObject, NSApplicationDelegate {
       // How the take reaches the CLI path, for the take log.
       let route: (path: String, reason: String)
       if let fresh {
-        if fresh.nativePipelineBlocker == TranscriptionSettings.modelMissing {
+        if fresh.scribe != nil {
+          // ElevenLabs Scribe, natively. A failure keeps the take (saved
+          // like any failed one below) and counts nothing.
+          let result = pipeline.processWithScribe(samples: samples, take: take, takeId: takeId, recordMs: recordMs,
+                                                  appName: appName, config: fresh, stopAt: stopAt)
+          settled = result.settlesAudio
+          self.keepAudioIfUnsettled(result, takeId: takeId)
+          DispatchQueue.main.async { self.finish(result) }
+          return
+        } else if fresh.nativePipelineBlocker == TranscriptionSettings.modelMissing {
           // No CLI detour: keep the take; it's recovered once the model is in.
           self.keepUntilDaemonReady(takeId: takeId, recordMs: recordMs, reason: TranscriptionSettings.modelMissing,
                                     category: "model_missing")
@@ -711,18 +738,11 @@ final class AppController: NSObject, NSApplicationDelegate {
         } else if let blocker = fresh.nativePipelineBlocker {
           route = ("cli", blocker)
         } else {
-          switch pipeline.processNatively(samples: samples, take: take, recordMs: recordMs, appName: appName,
+          switch pipeline.processNatively(samples: samples, take: take, takeId: takeId, recordMs: recordMs, appName: appName,
                                           config: fresh, stopAt: stopAt) {
           case .handled(let result):
             settled = result.settlesAudio
-            if case .pasteFailed(_, recorded: false) = result {
-              // The text is on the clipboard only: keep the audio to recover it.
-              if (try? inFlight.keep(takeId)) != nil {
-                DispatchQueue.main.async { self.menu.showRecovered("Saved recording waiting: Show in Finder", action: true) }
-              } else {
-                Log.write("pipeline: paste failed and the recording could not be saved; held until Quit")
-              }
-            }
+            self.keepAudioIfUnsettled(result, takeId: takeId)
             DispatchQueue.main.async { self.finish(result) }
             return
           case .fallback(let reason): route = ("fallback", reason)
@@ -750,6 +770,19 @@ final class AppController: NSObject, NSApplicationDelegate {
         }
       }
       DispatchQueue.main.async { self.finish(result) }
+    }
+  }
+
+  /// Every ending that leaves the audio unsettled (failed, paste failed or
+  /// delivered without a spooled record, timed out without a kept copy)
+  /// saves the recording for recovery; if that can't be written it is held
+  /// until Quit. Runs on `work`.
+  private func keepAudioIfUnsettled(_ result: TakeResult, takeId: String) {
+    guard result.keepsAudio else { return }
+    if (try? inFlight.keep(takeId)) != nil {
+      DispatchQueue.main.async { self.menu.showRecovered("Saved recording waiting: Show in Finder", action: true) }
+    } else {
+      Log.write("pipeline: unsettled recording held until Quit (could not save audio)")
     }
   }
 
@@ -1168,14 +1201,20 @@ final class AppController: NSObject, NSApplicationDelegate {
       do {
         let target = try Deliverer.perform(DeliveryPlan.steps(text: pending.text, delivery: delivery, hasOriginalApp: false),
                                            originalApp: nil)
+        var spooled = true
         if var record = pending.record {
           let deliveredDate = Date()
           record.delivered = true
           record.deliveredAtMs = Int(deliveredDate.timeIntervalSince1970 * 1000)
           record.deliveredLocalDate = LocalDate.string(for: deliveredDate)
-          pipeline.persister.persist(record)
+          spooled = pipeline.persister.persist(record)
         }
-        pipeline.timedOut.remove(pending.entry)
+        // The recording goes only once the record is durably spooled.
+        if spooled {
+          pipeline.timedOut.remove(pending.entry)
+        } else {
+          Log.write("retry: pasted, but the record could not be spooled; the recording is kept")
+        }
         Log.write("retry: pasted a retried dictation (\(pending.text.count) chars, target=\(target ?? "-"))")
         DispatchQueue.main.async {
           self?.retried = nil

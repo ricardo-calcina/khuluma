@@ -177,11 +177,22 @@ struct SettingsView: View {
           .help("Auto-detect lets Scribe recognise the language of each recording.")
         }
         let available = model.config?.transcription.keyAvailable == true
-        SettingsRow("API key", note: available ? nil : "Export ELEVENLABS_API_KEY in your shell, then click Reload Settings in Advanced.",
+        SettingsRow("API key",
+                    note: available ? nil : "Paste your ElevenLabs key. It is kept in your Keychain.",
                     last: true) {
-          Label(available ? "Available" : "Missing",
-                systemImage: available ? "checkmark.circle" : "exclamationmark.triangle")
-            .foregroundStyle(available ? Color.secondary : Ember.accent)
+          HStack(spacing: 8) {
+            Label(Self.keyStatus(model.keySource, available: available),
+                  systemImage: available ? "checkmark.circle" : "exclamationmark.triangle")
+              .foregroundStyle(available ? Color.secondary : Ember.accent)
+            SecureField("ElevenLabs API key", text: $model.keyDraft)
+              .labelsHidden().frame(width: 150)
+              .onSubmit { model.saveKey() }
+            Button("Save") { model.saveKey() }
+              .disabled(model.keyDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            if model.keySource == .keychain {
+              Button("Remove") { model.removeKey() }
+            }
+          }
         }
       }
     }
@@ -203,6 +214,14 @@ struct SettingsView: View {
         .disabled(model.config?.inline.autosend != true)
         .help("Hold this key with your shortcut when you finish a take to paste it without sending.")
       }
+    }
+  }
+
+  private static func keyStatus(_ source: ScribeCredential.Source?, available: Bool) -> String {
+    switch source {
+    case .keychain?: return "In Keychain"
+    case .environment?, .shellSettings?: return "From shell settings"
+    case nil: return available ? "Available" : "Missing"
     }
   }
 

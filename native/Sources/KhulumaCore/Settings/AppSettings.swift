@@ -293,6 +293,9 @@ public struct SettingsEnvironment: Sendable {
   public var processingDir: String
   public var ffmpegAvailable: Bool
   public var keyAvailable: Bool
+  /// Looks the ElevenLabs key up afresh at each settings load (Keychain, then
+  /// shell settings); presence only. Overrides `keyAvailable` when set.
+  public var keyCheck: (@Sendable () -> Bool)?
   public var fileExists: @Sendable (String) -> Bool
   public var directoryExists: @Sendable (String) -> Bool
 
@@ -339,7 +342,7 @@ public struct SettingsEnvironment: Sendable {
     // SOUNDS_DIR variable, else ~/.local/share/sounds (the parent of the
     // default khuluma sounds folder). Slice D moves sounds into the bundle.
     let soundsParent = value("SOUNDS_DIR") ?? data + "/sounds"
-    return SettingsEnvironment(
+    var result = SettingsEnvironment(
       appFolder: appFolder, home: home.path,
       soundsDir: soundsParent + "/khuluma", soundsPlaceholder: soundsParent,
       bundledSoundsDir: Bundle.main.resourceURL?.appendingPathComponent("sounds", isDirectory: true).path,
@@ -347,9 +350,11 @@ public struct SettingsEnvironment: Sendable {
       // The app's own daemon (slice D), never the CLI's.
       defaultSocketPath: DaemonSocketPath.resolve(support: appFolder).path,
       ffmpegAvailable: has("ffmpeg") && has("ffprobe"),
-      // Presence only, from the environment; the Keychain and zshrc lookup
-      // come with native ElevenLabs (slice E).
-      keyAvailable: ["ELEVENLABS_API_KEY", "ELEVEN_LABS_API_KEY"].contains { value($0)?.trimmingCharacters(in: .whitespaces).isEmpty == false })
+      // Presence only: the Keychain, then the environment and zshrc, at
+      // each settings load (`keyCheck`).
+      keyAvailable: false)
+    result.keyCheck = { ScribeCredential(environment: environment, home: home).isAvailable }
+    return result
   }
 
   /// `expand_path`: a leading `~` becomes `$HOME`.
@@ -472,7 +477,7 @@ extension AppConfig {
       modelLabel: label, language: s.transcription.language, tailPadMs: "500", tailRescue: true,
       tailRescueMs: "", tailRescueMinMs: "", keepLogs: s.debug.keepLogs, ffmpeg: env.ffmpegAvailable,
       timeoutSeconds: "600", processingDir: env.processingDir, provider: s.transcription.provider,
-      keyAvailable: env.keyAvailable)
+      keyAvailable: env.keyCheck?() ?? env.keyAvailable)
     self.init(schemaVersion: 1, appContract: AppContract.version, cliVersion: AppConfig.nativeCLIVersion,
               hotkey: s.hotkey, sounds: sounds, soundsEnabled: s.sounds.enabled, inline: inline, cleanup: cleanup,
               transcription: transcription, pipeline: Pipeline(supervise: s.app.superviseDaemon && !cloud),

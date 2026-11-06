@@ -17,6 +17,13 @@ let package = Package(
       name: "KhulumaDaemonKit",
       targets: ["KhulumaDaemonKit"]
     ),
+    // `khuluma transcribe`, bundled as Khuluma.app/Contents/Helpers/khuluma.
+    // Named khuluma-cli here: `khuluma` would collide with `Khuluma` on a
+    // case-insensitive disk.
+    .executable(
+      name: "khuluma-cli",
+      targets: ["khuluma-cli"]
+    ),
     // Khuluma: the native menu-bar dictation app (assembled into
     // Khuluma.app by tools/build-khuluma-app.sh).
     .executable(
@@ -42,6 +49,11 @@ let package = Package(
       name: "khulumad",
       dependencies: ["KhulumaDaemonKit"],
       path: "Sources/khulumad"
+    ),
+    .executableTarget(
+      name: "khuluma-cli",
+      dependencies: ["KhulumaCore", "KhulumaDaemonKit", .product(name: "FluidAudio", package: "FluidAudio")],
+      path: "Sources/khuluma-cli"
     ),
     .testTarget(
       name: "KhulumaDaemonKitTests",

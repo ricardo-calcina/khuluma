@@ -24,6 +24,13 @@ extension TakePipeline {
     let info = entry.info
     let startedAt = monotonicMs()
     let config = loadConfig()
+    // The retried text was already saved (a crash after it was recorded but
+    // before the recording was removed): settle the recording, don't redo it.
+    if persister.isRecorded(takeId: info.takeId) {
+      timedOut.remove(entry)
+      return .failed("retry: this dictation was already saved to history; recording removed")
+    }
+    if config.scribe != nil { return retranscribeWithScribe(entry, config: config) }
     // Natively only if the daemon is warm now; otherwise the CLI starts it.
     guard let (transcription, cleanup, modelPath) = config.native,
           DaemonClient(socketPath: transcription.socketPath).status(timeout: 1)?
@@ -47,8 +54,9 @@ extension TakePipeline {
     } catch {
       return .failed("retry failed (recording kept): \(error.localizedDescription)")
     }
-    // A new take id: the timed-out attempt is already recorded under the old one.
-    var record = TakeRecord(takeId: UUID().uuidString.lowercased(), status: "ok", delivered: false)
+    // The timed-out take's own id (its failed-transcription record doesn't
+    // count as recorded), so a repeated retry is recognised.
+    var record = TakeRecord(takeId: info.takeId, status: "ok", delivered: false)
     record.app = info.app
     record.model = transcription.modelLabel
     record.recordMs = info.recordMs
@@ -89,7 +97,7 @@ extension TakePipeline {
       }
       var usage: TakeRecord?
       if result.usageDeferred {
-        var record = TakeRecord(takeId: UUID().uuidString.lowercased(), status: "ok", delivered: false)
+        var record = TakeRecord(takeId: info.takeId, status: "ok", delivered: false)
         record.usageOnly = true
         record.text = result.text
         record.app = info.app

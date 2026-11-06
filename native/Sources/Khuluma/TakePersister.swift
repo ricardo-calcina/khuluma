@@ -53,6 +53,11 @@ final class TakePersister {
     return spooled != nil
   }
 
+  /// A durable record (history entry or spooled record) already exists for this take.
+  func isRecorded(takeId: String) -> Bool {
+    recorder.isRecorded(takeId: takeId, pending: pending)
+  }
+
   /// Replays takes a previous run delivered but could not fully record,
   /// including bare records spooled by build 415 (nothing done yet). Waits
   /// for the first settings (keep_logs decides the debug archive).

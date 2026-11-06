@@ -20,7 +20,14 @@ final class SettingsModel: ObservableObject {
   @Published var failed = false
   @Published var loginStatus = LoginItem.status
   /// The Settings tab's page. Kept here so it survives tab switches; not saved.
-  @Published var page: SettingsPage = .dictation
+  @Published var page: SettingsPage = .dictation {
+    didSet { keyDraft = "" }
+  }
+  /// Where the ElevenLabs key was found (never the key itself).
+  @Published private(set) var keySource: ScribeCredential.Source?
+  /// What is typed in the API key field; cleared on save.
+  @Published var keyDraft = ""
+  var credential = ScribeCredential()
   var onSave: (String, String) -> Void = { _, _ in }
   var onReload: () -> Void = {}
   var onToggleLogin: () -> Void = {}
@@ -64,7 +71,45 @@ final class SettingsModel: ObservableObject {
 
   var editable: Bool { config != nil && !saving && !recording }
   var provider: String { config?.transcription.provider ?? "parakeet" }
-  func adopt(_ config: AppConfig) { self.config = config }
+  func adopt(_ config: AppConfig) {
+    if self.config?.transcription.provider != config.transcription.provider { keyDraft = "" }
+    self.config = config
+    refreshKeySource()
+  }
+
+  /// Presence and place only; the key is not kept.
+  func refreshKeySource() {
+    guard !preview else { return }
+    let credential = self.credential
+    DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+      let source = credential.source
+      DispatchQueue.main.async { self?.keySource = source }
+    }
+  }
+
+  func saveKey() {
+    guard !preview else { return }
+    let typed = keyDraft
+    keyDraft = ""  // cleared whether or not the save works
+    do {
+      try credential.save(typed)
+      refreshKeySource()
+      onReload()
+    } catch {
+      finished(error: error.localizedDescription)
+    }
+  }
+
+  func removeKey() {
+    guard !preview else { return }
+    do {
+      try credential.removeStored()
+      refreshKeySource()
+      onReload()
+    } catch {
+      finished(error: error.localizedDescription)
+    }
+  }
 
   func selectIconTheme(_ theme: StatusIconTheme) {
     guard iconTheme != theme else { return }

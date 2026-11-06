@@ -207,8 +207,14 @@ public struct AppConfig: Decodable, Equatable, Sendable {
   /// What the native path needs, or nil when it can't run (see
   /// `nativePipelineBlocker`, and a missing model path).
   public var native: (transcription: TranscriptionSettings, cleanup: CleanupSettings, modelPath: String)? {
-    guard nativePipelineBlocker == nil, let modelPath = transcription.modelPath else { return nil }
+    guard transcription.provider == "parakeet", nativePipelineBlocker == nil,
+          let modelPath = transcription.modelPath else { return nil }
     return (transcription, cleanup, modelPath)
+  }
+
+  /// What the native ElevenLabs Scribe route needs, or nil when Scribe isn't chosen.
+  public var scribe: (transcription: TranscriptionSettings, cleanup: CleanupSettings)? {
+    transcription.provider == "elevenlabs" ? (transcription, cleanup) : nil
   }
 }
 

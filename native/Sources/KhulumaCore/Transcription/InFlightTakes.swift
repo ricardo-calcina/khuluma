@@ -34,9 +34,12 @@ public final class InFlightTakes: @unchecked Sendable {
   }
 
   /// Tracks a stopped take's audio and returns its id (its saved copy's
-  /// name). Not the take's record id: a copy recovered next to a record
-  /// (a crash between the two, or a take that failed) must not be dropped
-  /// as that record's duplicate, so the worst case is a second history entry.
+  /// name). This id IS the take's record id (`take_id`): a recovered copy
+  /// of a take whose text is already durably saved (a history entry, or a
+  /// spooled record with text or no-speech; `TakeRecorder.isRecorded`) is
+  /// recognised and dropped without being transcribed again. A record that
+  /// saved no text (a failed transcription) doesn't count, so its audio is
+  /// still recovered.
   @discardableResult
   public func add(samples: [Float], takeId: String = UUID().uuidString.lowercased()) -> String {
     lock.withLock { takes[takeId] = Entry(samples: samples) }

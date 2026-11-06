@@ -15,8 +15,11 @@ final class StatsWindowController: NSWindowController, NSWindowDelegate, NSToolb
   private static let refreshItem = NSToolbarItem.Identifier("Khuluma.Refresh")
   private static let infoItem = NSToolbarItem.Identifier("Khuluma.UsageInfo")
 
+  private let settingsModel: SettingsModel
+
   init(model: StatsModel, settings: SettingsModel) {
     self.model = model
+    self.settingsModel = settings
     let vocabulary = VocabularyModel(settings: settings)
     self.vocabulary = vocabulary
     let window = StatsWindow(
@@ -174,6 +177,7 @@ final class StatsWindowController: NSWindowController, NSWindowDelegate, NSToolb
 
   func windowDidBecomeKey(_ notification: Notification) { model.windowBecameKey() }
   func windowWillClose(_ notification: Notification) {
+    settingsModel.keyDraft = ""
     detailsPopover.performClose(nil)
     model.windowClosed()
     // Back to menu bar only once the window is gone. `.common` so it also runs
@@ -224,6 +228,7 @@ struct AppView: View {
         VocabularyView(model: vocabulary, settings: settings)
       case .settings:
         SettingsView(model: settings)
+          .onDisappear { settings.keyDraft = "" }
       }
     }
     .frame(minWidth: 560, minHeight: 420)

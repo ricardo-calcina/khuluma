@@ -91,7 +91,8 @@ public struct TranscriptionSettings: Codable, Equatable, Sendable {
   /// Why this configuration needs the CLI path, or nil if the native path
   /// reproduces it.
   public var cliReason: String? {
-    if provider == "elevenlabs" { return "ElevenLabs Scribe uses the CLI" }
+    // Scribe runs natively (`AppConfig.scribe`); it needs no local model.
+    if provider == "elevenlabs" { return nil }
     if provider != "parakeet" { return "unsupported transcription provider" }
     if modelPath?.isEmpty ?? true { return Self.modelMissing }
     return nil
