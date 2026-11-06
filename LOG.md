@@ -24,7 +24,7 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 
 ## Next
 
-- [ ] P2 · Try Finder Local and Cloud on the same file with quiet speech and laughter and compare output and timing · added 2026-11-06
+- [x] P2 · Try Finder Local and Cloud on the same file with quiet speech and laughter and compare output and timing · added 2026-11-06
 
 - [ ] P2 · Swift tests leave their temp fixture roots behind on purpose (RetainedTestArtifacts): ~4,900 `$TMPDIR/khuluma-*` dirs, 145 MB from 5-6 Nov runs; macOS sweeps them after ~3 days unused. DaemonKit tests do the same in /private/tmp (1,332 `khuluma-kit-*`, 0.4 MB). Proposal: delete a test's root when it passes, keep it on failure. Needs Ricardo's yes, since retention was deliberate · added 2026-11-06
 - [ ] P2 · tests/test_app_build_helpers.py fails 8/36 on main (same before 34c0ac1): the fixture's mock git doesn't answer the build script's dirty-tree check, so success-path cases stop at "Working tree has uncommitted changes" · added 2026-11-06
@@ -99,6 +99,8 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 - Rename the existing repository in place to preserve all history; retain neutral `ricardo-calcina/tap` and rename its formula to `khuluma`. The in-place repository rename, immutable v0.10.0 release and canonical formula/map are published and verified. The app continues to depend on its matching CLI; cask/CLI-independence/deprecation/archive are separate future work.
 
 ## Done
+
+- 2026-11-07 · Build 470 Finder test on one 8.6 s clip: both caught quiet speech, Scribe added `[laughs]`; Parakeet 0.47 s, Scribe 1.81 s after upload confirmation · 9f412d4
 
 - 2026-11-07 · Installed build 470 and verified both new Finder Services on a WAV; dictation still uses Parakeet · 9f412d4
 
