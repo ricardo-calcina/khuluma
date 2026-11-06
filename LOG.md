@@ -100,6 +100,8 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 
 ## Done
 
+- 2026-11-07 · Moved the old Automator Finder workflow to the Bin; verified only Local and Cloud remain on a WAV · build 470
+
 - 2026-11-07 · Build 470 Finder test on one 8.6 s clip: both caught quiet speech, Scribe added `[laughs]`; Parakeet 0.47 s, Scribe 1.81 s after upload confirmation · 9f412d4
 
 - 2026-11-07 · Installed build 470 and verified both new Finder Services on a WAV; dictation still uses Parakeet · 9f412d4
