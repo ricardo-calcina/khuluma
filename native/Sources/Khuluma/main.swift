@@ -25,10 +25,13 @@ if UserDefaults.standard.bool(forKey: "KhulumaUIPreview") {
   app.delegate = controller
   // SIGTERM/SIGINT (kill, logout scripts, Ctrl-C in a dev run) quit like
   // Quit: the normal drain runs, takes are saved and khulumad is stopped.
+  // Handled off the main queue, and terminate runs from the main run loop:
+  // called inside a main-queue drain, AppKit's wait for the drain's reply
+  // would never see it.
   let quitSignals = [SIGTERM, SIGINT].map { number -> DispatchSourceSignal in
     signal(number, SIG_IGN)
-    let source = DispatchSource.makeSignalSource(signal: number, queue: .main)
-    source.setEventHandler { MainActor.assumeIsolated { NSApp.terminate(nil) } }
+    let source = DispatchSource.makeSignalSource(signal: number, queue: .global())
+    source.setEventHandler { onMainRunLoop { MainActor.assumeIsolated { NSApp.terminate(nil) } } }
     source.resume()
     return source
   }

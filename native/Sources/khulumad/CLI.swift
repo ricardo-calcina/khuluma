@@ -69,18 +69,26 @@ enum KhulumaDaemonMain {
   /// holding the socket and the model. A kqueue NOTE_EXIT on the parent pid,
   /// registered while it is alive; a parent already gone (ppid 1) means exit
   /// now, which also covers it dying just before the watch was registered.
+  /// After the parent exits: drain at most this long, then exit regardless.
+  static let parentExitDeadline: TimeInterval = 5
+
   private static func watchParent(server: UnixSocketServer) -> DispatchSourceProcess? {
     let parent = getppid()
-    let stop = {
+    // Its own queue, not .main: a SIGTERM drain (up to 15 minutes, on .main)
+    // must not hold the orphan alive. A hard deadline ends the process
+    // after `parentExitDeadline` whatever the drain is doing.
+    let queue = DispatchQueue(label: "khulumad.parent-exit")
+    let stop: @Sendable () -> Void = {
       fputs("khulumad: parent process exited; stopping\n", stderr)
-      server.stop(drainTimeout: 5)
+      DispatchQueue.global().asyncAfter(deadline: .now() + parentExitDeadline) { _exit(0) }
+      server.stop(drainTimeout: parentExitDeadline)
       exit(0)
     }
-    guard parent > 1 else { stop(); return nil }
-    let source = DispatchSource.makeProcessSource(identifier: parent, eventMask: .exit, queue: .main)
+    guard parent > 1 else { queue.async(execute: stop); return nil }
+    let source = DispatchSource.makeProcessSource(identifier: parent, eventMask: .exit, queue: queue)
     source.setEventHandler { stop() }
     source.resume()
-    if getppid() != parent { stop() }
+    if getppid() != parent { queue.async(execute: stop) }
     return source
   }
 

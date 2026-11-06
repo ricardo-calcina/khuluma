@@ -73,13 +73,18 @@ public struct TakeRecorder: Sendable {
     TakeRecorder(root: AppRuntimePaths.support, settings: settings)
   }
 
-  /// Take ids the CLI had already saved, from the one-time import
-  /// (`legacy-take-ids.json`, a JSON array of strings). Empty when absent
-  /// or unreadable.
-  public func legacyTakeIDs() -> Set<String> {
+  /// What the CLI had already done per take, from the one-time import
+  /// (`legacy-take-ids.json`: `{"history": [...], "usage": [...]}`). Empty
+  /// when absent or unreadable. The earlier format (a plain array, the union
+  /// of all three CLI ledgers, written only by pre-release builds of this
+  /// branch) is ignored: it includes the bench ledger, which the CLI marks
+  /// before saving history, so it proves nothing. Ignoring it risks at worst
+  /// a duplicate history entry (usage.json dedups counts by take id itself),
+  /// never lost text.
+  public func legacyDone() -> (history: Set<String>, usage: Set<String>) {
     guard let data = try? Data(contentsOf: root.appendingPathComponent(LegacyImport.legacyTakeIDsName)),
-          let ids = try? JSONSerialization.jsonObject(with: data) as? [String] else { return [] }
-    return Set(ids)
+          let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return ([], []) }
+    return (Set(object["history"] as? [String] ?? []), Set(object["usage"] as? [String] ?? []))
   }
 
   public var lockURL: URL { root.appendingPathComponent(".data.lock") }
@@ -110,8 +115,8 @@ public struct TakeRecorder: Sendable {
   /// history without pasting.
   public func isRecorded(takeId: String, pending: PendingRecords) -> Bool {
     guard !takeId.isEmpty else { return false }
-    // Saved by the CLI before the import (build 415 and earlier).
-    if legacyTakeIDs().contains(takeId) { return true }
+    // History saved by the CLI before the import (build 415 and earlier).
+    if legacyDone().history.contains(takeId) { return true }
     // Spool first, history second. Replay writes history (fsynced, directory
     // synced) before it removes the spool file, so a take is always in at
     // least one of them: if the spool no longer holds it, the history write
@@ -138,15 +143,22 @@ public struct TakeRecorder: Sendable {
   /// Applies the record to every destination not already `done`.
   /// `protectedTakeIds`: takes still in the spool, never pruned from usage's
   /// take ids or from history (see `UsageLedger.Delivery.protectedTakeIds`).
-  public func record(_ r: TakeRecord, done: PendingTake.Done = PendingTake.Done(), protectedTakeIds: Set<String> = [],
+  public func record(_ r: TakeRecord, done given: PendingTake.Done = PendingTake.Done(), protectedTakeIds: Set<String> = [],
                      log: @escaping (String) -> Void = { _ in }) -> Result {
     var result = Result(history: .notNeeded, usage: .notNeeded)
-    // A take the CLI already saved (and the import brought over): a
-    // replayed build-415 pending record must not save or count it again.
-    if !r.takeId.isEmpty, legacyTakeIDs().contains(r.takeId) {
-      log("record: take \(r.takeId) was saved before the import; not saved again")
-      return Result(history: Self.needsHistory(r) ? .alreadyThere : .notNeeded,
-                    usage: Self.wantsUsage(r) ? .alreadyThere : .notNeeded)
+    // What the CLI's ledgers prove it already did for this take, per
+    // destination: a replayed build-415 pending record redoes only the rest.
+    var done = given
+    if !r.takeId.isEmpty {
+      let legacy = legacyDone()
+      if legacy.history.contains(r.takeId), !done.history {
+        done.history = true
+        log("record: take \(r.takeId) history was saved before the import; not saved again")
+      }
+      if legacy.usage.contains(r.takeId), !done.usage {
+        done.usage = true
+        log("record: take \(r.takeId) was counted before the import; not counted again")
+      }
     }
     let ms = { (v: Int) in max(v, 0) }
 

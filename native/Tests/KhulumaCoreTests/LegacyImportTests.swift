@@ -110,7 +110,10 @@ import Testing
     #expect((r.counts.history, r.counts.history_invalid, r.counts.debug_files, r.counts.vocabulary_backups, r.counts.sounds) == (3, 0, 2, 1, 0))
     #expect(r.usage.source == LegacyImport.UsageTotals(count: 42, processed_words: 1234, recording_duration_ms: 98765))
     #expect(r.usage.imported == r.usage.source)
-    #expect(r.vocabulary && r.settings == "imported" && r.legacy_take_ids == 4)
+    // Bench (take-d) proves nothing; history = history ∪ full, usage = full.
+    #expect(r.vocabulary && r.settings == "imported" && r.legacy_take_ids == 3)
+    let ledger = try JSONSerialization.jsonObject(with: Data(contentsOf: f.dest.appendingPathComponent(LegacyImport.legacyTakeIDsName))) as? [String: [String]]
+    #expect(ledger == ["history": ["take-a", "take-b", "take-c"], "usage": ["take-a", "take-b"]])
     // The top-level `hotkey` isn't a key the app reads (that's [app] hotkey).
     #expect(r.skipped == [LegacyImport.Skipped(path: f.root.appendingPathComponent("config.toml").path + " hotkey",
                                                reason: "not used by the app")])
@@ -127,8 +130,6 @@ import Testing
     #expect(!fm.fileExists(atPath: f.dest.appendingPathComponent("config.toml").path))
     #expect(!fm.fileExists(atPath: f.dest.appendingPathComponent(".import-staging").path))
     #expect(!fm.fileExists(atPath: f.dest.appendingPathComponent(".import-journal.json").path))
-    let ids = try JSONSerialization.jsonObject(with: Data(contentsOf: f.dest.appendingPathComponent("legacy-take-ids.json"))) as? [String]
-    #expect(ids == ["take-a", "take-b", "take-c", "take-d"])
     let json = try JSONSerialization.jsonObject(with: Data(contentsOf: f.dest.appendingPathComponent("import.json"))) as? [String: Any]
     #expect(json?["version"] as? Int == 1 && json?["source_root"] as? String == f.root.path)
   }

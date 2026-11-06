@@ -120,6 +120,49 @@ struct DaemonSupervisorTests {
     #expect(world.lines.last?.hasSuffix("next try in 30s or later") == true)
   }
 
+  /// A restarted daemon is warmed even during backoff from the crashed
+  /// one's failures, and a restart that arrives mid-check isn't dropped.
+  @Test func aRestartResetsBackoffAndIsRetainedWhileACheckRuns() async throws {
+    let world = World()
+    world.reports = [.success(WarmupReport(state: .unavailable, reason: "x", message: "crashed"))]
+    let queue = DispatchQueue(label: "test.supervisor.restart")
+    let supervisor = world.supervisor(queue: queue)
+    supervisor.configure(target)
+    supervisor.run(.launch)
+    #expect(world.warmups == 1)
+    supervisor.run(.recordingStart)
+    #expect(world.warmups == 1, "backing off")
+
+    // A check is in flight (blocked in warmup) when the restart arrives.
+    world.lock.withLock { world.reports = [.success(WarmupReport(state: .warming, reason: "loading")),
+                                           .success(WarmupReport(state: .ready, durationMs: 900))] }
+    let gate = DispatchSemaphore(value: 0)
+    world.gate = gate
+    world.advance(30)
+    supervisor.trigger(.wake)
+    try await Task.sleep(nanoseconds: 50_000_000)
+    supervisor.trigger(.restarted)
+    gate.signal()
+    gate.signal()
+    for _ in 0..<100 where world.lock.withLock({ world.warmups }) < 3 { try await Task.sleep(nanoseconds: 10_000_000) }
+    queue.sync {}
+    #expect(world.lock.withLock { world.warmups } == 3, "the restart ran after the in-flight check")
+    #expect(world.lock.withLock { world.lines.contains { $0.contains("daemon restarted") } })
+  }
+
+  @Test func aDaemonThatAlreadyAnswersIsStillAdopted() {
+    let world = World()
+    world.status = DaemonStatus(version: "0.3.0", generation: "g1", modelLoaded: .init(path: "/m", version: "v3"))
+    let adopted = LockedCount()
+    var environment = world.environment()
+    environment.adopt = { adopted.bump() }
+    let supervisor = DaemonSupervisor(environment: environment) { _, _ in }
+    supervisor.configure(target)
+    supervisor.run(.launch)
+    #expect(world.warmups == 0)
+    #expect(adopted.value == 1, "adopted (and watched) even when the probe shows it warm")
+  }
+
   @Test func warmingRechecksForABoundedTime() {
     let world = World()
     world.reports = Array(repeating: .success(WarmupReport(state: .warming, reason: "building", message: "building khulumad")),
@@ -457,4 +500,11 @@ struct TimedOutTakesTests {
     #expect(TimedOutTakes.removeTake(wav: wav, sidecar: sidecar))
     #expect(try FileManager.default.contentsOfDirectory(atPath: dir.path).isEmpty)
   }
+}
+
+private final class LockedCount: @unchecked Sendable {
+  private let lock = NSLock()
+  private var count = 0
+  func bump() { lock.withLock { count += 1 } }
+  var value: Int { lock.withLock { count } }
 }

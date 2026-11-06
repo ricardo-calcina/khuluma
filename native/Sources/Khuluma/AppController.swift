@@ -192,11 +192,13 @@ final class AppController: NSObject, NSApplicationDelegate {
     models = ModelProvisioner(environment: SpeechModel.environment) { [weak self] state in
       DispatchQueue.main.async { self?.showModelState(state) }
     }
+    var supervision = DaemonSupervisor.Environment(
+      probe: { path, timeout in DaemonClient(socketPath: path).status(timeout: timeout) },
+      warmup: DaemonSupervisor.ownedWarmup(process: daemon),
+      schedule: schedule)
+    supervision.adopt = { _ = daemon.ensureRunning() }
     supervisor = DaemonSupervisor(
-      environment: DaemonSupervisor.Environment(
-        probe: { path, timeout in DaemonClient(socketPath: path).status(timeout: timeout) },
-        warmup: DaemonSupervisor.ownedWarmup(process: daemon),
-        schedule: schedule),
+      environment: supervision,
       onChange: { [weak self] state, line in
         Log.write("supervisor: \(line)")
         DispatchQueue.main.async { self?.showDaemonState(state) }
@@ -273,6 +275,7 @@ final class AppController: NSObject, NSApplicationDelegate {
 
   func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
     guard !quitting else { return .terminateLater }
+    Log.write("quit: requested; saving recordings and draining")
     if take != nil || !unsaved.isEmpty {
       guard saveRecordingForQuit() else {
         // Couldn't write the audio: stay open rather than lose a take. Only
@@ -328,11 +331,15 @@ final class AppController: NSObject, NSApplicationDelegate {
       self.finishQuitting(drained: drained)
     }
     let persistQueue = pipeline?.persister.queue
+    // Replies go through the main run loop, not the main dispatch queue:
+    // while AppKit waits for the reply it may be inside a main-queue drain
+    // (e.g. terminate called from a dispatch callout), where main.async
+    // blocks would never run.
     work.async {
-      guard let persistQueue else { return DispatchQueue.main.async { decide(true) } }
-      persistQueue.async { DispatchQueue.main.async { decide(true) } }
+      guard let persistQueue else { return onMainRunLoop { decide(true) } }
+      persistQueue.async { onMainRunLoop { decide(true) } }
     }
-    DispatchQueue.main.asyncAfter(deadline: .now() + 30) { decide(false) }
+    DispatchQueue.global().asyncAfter(deadline: .now() + 30) { onMainRunLoop { decide(false) } }
     return .terminateLater
   }
 
@@ -354,6 +361,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     }
     // SIGTERM our khulumad; it drains in-flight work itself. Waits ≤ 2 s.
     daemon?.stop(timeout: 2)
+    Log.write("quit: done" + (drained ? "" : " (after the 30s limit)"))
     NSApp.reply(toApplicationShouldTerminate: true)
   }
 
@@ -1203,4 +1211,13 @@ final class AppController: NSObject, NSApplicationDelegate {
       }
     }
   }
+}
+
+/// Runs `work` once on the main thread from the run loop, in the common
+/// modes (AppKit adds its modal-panel mode, used while it waits for a
+/// terminate reply), never from inside a main-queue drain.
+func onMainRunLoop(_ work: @escaping () -> Void) {
+  let main = CFRunLoopGetMain()
+  CFRunLoopPerformBlock(main, CFRunLoopMode.commonModes.rawValue, work)
+  CFRunLoopWakeUp(main)
 }

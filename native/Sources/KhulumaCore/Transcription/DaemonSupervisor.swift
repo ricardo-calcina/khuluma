@@ -56,6 +56,10 @@ public final class DaemonSupervisor: @unchecked Sendable {
     public var now: @Sendable () -> Date
     /// Runs `work` after `delay` seconds (rechecks while warming).
     public var schedule: @Sendable (_ delay: TimeInterval, _ work: @escaping @Sendable () -> Void) -> Void
+    /// Called before every probe so a daemon that already answers (warm,
+    /// maybe one we didn't start) is still adopted and watched
+    /// (`DaemonProcess.ensureRunning`, idempotent).
+    public var adopt: @Sendable () -> Void = {}
 
     public init(
       probe: @escaping @Sendable (String, TimeInterval) -> DaemonStatus?,
@@ -89,6 +93,8 @@ public final class DaemonSupervisor: @unchecked Sendable {
   /// A settings change arrived during a check: check again once it ends
   /// (that check's result is dropped as stale).
   private var settingsPending = false
+  /// The daemon was restarted during a check: warm it once that check ends.
+  private var restartPending = false
   /// Bumped by `configure`: results of a check started before a change
   /// are dropped.
   private var configuration = 0
@@ -124,7 +130,13 @@ public final class DaemonSupervisor: @unchecked Sendable {
   /// check is already running.
   public func trigger(_ trigger: Trigger) {
     let start = lock.withLock { () -> Bool in
+      if trigger == .restarted {
+        // A fresh daemon: the old one's failures and backoff don't apply.
+        failures = 0
+        retryAt = nil
+      }
       guard target != nil, !inFlight else {
+        if trigger == .restarted, target != nil { restartPending = true }
         // A dropped recheck must not leave the next one blocked.
         if trigger == .recheck { recheckPending = false }
         if trigger == .settings, target != nil { settingsPending = true }
@@ -136,12 +148,12 @@ public final class DaemonSupervisor: @unchecked Sendable {
     guard start else { return }
     queue.async { [self] in
       run(trigger)
-      let again = lock.withLock { () -> Bool in
+      let (settings, restarted) = lock.withLock { () -> (Bool, Bool) in
         inFlight = false
-        defer { settingsPending = false }
-        return settingsPending
+        defer { settingsPending = false; restartPending = false }
+        return (settingsPending, restartPending)
       }
-      if again { self.trigger(.settings) }
+      if restarted { self.trigger(.restarted) } else if settings { self.trigger(.settings) }
     }
   }
 
@@ -152,6 +164,7 @@ public final class DaemonSupervisor: @unchecked Sendable {
       return self.target.map { ($0, self.configuration) }
     }) else { return }
 
+    environment.adopt()
     if let status = probe(target) {
       settle(configuration) {
         failures = 0

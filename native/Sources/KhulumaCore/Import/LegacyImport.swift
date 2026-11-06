@@ -270,7 +270,8 @@ public enum LegacyImport {
 
     // Take ids the CLI already saved.
     let ids = try legacyTakeIDs(src.root, stage: stage)
-    try writeStaged(try JSONSerialization.data(withJSONObject: ids, options: [.prettyPrinted]),
+    try writeStaged(try JSONSerialization.data(withJSONObject: ["history": ids.history, "usage": ids.usage],
+                                                options: [.prettyPrinted, .sortedKeys]),
                     rel: legacyTakeIDsName, stage: stage)
 
     // Settings: config.toml -> settings.json, only the keys the app uses.
@@ -289,7 +290,7 @@ public enum LegacyImport {
     try checkpoint(.moved)
 
     let receipt = Receipt(imported_at: iso8601(now), source_root: src.root.path, counts: counts, usage: usage,
-                          vocabulary: vocabulary, legacy_vocab: hasLegacyVocab, legacy_take_ids: ids.count, skipped: stage.skipped + kept,
+                          vocabulary: vocabulary, legacy_vocab: hasLegacyVocab, legacy_take_ids: Set(ids.history + ids.usage).count, skipped: stage.skipped + kept,
                           settings: settingsOutcome)
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -448,22 +449,30 @@ public enum LegacyImport {
     ((try? JSONSerialization.jsonObject(with: data)) as? [String: Any]) != nil
   }
 
-  static func legacyTakeIDs(_ root: URL, stage: Stage) throws -> [String] {
-    var ids = Set<String>()
+  /// What the CLI's ledgers prove, per destination (bin/khuluma-lib/app.sh
+  /// `inline_record`): `recorded-takes-history` is marked after save_history
+  /// succeeds; `recorded-takes` only once history is done and usage (when
+  /// wanted) was counted. So history = history ∪ full, usage = full.
+  /// `recorded-takes-bench` is marked before history is saved and proves
+  /// nothing. Written as `{"history": [...], "usage": [...]}`.
+  static func legacyTakeIDs(_ root: URL, stage: Stage) throws -> (history: [String], usage: [String]) {
     let cache = root.appendingPathComponent(".cache", isDirectory: true)
-    for name in ledgerNames {
+    func read(_ name: String) throws -> Set<String> {
       let url = cache.appendingPathComponent(name)
       switch try readRegular(url) {
-      case .missing: continue
-      case .notRegular: stage.skipped.append(Skipped(path: url.path, reason: "take ledger is not a regular file"))
+      case .missing: return []
+      case .notRegular:
+        stage.skipped.append(Skipped(path: url.path, reason: "take ledger is not a regular file"))
+        return []
       case .data(let data):
-        for line in String(decoding: data, as: UTF8.self).split(whereSeparator: \.isNewline) {
-          let id = line.trimmingCharacters(in: .whitespaces)
-          if !id.isEmpty { ids.insert(id) }
-        }
+        return Set(String(decoding: data, as: UTF8.self).split(whereSeparator: \.isNewline)
+          .map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty })
       }
     }
-    return ids.sorted()
+    let full = try read("recorded-takes")
+    let history = try read("recorded-takes-history").union(full)
+    _ = try read("recorded-takes-bench")  // still checked for a non-regular file
+    return (history.sorted(), full.sorted())
   }
 
   // MARK: Reading the source
