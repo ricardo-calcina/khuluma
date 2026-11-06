@@ -46,8 +46,11 @@ private final class ProcessWorld: @unchecked Sendable {
             self.signals.append((pid, SIGTERM))
             return self.exits.removeValue(forKey: pid)
           }
-          // The child handles SIGTERM and exits (on another thread, as Process does).
-          if let exit { DispatchQueue.global().async { exit(0) } }
+          // The child handles SIGTERM and exits on another thread, as Process
+          // does. Its own thread, not the global pool: a pool busy with the
+          // rest of the suite could delay it past the test's bound. (Not
+          // inline: `stop` signals under the lock the exit handler takes.)
+          if let exit { Thread { exit(0) }.start() }
         }
       },
       answers: { _ in self.lock.withLock { self.answers } },

@@ -190,7 +190,8 @@ final class AppController: NSObject, NSApplicationDelegate {
       DispatchQueue.main.async { self?.supervisor?.trigger(.restarted) }
     }
     models = ModelProvisioner(environment: SpeechModel.environment) { [weak self] state in
-      DispatchQueue.main.async { self?.showModelState(state) }
+      // The run loop, not main.async: the menu may be open, showing progress.
+      onMainRunLoop { self?.showModelState(state) }
     }
     var supervision = DaemonSupervisor.Environment(
       probe: { path, timeout in DaemonClient(socketPath: path).status(timeout: timeout) },
@@ -201,7 +202,7 @@ final class AppController: NSObject, NSApplicationDelegate {
       environment: supervision,
       onChange: { [weak self] state, line in
         Log.write("supervisor: \(line)")
-        DispatchQueue.main.async { self?.showDaemonState(state) }
+        onMainRunLoop { self?.showDaemonState(state) }
       })
     NSWorkspace.shared.notificationCenter.addObserver(
       forName: NSWorkspace.didWakeNotification, object: nil, queue: .main

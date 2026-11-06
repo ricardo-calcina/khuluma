@@ -445,6 +445,23 @@ struct TimedOutTakesTests {
     #expect(store.all(now: info.savedAt).map(\.info) == [info])
   }
 
+  /// A pair handed off by the sidecar pass isn't then reported by the
+  /// orphan pass as unreadable audio.
+  @Test func anExpiredHandoffLogsNothing() throws {
+    let (store, recovered, root) = stores()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let saved = Date(timeIntervalSince1970: 2_000_000)
+    try store.save(samples: [0.2, 0.2], info: .init(takeId: "quiet", app: nil, recordMs: 1, startupMs: 0, startedAtMs: 0,
+                                                    savedAt: saved))
+    let reports = Reports()
+    let previous = TimedOutTakes.report
+    TimedOutTakes.report = { reports.add($0) }
+    defer { TimedOutTakes.report = previous }
+    #expect(store.all(now: saved.addingTimeInterval(3600)).isEmpty)
+    #expect(recovered.all().count == 1)
+    #expect(reports.lines.filter { $0.contains("quiet") }.isEmpty, "\(reports.lines)")
+  }
+
   @Test func adoptionsInTheSameMillisecondNeverOverwrite() throws {
     let (_, recovered, root) = stores()
     defer { try? FileManager.default.removeItem(at: root) }
@@ -507,4 +524,11 @@ private final class LockedCount: @unchecked Sendable {
   private var count = 0
   func bump() { lock.withLock { count += 1 } }
   var value: Int { lock.withLock { count } }
+}
+
+private final class Reports: @unchecked Sendable {
+  private let lock = NSLock()
+  private var stored: [String] = []
+  func add(_ line: String) { lock.withLock { stored.append(line) } }
+  var lines: [String] { lock.withLock { stored } }
 }

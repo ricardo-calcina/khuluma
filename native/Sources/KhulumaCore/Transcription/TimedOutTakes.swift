@@ -246,6 +246,8 @@ public struct TimedOutTakes: Sendable {
     // Audio without a sidecar can't be retried, but is still a take.
     for name in names where name.hasSuffix(".wav") {
       let wav = directory.appendingPathComponent(name)
+      // Skip audio the sidecar loop above already handed off or removed.
+      guard FileManager.default.fileExists(atPath: wav.path) else { continue }
       if !FileManager.default.fileExists(atPath: wav.deletingPathExtension().appendingPathExtension("json").path) {
         handOff(wav: wav, sidecar: nil, takeId: Self.stableId(for: wav), now: now)
       }
