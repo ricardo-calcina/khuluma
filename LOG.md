@@ -23,6 +23,7 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 ## Next
 
 - [ ] P1 · Watch build 449 for 14 days (to 2026-11-20): no `khuluma` process started by the app, usage matches delivered takes in history, nothing lost; first-run on a clean account not tested (Ricardo skipped it) · added 2026-11-06
+- [ ] P2 · After the 14-day watch and the CLI sunset: write up why Khuluma became app-only (the reasons, what moved into the app, what was dropped, how the import works) for Ricardo's blog, and add a public roadmap page to the khuluma.app site (VPS products/Khuluma/site, its own tab) · added 2026-11-06
 - [ ] P1 · Sunset the CLI: inventory and keep list done (docs/plans/CLI_SUNSET.md, confirmed 2026-11-05) and ROADMAP re-planned; next the app tab ports what's kept, then phase 4 (final release, disable formula, remove from the Mac) and phase 5 (remove CLI code, archive tap), each publishing step needing Ricardo's yes · added 2026-10-27, changed 2026-11-05
 - [x] P1 · Enable cleanup and exact repeated sentences; import the prepared vocabulary and verify active output · added 2026-10-24
 - [x] P1 · Combine the approved menu, icon, audio and vocabulary branches on main; verify the integrated source · added 2026-10-24
