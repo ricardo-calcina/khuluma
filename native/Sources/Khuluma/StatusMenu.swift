@@ -697,44 +697,6 @@ private struct MenuCapsuleButtonStyle: ButtonStyle {
   }
 }
 
-/// A small switch drawn in SwiftUI. AppKit draws its switch as inactive (grey)
-/// in a menu window, which isn't key, so `.tint` has no effect there.
-private struct MenuSwitchStyle: ToggleStyle {
-  func makeBody(configuration: Configuration) -> some View {
-    SwitchBody(configuration: configuration)
-  }
-
-  private struct SwitchBody: View {
-    let configuration: ToggleStyleConfiguration
-    @Environment(\.isEnabled) private var isEnabled
-
-    var body: some View {
-      Button { configuration.isOn.toggle() } label: {
-        HStack(spacing: 6) {
-          configuration.label
-          ZStack(alignment: configuration.isOn ? .trailing : .leading) {
-            Capsule()
-              .fill(configuration.isOn ? Ember.accent : Ink.track)
-              .overlay(Capsule().strokeBorder(Ink.color.opacity(configuration.isOn ? 0 : 0.12), lineWidth: 0.5))
-            Circle()
-              .fill(.white)
-              .shadow(color: .black.opacity(0.25), radius: 1, y: 0.5)
-              .padding(1.5)
-          }
-          .frame(width: 26, height: 15)
-          .animation(.easeOut(duration: 0.15), value: configuration.isOn)
-        }
-        .contentShape(Rectangle())
-      }
-      .buttonStyle(.plain)
-      .opacity(isEnabled ? 1 : 0.45)
-      .accessibilityElement(children: .combine)
-      .accessibilityAddTraits(.isToggle)
-      .accessibilityValue(configuration.isOn ? "On" : "Off")
-    }
-  }
-}
-
 /// Open the app; Auto-send, Settings and Quit.
 struct MenuFooter: View {
   @ObservedObject var settings: SettingsModel
@@ -761,7 +723,7 @@ struct MenuFooter: View {
       Toggle("Auto-send", isOn: Binding(
         get: { settings.config?.inline.autosend ?? false },
         set: { settings.save("inline.autosend", $0 ? "true" : "false") }))
-        .toggleStyle(MenuSwitchStyle())
+        .toggleStyle(KhulumaSwitchStyle())
         .font(.caption).foregroundStyle(.secondary)
         .disabled(!settings.editable)
         .help(autosendHelp)
@@ -801,7 +763,7 @@ private struct WeekBars: View {
             if day.words > 0 {
               RoundedRectangle(cornerRadius: 2, style: .continuous)
                 .fill(Ember.vertical)
-                .opacity(isToday ? 1 : 0.8)
+                .modifier(BarOpacity(highlighted: isToday))
                 .frame(height: max(3, 22 * CGFloat(day.words) / CGFloat(peak)))
             }
           }

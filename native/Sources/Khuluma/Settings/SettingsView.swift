@@ -50,7 +50,7 @@ struct SettingsView: View {
     }
     .toggleStyle(.switch)
     .tint(Ember.accent)
-    .background(Color(nsColor: .windowBackgroundColor))
+    .background(Surface.canvas)
   }
 
   // MARK: Sidebar
@@ -300,7 +300,7 @@ struct SettingsView: View {
         Rule()
         status.padding(.horizontal, 20).padding(.vertical, 10)
       }
-      .background(Color(nsColor: .windowBackgroundColor))
+      .background(Surface.canvas)
     }
   }
 
@@ -384,7 +384,7 @@ private struct SidebarRow: View {
         RingMark(symbol: page.symbol, size: 20, tint: selected ? Ember.accent : Ink.color.opacity(0.7))
         Text(page.title)
           .fontWeight(selected ? .semibold : .regular)
-          .foregroundStyle(selected ? Ember.accent : Color.primary)
+          .foregroundStyle(selected ? Ember.accentText : Color.primary)
         Spacer(minLength: 0)
       }
       .padding(.horizontal, 8)

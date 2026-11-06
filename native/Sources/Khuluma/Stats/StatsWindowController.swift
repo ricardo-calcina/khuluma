@@ -10,7 +10,6 @@ final class StatsWindowController: NSWindowController, NSWindowDelegate, NSToolb
   private let navigation = AppNavigation()
   private let vocabulary: VocabularyModel
   private let detailsPopover = NSPopover()
-  private weak var tabs: NSToolbarItemGroup?
   private static let tabsItem = NSToolbarItem.Identifier("Khuluma.Tabs")
   private static let refreshItem = NSToolbarItem.Identifier("Khuluma.Refresh")
   private static let infoItem = NSToolbarItem.Identifier("Khuluma.UsageInfo")
@@ -35,6 +34,7 @@ final class StatsWindowController: NSWindowController, NSWindowDelegate, NSToolb
     window.center()
     if !AppRuntimePaths.isolated { window.setFrameAutosaveName("KhulumaStats") }
     window.appearance = Self.forcedAppearance
+    window.backgroundColor = Surface.canvasColor
     super.init(window: window)
     window.delegate = self
     let toolbar = NSToolbar(identifier: "Khuluma.Main")
@@ -43,6 +43,9 @@ final class StatsWindowController: NSWindowController, NSWindowDelegate, NSToolb
     toolbar.allowsUserCustomization = false
     toolbar.autosavesConfiguration = false
     toolbar.centeredItemIdentifiers = [Self.tabsItem]
+    // A visible title takes the toolbar's leading space, and the centred
+    // item is centred in what is left, so it sat right of the midpoint.
+    window.titleVisibility = .hidden
     window.toolbarStyle = .unifiedCompact
     window.toolbar = toolbar
     window.onSelect = { [weak self] page in self?.navigation.selection = page }
@@ -79,10 +82,6 @@ final class StatsWindowController: NSWindowController, NSWindowDelegate, NSToolb
     model.windowOpened()
   }
 
-  @objc private func selectTab(_ sender: Any?) {
-    guard let index = tabs?.selectedIndex, AppNavigation.Page.allCases.indices.contains(index) else { return }
-    navigation.selection = AppNavigation.Page.allCases[index]
-  }
   @objc private func refreshStats() { model.reload() }
 
   @objc private func showUsageInfo(_ sender: NSButton) {
@@ -115,7 +114,6 @@ final class StatsWindowController: NSWindowController, NSWindowDelegate, NSToolb
         toolbar.removeItem(at: index)
       }
     }
-    tabs?.selectedIndex = AppNavigation.Page.allCases.firstIndex(of: page) ?? 0
   }
 
   func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
@@ -129,14 +127,20 @@ final class StatsWindowController: NSWindowController, NSWindowDelegate, NSToolb
   func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier identifier: NSToolbarItem.Identifier,
                willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
     if identifier == Self.tabsItem {
-      let group = NSToolbarItemGroup(itemIdentifier: identifier, titles: AppNavigation.Page.allCases.map(\.title),
-                                     selectionMode: .selectOne, labels: nil, target: self,
-                                     action: #selector(selectTab(_:)))
-      group.label = "View"
-      group.toolTip = "Stats (⌘1), Vocabulary (⌘2), Settings (⌘3 or ⌘,)"
-      group.selectedIndex = AppNavigation.Page.allCases.firstIndex(of: navigation.selection) ?? 0
-      tabs = group
-      return group
+      let item = NSToolbarItem(itemIdentifier: identifier)
+      item.label = "View"
+      item.toolTip = "Stats (⌘1), Vocabulary (⌘2), Settings (⌘3 or ⌘,)"
+      // A fixed size from the SwiftUI layout, so the toolbar can centre it.
+      let host = NSHostingView(rootView: ToolbarTabs(navigation: navigation))
+      let size = host.fittingSize
+      host.sizingOptions = []
+      host.translatesAutoresizingMaskIntoConstraints = false
+      NSLayoutConstraint.activate([
+        host.widthAnchor.constraint(equalToConstant: size.width),
+        host.heightAnchor.constraint(equalToConstant: size.height),
+      ])
+      item.view = host
+      return item
     }
     let label: String
     let symbol: String
@@ -208,6 +212,16 @@ final class AppNavigation: ObservableObject {
   var onChange: () -> Void = {}
 }
 
+/// Stats | Vocabulary | Settings, in the window's toolbar.
+struct ToolbarTabs: View {
+  @ObservedObject var navigation: AppNavigation
+
+  var body: some View {
+    KhulumaSegments(label: "View", options: AppNavigation.Page.allCases.map { ($0, $0.title) },
+                    selection: $navigation.selection, size: .regular)
+  }
+}
+
 struct AppView: View {
   @ObservedObject var stats: StatsModel
   @ObservedObject var settings: SettingsModel
@@ -232,7 +246,7 @@ struct AppView: View {
       }
     }
     .frame(minWidth: 560, minHeight: 420)
-    .background(Color(nsColor: .windowBackgroundColor))
+    .background(Surface.canvas)
   }
 }
 

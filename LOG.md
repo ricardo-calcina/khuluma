@@ -2,6 +2,8 @@
 
 ## Now
 
+Design in progress (tab "Khuluma light theme and custom controls", 2026-11-06): main has unapproved light-mode, title bar tab and Activity control changes. Don't install from main without checking with that tab. Options: https://claude.ai/artifact/5sQziK73U4sMPBzpuJ2mCQ
+
 Pick up (CLI sunset tab): keep list handed to the app tab (t4j) on 2026-11-05 · next: when it confirms the app runs without the CLI, prepare phase 4 (final v0.12.0 with notice, formula disable!) for Ricardo's yes · branch: wip/product-split
 
 Installed build 458 on 2026-11-06 (speaking-pace WPM, Ricardo's OK, from main db4a4aa): WPM and time saved leave out pauses over 1 s, measured from word timings; the audio sent to ASR is unchanged. Rollback: `~/Applications/.khuluma-app.JvohaM/previous.app` (build 449).

@@ -22,7 +22,7 @@ struct StatsView: View {
       }
     }
     .frame(width: 560)
-    .background(Color(nsColor: .windowBackgroundColor))
+    .background(Surface.canvas)
   }
 }
 
@@ -214,16 +214,11 @@ private struct Activity: View {
         Text("Activity").font(.headline)
         Spacer()
         Toggle("Words per day", isOn: $showWords)
-          .toggleStyle(.switch)
-          .controlSize(.mini)
+          .toggleStyle(KhulumaSwitchStyle())
           .font(.callout)
           .foregroundStyle(.secondary)
-        Picker("Range", selection: $rangeDays) {
-          ForEach(StatsModel.ranges, id: \.self) { Text("\($0) days").tag($0) }
-        }
-        .pickerStyle(.segmented)
-        .labelsHidden()
-        .fixedSize()
+        KhulumaSegments(label: "Range", options: StatsModel.ranges.map { ($0, "\($0) days") },
+                        selection: $rangeDays, size: .small)
       }
       // The range's totals, or the hovered day's figures in their place. A
       // fixed frame and no scaling, so the text can never move anything.
@@ -376,7 +371,7 @@ private struct WordsPerDay: View {
             if cell.words > 0 {
               RoundedRectangle(cornerRadius: 2, style: .continuous)
                 .fill(Ember.vertical)
-                .opacity(hover.cell?.date == cell.date ? 1 : 0.8)
+                .modifier(BarOpacity(highlighted: hover.cell?.date == cell.date))
                 .frame(height: max(2, Self.height * Double(cell.words) / Double(peak)))
             }
           }
@@ -620,13 +615,14 @@ enum Format {
     typingDifferenceParts(ms: ms).amount
   }
 
-  /// "≈ 7.9 h" and "faster than typing", or a negative estimate when slower.
+  /// "7.9 h" and "faster than typing", or "−7.9 h" and "slower than typing".
+  /// Callers say elsewhere that it is an estimate.
   static func typingDifferenceParts(ms: Int) -> (amount: String, caption: String) {
     let minutes = abs(Double(ms)) / 60_000
     let amount = minutes >= 60
       ? "\((minutes / 60).formatted(.number.precision(.fractionLength(1)))) h"
       : "\(Int(minutes.rounded())) min"
-    return ("≈ \(ms < 0 ? "−" : "")\(amount)", ms >= 0 ? "faster than typing" : "slower than typing")
+    return ("\(ms < 0 ? "−" : "")\(amount)", ms >= 0 ? "faster than typing" : "slower than typing")
   }
 
   static func rangeLine(_ range: UsageStats.RangeSummary, since: CivilDate?) -> String {

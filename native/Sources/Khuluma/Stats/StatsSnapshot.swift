@@ -124,6 +124,9 @@ enum StatsSnapshot {
       settingsNavigation.selection = .settings
       save("app-settings", view: AnyView(AppView(stats: full, settings: cloud, navigation: settingsNavigation, vocabulary: VocabularyModel(settings: cloud))),
            width: 560, height: 634)
+      // The toolbar's tab control on the canvas, Stats selected.
+      save("toolbar-tabs", view: AnyView(ToolbarTabs(navigation: AppNavigation())
+        .frame(maxWidth: .infinity, maxHeight: .infinity).background(Surface.canvas)), width: 320, height: 44)
     } catch {
       FileHandle.standardError.write(Data("UI fixture failed: \(error.localizedDescription)\n".utf8))
       failures += 1

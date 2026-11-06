@@ -46,7 +46,7 @@ struct VocabularyView: View {
     }
     .padding(.horizontal, 20).padding(.top, 18).padding(.bottom, 14)
     .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .background(Color(nsColor: .windowBackgroundColor))
+    .background(Surface.canvas)
     .background { shortcuts }
     .onAppear { if !model.loaded { model.load() } }
     .onChange(of: focus) { _, value in
