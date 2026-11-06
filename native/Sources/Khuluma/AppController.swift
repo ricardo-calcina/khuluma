@@ -97,7 +97,7 @@ final class AppController: NSObject, NSApplicationDelegate {
   private let inFlight = InFlightTakes(store: .standard)
   /// Made on first open, then reused.
   private var statsWindow: StatsWindowController?
-  /// Finder's "Transcribe with Khuluma" (NSServices in Info.plist).
+  /// Finder's Local and Cloud transcription services.
   private var quickAction: QuickActionService?
 
   func applicationDidFinishLaunching(_ notification: Notification) {
@@ -159,6 +159,10 @@ final class AppController: NSObject, NSApplicationDelegate {
     service.dictationBusy = { [weak self] in
       guard let self, !self.quitting else { return false }
       return self.pipeline == nil || self.take != nil || self.inFlight.count > 0
+    }
+    service.localDaemon = { [weak self] in self?.daemon }
+    service.prepareLocalModel = { [weak self] in
+      self?.models?.ensure(configured: nil, fallback: SpeechModel.defaultPath)
     }
     quickAction = service
     NSApp.servicesProvider = service
@@ -985,6 +989,9 @@ final class AppController: NSObject, NSApplicationDelegate {
     case .present(let path):
       Log.write("model: ready at \(path)")
       menu.showDaemon(nil)
+      // A Local Finder request can provision Parakeet while dictation uses
+      // Scribe. That request must not trigger cloud recovery of old dictation.
+      guard config?.transcription.provider == "parakeet" else { return }
       reloadSettings()
       if let config { recoverLeftoverTakes(config: config) }
     case .downloading:

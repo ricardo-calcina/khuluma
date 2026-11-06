@@ -22,6 +22,14 @@ public enum QuickActionRun {
     // A take recording or in flight goes first: checked right before every
     // daemon request (long files go in chunks).
     transcriber.beforeRequest = waitWhileBusy
+    return run(inputs, workDirectory: workDirectory) { input, work in
+      try transcriber.transcribe(input, label: input.path, workDirectory: work, engine: engine()).text
+    }
+  }
+
+  /// Shared output handling for local transcripts and original media uploaded to the cloud.
+  public static func run(_ inputs: [String], workDirectory: () throws -> URL,
+                         transcribe: (_ input: URL, _ workDirectory: URL) throws -> String) -> Outcome {
     var texts: [String] = [], written: [String] = [], failures: [String] = []
     let work: URL
     do { work = try workDirectory() } catch {
@@ -34,10 +42,12 @@ public enum QuickActionRun {
         if TranscriptOutput.sameFile(destination, input) {
           throw TranscriptOutput.Failure("refusing to overwrite the input file: \(input)")
         }
-        let transcript = try transcriber.transcribe(URL(fileURLWithPath: input), label: input,
-                                                    workDirectory: work, engine: try engine())
-        written.append(try TranscriptOutput.writeFirstFree(transcript.text, to: destination))
-        texts.append(transcript.text)
+        let transcript = PerlText.bashCapture(try transcribe(URL(fileURLWithPath: input), work))
+        guard !PerlText.isBlank(transcript) else {
+          throw FileTranscriber.Failure("no speech detected in: \(input)")
+        }
+        written.append(try TranscriptOutput.writeFirstFree(transcript, to: destination))
+        texts.append(transcript)
       } catch {
         failures.append(error.localizedDescription)
       }

@@ -29,6 +29,9 @@ enum StatsSnapshot {
       let local = try UISettingsFixture().model()
       let cloud = try UISettingsFixture(provider: "elevenlabs", keyAvailable: true).model()
       let missingKey = try UISettingsFixture(provider: "elevenlabs").model()
+      var labelsOffFixture = UISettingsFixture(provider: "elevenlabs", keyAvailable: true)
+      try labelsOffFixture.save("transcription.scribe_tag_audio_events", value: "false")
+      let labelsOff = try labelsOffFixture.model()
       let full = examples[1].1
       for state in ["normal", "loading", "error", "recording"] {
         let menu = MenuModel()
@@ -82,7 +85,8 @@ enum StatsSnapshot {
         model.page = page
         save("settings-\(page.rawValue)", view: AnyView(SettingsView(model: model)), width: 560, height: 634)
       }
-      for (name, model) in [("dictation-cloud", cloud), ("dictation-key-missing", missingKey)] {
+      for (name, model) in [("dictation-cloud", cloud), ("dictation-cloud-labels-off", labelsOff),
+                            ("dictation-key-missing", missingKey)] {
         model.page = .dictation
         save("settings-\(name)", view: AnyView(SettingsView(model: model)), width: 560, height: 634)
       }
@@ -279,6 +283,8 @@ private struct UISettingsFixture {
     case "transcription.provider":
       guard ["parakeet", "elevenlabs"].contains(value) else { return }
       set("transcription", key: "provider", value: value)
+    case "transcription.scribe_tag_audio_events":
+      set("transcription", key: "scribe_tag_audio_events", value: value == "true")
     case "inline.autosend": set("inline", key: "autosend", value: value == "true")
     case "debug.keep_logs": set("transcription", key: "keep_logs", value: value == "true")
     case "clean.enabled": set("cleanup", key: "clean", value: value == "true" ? "1" : "0")

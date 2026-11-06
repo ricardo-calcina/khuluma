@@ -24,6 +24,8 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 
 ## Next
 
+- [ ] P2 · After installing the Finder split, try Local and Cloud on the same file with quiet speech and laughter; confirm Finder registration and compare output and timing · added 2026-11-06
+
 - [ ] P2 · Swift tests leave their temp fixture roots behind on purpose (RetainedTestArtifacts): ~4,900 `$TMPDIR/khuluma-*` dirs, 145 MB from 5-6 Nov runs; macOS sweeps them after ~3 days unused. DaemonKit tests do the same in /private/tmp (1,332 `khuluma-kit-*`, 0.4 MB). Proposal: delete a test's root when it passes, keep it on failure. Needs Ricardo's yes, since retention was deliberate · added 2026-11-06
 - [ ] P2 · tests/test_app_build_helpers.py fails 8/36 on main (same before 34c0ac1): the fixture's mock git doesn't answer the build script's dirty-tree check, so success-path cases stop at "Working tree has uncommitted changes" · added 2026-11-06
 - [ ] P3 · Experiment with selectable app themes (e.g. Dracula, Catppuccin) and an ivory light variant; Theme.swift tokens are structured for it (Ricardo, 2026-11-06) · added 2026-11-06
@@ -97,6 +99,8 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 - Rename the existing repository in place to preserve all history; retain neutral `ricardo-calcina/tap` and rename its formula to `khuluma`. The in-place repository rename, immutable v0.10.0 release and canonical formula/map are published and verified. The app continues to depend on its matching CLI; cask/CLI-independence/deprecation/archive are separate future work.
 
 ## Done
+
+- 2026-11-06 · Added Scribe sound labels switch and independent Local and Cloud Finder actions in source · CHANGELOG Unreleased
 
 - 2026-11-06 · Checked native Scribe routing, recovery and account authentication; 30 focused tests passed. Corrected file tool docs; no audio uploaded · README.md
 

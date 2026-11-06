@@ -233,6 +233,8 @@ public struct SettingsStore: Sendable {
         throw InvalidSetting("language must be auto or an ISO 639 code such as en")
       }
       return { $0.transcription.language = value }
+    case "transcription.scribe_tag_audio_events":
+      let b = try bool(); return { $0.transcription.scribeTagAudioEvents = b }
     case "swift_parakeet.model_version":
       guard value.isEmpty || value == "v2" || value == "v3" else { throw InvalidSetting("model version must be v2 or v3") }
       return { $0.transcription.modelVersion = value }

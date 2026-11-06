@@ -234,16 +234,19 @@ import plistlib, sys
 path, identifier, version, build, commit = sys.argv[1:]
 with open(path, "wb") as handle:
     plistlib.dump({"CFBundleIdentifier": identifier, "CFBundleName": "Khuluma", "CFBundleDisplayName": "Khuluma", "CFBundleExecutable": "Khuluma", "CFBundleIconFile": "Khuluma.icns", "CFBundleIconName": "AppIcon", "CFBundlePackageType": "APPL", "CFBundleShortVersionString": version, "CFBundleVersion": build, "KhulumaGitCommit": commit, "CFBundleInfoDictionaryVersion": "6.0", "LSMinimumSystemVersion": "14.0", "LSUIElement": True, "NSHighResolutionCapable": True, "NSMicrophoneUsageDescription": "Khuluma records your voice while dictation is active. Parakeet transcribes on this Mac; audio is sent to ElevenLabs only when you choose Scribe.",
-        # Finder's "Transcribe with Khuluma" Quick Action, served by the
-        # running app (QuickActionService); macOS launches it if needed.
+        # Finder actions share a handler and carry an explicit destination.
         "NSServices": [{
-            "NSMenuItem": {"default": "Transcribe with Khuluma"},
+            "NSMenuItem": {"default": title},
             "NSMessage": "transcribeFiles",
+            "NSUserData": destination,
             "NSPortName": "Khuluma",
             "NSIconName": "NSActionTemplate",
             "NSRequiredContext": {"NSApplicationIdentifier": "com.apple.finder"},
             "NSSendFileTypes": ["public.audio", "public.movie"],
-        }]}, handle)
+        } for title, destination in [
+            ("Transcribe with Local", "local"),
+            ("Transcribe with Cloud", "cloud"),
+        ]]}, handle)
 PY
 plutil -lint "$stage/Contents/Info.plist" >/dev/null
 # Nested code first: the helper is signed before the app seals it. No

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add **Label sounds** in Dictation settings for ElevenLabs Scribe. It is on by default and includes labels such as `(laughter)` in the transcript.
+- Finder offers **Transcribe with Local** and **Transcribe with Cloud** independently of the dictation model. Cloud confirms the upload to ElevenLabs and includes sound labels.
+
 - Light mode gets its own look: a white window instead of grey, warm-neutral tracks and hairlines, and an ember ramp tuned for a light background so quiet days no longer wash out; words-per-day bars run orange to red. Dark mode is unchanged.
 - The title bar tabs (Stats | Vocabulary | Settings) are now centred and react to hover. Activity's Words per day switch and 30 / 60 / 90 days control are drawn in Khuluma's colours instead of stock controls.
 - Time saved shows a plain figure, without "≈", in Stats and the menu; its help still says it is an estimate.

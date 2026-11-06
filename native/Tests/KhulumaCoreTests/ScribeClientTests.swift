@@ -69,6 +69,33 @@ struct ScribeClientTests {
     }
   }
 
+  @Test func finderCloudUploadsOriginalMediaAndKeepsSoundLabels() throws {
+    let source = try tempWAV()
+    defer { try? FileManager.default.removeItem(at: source) }
+    let media = try Data(contentsOf: source)
+    let output = source.deletingPathExtension().appendingPathExtension("txt")
+    defer { try? FileManager.default.removeItem(at: output) }
+    let fake = FakeScribeTransport()
+    fake.body = Data(#"{"text":"Good point. (laughter)"}"#.utf8)
+    let client = ScribeClient(credential: ScribeCredential(keychain: MemoryKeychain(fakeKey), environment: [:]),
+                              transport: { _, _ in throw URLError(.unsupportedURL) },
+                              fileTransport: { request, staged in try fake.transport(request, Data(contentsOf: staged)) })
+    let outcome = QuickActionRun.run([source.path], workDirectory: { try FileTranscribeCommand.privateWorkDirectory() }) {
+      try client.transcribeFile($0, workDirectory: $1)
+    }
+    #expect(outcome.failures.isEmpty)
+    #expect(outcome.combined == "Good point. (laughter)")
+    #expect(try String(contentsOf: output, encoding: .utf8) == "Good point. (laughter)\n")
+    let request = try #require(fake.requests.first)
+    #expect(fake.requests.count == 1)
+    #expect(request.body.range(of: media) != nil)
+    #expect(request.request.timeoutInterval == ScribeClient.fileTimeout)
+    let form = text(request.body)
+    #expect(form.contains(#"name="tag_audio_events"\#r\#n\#r\#ntrue"#))
+    #expect(!form.contains("language_code"))
+    #expect(!form.contains(source.lastPathComponent))
+  }
+
   @Test func eachFailureHasTheCLIWording() throws {
     let wav = try tempWAV()
     defer { try? FileManager.default.removeItem(at: wav) }
@@ -166,6 +193,33 @@ struct ScribeRouteTests {
       .run(samples: samples, takeId: "t2", status: "recovered", app: nil, recordMs: 1, startupMs: 0, startedAtMs: nil)
     else { Issue.record("no text"); return }
     #expect(record.status == "recovered")
+  }
+
+  @Test func dictationPassesTheSoundLabelPreferenceAndPreservesLabels() throws {
+    let dir = try scratch()
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let store = SettingsStore(folder: dir)
+    let env = SettingsEnvironment(appFolder: dir, home: dir.path, soundsDir: "/s", modelsDir: "/m",
+                                  defaultSocketPath: "/sock", ffmpegAvailable: false, keyAvailable: true)
+    #expect(store.load().settings.transcription.scribeTagAudioEvents)
+    for enabled in [true, false] {
+      try store.set("transcription.scribe_tag_audio_events", value: String(enabled))
+      let config = AppConfig(settings: store.load().settings, environment: env)
+      #expect(config.transcription.scribeTagAudioEvents == enabled)
+      let fake = FakeScribeTransport()
+      let expected = enabled ? "Good point. (laughter)" : "Good point."
+      fake.body = try JSONEncoder().encode(["text": expected])
+      let route = ScribeRoute(client: makeClient(fake), cleanup: config.cleanup, language: "en",
+                             tagAudioEvents: config.transcription.scribeTagAudioEvents, directory: dir)
+      guard case .text(let result, _) = route.run(samples: samples, takeId: "label", app: nil,
+                                                  recordMs: 1000, startupMs: 0, startedAtMs: nil) else {
+        Issue.record("Expected a transcript")
+        return
+      }
+      #expect(result == expected)
+      let form = text(try #require(fake.requests.first).body)
+      #expect(form.contains(#"name="tag_audio_events"\#r\#n\#r\#n\#(enabled)"#))
+    }
   }
 
   @Test func failureKeepsTheTakeAndMakesNoRecord() throws {

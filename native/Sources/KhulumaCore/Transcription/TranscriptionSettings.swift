@@ -13,6 +13,7 @@ public struct TranscriptionSettings: Codable, Equatable, Sendable {
   public var modelVersion: String?
   public var modelLabel: String
   public var language: String
+  public var scribeTagAudioEvents: Bool
   /// `KHULUMA_TRANSCRIBE_TAIL_PAD_MS` (default "500").
   public var tailPadMs: String
   public var tailRescue: Bool
@@ -31,7 +32,7 @@ public struct TranscriptionSettings: Codable, Equatable, Sendable {
     language: String = "en", tailPadMs: String = "500", tailRescue: Bool = true, tailRescueMs: String = "",
     tailRescueMinMs: String = "", keepLogs: Bool = false,
     ffmpeg: Bool = true, timeoutSeconds: String = "600", processingDir: String = TakeMarker.defaultDirectory,
-    provider: String = "parakeet", keyAvailable: Bool = false
+    provider: String = "parakeet", keyAvailable: Bool = false, scribeTagAudioEvents: Bool = true
   ) {
     self.provider = provider
     self.keyAvailable = keyAvailable
@@ -40,6 +41,7 @@ public struct TranscriptionSettings: Codable, Equatable, Sendable {
     self.modelVersion = modelVersion
     self.modelLabel = modelLabel
     self.language = language
+    self.scribeTagAudioEvents = scribeTagAudioEvents
     self.tailPadMs = tailPadMs
     self.tailRescue = tailRescue
     self.tailRescueMs = tailRescueMs
@@ -58,6 +60,7 @@ public struct TranscriptionSettings: Codable, Equatable, Sendable {
     case modelVersion = "model_version"
     case modelLabel = "model_label"
     case language
+    case scribeTagAudioEvents = "scribe_tag_audio_events"
     case tailPadMs = "tail_pad_ms"
     case tailRescue = "tail_rescue"
     case tailRescueMs = "tail_rescue_ms"
@@ -77,6 +80,7 @@ public struct TranscriptionSettings: Codable, Equatable, Sendable {
     modelVersion = try values.decodeIfPresent(String.self, forKey: .modelVersion)
     modelLabel = try values.decode(String.self, forKey: .modelLabel)
     language = try values.decode(String.self, forKey: .language)
+    scribeTagAudioEvents = try values.decodeIfPresent(Bool.self, forKey: .scribeTagAudioEvents) ?? true
     tailPadMs = try values.decode(String.self, forKey: .tailPadMs)
     tailRescue = try values.decode(Bool.self, forKey: .tailRescue)
     tailRescueMs = try values.decode(String.self, forKey: .tailRescueMs)

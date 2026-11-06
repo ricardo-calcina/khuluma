@@ -118,6 +118,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var provider = "parakeet"
     /// auto or an ISO 639 code.
     public var language = "en"
+    public var scribeTagAudioEvents = true
     /// "" = FluidAudio's shared cache (downloaded on first run). Used only
     /// when this folder exists.
     public var modelPath = ""
@@ -131,6 +132,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
 
     enum CodingKeys: String, CodingKey {
       case provider, language
+      case scribeTagAudioEvents = "scribe_tag_audio_events"
       case modelPath = "model_path"
       case modelVersion = "model_version"
       case socketPath = "socket_path"
@@ -143,6 +145,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
         throw DecodingError.dataCorruptedError(forKey: .provider, in: c, debugDescription: "provider must be parakeet or elevenlabs")
       }
       language = try c.decodeIfPresent(String.self, forKey: .language) ?? "en"
+      scribeTagAudioEvents = try c.decodeIfPresent(Bool.self, forKey: .scribeTagAudioEvents) ?? true
       modelPath = try c.decodeIfPresent(String.self, forKey: .modelPath) ?? ""
       modelVersion = try c.decodeIfPresent(String.self, forKey: .modelVersion) ?? ""
       socketPath = try c.decodeIfPresent(String.self, forKey: .socketPath) ?? ""
@@ -486,7 +489,7 @@ extension AppConfig {
       modelLabel: label, language: s.transcription.language, tailPadMs: "500", tailRescue: true,
       tailRescueMs: "", tailRescueMinMs: "", keepLogs: s.debug.keepLogs, ffmpeg: env.ffmpegAvailable,
       timeoutSeconds: "600", processingDir: env.processingDir, provider: s.transcription.provider,
-      keyAvailable: env.keyCheck?() ?? env.keyAvailable)
+      keyAvailable: env.keyCheck?() ?? env.keyAvailable, scribeTagAudioEvents: s.transcription.scribeTagAudioEvents)
     self.init(schemaVersion: 1, hotkey: s.hotkey, sounds: sounds, soundsEnabled: s.sounds.enabled, inline: inline, cleanup: cleanup,
               transcription: transcription, pipeline: Pipeline(supervise: s.app.superviseDaemon && !cloud),
               config: status, usage: Usage(summaryPath: env.appFolder.appendingPathComponent("usage.json").path))

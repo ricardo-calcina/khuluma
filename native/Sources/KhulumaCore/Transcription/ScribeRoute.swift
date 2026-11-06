@@ -16,15 +16,17 @@ public struct ScribeRoute: Sendable {
   public let client: ScribeClient
   public let cleanup: CleanupSettings
   public let language: String
+  public let tagAudioEvents: Bool
   /// Keep the WAV for the `[debug] keep_logs` archive (the recorder removes it).
   public let keepWAV: Bool
   public let directory: URL
 
   public init(client: ScribeClient = ScribeClient(), cleanup: CleanupSettings, language: String,
-              keepWAV: Bool = false, directory: URL = AppRuntimePaths.temporary) {
+              tagAudioEvents: Bool = true, keepWAV: Bool = false, directory: URL = AppRuntimePaths.temporary) {
     self.client = client
     self.cleanup = cleanup
     self.language = language
+    self.tagAudioEvents = tagAudioEvents
     self.keepWAV = keepWAV
     self.directory = directory
   }
@@ -44,7 +46,7 @@ public struct ScribeRoute: Sendable {
     let transcript: String
     let speechMs: Int?
     do {
-      let answer = try client.transcribeMeasured(wav: wav, language: language)
+      let answer = try client.transcribeMeasured(wav: wav, language: language, tagAudioEvents: tagAudioEvents)
       transcript = PerlText.bashCapture(answer.text)
       speechMs = answer.speechMs
     } catch let failure as ScribeClient.Failure {

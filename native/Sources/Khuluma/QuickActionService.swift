@@ -3,19 +3,22 @@ import Foundation
 import KhulumaCore
 import UserNotifications
 
-/// Finder's "Transcribe with Khuluma" Quick Action (NSServices entry
-/// `transcribeFiles` in Info.plist): each selected file is transcribed by
-/// the app's own daemon, written as `<name>.txt` beside it (never over an
-/// existing file, never partial), and the transcripts go to the clipboard.
-/// One file at a time, off the main thread, waiting while a dictation take is
-/// recording or being transcribed. Not counted in usage or history.
+/// Finder's Local and Cloud services share output handling. Local jobs yield
+/// to dictation; cloud jobs upload the selected files after confirmation.
 final class QuickActionService: NSObject {
+  private enum Destination: String {
+    case local, cloud
+  }
+
   /// Read on the main thread: the app is still starting, or a take is
   /// recording or in flight.
   var dictationBusy: () -> Bool = { false }
+  var localDaemon: () -> DaemonProcess? = { nil }
+  var prepareLocalModel: () -> Void = {}
   /// The current settings (any queue).
   var loadConfig: () -> AppConfig?
   private let queue = DispatchQueue(label: "khuluma.quick-action", qos: .utility)
+  private let scribe = ScribeClient()
 
   init(loadConfig: @escaping () -> AppConfig?) {
     self.loadConfig = loadConfig
@@ -24,6 +27,8 @@ final class QuickActionService: NSObject {
   /// The NSServices message: `transcribeFiles:userData:error:`.
   @objc func transcribeFiles(_ pasteboard: NSPasteboard, userData: String?,
                              error: AutoreleasingUnsafeMutablePointer<NSString?>) {
+    // Older Launch Services registrations had no user data and were local.
+    guard let destination = Destination(rawValue: userData ?? "local") else { return }
     let urls = (pasteboard.readObjects(forClasses: [NSURL.self],
                                        options: [.urlReadingFileURLsOnly: true]) as? [URL]) ?? []
     guard !urls.isEmpty else {
@@ -31,19 +36,40 @@ final class QuickActionService: NSObject {
       return
     }
     Log.write("quick action: \(urls.count) file(s)")
-    queue.async { [weak self] in self?.run(urls) }
+    DispatchQueue.main.async { [weak self] in
+      guard let self, destination == .local || Self.confirmUpload(urls) else { return }
+      self.queue.async { [weak self] in self?.run(urls, destination: destination) }
+    }
   }
 
-  private func run(_ urls: [URL]) {
-    Self.notify(urls.count == 1 ? "Transcribing \(urls[0].lastPathComponent)..." : "Transcribing \(urls.count) files...")
-    let outcome = QuickActionRun.run(
-      urls.map(\.path),
-      engine: { [weak self] in
-        guard let self else { throw FileTranscriber.Failure("Khuluma is quitting") }
-        return try self.engine()
-      },
-      waitWhileBusy: { [weak self] in self?.waitForDictation() },
-      workDirectory: { try FileTranscribeCommand.privateWorkDirectory() })
+  private static func confirmUpload(_ urls: [URL]) -> Bool {
+    let alert = NSAlert()
+    alert.messageText = "Transcribe with Cloud?"
+    let selection = urls.count == 1 ? "“\(urls[0].lastPathComponent)”" : "\(urls.count) selected files"
+    alert.informativeText = "Khuluma will upload \(selection) to ElevenLabs for transcription. This uses your API credits."
+    let upload = alert.addButton(withTitle: "Upload and Transcribe")
+    upload.keyEquivalent = ""
+    alert.addButton(withTitle: "Cancel").keyEquivalent = "\u{1b}"
+    NSApp.activate()
+    return alert.runModal() == .alertFirstButtonReturn
+  }
+
+  private func run(_ urls: [URL], destination: Destination) {
+    let selection = urls.count == 1 ? urls[0].lastPathComponent : "\(urls.count) files"
+    Self.notify("Transcribing \(selection) \(destination == .local ? "locally" : "with ElevenLabs")…")
+    let outcome: QuickActionRun.Outcome
+    switch destination {
+    case .local:
+      waitForDictation()
+      outcome = QuickActionRun.run(
+        urls.map(\.path), engine: { try self.engine() },
+        waitWhileBusy: { self.waitForDictation() },
+        workDirectory: { try FileTranscribeCommand.privateWorkDirectory() })
+    case .cloud:
+      outcome = QuickActionRun.run(urls.map(\.path), workDirectory: { try FileTranscribeCommand.privateWorkDirectory() }) {
+        try scribe.transcribeFile($0, workDirectory: $1)
+      }
+    }
     for failure in outcome.failures { Log.write("quick action: \(failure)") }
     if !outcome.combined.isEmpty {
       DispatchQueue.main.sync {
@@ -57,9 +83,29 @@ final class QuickActionService: NSObject {
   private func engine() throws -> FileTranscriber.Engine {
     guard let config = loadConfig() else { throw FileTranscriber.Failure("Khuluma is still starting") }
     let t = config.transcription
-    guard let model = t.modelPath, !model.isEmpty else { throw FileTranscriber.Failure(FileEngineChoice.noModelMessage) }
-    guard !t.socketPath.isEmpty else { throw FileTranscriber.Failure("Khuluma's speech engine is unavailable") }
-    return .daemon(socketPath: t.socketPath, modelPath: model, modelVersion: t.modelVersion ?? "v3", language: t.language)
+    guard let model = t.modelPath, !model.isEmpty else {
+      DispatchQueue.main.sync { prepareLocalModel() }
+      throw FileTranscriber.Failure("The local model isn't ready. Try again after it downloads.")
+    }
+    let version = t.modelVersion ?? "v3"
+    guard !t.socketPath.isEmpty, let daemon = DispatchQueue.main.sync(execute: localDaemon) else {
+      throw FileTranscriber.Failure("Khuluma's speech engine is unavailable")
+    }
+    switch daemon.ensureRunning() {
+    case .running, .external: break
+    case .restarting: throw FileTranscriber.Failure("The local speech engine is restarting. Try again shortly.")
+    case .unavailable(let reason): throw FileTranscriber.Failure(reason)
+    }
+    let status = DaemonClient(socketPath: t.socketPath).status(timeout: 0.25)
+    if status?.holds(path: model, version: version) != true {
+      waitForDictation()
+      let target = DaemonSupervisor.Target(socketPath: t.socketPath, modelPath: model, modelVersion: version)
+      let report = try DaemonSupervisor.ownedWarmup(process: daemon)(target)
+      guard report.state == .ready else {
+        throw FileTranscriber.Failure(report.message ?? "The local speech engine is still starting. Try again shortly.")
+      }
+    }
+    return .daemon(socketPath: t.socketPath, modelPath: model, modelVersion: version, language: t.language)
   }
 
   /// A dictation take goes first: wait between files while one is active.

@@ -156,10 +156,9 @@ struct SettingsView: View {
     }
     SettingsGroup("Transcription") {
       // Shown before Scribe is chosen too: choosing it saves at once.
-      SettingsRow("Model",
-                  note: "Scribe uploads new and recovered recordings to ElevenLabs and uses your credits. Internet required.",
-                  last: model.provider != "elevenlabs") {
-        Picker("Model", selection: Binding(get: { model.provider }, set: { model.save("transcription.provider", $0) })) {
+      SettingsRow("Dictation model",
+                  note: "Scribe uploads new and recovered dictation to ElevenLabs and uses your credits.") {
+        Picker("Dictation model", selection: Binding(get: { model.provider }, set: { model.save("transcription.provider", $0) })) {
           Text(localModelTitle).tag("parakeet")
           Text("ElevenLabs Scribe v2").tag("elevenlabs")
         }
@@ -176,22 +175,29 @@ struct SettingsView: View {
           .disabled(!model.editable)
           .help("Auto-detect lets Scribe recognise the language of each recording.")
         }
-        let available = model.config?.transcription.keyAvailable == true
-        SettingsRow("API key",
-                    note: available ? nil : "Paste your ElevenLabs key. It is kept in your Keychain.",
-                    last: true) {
-          HStack(spacing: 8) {
-            Label(Self.keyStatus(model.keySource, available: available),
-                  systemImage: available ? "checkmark.circle" : "exclamationmark.triangle")
-              .foregroundStyle(available ? Color.secondary : Ember.accent)
-            SecureField("ElevenLabs API key", text: $model.keyDraft)
-              .labelsHidden().frame(width: 150)
-              .onSubmit { model.saveKey() }
-            Button("Save") { model.saveKey() }
-              .disabled(model.keyDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            if model.keySource == .keychain {
-              Button("Remove") { model.removeKey() }
-            }
+        SettingsRow("Label sounds", note: "Include labels like (laughter) in Scribe dictation.") {
+          Toggle("Label sounds", isOn: setting("transcription.scribe_tag_audio_events",
+                                               model.config?.transcription.scribeTagAudioEvents ?? true))
+            .labelsHidden()
+            .disabled(!model.editable)
+            .help("Include labels for sounds such as laughter in Scribe dictation.")
+        }
+      }
+      let available = model.config?.transcription.keyAvailable == true
+      SettingsRow("ElevenLabs key", note: Self.keyStatus(model.keySource, available: available),
+                  footnote: "Used for Scribe dictation and Transcribe with Cloud. Saved keys go in Keychain.",
+                  last: true) {
+        HStack(spacing: 8) {
+          SecureField("API key", text: $model.keyDraft)
+            .labelsHidden().frame(width: 110)
+            .accessibilityLabel("ElevenLabs API key")
+            .onSubmit { model.saveKey() }
+          Button("Save") { model.saveKey() }
+            .fixedSize()
+            .disabled(model.keyDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+          if model.keySource == .keychain {
+            Button("Remove") { model.removeKey() }
+              .fixedSize()
           }
         }
       }

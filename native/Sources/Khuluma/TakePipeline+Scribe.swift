@@ -24,7 +24,7 @@ extension TakePipeline {
       Log.write(line.line)
     }
     let route = ScribeRoute(client: scribe, cleanup: cleanup, language: transcription.language,
-                            keepWAV: transcription.keepLogs)
+                            tagAudioEvents: transcription.scribeTagAudioEvents, keepWAV: transcription.keepLogs)
     switch route.run(samples: samples, takeId: takeId, app: appName, recordMs: recordMs,
                      startupMs: take.startupMs, startedAtMs: take.startedEpochMs) {
     case .failed(let message):
@@ -75,7 +75,7 @@ extension TakePipeline {
                          app: String?, copy: Bool, store: RecoveredTakes, config: AppConfig) {
     guard let (transcription, cleanup) = config.scribe else { return }
     let route = ScribeRoute(client: scribe, cleanup: cleanup, language: transcription.language,
-                            keepWAV: transcription.keepLogs)
+                            tagAudioEvents: transcription.scribeTagAudioEvents, keepWAV: transcription.keepLogs)
     switch route.run(samples: samples, takeId: takeId, status: "recovered", app: app,
                      recordMs: samples.count * 1000 / AudioPrep.sampleRate, startupMs: startupMs,
                      startedAtMs: startedEpochMs) {
@@ -114,7 +114,7 @@ extension TakePipeline {
       return .failed("retry: the kept recording is unreadable")
     }
     let route = ScribeRoute(client: scribe, cleanup: cleanup, language: transcription.language,
-                            keepWAV: transcription.keepLogs)
+                            tagAudioEvents: transcription.scribeTagAudioEvents, keepWAV: transcription.keepLogs)
     // The timed-out take's own id, stable across retries: a failed-transcription record
     // doesn't count as recorded, and a retry that was already saved is skipped in `retranscribe`.
     switch route.run(samples: samples, takeId: info.takeId, app: info.app,
