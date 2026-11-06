@@ -184,3 +184,37 @@ public enum ModelBundleCheck {
     return true
   }
 }
+
+/// Whether an incomplete model folder may be deleted and downloaded again.
+/// The shared cache is also used by other apps: a folder that changed
+/// recently may be someone else's download in progress, so it is left alone
+/// and the provisioner's backoff tries again later.
+public enum ModelRepair {
+  public static let busyWindow: TimeInterval = 15 * 60
+
+  public struct Busy: Error, LocalizedError {
+    public init() {}
+    public var errorDescription: String? { "model folder busy, retrying later" }
+  }
+
+  /// The newest modification time of the folder or anything in it.
+  public static func newestModification(_ path: String) -> Date? {
+    let fm = FileManager.default
+    let root = URL(fileURLWithPath: path, isDirectory: true)
+    let key: URLResourceKey = .contentModificationDateKey
+    var newest = (try? root.resourceValues(forKeys: [key]))?.contentModificationDate
+    guard let items = fm.enumerator(at: root, includingPropertiesForKeys: [key]) else { return newest }
+    for case let item as URL in items {
+      if let date = (try? item.resourceValues(forKeys: [key]))?.contentModificationDate, date > (newest ?? .distantPast) {
+        newest = date
+      }
+    }
+    return newest
+  }
+
+  /// True when the folder (or a file in it) changed within `busyWindow`.
+  public static func isBusy(_ path: String, now: Date = Date()) -> Bool {
+    guard let newest = newestModification(path) else { return false }
+    return now.timeIntervalSince(newest) < busyWindow
+  }
+}

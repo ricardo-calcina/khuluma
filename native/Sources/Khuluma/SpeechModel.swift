@@ -36,11 +36,17 @@ enum SpeechModel {
   /// fails `ModelBundleCheck` (an interrupted download) is replaced
   /// (`force` deletes it first): FluidAudio's own check would otherwise take
   /// its bare folders for a finished model. A complete bundle is never
-  /// forced.
+  /// forced, nor one modified in the last 15 minutes (`ModelRepair`).
   static func download(progress: @escaping @Sendable (Double) -> Void,
                        done: @escaping @Sendable (Result<String, Error>) -> Void) {
     let target = URL(fileURLWithPath: defaultPath, isDirectory: true)
     let repair = FileManager.default.fileExists(atPath: target.path) && !isCompleteV3(target.path)
+    // Never delete a folder that changed in the last 15 minutes: another
+    // app may be downloading into the shared cache. The provisioner retries.
+    if repair, ModelRepair.isBusy(target.path) {
+      done(.failure(ModelRepair.Busy()))
+      return
+    }
     Task.detached(priority: .utility) {
       do {
         let url = try await AsrModels.download(to: target, force: repair, version: .v3) { update in
