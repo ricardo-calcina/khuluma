@@ -362,4 +362,11 @@ else
   echo "Preview ready: $OUT (no app launch or service registration)"
 fi
 [[ "$previous" == 0 ]] || echo "Previous app retained for rollback: $transaction/previous.app"
+# The release build tree (~1.2 GB) is only needed to inspect a failed build;
+# after a verified success keep the source snapshot and staged bundle, not it.
+# KHULUMA_KEEP_BUILD=1 keeps it too.
+if [[ "${KHULUMA_KEEP_BUILD:-0}" != 1 && -d "$stage_root/swift-build" && ! -L "$stage_root/swift-build" ]]; then
+  rm -rf -- "$stage_root/swift-build"
+  echo "Release build tree removed (KHULUMA_KEEP_BUILD=1 keeps it)"
+fi
 echo "Build workspace retained: $stage_root"
