@@ -185,6 +185,10 @@ final class AppController: NSObject, NSApplicationDelegate {
       logDirectory: AppRuntimePaths.logs, environment: .live(schedule: schedule), refusal: refusal,
       log: { Log.write($0) })
     self.daemon = daemon
+    // A restarted daemon has no model loaded: warm it now, not on the next take.
+    daemon.onRestart = { [weak self] in
+      DispatchQueue.main.async { self?.supervisor?.trigger(.restarted) }
+    }
     models = ModelProvisioner(environment: SpeechModel.environment) { [weak self] state in
       DispatchQueue.main.async { self?.showModelState(state) }
     }
@@ -840,7 +844,17 @@ final class AppController: NSObject, NSApplicationDelegate {
     pipeline?.persister.adopt(config, history: settingsStore.load().settings.history)
   }
 
+  /// Logged once: an isolated run ignoring a model folder in real data.
+  private var warnedForbiddenModel = false
+
   private func apply(_ config: AppConfig) {
+    if !warnedForbiddenModel {
+      let configured = settingsStore.load().settings.transcription.modelPath
+      if !configured.isEmpty, settingsEnvironment.isForbiddenModelPath(settingsEnvironment.expand(configured)) {
+        warnedForbiddenModel = true
+        Log.write("settings: isolated run ignores model_path \(configured) (real data); using the isolated default")
+      }
+    }
     let firstSettings = self.config == nil
     self.config = config
     adoptPersistence(config)

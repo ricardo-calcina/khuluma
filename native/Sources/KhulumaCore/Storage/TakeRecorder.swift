@@ -73,6 +73,15 @@ public struct TakeRecorder: Sendable {
     TakeRecorder(root: AppRuntimePaths.support, settings: settings)
   }
 
+  /// Take ids the CLI had already saved, from the one-time import
+  /// (`legacy-take-ids.json`, a JSON array of strings). Empty when absent
+  /// or unreadable.
+  public func legacyTakeIDs() -> Set<String> {
+    guard let data = try? Data(contentsOf: root.appendingPathComponent(LegacyImport.legacyTakeIDsName)),
+          let ids = try? JSONSerialization.jsonObject(with: data) as? [String] else { return [] }
+    return Set(ids)
+  }
+
   public var lockURL: URL { root.appendingPathComponent(".data.lock") }
   public var historyDirectory: URL { root.appendingPathComponent("history", isDirectory: true) }
   public var usageURL: URL { root.appendingPathComponent("usage.json") }
@@ -101,6 +110,8 @@ public struct TakeRecorder: Sendable {
   /// history without pasting.
   public func isRecorded(takeId: String, pending: PendingRecords) -> Bool {
     guard !takeId.isEmpty else { return false }
+    // Saved by the CLI before the import (build 415 and earlier).
+    if legacyTakeIDs().contains(takeId) { return true }
     // Spool first, history second. Replay writes history (fsynced, directory
     // synced) before it removes the spool file, so a take is always in at
     // least one of them: if the spool no longer holds it, the history write
@@ -130,6 +141,13 @@ public struct TakeRecorder: Sendable {
   public func record(_ r: TakeRecord, done: PendingTake.Done = PendingTake.Done(), protectedTakeIds: Set<String> = [],
                      log: @escaping (String) -> Void = { _ in }) -> Result {
     var result = Result(history: .notNeeded, usage: .notNeeded)
+    // A take the CLI already saved (and the import brought over): a
+    // replayed build-415 pending record must not save or count it again.
+    if !r.takeId.isEmpty, legacyTakeIDs().contains(r.takeId) {
+      log("record: take \(r.takeId) was saved before the import; not saved again")
+      return Result(history: Self.needsHistory(r) ? .alreadyThere : .notNeeded,
+                    usage: Self.wantsUsage(r) ? .alreadyThere : .notNeeded)
+    }
     let ms = { (v: Int) in max(v, 0) }
 
     if Self.wantsUsage(r) {

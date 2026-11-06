@@ -311,10 +311,11 @@ struct TimedOutTakesTests {
     #expect(store.all().isEmpty)
     #expect(recovered.all().count == 1)
     #expect(try FileManager.default.contentsOfDirectory(atPath: store.directory.path).isEmpty)
-    // Different bytes under the same id are a different take: both kept.
+    // Different bytes under the same id are a different take: a distinct id,
+    // so recording one never settles the other.
     try WAVEncoder.encode(samples: [0.9, 0.9, 0.9]).write(to: store.directory.appendingPathComponent("orphan.wav"))
     #expect(store.all().isEmpty)
-    #expect(recovered.all().count == 2)
+    #expect(Set(recovered.all().map(RecoveredTakes.takeId(of:))) == ["timedout-orphan", "timedout-orphan-2"])
   }
 
   @Test func orphanAudioGoesToRecoveredAndEmptyAudioIsDropped() throws {
@@ -352,6 +353,7 @@ struct TimedOutTakesTests {
     let (store, recovered, root) = stores()
     defer { try? FileManager.default.removeItem(at: root) }
     let old = TimedOutTakes(directory: root.appendingPathComponent("old-tmp"), recovered: recovered)
+    let later = Date().addingTimeInterval(3600)
     let info = TimedOutTakes.Info(takeId: "t-old", app: "Notes", recordMs: 900, startupMs: 50, startedAtMs: 1,
                                   savedAt: Date(timeIntervalSince1970: 2_000_000))
     try old.save(samples: [0.3, 0.3, 0.3], info: info)
@@ -364,7 +366,7 @@ struct TimedOutTakesTests {
     try FileManager.default.createDirectory(at: store.directory, withIntermediateDirectories: true)
     try Data("other".utf8).write(to: store.directory.appendingPathComponent("clash.wav"))
 
-    #expect(store.adoptLegacy(from: old.directory) == 2)
+    #expect(store.adoptLegacy(from: old.directory, now: later) == 2)
     #expect(try Set(FileManager.default.contentsOfDirectory(atPath: old.directory.path)) == ["clash.wav", "clash.json"])
     #expect(!FileManager.default.fileExists(atPath: store.directory.appendingPathComponent("clash.json").path))
     let listed = store.all(now: info.savedAt)
@@ -375,9 +377,9 @@ struct TimedOutTakesTests {
     // "other" (header-less, 5 bytes) was dropped as empty audio.
     #expect(recovered.all().count == 1)
     // Now the name is free: the pair moves, then the old folder is gone.
-    #expect(store.adoptLegacy(from: old.directory) == 1)
+    #expect(store.adoptLegacy(from: old.directory, now: later) == 1)
     #expect(!FileManager.default.fileExists(atPath: old.directory.path))
-    #expect(store.adoptLegacy(from: old.directory) == 0)
+    #expect(store.adoptLegacy(from: old.directory, now: later) == 0)
     #expect(store.adoptLegacy(from: root.appendingPathComponent("missing")) == 0)
   }
 
@@ -387,6 +389,7 @@ struct TimedOutTakesTests {
     let (store, recovered, root) = stores()
     defer { try? FileManager.default.removeItem(at: root) }
     let old = TimedOutTakes(directory: root.appendingPathComponent("old-tmp"), recovered: recovered)
+    let later = Date().addingTimeInterval(3600)
     let info = TimedOutTakes.Info(takeId: "t-same", app: nil, recordMs: 1, startupMs: 0, startedAtMs: 0,
                                   savedAt: Date(timeIntervalSince1970: 2_000_000))
     try old.save(samples: [0.2, 0.2], info: info)
@@ -394,8 +397,64 @@ struct TimedOutTakesTests {
     for name in ["t-same.wav", "t-same.json"] {
       try FileManager.default.copyItem(at: old.directory.appendingPathComponent(name), to: store.directory.appendingPathComponent(name))
     }
-    #expect(store.adoptLegacy(from: old.directory) == 1)
+    #expect(store.adoptLegacy(from: old.directory, now: later) == 1)
     #expect(!FileManager.default.fileExists(atPath: old.directory.path))
     #expect(store.all(now: info.savedAt).map(\.info) == [info])
+  }
+
+  @Test func adoptionsInTheSameMillisecondNeverOverwrite() throws {
+    let (_, recovered, root) = stores()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let at = Date(timeIntervalSince1970: 5)
+    let a = try recovered.adopt(wav: WAVEncoder.encode(samples: [0.1]), takeId: "same", at: at)
+    let b = try recovered.adopt(wav: WAVEncoder.encode(samples: [0.2]), takeId: "same", at: at)
+    #expect(a != b)
+    #expect(try RecoveredTakes.samples(at: a) != RecoveredTakes.samples(at: b))
+    #expect(RecoveredTakes.takeId(of: b) == "same-2")
+    #expect(try RecoveredTakes.samples(at: a).first.map { abs($0 - 0.1) < 0.001 } == true)
+  }
+
+  @Test func youngLegacyFilesWaitForALaterLaunch() throws {
+    let (store, recovered, root) = stores()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let old = TimedOutTakes(directory: root.appendingPathComponent("old-tmp"), recovered: recovered)
+    try old.save(samples: [0.3], info: .init(takeId: "pair", app: nil, recordMs: 1, startupMs: 0, startedAtMs: 0))
+    try WAVEncoder.encode(samples: [0.1]).write(to: old.directory.appendingPathComponent("lone.wav"))
+    let written = Date()
+    #expect(store.adoptLegacy(from: old.directory, now: written.addingTimeInterval(60)) == 0)
+    #expect(store.adoptLegacy(from: old.directory, now: written.addingTimeInterval(180)) == 1, "the pair after 2 min")
+    #expect(FileManager.default.fileExists(atPath: old.directory.appendingPathComponent("lone.wav").path))
+    #expect(store.adoptLegacy(from: old.directory, now: written.addingTimeInterval(660)) == 1, "the orphan after 10 min")
+  }
+
+  /// A clash on the sidecar aborts before any audio is published, and no
+  /// staged temp file is left or listed.
+  @Test func aFailedMigrationNeverPublishesAudioAlone() throws {
+    let (store, recovered, root) = stores()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let old = TimedOutTakes(directory: root.appendingPathComponent("old-tmp"), recovered: recovered)
+    try old.save(samples: [0.3, 0.3], info: .init(takeId: "t", app: nil, recordMs: 1, startupMs: 0, startedAtMs: 0))
+    try FileManager.default.createDirectory(at: store.directory, withIntermediateDirectories: true)
+    try Data("different".utf8).write(to: store.directory.appendingPathComponent("t.json"))
+    #expect(store.adoptLegacy(from: old.directory, now: Date().addingTimeInterval(3600)) == 0)
+    #expect(try FileManager.default.contentsOfDirectory(atPath: store.directory.path) == ["t.json"])
+    #expect(try Set(FileManager.default.contentsOfDirectory(atPath: old.directory.path)) == ["t.wav", "t.json"])
+  }
+
+  @Test func aSidecarIsOnlyRemovedOnceItsAudioIsGone() throws {
+    guard getuid() != 0 else { return }
+    let root = URL(fileURLWithPath: NSTemporaryDirectory() + "khuluma-rm-\(UUID().uuidString)")
+    let dir = root.appendingPathComponent("take")
+    try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+    defer { chmod(dir.path, 0o700); try? FileManager.default.removeItem(at: root) }
+    let wav = dir.appendingPathComponent("a.wav"), sidecar = dir.appendingPathComponent("a.json")
+    try Data([1]).write(to: wav)
+    try Data([2]).write(to: sidecar)
+    chmod(dir.path, 0o500)  // nothing in it can be removed
+    #expect(!TimedOutTakes.removeTake(wav: wav, sidecar: sidecar))
+    #expect(FileManager.default.fileExists(atPath: sidecar.path))
+    chmod(dir.path, 0o700)
+    #expect(TimedOutTakes.removeTake(wav: wav, sidecar: sidecar))
+    #expect(try FileManager.default.contentsOfDirectory(atPath: dir.path).isEmpty)
   }
 }

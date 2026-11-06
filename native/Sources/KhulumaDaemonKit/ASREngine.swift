@@ -94,8 +94,13 @@ public actor ASREngine {
     let version = try Self.parseModelVersion(modelVersion)
     return try await gate.withExclusiveAccess {
       let started = ContinuousClock.now
+      let wasLoaded = await self.isLoaded(path: modelURL.path, version: modelVersion)
       try await self.ensureInitialized(
         modelURL: modelURL, version: version, versionLabel: modelVersion, requestedPath: requestedPath)
+      // Loading the model isn't enough: Core ML specialises it on the first
+      // prediction (tens of seconds cold). Run one second of silence now so
+      // "ready" means the next real take is fast.
+      if !wasLoaded { await self.primeFirstPrediction(version: version) }
       return (modelURL.lastPathComponent, Self.elapsedMs(since: started))
     }
   }
@@ -160,6 +165,28 @@ public actor ASREngine {
     manager = newManager
     currentKey = key
     snapshot.set(path: requestedPath ?? modelURL.path, version: versionLabel)
+  }
+
+  private func isLoaded(path: String, version: String) -> Bool {
+    currentKey == LoadedModelKey(path: path, version: version) && manager != nil
+  }
+
+  /// One second of silence through the freshly loaded model. Failures are
+  /// ignored: a real take reports its own errors.
+  private func primeFirstPrediction(version: AsrModelVersion) async {
+    guard let manager else { return }
+    let url = FileManager.default.temporaryDirectory.appendingPathComponent("khulumad-prime-\(UUID().uuidString).wav")
+    defer { try? FileManager.default.removeItem(at: url) }
+    let samples = 16_000
+    var header = Data()
+    func le32(_ v: UInt32) { withUnsafeBytes(of: v.littleEndian) { header.append(contentsOf: $0) } }
+    func le16(_ v: UInt16) { withUnsafeBytes(of: v.littleEndian) { header.append(contentsOf: $0) } }
+    header.append(contentsOf: Array("RIFF".utf8)); le32(UInt32(36 + samples * 2))
+    header.append(contentsOf: Array("WAVEfmt ".utf8)); le32(16); le16(1); le16(1); le32(16_000); le32(32_000); le16(2); le16(16)
+    header.append(contentsOf: Array("data".utf8)); le32(UInt32(samples * 2))
+    guard (try? (header + Data(count: samples * 2)).write(to: url)) != nil else { return }
+    var decoderState = TdtDecoderState.make(decoderLayers: version.decoderLayers)
+    _ = try? await manager.transcribe(url, decoderState: &decoderState)
   }
 
   static func parseModelVersion(_ raw: String) throws -> AsrModelVersion {

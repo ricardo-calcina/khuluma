@@ -146,6 +146,20 @@ public final class DaemonProcess: @unchecked Sendable {
   private var restartPending = false
   private var stopping = false
   private var exited: DispatchSemaphore?
+  /// A daemon we didn't start answers on our socket (e.g. an orphan from a
+  /// crashed run before khulumad exited with its parent): it is polled, never
+  /// signalled, and replaced by ours once it stops answering.
+  private var watchingExternal = false
+  /// How often an adopted external daemon is checked.
+  public static let externalCheckInterval: TimeInterval = 5
+  /// Called (off the lock) after a daemon was started to replace one that
+  /// exited or went away, so the model gets loaded again before the next
+  /// take instead of on it.
+  public var onRestart: (@Sendable () -> Void)? {
+    get { lock.withLock { storedOnRestart } }
+    set { lock.withLock { storedOnRestart = newValue } }
+  }
+  private var storedOnRestart: (@Sendable () -> Void)?
 
   public init(binary: String?, socketPath: String, support: URL, logDirectory: URL, environment: Environment,
               refusal: String? = nil, log: @escaping @Sendable (String) -> Void) {
@@ -191,14 +205,46 @@ public final class DaemonProcess: @unchecked Sendable {
       }
       lockFD = fd
     }
-    if environment.answers(socketPath) { return .external }
+    if environment.answers(socketPath) {
+      watchExternalLocked()
+      return .external
+    }
     return spawnLocked()
+  }
+
+  private func watchExternalLocked() {
+    guard !watchingExternal, !stopping else { return }
+    watchingExternal = true
+    log("daemon: a khulumad we didn't start answers on \(socketPath); using it and watching it")
+    environment.schedule(Self.externalCheckInterval) { [weak self] in self?.checkExternal() }
+  }
+
+  private func checkExternal() {
+    lock.lock()
+    guard !stopping, child == nil else {
+      watchingExternal = false
+      lock.unlock()
+      return
+    }
+    if environment.answers(socketPath) {
+      environment.schedule(Self.externalCheckInterval) { [weak self] in self?.checkExternal() }
+      lock.unlock()
+      return
+    }
+    watchingExternal = false
+    log("daemon: the khulumad we didn't start stopped answering; starting ours")
+    let started: Bool
+    if lockFD == nil, let fd = environment.lock(lockPath) { lockFD = fd }
+    if lockFD != nil, case .running = spawnLocked() { started = true } else { started = false }
+    let notify = storedOnRestart
+    lock.unlock()
+    if started { notify?() }
   }
 
   private func spawnLocked() -> Launch {
     guard let binary else { return .unavailable("khulumad isn't in the app bundle (set KHULUMA_DAEMON_BINARY in dev runs)") }
     do {
-      let spawned = try environment.spawn(binary, ["serve", "--socket", socketPath], logPath) { [weak self] status in
+      let spawned = try environment.spawn(binary, ["serve", "--socket", socketPath, "--exit-with-parent"], logPath) { [weak self] status in
         self?.childExited(status: status)
       }
       child = spawned
@@ -245,8 +291,14 @@ public final class DaemonProcess: @unchecked Sendable {
     defer { lock.unlock() }
     restartPending = false
     guard !stopping, child == nil, lockFD != nil else { return }
-    if environment.answers(socketPath) { return }
-    _ = spawnLocked()
+    if environment.answers(socketPath) {
+      watchExternalLocked()
+      return
+    }
+    if case .running = spawnLocked(), let notify = storedOnRestart {
+      // Off the lock: the warm-up it starts calls back into ensureRunning.
+      DispatchQueue.global(qos: .utility).async { notify() }
+    }
   }
 
   /// Quit: SIGTERM our child (it drains its own in-flight work) and wait at

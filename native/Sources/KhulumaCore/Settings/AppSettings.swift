@@ -285,6 +285,10 @@ public struct SettingsEnvironment: Sendable {
   /// FluidAudio's default cache folder for Parakeet v3 (the app sets it from
   /// FluidAudio's own API; nil in tests unless set).
   public var defaultModelPath: String?
+  /// Isolated runs: a configured model folder here is real data (e.g. an
+  /// imported config.toml pointing at FluidAudio's shared cache) and is
+  /// ignored in favour of the isolated default.
+  public var isForbiddenModelPath: @Sendable (String) -> Bool = { _ in false }
   /// A complete model of this version ("v2"/"v3") is in this folder (the
   /// app checks the files FluidAudio loads for that version).
   public var modelAvailable: @Sendable (_ path: String, _ version: String) -> Bool = { path, _ in
@@ -359,6 +363,9 @@ public struct SettingsEnvironment: Sendable {
       // each settings load (`keyCheck`).
       keyAvailable: false)
     result.keyCheck = { ScribeCredential(environment: environment, home: home).isAvailable }
+    if isolated {
+      result.isForbiddenModelPath = { AppRuntimePaths.isRealData($0, home: home) }
+    }
     return result
   }
 
@@ -421,7 +428,7 @@ extension AppSettings {
   /// own folder, see `AppRuntimePaths.defaultModelDirectory`), always v3 (an
   /// explicit v2 meant for the missing folder doesn't carry over).
   public func resolvedModel(in env: SettingsEnvironment) -> (path: String, version: String)? {
-    if !transcription.modelPath.isEmpty {
+    if !transcription.modelPath.isEmpty, !env.isForbiddenModelPath(env.expand(transcription.modelPath)) {
       let configured = env.expand(transcription.modelPath)
       // Checked as the version it resolves to (an explicit v2 in a custom
       // folder name is still v2).

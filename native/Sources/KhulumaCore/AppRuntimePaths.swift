@@ -48,14 +48,16 @@ public enum AppRuntimePaths {
     }
     // Data overrides must not lead an isolated run back into real data: the
     // shared model cache, the CLI-era data folder or the daily app folder.
-    let realData = [home.appendingPathComponent("Library/Application Support/FluidAudio"),
-                    home.appendingPathComponent(".local/share"),
-                    home.appendingPathComponent("Library/Application Support/Khuluma")].map(physicalDirectory)
+    let realData = realDataRoots(home: home)
     for key in ["KHULUMA_DEFAULT_MODEL_DIR", "XDG_DATA_HOME", "SOUNDS_DIR"] {
       guard let value = environment[key], !value.isEmpty else { continue }
-      let resolved = physicalDirectory(URL(fileURLWithPath: value, isDirectory: true))
-      let literal = URL(fileURLWithPath: value, isDirectory: true).standardizedFileURL
-      if realData.contains(where: { contains($0, resolved) || contains($0, literal) }) {
+      // The folder and the subfolders the app appends to it.
+      let subpaths: [String] = key == "XDG_DATA_HOME" ? ["", "sounds/khuluma", "khuluma/models"]
+        : key == "SOUNDS_DIR" ? ["", "khuluma"] : ["", "parakeet-tdt-0.6b-v3"]
+      let candidates = subpaths.map { URL(fileURLWithPath: value, isDirectory: true).appendingPathComponent($0, isDirectory: true) }
+      if candidates.contains(where: { url in
+        realData.contains { contains($0, physicalDirectory(url)) || contains($0, url.standardizedFileURL) }
+      }) {
         return "\(key) must not point into real Khuluma or FluidAudio data in an isolated run: \(value)"
       }
     }
@@ -73,14 +75,31 @@ public enum AppRuntimePaths {
     return nil
   }
 
+  /// Case-insensitive: APFS volumes usually are, so `~/library/...` is the
+  /// same folder as `~/Library/...`. Refusing a few extra paths on a
+  /// case-sensitive volume is the safe direction.
   private static func contains(_ parent: URL, _ child: URL) -> Bool {
-    parent.path == child.path || child.path.hasPrefix(parent.path == "/" ? "/" : parent.path + "/")
+    let p = parent.path.lowercased(), c = child.path.lowercased()
+    return p == c || c.hasPrefix(p == "/" ? "/" : p + "/")
   }
 
-  private static func physicalDirectory(_ directory: URL) -> URL {
-    guard let path = realpath(directory.path, nil) else { return directory }
-    defer { free(path) }
-    return URL(fileURLWithPath: String(cString: path), isDirectory: true)
+  /// The path with symlinks resolved. A path that doesn't exist yet
+  /// resolves through its nearest existing ancestor, so
+  /// `<symlink to real data>/<new child>` still lands inside real data.
+  static func physicalDirectory(_ directory: URL) -> URL {
+    var existing = directory.standardizedFileURL
+    var rest: [String] = []
+    while true {
+      if let path = realpath(existing.path, nil) {
+        defer { free(path) }
+        var url = URL(fileURLWithPath: String(cString: path), isDirectory: true)
+        for component in rest.reversed() { url.appendPathComponent(component, isDirectory: true) }
+        return url
+      }
+      guard existing.path != "/" else { return directory }
+      rest.append(existing.lastPathComponent)
+      existing.deleteLastPathComponent()
+    }
   }
 
   private static func metadata(_ url: URL) -> stat? {
@@ -128,6 +147,21 @@ public enum AppRuntimePaths {
     let parent = environment["KHULUMA_DEFAULT_MODEL_DIR"].flatMap { $0.isEmpty ? nil : URL(fileURLWithPath: $0, isDirectory: true) }
       ?? supportDirectory(environment: environment, home: home).appendingPathComponent("models", isDirectory: true)
     return parent.appendingPathComponent(sharedCache.lastPathComponent, isDirectory: true)
+  }
+
+  /// Folders an isolated run must never read or write: FluidAudio's shared
+  /// model cache, the CLI-era data folder and the daily app folder.
+  public static func realDataRoots(home: URL) -> [URL] {
+    [home.appendingPathComponent("Library/Application Support/FluidAudio"),
+     home.appendingPathComponent(".local/share"),
+     home.appendingPathComponent("Library/Application Support/Khuluma")].map(physicalDirectory)
+  }
+
+  /// `path` is in or under one of `realDataRoots` (resolved or as written).
+  public static func isRealData(_ path: String, home: URL) -> Bool {
+    let url = URL(fileURLWithPath: path, isDirectory: true)
+    let resolved = physicalDirectory(url), literal = url.standardizedFileURL
+    return realDataRoots(home: home).contains { contains($0, resolved) || contains($0, literal) }
   }
 
   public static var isolated: Bool { isIsolated(environment: ProcessInfo.processInfo.environment) }

@@ -22,6 +22,7 @@ public final class DaemonSupervisor: @unchecked Sendable {
     case launch, wake, settings, recheck
     case recordingStart = "recording start"
     case unreachable = "daemon unreachable"
+    case restarted = "daemon restarted"
   }
 
   /// The daemon and model to keep warm.

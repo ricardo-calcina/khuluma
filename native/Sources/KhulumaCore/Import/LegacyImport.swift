@@ -212,6 +212,14 @@ public enum LegacyImport {
           stage.skipped.append(Skipped(path: file.path, reason: "invalid history JSON (copied as-is)"))
         }
       }
+      // Anything else at the top level isn't history: listed, not copied
+      // (bench.tsv is dropped by the plan; app.log keeps per-take timings).
+      for name in try FileManager.default.contentsOfDirectory(atPath: history.path).sorted()
+      where !name.hasSuffix(".json") && name != "inline-debug" && !name.hasPrefix(".") {
+        stage.skipped.append(Skipped(
+          path: history.appendingPathComponent(name).path,
+          reason: name == "bench.tsv" ? "bench.tsv is dropped (app.log has per-take timings)" : "not a history entry (not copied)"))
+      }
       let debug = history.appendingPathComponent("inline-debug", isDirectory: true)
       if isDirectory(debug) {
         counts.debug_files = try copyTree(debug, rel: "history/inline-debug", stage: stage)

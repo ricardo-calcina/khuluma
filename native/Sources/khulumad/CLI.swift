@@ -32,10 +32,12 @@ enum KhulumaDaemonMain {
 
     switch command {
     case "serve":
-      let socketPath = try parseSocketPath(arguments)
+      let (socketPath, exitWithParent) = try parseServe(arguments)
       let server = UnixSocketServer(socketPath: socketPath, handler: TranscriptionService())
       let signalSources = installShutdownHandlers(server: server)
       defer { signalSources.forEach { $0.cancel() } }
+      let parentWatch = exitWithParent ? watchParent(server: server) : nil
+      defer { parentWatch?.cancel() }
       try await server.run()
     case "version", "--version":
       print("khulumad \(DaemonInfo.daemonVersion)")
@@ -62,12 +64,35 @@ enum KhulumaDaemonMain {
     }
   }
 
-  private static func parseSocketPath(_ arguments: [String]) throws -> String {
+  /// `--exit-with-parent` (the app passes it): stop when the process that
+  /// started us exits, so a crashed or killed app never leaves an orphan
+  /// holding the socket and the model. A kqueue NOTE_EXIT on the parent pid,
+  /// registered while it is alive; a parent already gone (ppid 1) means exit
+  /// now, which also covers it dying just before the watch was registered.
+  private static func watchParent(server: UnixSocketServer) -> DispatchSourceProcess? {
+    let parent = getppid()
+    let stop = {
+      fputs("khulumad: parent process exited; stopping\n", stderr)
+      server.stop(drainTimeout: 5)
+      exit(0)
+    }
+    guard parent > 1 else { stop(); return nil }
+    let source = DispatchSource.makeProcessSource(identifier: parent, eventMask: .exit, queue: .main)
+    source.setEventHandler { stop() }
+    source.resume()
+    if getppid() != parent { stop() }
+    return source
+  }
+
+  private static func parseServe(_ arguments: [String]) throws -> (socket: String, exitWithParent: Bool) {
     var iterator = arguments.makeIterator()
     var socketPath: String?
+    var exitWithParent = false
 
     while let argument = iterator.next() {
       switch argument {
+      case "--exit-with-parent":
+        exitWithParent = true
       case "--socket":
         socketPath = iterator.next()
       default:
@@ -78,7 +103,7 @@ enum KhulumaDaemonMain {
     guard let socketPath, !socketPath.isEmpty else {
       throw CLIError.usage("serve requires --socket <path>")
     }
-    return socketPath
+    return (socketPath, exitWithParent)
   }
 
   private static func printUsage() {
@@ -87,7 +112,7 @@ enum KhulumaDaemonMain {
       khulumad: persistent local transcription daemon for Khuluma.
 
       Usage:
-        khulumad serve --socket /path/to/khulumad.sock
+        khulumad serve --socket /path/to/khulumad.sock [--exit-with-parent]
         khulumad version
       """
     )

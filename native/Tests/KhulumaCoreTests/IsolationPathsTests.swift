@@ -6,7 +6,7 @@ import Testing
 /// model cache, shell files, sounds or $TMPDIR; ordinary runs are unchanged.
 struct IsolationPathsTests {
   let home = URL(fileURLWithPath: "/Users/x")
-  let shared = URL(fileURLWithPath: "/Users/x/Library/Application Support/FluidAudio/Models/parakeet-tdt-0.6b-v3-coreml")
+  let shared = URL(fileURLWithPath: "/Users/x/Library/Application Support/FluidAudio/Models/parakeet-tdt-0.6b-v3")
   let isolated = ["KHULUMA_SUPPORT_DIR": "/fixture/support", "KHULUMA_LOG_DIR": "/fixture/logs",
                   "KHULUMA_DEFAULTS_SUITE": "com.ricardo-nth.khuluma.test"]
 
@@ -16,15 +16,15 @@ struct IsolationPathsTests {
     #expect(AppRuntimePaths.defaultModelDirectory(
       environment: ["KHULUMA_DEFAULT_MODEL_DIR": "/elsewhere"], home: home, sharedCache: shared) == shared)
     #expect(AppRuntimePaths.defaultModelDirectory(environment: isolated, home: home, sharedCache: shared).path
-            == "/fixture/support/models/parakeet-tdt-0.6b-v3-coreml")
+            == "/fixture/support/models/parakeet-tdt-0.6b-v3")
     var overridden = isolated
     // The override is the parent models folder; FluidAudio's folder name goes under it.
     overridden["KHULUMA_DEFAULT_MODEL_DIR"] = "/fixture/models"
     #expect(AppRuntimePaths.defaultModelDirectory(environment: overridden, home: home, sharedCache: shared).path
-            == "/fixture/models/parakeet-tdt-0.6b-v3-coreml")
+            == "/fixture/models/parakeet-tdt-0.6b-v3")
     overridden["KHULUMA_DEFAULT_MODEL_DIR"] = ""
     #expect(AppRuntimePaths.defaultModelDirectory(environment: overridden, home: home, sharedCache: shared).path
-            == "/fixture/support/models/parakeet-tdt-0.6b-v3-coreml")
+            == "/fixture/support/models/parakeet-tdt-0.6b-v3")
   }
 
   @Test func soundsAndModelsStayInTheAppFolderWhenIsolated() {
@@ -56,7 +56,10 @@ struct IsolationPathsTests {
                          ("XDG_DATA_HOME", "/Users/x/.local/share"),
                          ("SOUNDS_DIR", "/Users/x/.local/share/sounds"),
                          ("KHULUMA_DEFAULT_MODEL_DIR", "/Users/x/Library/Application Support/Khuluma/models"),
-                         ("SOUNDS_DIR", "/Users/x/.local/share/../share/sounds")] {
+                         ("SOUNDS_DIR", "/Users/x/.local/share/../share/sounds"),
+                         // APFS is case-insensitive.
+                         ("KHULUMA_DEFAULT_MODEL_DIR", "/Users/x/library/application support/fluidaudio/Models"),
+                         ("XDG_DATA_HOME", "/Users/x/.LOCAL/Share")] {
       var env = isolated
       env[key] = value
       let issue = AppRuntimePaths.isolationIssue(environment: env, home: home)
@@ -79,5 +82,41 @@ struct IsolationPathsTests {
     explicit["KHULUMA_CONFIG_DIR"] = dest.appendingPathComponent("missing-cli").path
     #expect(LegacyImport.run(environment: explicit, home: home, destination: dest).outcome
             == .noSource(dest.appendingPathComponent("missing-cli").path))
+  }
+
+  /// Isolated runs: an imported model_path into real data is ignored.
+  @Test func isolatedRunsIgnoreAModelPathInRealData() {
+    let home = URL(fileURLWithPath: "/Users/x")
+    var env = SettingsEnvironment.current(environment: isolated, home: home, appFolder: URL(fileURLWithPath: "/fixture/support"))
+    env.defaultModelPath = "/fixture/support/models/parakeet-tdt-0.6b-v3"
+    env.modelAvailable = { _, _ in true }
+    var settings = AppSettings()
+    settings.transcription.modelPath = "/Users/x/Library/Application Support/FluidAudio/Models/parakeet-tdt-0.6b-v3"
+    #expect(env.isForbiddenModelPath(settings.transcription.modelPath))
+    #expect(settings.resolvedModel(in: env)?.path == "/fixture/support/models/parakeet-tdt-0.6b-v3")
+    settings.transcription.modelPath = "/fixture/own-model"
+    #expect(settings.resolvedModel(in: env)?.path == "/fixture/own-model")
+    // Not isolated: honoured as before.
+    var normal = SettingsEnvironment.current(environment: [:], home: home, appFolder: URL(fileURLWithPath: "/a"))
+    normal.modelAvailable = { _, _ in true }
+    settings.transcription.modelPath = "/Users/x/Library/Application Support/FluidAudio/Models/parakeet-tdt-0.6b-v3"
+    #expect(settings.resolvedModel(in: normal)?.path == settings.transcription.modelPath)
+  }
+
+  /// A symlink to real data with a child that doesn't exist yet still
+  /// resolves into real data (through its nearest existing ancestor).
+  @Test func aSymlinkToRealDataWithANewChildIsRefused() throws {
+    let base = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("khuluma-link-\(UUID().uuidString)")
+    defer { try? FileManager.default.removeItem(at: base) }
+    let home = base.appendingPathComponent("home")
+    let cache = home.appendingPathComponent("Library/Application Support/FluidAudio/Models")
+    try FileManager.default.createDirectory(at: cache, withIntermediateDirectories: true)
+    let link = base.appendingPathComponent("innocent")
+    try FileManager.default.createSymbolicLink(at: link, withDestinationURL: cache)
+    var env = isolated
+    env["KHULUMA_DEFAULT_MODEL_DIR"] = link.appendingPathComponent("new-child").path
+    #expect(AppRuntimePaths.isolationIssue(environment: env, home: home)?.contains("KHULUMA_DEFAULT_MODEL_DIR") == true)
+    #expect(AppRuntimePaths.isRealData(link.appendingPathComponent("a/b").path, home: home))
+    #expect(!AppRuntimePaths.isRealData(base.appendingPathComponent("elsewhere/x").path, home: home))
   }
 }

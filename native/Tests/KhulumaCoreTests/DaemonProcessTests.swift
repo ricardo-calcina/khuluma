@@ -147,7 +147,7 @@ struct DaemonProcessTests {
     let process = world.process(support: URL(fileURLWithPath: "/support"))
     #expect(process.ensureRunning() == .running)
     #expect(world.spawned.count == 1)
-    #expect(world.spawned[0].args == ["serve", "--socket", "/s.sock"])
+    #expect(world.spawned[0].args == ["serve", "--socket", "/s.sock", "--exit-with-parent"])
     #expect(world.spawned[0].log == "/logs/khulumad.log")
     #expect(world.heldLocks == ["/support/.daemon.lock"])
     // Running: no second spawn.
@@ -186,6 +186,46 @@ struct DaemonProcessTests {
     #expect(world.spawnCount == 0)
     process.stop()
     #expect(world.signals.isEmpty, "never signals a daemon we didn't spawn")
+  }
+
+  /// An orphan on our socket is used, polled, never signalled, and replaced
+  /// by ours (with a re-warm) once it goes away.
+  @Test func anAdoptedExternalDaemonIsWatchedAndReplaced() {
+    let world = ProcessWorld()
+    world.heldLocks = []
+    world.answers = true
+    let process = world.process(support: URL(fileURLWithPath: "/support"))
+    let restarts = Counter()
+    process.onRestart = { restarts.increment() }
+    #expect(process.ensureRunning() == .external)
+    #expect(process.ensureRunning() == .external)
+    #expect(world.runScheduled() == [DaemonProcess.externalCheckInterval], "one watch, not one per call")
+    #expect(world.spawnCount == 0)
+    // Still answering: keep watching.
+    #expect(world.runScheduled() == [DaemonProcess.externalCheckInterval])
+    // kill -9 on it: ours starts, and the supervisor is told to warm it.
+    world.answers = false
+    _ = world.runScheduled()
+    #expect(world.spawnCount == 1)
+    #expect(restarts.value == 1)
+    #expect(world.lines.contains { $0.contains("stopped answering") })
+    process.stop()
+    #expect(world.signals.map(\.0) == [world.spawned[0].pid], "only our own child is signalled")
+  }
+
+  @Test func aRestartAfterACrashAsksForARewarm() async throws {
+    let world = ProcessWorld()
+    world.heldLocks = []
+    let process = world.process(support: URL(fileURLWithPath: "/support"))
+    let restarts = Counter()
+    process.onRestart = { restarts.increment() }
+    #expect(process.ensureRunning() == .running)
+    #expect(restarts.value == 0, "the first start is warmed by the supervisor's own call")
+    world.crash(world.spawned[0].pid)
+    _ = world.runScheduled()
+    #expect(world.spawnCount == 2)
+    for _ in 0..<50 where restarts.value == 0 { try await Task.sleep(nanoseconds: 10_000_000) }
+    #expect(restarts.value == 1)
   }
 
   @Test func noHelperMeansUnavailableNeverTheCLI() {

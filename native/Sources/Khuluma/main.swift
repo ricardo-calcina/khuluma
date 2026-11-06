@@ -23,7 +23,16 @@ if UserDefaults.standard.bool(forKey: "KhulumaUIPreview") {
 } else {
   let controller = AppController()
   app.delegate = controller
+  // SIGTERM/SIGINT (kill, logout scripts, Ctrl-C in a dev run) quit like
+  // Quit: the normal drain runs, takes are saved and khulumad is stopped.
+  let quitSignals = [SIGTERM, SIGINT].map { number -> DispatchSourceSignal in
+    signal(number, SIG_IGN)
+    let source = DispatchSource.makeSignalSource(signal: number, queue: .main)
+    source.setEventHandler { MainActor.assumeIsolated { NSApp.terminate(nil) } }
+    source.resume()
+    return source
+  }
   // Menu-bar only (the bundle also sets LSUIElement).
   app.setActivationPolicy(.accessory)
-  withExtendedLifetime(controller) { app.run() }
+  withExtendedLifetime((controller, quitSignals)) { app.run() }
 }

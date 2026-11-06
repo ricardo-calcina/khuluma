@@ -40,16 +40,34 @@ public struct RecoveredTakes: Sendable {
       at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
     var safeId = String(takeId.unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) || $0 == "-" })
     if safeId.isEmpty { safeId = "take" }
-    for existing in all() where Self.takeId(of: existing) == safeId {
-      if (try? Data(contentsOf: existing)) == data {
-        try DurableFile.syncExisting(existing)
-        return existing
+    // This take (or a numbered variant of its id) already here with the same
+    // bytes: a repeat of an earlier handoff.
+    let ids = all().map { ($0, Self.takeId(of: $0)) }
+    func isVariant(_ id: String) -> Bool {
+      id == safeId || (id.hasPrefix(safeId + "-") && Int(id.dropFirst(safeId.count + 1)) != nil)
+    }
+    for (existing, id) in ids where isVariant(id) && (try? Data(contentsOf: existing)) == data {
+      try DurableFile.syncExisting(existing)
+      return existing
+    }
+    // Different bytes under the same id are a different take: a distinct id
+    // (`<id>-2`, ...), so recording one never settles the other. Published
+    // with an exclusive rename, so two adoptions never overwrite each other.
+    let taken = Set(ids.map(\.1))
+    let stamp = String(format: "%013lld", Int64(date.timeIntervalSince1970 * 1000))
+    var n = 1
+    while true {
+      let id = n == 1 ? safeId : "\(safeId)-\(n)"
+      n += 1
+      guard !taken.contains(id) else { continue }
+      let url = directory.appendingPathComponent("\(stamp)-\(id).wav")
+      do {
+        try DurableFile.write(data, to: url, exclusive: true)
+        return url
+      } catch let error as NSError where error.domain == NSPOSIXErrorDomain && error.code == Int(EEXIST) {
+        continue
       }
     }
-    let name = String(format: "%013lld", Int64(date.timeIntervalSince1970 * 1000)) + "-\(safeId).wav"
-    let url = directory.appendingPathComponent(name)
-    try DurableFile.write(data, to: url)
-    return url
   }
 
   /// Saved takes, oldest first.
@@ -113,7 +131,14 @@ enum DurableFile {
     }
   }
 
-  static func write(_ data: Data, to url: URL) throws {
+  static func write(_ data: Data, to url: URL, exclusive: Bool = false) throws {
+    let temp = try stage(data, for: url)
+    try publish(temp, to: url, exclusive: exclusive)
+  }
+
+  /// Writes `data` to a hidden temp file beside `url` (".<name>.<rand>.tmp",
+  /// which no listing picks up), fsynced. Returns the temp file.
+  static func stage(_ data: Data, for url: URL) throws -> URL {
     let directory = url.deletingLastPathComponent()
     let temp = directory.appendingPathComponent(".\(url.lastPathComponent).\(UUID().uuidString.prefix(8)).tmp")
     func failure(_ path: String, _ code: Int32) -> Error {
@@ -148,7 +173,23 @@ enum DurableFile {
       unlink(temp.path)
       throw failure(temp.path, code)
     }
-    if rename(temp.path, url.path) != 0 {
+    return temp
+  }
+
+  /// Renames a staged temp file into place (never over an existing file when
+  /// `exclusive`: EEXIST instead), then fsyncs the folder. The temp file is
+  /// removed on failure.
+  static func publish(_ temp: URL, to url: URL, exclusive: Bool) throws {
+    let directory = url.deletingLastPathComponent()
+    func failure(_ path: String, _ code: Int32) -> Error {
+      NSError(domain: NSPOSIXErrorDomain, code: Int(code), userInfo: [NSFilePathErrorKey: path])
+    }
+    func sync(_ fd: Int32) -> Int32? {
+      while fsync(fd) != 0 { if errno != EINTR { return errno } }
+      return nil
+    }
+    let renamed = exclusive ? renamex_np(temp.path, url.path, UInt32(RENAME_EXCL)) : rename(temp.path, url.path)
+    if renamed != 0 {
       let e = errno
       unlink(temp.path)
       throw failure(url.path, e)

@@ -73,7 +73,7 @@ public struct TimedOutTakes: Sendable {
   /// `old`. Broken or orphaned takes come across as they are; `all()` hands
   /// them to recovered/. Returns how many takes moved.
   @discardableResult
-  public func adoptLegacy(from old: URL) -> Int {
+  public func adoptLegacy(from old: URL, now: Date = Date()) -> Int {
     Self.lock.withLock {
       guard old.standardizedFileURL != directory.standardizedFileURL,
             let names = try? FileManager.default.contentsOfDirectory(atPath: old.path) else { return 0 }
@@ -88,7 +88,15 @@ public struct TimedOutTakes: Sendable {
       } catch { return 0 }
       var moved = 0
       for stem in units.keys.sorted() {
-        let files = units[stem]!.sorted { ($0.hasSuffix(".wav") ? 0 : 1) < ($1.hasSuffix(".wav") ? 0 : 1) }
+        let files = units[stem]!
+        let hasSidecar = files.contains { $0.hasSuffix(".json") }
+        // An older build may still be writing it: a take (or lone sidecar)
+        // must be quiet for 2 minutes, audio with no sidecar for 10.
+        let quiet = hasSidecar ? Self.legacyPairQuiet : Self.legacyOrphanQuiet
+        let newest = files.compactMap {
+          (try? FileManager.default.attributesOfItem(atPath: old.appendingPathComponent($0).path))?[.modificationDate] as? Date
+        }.max() ?? now
+        guard now.timeIntervalSince(newest) >= quiet else { continue }
         var contents: [(name: String, data: Data)] = []
         for name in files {
           guard let data = try? Data(contentsOf: old.appendingPathComponent(name)) else { break }
@@ -98,20 +106,72 @@ public struct TimedOutTakes: Sendable {
           Self.report("timed-out: left \(stem) in \(old.path): a file couldn't be read")
           continue
         }
-        do {
-          for file in contents { try DurableFile.ensure(file.data, at: directory.appendingPathComponent(file.name)) }
-        } catch {
-          Self.report("timed-out: left \(stem) in \(old.path): \(error.localizedDescription)")
-          continue
+        // Stage every file under a hidden temp name (ignored by `all()`),
+        // then publish the sidecar before the audio: a failure in between
+        // never leaves visible audio without its sidecar.
+        var staged: [(temp: URL, target: URL)] = []
+        var ok = true
+        for file in contents.sorted(by: { $0.name.hasSuffix(".json") && !$1.name.hasSuffix(".json") }) {
+          let target = directory.appendingPathComponent(file.name)
+          if FileManager.default.fileExists(atPath: target.path) {
+            if (try? Data(contentsOf: target)) == file.data, (try? DurableFile.syncExisting(target)) != nil { continue }
+            Self.report("timed-out: left \(stem) in \(old.path): \(file.name) already exists with different contents")
+            ok = false
+            break
+          }
+          do { staged.append((try DurableFile.stage(file.data, for: target), target)) } catch {
+            Self.report("timed-out: left \(stem) in \(old.path): \(error.localizedDescription)")
+            ok = false
+            break
+          }
         }
-        for name in files { try? FileManager.default.removeItem(at: old.appendingPathComponent(name)) }
-        moved += 1
+        if ok {
+          for (index, item) in staged.enumerated() {
+            do { try DurableFile.publish(item.temp, to: item.target, exclusive: true) } catch {
+              Self.report("timed-out: left \(stem) in \(old.path): \(error.localizedDescription)")
+              for rest in staged.dropFirst(index + 1) { unlink(rest.temp.path) }
+              ok = false
+              break
+            }
+          }
+        } else {
+          for item in staged { unlink(item.temp.path) }
+        }
+        guard ok else { continue }
+        let wav = files.first { $0.hasSuffix(".wav") }.map { old.appendingPathComponent($0) }
+        let sidecar = files.first { $0.hasSuffix(".json") }.map { old.appendingPathComponent($0) }
+        if Self.removeTake(wav: wav, sidecar: sidecar) { moved += 1 }
       }
       if (try? FileManager.default.contentsOfDirectory(atPath: old.path))?.isEmpty == true {
         try? FileManager.default.removeItem(at: old)
       }
       return moved
     }
+  }
+
+  /// A legacy take with a sidecar must be unchanged this long before it moves.
+  public static let legacyPairQuiet: TimeInterval = 120
+  /// Legacy audio with no sidecar must be unchanged this long.
+  public static let legacyOrphanQuiet: TimeInterval = 600
+
+  /// Removes a take's files: the audio first, and the sidecar only once the
+  /// audio is gone (a surviving WAV without its sidecar would turn into an
+  /// orphan with a new id). Failures are reported. True when both are gone.
+  @discardableResult
+  static func removeTake(wav: URL?, sidecar: URL?) -> Bool {
+    if let wav, FileManager.default.fileExists(atPath: wav.path) {
+      do { try FileManager.default.removeItem(at: wav) } catch {
+        report("timed-out: couldn't remove \(wav.lastPathComponent): \(error.localizedDescription); kept its sidecar")
+        return false
+      }
+    }
+    if let sidecar, FileManager.default.fileExists(atPath: sidecar.path) {
+      do { try FileManager.default.removeItem(at: sidecar) } catch {
+        report("timed-out: couldn't remove \(sidecar.lastPathComponent): \(error.localizedDescription)")
+        return false
+      }
+    }
+    return true
   }
 
   /// A stable recovered/ id for audio whose sidecar is missing or broken,
@@ -200,13 +260,9 @@ public struct TimedOutTakes: Sendable {
   /// the files here are gone.
   @discardableResult
   private func handOff(wav: URL, sidecar: URL?, takeId: String, now: Date) -> Bool {
-    let removeHere = {
-      try? FileManager.default.removeItem(at: wav)
-      if let sidecar { try? FileManager.default.removeItem(at: sidecar) }
-    }
+    let removeHere = { Self.removeTake(wav: wav, sidecar: sidecar) }
     if let size = (try? FileManager.default.attributesOfItem(atPath: wav.path))?[.size] as? Int, size <= 44 {
-      removeHere()
-      return true
+      return removeHere()
     }
     guard let data = try? Data(contentsOf: wav), data.count > 44 else {
       Self.report("timed-out: couldn't read \(wav.lastPathComponent); left in place")
@@ -217,8 +273,7 @@ public struct TimedOutTakes: Sendable {
     } catch {
       return false
     }
-    removeHere()
-    return true
+    return removeHere()
   }
 
   public func remove(_ entry: Entry) {
@@ -226,8 +281,7 @@ public struct TimedOutTakes: Sendable {
   }
 
   private func removeLocked(_ entry: Entry) {
-    try? FileManager.default.removeItem(at: entry.wav)
-    try? FileManager.default.removeItem(at: entry.wav.deletingPathExtension().appendingPathExtension("json"))
+    Self.removeTake(wav: entry.wav, sidecar: entry.wav.deletingPathExtension().appendingPathExtension("json"))
   }
 
   private func entry(for info: Info) -> Entry {

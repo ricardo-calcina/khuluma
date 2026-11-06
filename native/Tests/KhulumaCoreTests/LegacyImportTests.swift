@@ -87,6 +87,21 @@ import Testing
     #expect(LegacyImport.source(environment: ["KHULUMA_CONFIG_DIR": ""], home: home).usage.path == "/h/.config/khuluma/usage.json")
   }
 
+  @Test func nonJSONHistoryFilesAreListedNotCopied() throws {
+    let f = try Fixture(); defer { f.cleanup() }
+    try f.populate()
+    try Data("ts\tms\n".utf8).write(to: f.root.appendingPathComponent("history/bench.tsv"))
+    try Data("x".utf8).write(to: f.root.appendingPathComponent("history/notes.txt"))
+    let r = try receipt(f.run())
+    #expect(r.skipped.contains(LegacyImport.Skipped(path: f.root.appendingPathComponent("history/bench.tsv").path,
+                                                   reason: "bench.tsv is dropped (app.log has per-take timings)")))
+    #expect(r.skipped.contains(LegacyImport.Skipped(path: f.root.appendingPathComponent("history/notes.txt").path,
+                                                   reason: "not a history entry (not copied)")))
+    #expect(!FileManager.default.fileExists(atPath: f.dest.appendingPathComponent("history/bench.tsv").path))
+    #expect(!FileManager.default.fileExists(atPath: f.dest.appendingPathComponent("history/notes.txt").path))
+    #expect(r.counts.history == 3)
+  }
+
   @Test func fullImportCopiesEverythingAndPreservesMtimes() throws {
     let f = try Fixture(); defer { f.cleanup() }
     try f.populate()
