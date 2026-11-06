@@ -367,11 +367,45 @@ struct SpeechPaceRobustnessTests {
     #expect(result.speechMs == 1500)
   }
 
-  @Test func mergedTailWithoutSpansKeepsInlineSpeech() throws {
+  @Test func mergedTailWithoutSpansIsUnknown() throws {
     let samples = [Float](repeating: 0, count: 16_000 * 13)
     let result = try NativeTranscriber(settings: settings).transcribeTimed(samples: samples, passes: { _, flow in
       flow == "inline" ? NativeTranscriber.Pass(text: "one two", wordSpansMs: [[0, 1000]])
         : NativeTranscriber.Pass(text: "two three")
+    })
+    #expect(result.speechMs == nil)
+  }
+
+  @Test func absurdSpansNeverTrap() throws {
+    let samples = [Float](repeating: 0, count: 16_000 * 13)
+    // Absurd tail spans are dropped; with none left the merged tail is untimed.
+    let tailBad = try NativeTranscriber(settings: settings).transcribeTimed(samples: samples, passes: { _, flow in
+      flow == "inline" ? NativeTranscriber.Pass(text: "one two", wordSpansMs: [[0, 1000]])
+        : NativeTranscriber.Pass(text: "two three", wordSpansMs: [[Int.max, Int.max], [-1, 5], [9, 3]])
+    })
+    #expect(tailBad.speechMs == nil)
+    // Absurd inline spans are dropped; the valid one still counts (short take, no tail).
+    let inline = try NativeTranscriber(settings: settings).transcribeTimed(samples: [0.1], passes: { _, _ in
+      NativeTranscriber.Pass(text: "x", wordSpansMs: [[Int.max, Int.max], [0, 400], [0, 10_000_000]])
+    })
+    #expect(inline.speechMs == 400)
+    #expect(NativeTranscriber.offset([[Int.max - 1, Int.max]], by: 5) == nil)
+  }
+
+  @Test func noInlineTimingsIsUnknownEvenWithTailTimings() throws {
+    let samples = [Float](repeating: 0, count: 16_000 * 13)
+    let result = try NativeTranscriber(settings: settings).transcribeTimed(samples: samples, passes: { _, flow in
+      flow == "inline" ? NativeTranscriber.Pass(text: "one two")
+        : NativeTranscriber.Pass(text: "two three", wordSpansMs: [[0, 500]])
+    })
+    #expect(result.speechMs == nil)
+  }
+
+  @Test func blankTailKeepsInlineSpeech() throws {
+    let samples = [Float](repeating: 0, count: 16_000 * 13)
+    let result = try NativeTranscriber(settings: settings).transcribeTimed(samples: samples, passes: { _, flow in
+      flow == "inline" ? NativeTranscriber.Pass(text: "one two", wordSpansMs: [[0, 1000]])
+        : NativeTranscriber.Pass(text: "  ")
     })
     #expect(result.speechMs == 1000)
   }

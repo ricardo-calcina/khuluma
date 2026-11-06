@@ -126,7 +126,10 @@ public struct NativeTranscriber: Sendable {
     } catch {
       throw Failure(underlying: error, keptWAV: kept)
     }
-    var speechMs = inlineSpans.flatMap { SpeechTime.speechMs(spans: $0) }
+    let paddedMs = padded.count * 1000 / AudioPrep.sampleRate
+    let inlineValid = inlineSpans.flatMap { Self.spans($0, withinMs: paddedMs) }
+    // No inline timings: coverage is partial at best, so unknown.
+    var speechMs = inlineValid.flatMap { SpeechTime.speechMs(spans: $0) }
     guard let window = AudioPrep.tailRescueWindowMs(paddedSampleCount: padded.count, settings: settings) else {
       return Result(transcript: full, captureSamples: pcm.count, paddedSamples: padded.count,
                     tailRescueMs: nil, tailRescueFailed: false, keptWAV: kept, timings: timings, speechMs: speechMs)
@@ -156,13 +159,45 @@ public struct NativeTranscriber: Sendable {
     // Rescued words count, so their time does too: the tail's spans, moved
     // to where the tail window starts in the padded audio, joined with the
     // inline ones (overlaps merge).
-    if merged, let tailSpans {
-      let offsetMs = (padded.count - AudioPrep.tail(padded, windowMs: window).count) * 1000 / AudioPrep.sampleRate
-      let moved = tailSpans.compactMap { $0.count == 2 ? [$0[0] + offsetMs, $0[1] + offsetMs] : nil }
-      speechMs = SpeechTime.speechMs(spans: (inlineSpans ?? []) + moved) ?? speechMs
+    // A merged tail without usable timings leaves its words untimed: unknown.
+    if merged {
+      let tailCount = AudioPrep.tail(padded, windowMs: window).count
+      let offsetMs = (padded.count - tailCount) * 1000 / AudioPrep.sampleRate
+      let moved = tailSpans
+        .flatMap { Self.spans($0, withinMs: tailCount * 1000 / AudioPrep.sampleRate) }
+        .flatMap { Self.offset($0, by: offsetMs) }
+      if let inlineValid, let moved {
+        speechMs = SpeechTime.speechMs(spans: inlineValid + moved)
+      } else {
+        speechMs = nil
+      }
     }
     return Result(transcript: transcript, captureSamples: pcm.count, paddedSamples: padded.count,
                   tailRescueMs: window, tailRescueFailed: false, keptWAV: kept, timings: timings, speechMs: speechMs)
+  }
+
+  /// Allowance past a pass's audio for rounding in the model's timings.
+  static let spanMarginMs = 1000
+
+  /// The spans that lie inside a pass's own audio (`[start, end]`, start ≥ 0,
+  /// end ≥ start, end ≤ length + margin); nil when none do.
+  static func spans(_ spans: [[Int]], withinMs lengthMs: Int) -> [[Int]]? {
+    let (limit, overflow) = lengthMs.addingReportingOverflow(spanMarginMs)
+    guard !overflow else { return nil }
+    let valid = spans.filter { $0.count == 2 && $0[0] >= 0 && $0[1] >= $0[0] && $0[1] <= limit }
+    return valid.isEmpty ? nil : valid
+  }
+
+  /// Spans moved by `offsetMs`, or nil if any would overflow.
+  static func offset(_ spans: [[Int]], by offsetMs: Int) -> [[Int]]? {
+    var moved: [[Int]] = []
+    for span in spans {
+      let (start, o1) = span[0].addingReportingOverflow(offsetMs)
+      let (end, o2) = span[1].addingReportingOverflow(offsetMs)
+      if o1 || o2 { return nil }
+      moved.append([start, end])
+    }
+    return moved
   }
 
   static func nowMs() -> Double {
