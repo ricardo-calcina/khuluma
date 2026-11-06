@@ -98,7 +98,7 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 
 ## Done
 
-- 2026-11-06 · Light mode is white (warm-neutral tracks, re-tuned ember ramp), title bar tabs centred with hover, custom Words per day switch and range control, no ≈ on Time saved; dark unchanged; Codex review; installed as build 464 (rollback ~/Applications/.khuluma-app.glUePo/previous.app = 458) · 6e0559b, DESIGN.md Colors
+- 2026-11-06 · Light mode is white (warm-neutral tracks, re-tuned ember ramp), title bar tabs centred with hover, custom Words per day switch and range control, no ≈ on Time saved; dark unchanged; Codex review; installed as build 464, now the stable version (old rollbacks binned at Ricardo's request) · 6e0559b, DESIGN.md Colors
 - 2026-11-06 · Moved ~2.6 GB of old /private/tmp Khuluma build and preview folders to the Bin (Ricardo's yes) · LOG Next
 - 2026-11-06 · Affected-only checks: tools/test-affected.sh picks builds, suites and the isolated UI snapshot from the changed files (fail safe, two Codex reviews); CONTRIBUTING and AGENTS make it the default · tools/test_affected.py
 - 2026-11-06 · WPM measures speaking time (pauses over 1 s left out, via Parakeet/Scribe word timings; time saved too); real takes 185 → 194 WPM; two Codex reviews; installed as build 458 · db4a4aa, CHANGELOG Unreleased
