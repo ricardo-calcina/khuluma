@@ -30,5 +30,6 @@ python3 tests/test_vocabulary.py
 python3 tests/test_finder_transaction.py
 python3 tests/test_app_build_helpers.py
 python3 tests/test_audio_cleanup.py
+python3 tests/test_test_affected.py
 
 echo "All CI checks passed."

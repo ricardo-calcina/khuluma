@@ -4,7 +4,7 @@ Read `README.md` for operation and `LOG.md` for current work, priorities and dec
 
 Khuluma is the daily required app. Documentation work must preserve source `.build/`, model files and caches, the installed daemon tree under `~/.local/share/khuluma/native/`, and `~/Applications/Khuluma.app`. Do not install, build, warm, restart or release anything to validate prose. Source inspection does not establish installed-version or live health.
 
-For implementation, make the smallest complete change and verify the affected behavior. Pure app logic belongs in `KhulumaCore`; contract changes must keep the matching CLI and app compatible. Use `CONTRIBUTING.md` for applicable validation and the release checklist only when preparing an authorized release. Installation and publication are separate actions, not steps required after every task.
+For implementation, make the smallest complete change and verify the affected behavior. Check with `tools/test-affected.sh` (in this shared checkout, `--paths <your files>`), not the whole suite; CI runs the full Swift suite on push. Work in the main checkout and its shared `native/.build`, not a worktree (CONTRIBUTING.md, "Validation Requirements"). Pure app logic belongs in `KhulumaCore`; contract changes must keep the matching CLI and app compatible. Use `CONTRIBUTING.md` for applicable validation and the release checklist only when preparing an authorized release. Installation and publication are separate actions, not steps required after every task.
 
 Keep defaults portable. Config/history remain under `~/.config/khuluma`, sounds under `~/.local/share/sounds/khuluma`, and models under `~/.local/share/khuluma/models`. Do not commit personal config, transcripts or secrets.
 

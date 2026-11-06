@@ -100,6 +100,7 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 
 ## Done
 
+- 2026-11-06 · Affected-only checks: tools/test-affected.sh picks builds, suites and the isolated UI snapshot from the changed files (fail safe, two Codex reviews); CONTRIBUTING and AGENTS make it the default · tools/test_affected.py
 - 2026-11-06 · WPM measures speaking time (pauses over 1 s left out, via Parakeet/Scribe word timings; time saved too); real takes 185 → 194 WPM; two Codex reviews; installed as build 458 · db4a4aa, CHANGELOG Unreleased
 - 2026-11-06 · App independence merged and installed as build 449: own data folder + one-time import, bundled daemon and model download, Scribe, khuluma transcribe/Quick Action in the app, no CLI calls · docs/plans/APP_INDEPENDENCE.md, CHANGELOG Unreleased
 - 2026-11-06 · App independence: Scribe, khuluma transcribe/Quick Action and no CLI calls (slices E-G); three isolated acceptance runs (import matches his data, own daemon, model download, recovery, quit) · wip/app-independence a79c4fa

@@ -34,14 +34,36 @@ Keep current tasks, priorities and decisions in `LOG.md`; completed public relea
 
 ## Validation Requirements
 
-Choose validation for the behavior changed; these are the available CLI and Swift checks:
+Run the checks your change affects, not the whole suite. Do that with `tools/test-affected.sh`, the default for every agent and contributor:
 
 ```bash
-./tests/ci.sh
-cd native && swift test
+tools/test-affected.sh --plan                     # what it would run, and why
+tools/test-affected.sh                            # run it: commits not on origin/main + working tree
+tools/test-affected.sh --paths <your files...>    # only these paths (use this in a shared checkout)
+tools/test-affected.sh --base <ref>               # diff against another ref
 ```
 
-If `swift test` reports "TestingMacros not found", run `swift build --build-tests` until it says "Build complete", then `swift test --skip-build`.
+It prints each changed file, what it chose for it and why, then each step's time. What runs for what:
+
+| Change | Checks |
+|---|---|
+| Docs (`*.md`, `docs/`, `LICENSE`) | nothing |
+| App UI (`native/Sources/Khuluma/**`) | debug build of the app, then the UI snapshot render into `native/.build/khuluma-snapshots` (no unit tests: no test target imports the app) |
+| `KhulumaCore` | the test suites that use the changed types, found from source: declared names, every Core file that uses them, the tests that use any of those. Nothing found means all of `KhulumaCoreTests`. `KhulumaCore/Stats` changes also get the snapshot render |
+| `KhulumaDaemonKit`, `khulumad` | `KhulumaDaemonKitTests`, the Core tests that use the daemon (including the bundled-daemon integration test) |
+| `khuluma-cli` | its build and the file-transcription tests |
+| Test files | the suites in them; a shared helper runs the tests that use it |
+| Cleanup inputs (`bin/`, `config/`, `tests/fixtures/`, the fixture generators) | `tests/gen-cleanup-fixtures.sh --check`, the parity and settings suites; `./tests/ci.sh` for `bin/` |
+| `tests/*.sh`, `tests/*.py`, `tools/` | that test file, or a syntax check and its own tests |
+| `Package.swift`, `Package.resolved`, anything it can't place | the full suite |
+
+It fails safe: anything it can't place widens the set, never empties it. `OVERRIDES` at the top of `tools/test_affected.py` holds the links it can't derive (for example a test that reads repo files by path). Add one there when you find another. Swift steps build into the shared `native/.build` with half the cores, at low priority (`nice`, `taskpolicy -c utility`) and a 20-minute hard timeout that stops the whole process group, so the Mac stays usable. The snapshot render runs the just-built app with private support, log and defaults overrides under `native/.build`, so it never touches the daily app's data; the previous render moves to `native/.build/khuluma-snapshots.prev` for comparison. `--snapshot` adds the render to any run, `--no-snapshot` skips it and `--jobs N` (or `KHULUMA_JOBS`) sets the parallelism.
+
+**The full suite** is CI's job: `.github/workflows/swift.yml` runs it on every push to `main`. Run it locally (`tools/test-affected.sh --full`) only for `Package.swift` or cross-cutting changes, or before an install when CI isn't available. Compiling is most of the cost: the whole Swift test run takes about 10 s, while `swift build --build-tests` takes a minute or more. So the big saving comes from UI and docs changes, which skip building the tests.
+
+**One checkout, one `.build`.** Work in the main checkout and share `native/.build` (~1.4 GB); SwiftPM waits if another session is building. A git worktree needs its own `.build`, so use one only when two sessions must edit the same files (`LOG.md` Decisions).
+
+Running Swift by hand: build first with `swift build --build-tests`, then `swift test --skip-build`, which avoids "TestingMacros not found". With the Command Line Tools toolchain, add `-Xswiftc -plugin-path -Xswiftc /Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing` to both.
 
 **Cleanup changes** must keep the bash and Swift pipelines in step. Regenerate the fixtures with `tests/gen-cleanup-fixtures.sh`, and check that `CleanupParityTests` passes.
 
