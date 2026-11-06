@@ -14,7 +14,8 @@ KEYCHAIN="${KHULUMA_KEYCHAIN:-$HOME/Library/Keychains/login.keychain-db}"
 OUT="$HOME/Applications/Khuluma.app"
 INSTALL=1
 EXPLICIT_OUT=0
-usage() { echo "usage: $0 [--out PATH.app] [--no-install] [--identity NAME]" >&2; }
+ALLOW_DIRTY=0
+usage() { echo "usage: $0 [--out PATH.app] [--no-install] [--identity NAME] [--allow-dirty]" >&2; }
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --out|--identity)
@@ -22,6 +23,7 @@ while [[ $# -gt 0 ]]; do
       [[ $# -gt 0 && -n "$1" ]] || { usage; exit 2; }
       if [[ "$option" == --out ]]; then OUT="$1"; EXPLICIT_OUT=1; else IDENTITY="$1"; fi ;;
     --no-install) INSTALL=0 ;;
+    --allow-dirty) ALLOW_DIRTY=1 ;;
     -h|--help) usage; exit 0 ;;
     *) usage; exit 2 ;;
   esac
@@ -161,22 +163,50 @@ if [[ -e "$OUT" ]]; then
   verify_existing_bundle "$OUT" || { echo "Refusing unrelated or unverifiable bundle: $OUT" >&2; exit 2; }
   initial_output_token="$(path_token "$OUT")"
 fi
-version="$(sed -n 's/^KHULUMA_CLI_VERSION="\(.*\)"$/\1/p' "$ROOT/bin/khuluma")"
-[[ -n "$version" ]] || { echo "Could not read canonical CLI version" >&2; exit 2; }
-build_number="$(git -C "$ROOT" rev-list --count HEAD 2>/dev/null || echo 1)"
+# Everything in the bundle comes from one snapshot of the source, so a commit
+# landing mid-build can't mix SHAs. A clean tree builds `git archive` of HEAD;
+# a dirty one is refused unless --allow-dirty, which copies the working tree
+# once. The commit (plus -dirty) is stamped as KhulumaGitCommit.
+commit="$(git -C "$ROOT" rev-parse HEAD 2>/dev/null)" || { echo "Not a git checkout: $ROOT" >&2; exit 2; }
+dirty=0
+[[ -z "$(git -C "$ROOT" status --porcelain --untracked-files=normal 2>/dev/null)" ]] || dirty=1
+if [[ "$dirty" == 1 && "$ALLOW_DIRTY" != 1 ]]; then
+  echo "Working tree has uncommitted changes; commit them or pass --allow-dirty" >&2
+  exit 2
+fi
+git_commit="$commit"
+[[ "$dirty" == 1 ]] && git_commit="$commit-dirty"
 stage_root="$(mktemp -d "${KHULUMA_TMPDIR:-${TMPDIR:-/tmp}}/khuluma-app-build.XXXXXX")"
 chmod 700 "$stage_root"
 echo "Build workspace: $stage_root"
+SRC="$stage_root/source"
+mkdir -p "$SRC"
+if [[ "$dirty" == 1 ]]; then
+  # Tracked and untracked (not ignored) files as they are now.
+  (cd "$ROOT" && git ls-files -z --cached --others --exclude-standard -- bin native assets \
+    | while IFS= read -r -d '' file; do [[ -e "$file" ]] && printf '%s\0' "$file"; done \
+    | rsync -a --from0 --files-from=- ./ "$SRC/")
+else
+  git -C "$ROOT" archive "$commit" bin native assets | tar -x -C "$SRC"
+fi
+PKG="$SRC/native"
+for var in APP_ICON APP_CATALOG MENU_ICON RECORDING_ICON FINISHING_ICON EMBLEM_RECORDING_ICON \
+  EMBLEM_FINISHING_ICON EMBLEM_FRAME_ICON EMBLEM_ROTOR_ICON; do
+  printf -v "$var" '%s' "$SRC${!var#"$ROOT"}"
+  [[ -s "${!var}" ]] || { echo "Required icon resource missing from the snapshot: ${!var}" >&2; exit 2; }
+done
+version="$(sed -n 's/^KHULUMA_CLI_VERSION="\(.*\)"$/\1/p' "$SRC/bin/khuluma")"
+[[ -n "$version" ]] || { echo "Could not read canonical CLI version" >&2; exit 2; }
+build_number="$(git -C "$ROOT" rev-list --count "$commit" 2>/dev/null || echo 1)"
 stage="$stage_root/Khuluma.app"
-echo "Building Khuluma $version ($build_number)…"
+echo "Building Khuluma $version ($build_number, $git_commit)…"
 # An isolated scratch path prevents a preview from changing the source build
 # cache or using an unrelated cached binary. The workspace remains inspectable.
-swift build --package-path "$PKG" --scratch-path "$stage_root/swift-build" --jobs 1 -c release --product Khuluma
-# The app runs its own transcription daemon from Contents/Helpers (slice D).
-swift build --package-path "$PKG" --scratch-path "$stage_root/swift-build" --jobs 1 -c release --product khulumad
-# `khuluma transcribe` ships as Contents/Helpers/khuluma (slice F). The
-# product is khuluma-cli: `khuluma` collides with `Khuluma` on this disk.
-swift build --package-path "$PKG" --scratch-path "$stage_root/swift-build" --jobs 1 -c release --product khuluma-cli
+# One invocation builds every product from the snapshot: the app, its daemon
+# (Contents/Helpers/khulumad, slice D) and `khuluma transcribe`
+# (Contents/Helpers/khuluma, slice F; the product is khuluma-cli because
+# `khuluma` collides with `Khuluma` on this disk).
+swift build --package-path "$PKG" --scratch-path "$stage_root/swift-build" --jobs 1 -c release
 binary="$stage_root/swift-build/release/Khuluma"
 daemon_binary="$stage_root/swift-build/release/khulumad"
 helper_binary="$stage_root/swift-build/release/khuluma-cli"
@@ -198,12 +228,12 @@ cp "$EMBLEM_FRAME_ICON" "$stage/Contents/Resources/KhulumaEmblemFrameTemplate.pd
 cp "$EMBLEM_ROTOR_ICON" "$stage/Contents/Resources/KhulumaEmblemRotorTemplate.pdf"
 # Default sounds ship in the app (Resources/sounds/<event>.wav).
 mkdir -p "$stage/Contents/Resources/sounds"
-cp "$ROOT"/assets/sounds/khuluma/*.wav "$stage/Contents/Resources/sounds/"
-python3 - "$stage/Contents/Info.plist" "$BUNDLE_ID" "$version" "$build_number" <<'PY'
+cp "$SRC"/assets/sounds/khuluma/*.wav "$stage/Contents/Resources/sounds/"
+python3 - "$stage/Contents/Info.plist" "$BUNDLE_ID" "$version" "$build_number" "$git_commit" <<'PY'
 import plistlib, sys
-path, identifier, version, build = sys.argv[1:]
+path, identifier, version, build, commit = sys.argv[1:]
 with open(path, "wb") as handle:
-    plistlib.dump({"CFBundleIdentifier": identifier, "CFBundleName": "Khuluma", "CFBundleDisplayName": "Khuluma", "CFBundleExecutable": "Khuluma", "CFBundleIconFile": "Khuluma.icns", "CFBundleIconName": "AppIcon", "CFBundlePackageType": "APPL", "CFBundleShortVersionString": version, "CFBundleVersion": build, "CFBundleInfoDictionaryVersion": "6.0", "LSMinimumSystemVersion": "14.0", "LSUIElement": True, "NSHighResolutionCapable": True, "NSMicrophoneUsageDescription": "Khuluma records your voice while dictation is active. Parakeet transcribes on this Mac; audio is sent to ElevenLabs only when you choose Scribe.",
+    plistlib.dump({"CFBundleIdentifier": identifier, "CFBundleName": "Khuluma", "CFBundleDisplayName": "Khuluma", "CFBundleExecutable": "Khuluma", "CFBundleIconFile": "Khuluma.icns", "CFBundleIconName": "AppIcon", "CFBundlePackageType": "APPL", "CFBundleShortVersionString": version, "CFBundleVersion": build, "KhulumaGitCommit": commit, "CFBundleInfoDictionaryVersion": "6.0", "LSMinimumSystemVersion": "14.0", "LSUIElement": True, "NSHighResolutionCapable": True, "NSMicrophoneUsageDescription": "Khuluma records your voice while dictation is active. Parakeet transcribes on this Mac; audio is sent to ElevenLabs only when you choose Scribe.",
         # Finder's "Transcribe with Khuluma" Quick Action, served by the
         # running app (QuickActionService); macOS launches it if needed.
         "NSServices": [{
