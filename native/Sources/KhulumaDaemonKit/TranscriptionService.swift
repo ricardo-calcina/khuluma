@@ -70,7 +70,8 @@ public actor TranscriptionService: DaemonRequestHandling {
           ok: true,
           text: result.text,
           model: result.model,
-          durationMs: result.durationMs
+          durationMs: result.durationMs,
+          wordSpansMs: result.wordSpansMs
         )
       }
     } catch let error as DaemonServiceError {

@@ -44,7 +44,7 @@ public enum UsageReportBuilder {
   static func build(stored: [String: Any]?, today: CivilDate, typingWPM requested: Int) throws -> UsageReport {
     let wpm = max(1, min(requested, Int(limit)))
     var trackingStartedAt: String?
-    var count = 0, words = 0, recordingMs = 0, fullElapsedMs = 0
+    var count = 0, words = 0, recordingMs = 0, fullElapsedMs = 0, pauseMs = 0
     if let stored {
       if let started = stored["tracking_started_at"] as? String, !started.isEmpty { trackingStartedAt = started }
       let deliveries = stored["delivered_dictations"] as? [String: Any] ?? [:]
@@ -52,6 +52,8 @@ public enum UsageReportBuilder {
       words = try nonNegative(stored["processed_words"])
       recordingMs = try nonNegative(stored["recording_duration_ms"])
       fullElapsedMs = try nonNegative(stored["full_elapsed_duration_ms"])
+      // Optional: malformed or out of range reads as no measured pauses.
+      pauseMs = min(((try? plainInt(stored["pause_duration_ms"])) ?? nil) ?? 0, recordingMs)
     }
 
     var status = "not_started"
@@ -84,7 +86,10 @@ public enum UsageReportBuilder {
       }
       untracked = max(0, count - covered)  // both are at most ~2^53 * days: no overflow past the check above
     }
-    let (difference, differenceOverflow) = typingEquivalentMs.subtractingReportingOverflow(fullElapsedMs)
+    // Measured pauses are left out of the elapsed time too: the typing
+    // estimate has no reading pauses either.
+    let speakingElapsedMs = max(0, fullElapsedMs - min(pauseMs, fullElapsedMs))
+    let (difference, differenceOverflow) = typingEquivalentMs.subtractingReportingOverflow(speakingElapsedMs)
     if differenceOverflow { throw outOfRange() }
     return UsageReport(
       trackingStartedAt: trackingStartedAt.flatMap(UsageReport.parseTimestamp),
@@ -92,7 +97,8 @@ public enum UsageReportBuilder {
       typingWPM: wpm, estimatedTimeDifferenceMs: difference,
       daily: UsageReport.Daily(
         status: status, startedAt: startedAt.flatMap(UsageReport.parseTimestamp), asOfLocalDate: today,
-        untrackedDeliveries: untracked, days: days))
+        untrackedDeliveries: untracked, days: days),
+      pauseMs: pauseMs)
   }
 
   private static let timestamp = try! NSRegularExpression(
@@ -117,7 +123,8 @@ public enum UsageReportBuilder {
       days.append(UsageReport.Day(
         date: date, count: numbers["count"]!, words: numbers["words"]!, recordingMs: numbers["recording_ms"]!,
         fullElapsedMs: numbers["full_elapsed_ms"]!, longestRecordingMs: numbers["longest_recording_ms"]!,
-        mostWords: numbers["most_words"]!))
+        mostWords: numbers["most_words"]!,
+        pauseMs: ((try? plainInt(bucket["pause_ms"])) ?? nil) ?? 0))
     }
     return days.sorted { $0.date < $1.date }
   }

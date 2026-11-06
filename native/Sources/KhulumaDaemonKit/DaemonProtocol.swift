@@ -2,7 +2,7 @@ import Foundation
 
 /// Version reported by `khulumad version` and in ping responses.
 public enum DaemonInfo {
-  public static let daemonVersion = "0.3.0"
+  public static let daemonVersion = "0.4.0"
   public static let engineName = "swift_parakeet"
 }
 
@@ -75,6 +75,9 @@ public struct DaemonResponse: Codable, Sendable, Equatable {
   /// The model this daemon has loaded, as the request named it (ping and
   /// warmup; null in a ping before any model is loaded).
   public let modelLoaded: LoadedModel?
+  /// Word spans as [startMs, endMs] in the WAV (transcribe only; since
+  /// 0.4.0). Omitted when the model gave no timings.
+  public let wordSpansMs: [[Int]]?
 
   public struct LoadedModel: Codable, Sendable, Equatable {
     public let path: String
@@ -99,7 +102,8 @@ public struct DaemonResponse: Codable, Sendable, Equatable {
     activeRequests: Int? = nil,
     pid: Int? = nil,
     generation: String? = nil,
-    modelLoaded: LoadedModel? = nil
+    modelLoaded: LoadedModel? = nil,
+    wordSpansMs: [[Int]]? = nil
   ) {
     self.id = id
     self.ok = ok
@@ -114,6 +118,7 @@ public struct DaemonResponse: Codable, Sendable, Equatable {
     self.pid = pid
     self.generation = generation
     self.modelLoaded = modelLoaded
+    self.wordSpansMs = wordSpansMs
   }
 
   public static func failure(id: String, code: String, message: String) -> DaemonResponse {
@@ -134,6 +139,7 @@ public struct DaemonResponse: Codable, Sendable, Equatable {
     case pid
     case generation
     case modelLoaded = "model_loaded"
+    case wordSpansMs = "word_spans_ms"
   }
 }
 

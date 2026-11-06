@@ -170,7 +170,8 @@ public struct TakeRecorder: Sendable {
         if let start = r.startedAtMs, let end = r.deliveredAtMs, start >= 0, end >= 0 { elapsed = max(end - start, 0) }
         let delivery = UsageLedger.Delivery(text: r.text, recordMs: ms(r.recordMs), fullElapsedMs: elapsed,
                                             takeId: r.takeId, localDate: r.deliveredLocalDate,
-                                            protectedTakeIds: protectedTakeIds)
+                                            protectedTakeIds: protectedTakeIds,
+                                            speechMs: r.speechMs.map { min(ms($0), ms(r.recordMs)) })
         do {
           let outcome = try DataFiles.withLock(lockURL, timeout: lockTimeout) {
             try usage.record(delivery) { log("usage: \($0)") }
@@ -228,11 +229,14 @@ public struct TakeRecorder: Sendable {
           }
         }
         let ms = { (v: Int) in max(v, 0) }
+        var metrics: [(String, Int)] = [("record_ms", ms(r.recordMs))]
+        if let speech = r.speechMs { metrics.append(("speech_ms", min(ms(speech), ms(r.recordMs)))) }
+        metrics += [("transcribe_ms", ms(r.transcribeMs)), ("clean_ms", ms(r.cleanMs)),
+                    ("paste_ms", ms(r.pasteMs)), ("total_ms", ms(r.totalMs))]
         var entry = HistoryWriter.Entry(
           app: (r.app?.isEmpty ?? true) ? "current" : r.app!, raw: r.rawText, processed: r.text,
           takeId: r.takeId.isEmpty ? nil : r.takeId,
-          metrics: [("record_ms", ms(r.recordMs)), ("transcribe_ms", ms(r.transcribeMs)), ("clean_ms", ms(r.cleanMs)),
-                    ("paste_ms", ms(r.pasteMs)), ("total_ms", ms(r.totalMs))],
+          metrics: metrics,
           audio: audio)
         entry.delivered = !Self.keepsUndelivered(r)
         switch try writer.save(entry, protectedTakeIds: protectedTakeIds, log: log) {

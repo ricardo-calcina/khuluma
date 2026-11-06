@@ -32,7 +32,8 @@ public struct HistoryWriter: Sendable {
     /// False for a take whose paste failed: written as `"delivered": false`
     /// (absent means delivered, as in the CLI's shape).
     public var delivered = true
-    /// record_ms, transcribe_ms, clean_ms, paste_ms, total_ms, in that order.
+    /// record_ms, speech_ms (only when known), transcribe_ms, clean_ms,
+    /// paste_ms, total_ms, in that order.
     public var metrics: [(String, Int)]
     /// Ints or strings, in the CLI's order.
     public var audio: [(String, AudioValue)]

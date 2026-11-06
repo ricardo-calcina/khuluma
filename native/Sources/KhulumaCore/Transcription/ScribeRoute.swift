@@ -42,8 +42,11 @@ public struct ScribeRoute: Sendable {
     defer { if !keep { try? FileManager.default.removeItem(at: wav) } }
 
     let transcript: String
+    let speechMs: Int?
     do {
-      transcript = PerlText.bashCapture(try client.transcribe(wav: wav, language: language))
+      let answer = try client.transcribeMeasured(wav: wav, language: language)
+      transcript = PerlText.bashCapture(answer.text)
+      speechMs = answer.speechMs
     } catch let failure as ScribeClient.Failure {
       return .failed(failure.localizedDescription)
     } catch {
@@ -55,6 +58,7 @@ public struct ScribeRoute: Sendable {
     record.app = app
     record.model = ScribeClient.model
     record.recordMs = recordMs
+    record.speechMs = speechMs.map { min($0, recordMs) }
     record.startupMs = startupMs
     record.startedAtMs = startedAtMs
     record.captureWavMs = AudioPrep.ffprobeDurationMs(sampleCount: samples.count)

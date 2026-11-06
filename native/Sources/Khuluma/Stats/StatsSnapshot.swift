@@ -200,18 +200,21 @@ enum StatsSnapshot {
       let recording = Int(Double(words) / 165 * 60_000)
       days.append(UsageReport.Day(date: date, count: count, words: words, recordingMs: recording,
                                   fullElapsedMs: recording + count * 900,
-                                  longestRecordingMs: recording / max(count, 1) * 2, mostWords: words / 2))
+                                  longestRecordingMs: recording / max(count, 1) * 2, mostWords: words / 2,
+                                  pauseMs: offset < 10 ? recording / 5 : 0))
     }
     let dictations = days.reduce(0) { $0 + $1.count } + 80 + untracked
     let words = days.reduce(0) { $0 + $1.words } + 24_000
     let recording = days.reduce(0) { $0 + $1.recordingMs } + 8_000_000
     let elapsed = recording + dictations * 900
+    let pauses = days.reduce(0) { $0 + $1.pauseMs }
     let started = UsageReport.parseTimestamp("2026-07-19T06:30:53Z")
     return UsageReport(trackingStartedAt: started, dictations: dictations, words: words, recordingMs: recording,
                        fullElapsedMs: elapsed, typingWPM: 40,
-                       estimatedTimeDifferenceMs: words * 60_000 / 40 - elapsed,
+                       estimatedTimeDifferenceMs: words * 60_000 / 40 - (elapsed - pauses),
                        daily: status.map { daily(status: $0, today: today, days: days, untracked: untracked,
-                                                 trackedDays: trackedDays) })
+                                                 trackedDays: trackedDays) },
+                       pauseMs: pauses)
   }
 
   private static func daily(status: String, today: CivilDate, days: [UsageReport.Day], untracked: Int = 0,

@@ -549,9 +549,9 @@ struct MenuSummary: View {
       HStack(alignment: .top, spacing: 12) {
         metric(today ? "Words today" : "Total words", value: figures.map { $0.words.formatted() } ?? "–")
         metric(today ? "Saved today" : "Time saved", value: timeSaved)
-          .help("Estimated time saved compared with typing at \(stats.stats?.lifetime.typingWPM ?? 40) words per minute, including delivery time.")
+          .help("Estimated time saved compared with typing at \(stats.stats?.lifetime.typingWPM ?? 40) words per minute, including delivery time and leaving out pauses longer than 1 second.")
         metric(today ? "WPM today" : "Average WPM", value: figures?.wordsPerMinute.map { $0.formatted() } ?? "–")
-          .help("Words per minute of recording, including pauses.")
+          .help("Words per minute while speaking, leaving out pauses longer than 1 second.")
       }
       .fixedSize(horizontal: false, vertical: true)
       if settings.menuShowsWeek, let days = stats.stats?.lastDays(7), stats.stats?.hasDaily == true {

@@ -56,9 +56,11 @@ public struct DaemonClient: Sendable {
     let modelLoaded: DaemonStatus.LoadedModel?
     let activeRequests: Int?
     let durationMs: Int?
+    let wordSpansMs: [[Int]]?
 
     enum CodingKeys: String, CodingKey {
       case id, ok, text, message, version, pid, generation
+      case wordSpansMs = "word_spans_ms"
       case errorCode = "error_code"
       case durationMs = "duration_ms"
       case modelLoaded = "model_loaded"
@@ -119,7 +121,8 @@ public struct DaemonClient: Sendable {
     guard response.ok else {
       throw ClientError.daemon(code: response.errorCode ?? "unknown", message: response.message ?? "unknown error")
     }
-    return NativeTranscriber.Pass(text: response.text ?? "", daemonMs: response.durationMs)
+    return NativeTranscriber.Pass(text: response.text ?? "", daemonMs: response.durationMs,
+                                wordSpansMs: response.wordSpansMs)
   }
 
   /// One request; reconnects once if the socket was unreachable.

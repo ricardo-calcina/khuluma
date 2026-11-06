@@ -48,11 +48,14 @@ extension TakePipeline {
     let client = DaemonClient(socketPath: transcription.socketPath)
     let timeout = Self.timeout(transcription, sampleCount: samples.count)
     let transcript: String
+    let speechMs: Int?
     do {
-      transcript = try NativeTranscriber(settings: transcription).transcribe(samples: samples) { wav, flow in
-        try client.transcribe(wav: wav, language: transcription.language, flow: flow, modelPath: modelPath,
+      let transcribed = try NativeTranscriber(settings: transcription).transcribeTimed(samples: samples) { wav, flow in
+        try client.transcribePass(wav: wav, language: transcription.language, flow: flow, modelPath: modelPath,
                               modelVersion: transcription.modelVersion, timeout: timeout)
-      }.transcript
+      }
+      transcript = transcribed.transcript
+      speechMs = transcribed.speechMs
     } catch {
       return .failed("retry failed (recording kept): \(error.localizedDescription)")
     }
@@ -62,6 +65,7 @@ extension TakePipeline {
     record.app = info.app
     record.model = transcription.modelLabel
     record.recordMs = info.recordMs
+    record.speechMs = speechMs.map { min($0, info.recordMs) }
     record.startupMs = info.startupMs
     record.startedAtMs = info.startedAtMs
     record.captureWavMs = AudioPrep.ffprobeDurationMs(sampleCount: samples.count)

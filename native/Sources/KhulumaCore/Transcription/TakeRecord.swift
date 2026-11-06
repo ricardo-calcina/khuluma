@@ -15,6 +15,9 @@ public struct TakeRecord: Codable, Equatable, Sendable {
   /// Model label at the time of the take (bench `model`).
   public var model: String?
   public var recordMs: Int = 0
+  /// Time spent speaking (word timings, pauses over 1 s left out), at most
+  /// `recordMs`; nil when unknown (older records, no timings).
+  public var speechMs: Int?
   public var transcribeMs: Int = 0
   public var cleanMs: Int = 0
   public var pasteMs: Int = 0
@@ -46,6 +49,7 @@ public struct TakeRecord: Codable, Equatable, Sendable {
     case status, delivered, text, app, model
     case rawText = "raw_text"
     case recordMs = "record_ms"
+    case speechMs = "speech_ms"
     case transcribeMs = "transcribe_ms"
     case cleanMs = "clean_ms"
     case pasteMs = "paste_ms"

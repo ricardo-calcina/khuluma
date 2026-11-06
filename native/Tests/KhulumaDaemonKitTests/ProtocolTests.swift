@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import KhulumaDaemonKit
+import FluidAudio
 
 struct ProtocolTests {
   @Test func decodesCLIRequestWithSnakeCaseKeys() throws {
@@ -122,5 +123,43 @@ struct SerialGateTests {
     }
     let value = await gate.withExclusiveAccess { 42 }
     #expect(value == 42)
+  }
+}
+
+struct WordSpansProtocolTests {
+  @Test func omitsWordSpansWhenNilAndRoundTripsThem() throws {
+    let plain = String(decoding: try JSONEncoder().encode(DaemonResponse(id: "a", ok: true, text: "hi")), as: UTF8.self)
+    #expect(!plain.contains("word_spans_ms"))
+    let spans = DaemonResponse(id: "a", ok: true, text: "hi there", wordSpansMs: [[80, 400], [420, 900]])
+    let data = try JSONEncoder().encode(spans)
+    #expect(String(decoding: data, as: UTF8.self).contains(#""word_spans_ms":[[80,400],[420,900]]"#))
+    #expect(try JSONDecoder().decode(DaemonResponse.self, from: data) == spans)
+  }
+
+  @Test func wordSpansComeFromTokenTimings() {
+    let tokens = [
+      TokenTiming(token: "▁hel", tokenId: 1, startTime: 0.08, endTime: 0.2, confidence: 1),
+      TokenTiming(token: "lo", tokenId: 2, startTime: 0.2, endTime: 0.4, confidence: 1),
+      TokenTiming(token: "▁there", tokenId: 3, startTime: 2.0, endTime: 2.5004, confidence: 1),
+    ]
+    #expect(ASREngine.wordSpansMs(tokens) == [[80, 400], [2000, 2240]])
+  }
+
+  @Test func aTokenEndingAtTheNextStartIsCapped() {
+    let tokens = [
+      TokenTiming(token: "▁test", tokenId: 1, startTime: 1.84, endTime: 6.08, confidence: 1),
+      TokenTiming(token: "▁and", tokenId: 2, startTime: 6.08, endTime: 6.4, confidence: 1),
+    ]
+    #expect(ASREngine.wordSpansMs(tokens) == [[1840, 2080], [6080, 6320]])
+  }
+
+  @Test func lateFullStopDoesNotSpanThePause() {
+    // FluidAudio without durations: the end is the next token's start.
+    let tokens = [
+      TokenTiming(token: "▁test", tokenId: 1, startTime: 1.84, endTime: 2.0, confidence: 1),
+      TokenTiming(token: ".", tokenId: 9, startTime: 5.76, endTime: 6.08, confidence: 1),
+      TokenTiming(token: "▁and", tokenId: 2, startTime: 6.08, endTime: 6.4, confidence: 1),
+    ]
+    #expect(ASREngine.wordSpansMs(tokens) == [[1840, 2000], [6080, 6320]])
   }
 }

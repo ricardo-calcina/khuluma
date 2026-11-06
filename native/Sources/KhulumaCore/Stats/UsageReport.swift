@@ -12,9 +12,13 @@ public struct UsageReport: Decodable, Equatable, Sendable {
     public let fullElapsedMs: Int
     public let longestRecordingMs: Int
     public let mostWords: Int
+    /// Measured pauses (recording minus speaking time) of this day's
+    /// measured takes, at most `recordingMs`; 0 when none or unreadable.
+    public let pauseMs: Int
 
     public init(date: CivilDate, count: Int, words: Int, recordingMs: Int, fullElapsedMs: Int = 0,
-                longestRecordingMs: Int = 0, mostWords: Int = 0) {
+                longestRecordingMs: Int = 0, mostWords: Int = 0, pauseMs: Int = 0) {
+      self.pauseMs = min(max(pauseMs, 0), max(recordingMs, 0))
       self.date = date
       self.count = count
       self.words = words
@@ -30,6 +34,7 @@ public struct UsageReport: Decodable, Equatable, Sendable {
       case fullElapsedMs = "full_elapsed_ms"
       case longestRecordingMs = "longest_recording_ms"
       case mostWords = "most_words"
+      case pauseMs = "pause_ms"
     }
 
     public init(from decoder: Decoder) throws {
@@ -44,6 +49,8 @@ public struct UsageReport: Decodable, Equatable, Sendable {
       fullElapsedMs = try c.decodeCount(.fullElapsedMs)
       longestRecordingMs = try c.decodeCount(.longestRecordingMs)
       mostWords = try c.decodeCount(.mostWords)
+      // Optional: anything malformed reads as no measured pauses.
+      pauseMs = min(max(((try? c.decodeIfPresent(Int.self, forKey: .pauseMs)) ?? nil) ?? 0, 0), recordingMs)
     }
   }
 
@@ -88,13 +95,18 @@ public struct UsageReport: Decodable, Equatable, Sendable {
   public let recordingMs: Int
   public let fullElapsedMs: Int
   public let typingWPM: Int
-  /// typing-equivalent minus record start → delivered (an estimate).
+  /// Measured pauses over all measured takes (`pause_duration_ms`), at most
+  /// `recordingMs`; 0 when none or unreadable.
+  public let pauseMs: Int
+  /// typing-equivalent minus (record start → delivered, less measured
+  /// pauses): an estimate.
   public let estimatedTimeDifferenceMs: Int
   /// Present when asked with `--days` (Khuluma always asks for `all`).
   public let daily: Daily?
 
   public init(trackingStartedAt: Date?, dictations: Int, words: Int, recordingMs: Int, fullElapsedMs: Int,
-              typingWPM: Int, estimatedTimeDifferenceMs: Int, daily: Daily?) {
+              typingWPM: Int, estimatedTimeDifferenceMs: Int, daily: Daily?, pauseMs: Int = 0) {
+    self.pauseMs = min(max(pauseMs, 0), max(recordingMs, 0))
     self.trackingStartedAt = trackingStartedAt
     self.dictations = dictations
     self.words = words
@@ -114,6 +126,7 @@ public struct UsageReport: Decodable, Equatable, Sendable {
     case fullElapsedDurationMs = "full_elapsed_duration_ms"
     case typingAssumption = "typing_assumption"
     case estimatedTimeDifferenceMs = "estimated_time_difference_ms"
+    case pauseDurationMs = "pause_duration_ms"
   }
 
   private enum CoverageKeys: String, CodingKey {
@@ -142,6 +155,7 @@ public struct UsageReport: Decodable, Equatable, Sendable {
     typingWPM = max(1, try c.nestedContainer(keyedBy: TypingKeys.self, forKey: .typingAssumption).decodeCount(.wpm))
     estimatedTimeDifferenceMs = try c.decode(Int.self, forKey: .estimatedTimeDifferenceMs)
     daily = try c.decodeIfPresent(Daily.self, forKey: .daily)
+    pauseMs = min(max(((try? c.decodeIfPresent(Int.self, forKey: .pauseDurationMs)) ?? nil) ?? 0, 0), recordingMs)
   }
 
   public static func parseTimestamp(_ value: String) -> Date? {

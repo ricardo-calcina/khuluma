@@ -29,6 +29,9 @@ public struct TranscriptionResult: Sendable {
   public let text: String
   public let model: String
   public let durationMs: Int
+  /// Word spans as [startMs, endMs] from the model's token timings, or nil
+  /// when it gave none. Only measured, never used to change the audio.
+  public var wordSpansMs: [[Int]]? = nil
 }
 
 /// Serializes async critical sections. Actor methods are reentrant at `await`
@@ -136,8 +139,29 @@ public actor ASREngine {
     return TranscriptionResult(
       text: result.text,
       model: modelURL.lastPathComponent,
-      durationMs: Self.elapsedMs(since: started)
+      durationMs: Self.elapsedMs(since: started),
+      wordSpansMs: result.tokenTimings.map(Self.wordSpansMs)
     )
+  }
+
+  /// Longest a single token is taken to last. Without TDT durations
+  /// FluidAudio ends each token where the next one starts, so a pause would
+  /// sit inside the word before it; capping keeps pauses visible as gaps.
+  /// Only for measuring speaking time.
+  static let maxTokenSeconds: TimeInterval = 0.24
+
+  /// [startMs, endMs] per word, from FluidAudio's token timings.
+  static func wordSpansMs(_ tokens: [TokenTiming]) -> [[Int]] {
+    // Punctuation is often emitted late (a full stop just before the next
+    // word, after the pause), so it doesn't extend a word.
+    let spoken = tokens.filter { $0.token.unicodeScalars.contains { CharacterSet.alphanumerics.contains($0) } }
+    let capped = spoken.map {
+      TokenTiming(token: $0.token, tokenId: $0.tokenId, startTime: $0.startTime,
+                  endTime: min($0.endTime, $0.startTime + maxTokenSeconds), confidence: $0.confidence)
+    }
+    return buildWordTimings(from: capped).map {
+      [Int(($0.startTime * 1000).rounded()), Int(($0.endTime * 1000).rounded())]
+    }
   }
 
   private func ensureInitialized(

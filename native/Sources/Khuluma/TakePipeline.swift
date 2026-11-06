@@ -149,6 +149,7 @@ final class TakePipeline {
     let transcribedAt = monotonicMs()
     record.transcribeMs = Int(transcribedAt - startedAt)
     record.wavPath = transcribed.keptWAV?.path
+    record.speechMs = transcribed.speechMs.map { min($0, recordMs) }
     if transcribed.tailRescueFailed {
       Log.write("pipeline: tail rescue pass failed; kept the full transcript")
     }

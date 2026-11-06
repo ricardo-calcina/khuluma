@@ -17,10 +17,13 @@ public struct NativeTranscriber: Sendable {
     /// The daemon's `duration_ms`: model time only (no model load, no wait
     /// behind other requests). Nil from daemons that don't report it.
     public let daemonMs: Int?
+    /// Word spans [startMs, endMs] in the WAV; nil from daemons before 0.4.0.
+    public let wordSpansMs: [[Int]]?
 
-    public init(text: String, daemonMs: Int? = nil) {
+    public init(text: String, daemonMs: Int? = nil, wordSpansMs: [[Int]]? = nil) {
       self.text = text
       self.daemonMs = daemonMs
+      self.wordSpansMs = wordSpansMs
     }
   }
 
@@ -52,6 +55,10 @@ public struct NativeTranscriber: Sendable {
     /// archive); the caller owns and removes it.
     public var keptWAV: URL? = nil
     public var timings = Timings()
+    /// Time spent speaking, from the full ("inline") pass's word spans only;
+    /// nil when the daemon sent none. Spans are in the padded WAV, but this
+    /// is a duration, so the padding doesn't matter.
+    public var speechMs: Int? = nil
   }
 
   /// A failed transcription, with the padded WAV when `keepWAV` is set (for
@@ -87,10 +94,12 @@ public struct NativeTranscriber: Sendable {
       return now - mark
     }
     /// One pass, timed whether it answers or throws.
+    var speechMs: Int?
     func run(_ url: URL, _ flow: String) throws -> String {
       _ = lap()
       do {
         let pass = try transcribe(url, flow)
+        if flow == "inline" { speechMs = pass.wordSpansMs.flatMap { SpeechTime.speechMs(spans: $0) } }
         timings.passes.append(.init(flow: flow, elapsedMs: lap(), daemonMs: pass.daemonMs))
         return pass.text
       } catch {
@@ -118,7 +127,7 @@ public struct NativeTranscriber: Sendable {
     }
     guard let window = AudioPrep.tailRescueWindowMs(paddedSampleCount: padded.count, settings: settings) else {
       return Result(transcript: full, captureSamples: pcm.count, paddedSamples: padded.count,
-                    tailRescueMs: nil, tailRescueFailed: false, keptWAV: kept, timings: timings)
+                    tailRescueMs: nil, tailRescueFailed: false, keptWAV: kept, timings: timings, speechMs: speechMs)
     }
 
     let tailURL = directory.appendingPathComponent("\(stem)-tail.wav")
@@ -135,14 +144,14 @@ public struct NativeTranscriber: Sendable {
     }
     guard let tail = tailText else {
       return Result(transcript: full, captureSamples: pcm.count, paddedSamples: padded.count,
-                    tailRescueMs: window, tailRescueFailed: true, keptWAV: kept, timings: timings)
+                    tailRescueMs: window, tailRescueFailed: true, keptWAV: kept, timings: timings, speechMs: speechMs)
     }
     let spaced = String(String.UnicodeScalarView(tail.unicodeScalars.map { $0 == "\n" ? " " : $0 }))
     let transcript = PerlText.isBlank(spaced)
       ? full
       : PerlText.bashCapture(TranscriptMerge.mergeTailRescue(full: full, tail: spaced))
     return Result(transcript: transcript, captureSamples: pcm.count, paddedSamples: padded.count,
-                  tailRescueMs: window, tailRescueFailed: false, keptWAV: kept, timings: timings)
+                  tailRescueMs: window, tailRescueFailed: false, keptWAV: kept, timings: timings, speechMs: speechMs)
   }
 
   static func nowMs() -> Double {

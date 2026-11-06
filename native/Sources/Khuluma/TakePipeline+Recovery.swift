@@ -28,14 +28,15 @@ extension TakePipeline {
     let client = DaemonClient(socketPath: transcription.socketPath)
     let timeout = Self.timeout(transcription, sampleCount: samples.count)
     do {
-      let transcribed = try NativeTranscriber(settings: transcription).transcribe(samples: samples) { wav, flow in
-        try client.transcribe(wav: wav, language: transcription.language, flow: flow, modelPath: modelPath,
+      let transcribed = try NativeTranscriber(settings: transcription).transcribeTimed(samples: samples) { wav, flow in
+        try client.transcribePass(wav: wav, language: transcription.language, flow: flow, modelPath: modelPath,
                               modelVersion: transcription.modelVersion, timeout: timeout)
       }
       var record = TakeRecord(takeId: takeId, status: "recovered", delivered: false)
       record.app = app
       record.model = transcription.modelLabel
       record.recordMs = samples.count * 1000 / AudioPrep.sampleRate
+      record.speechMs = transcribed.speechMs.map { min($0, record.recordMs) }
       record.startupMs = startupMs
       record.startedAtMs = startedEpochMs
       record.captureWavMs = AudioPrep.ffprobeDurationMs(sampleCount: samples.count)

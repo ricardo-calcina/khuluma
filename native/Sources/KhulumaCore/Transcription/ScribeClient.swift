@@ -50,8 +50,19 @@ public struct ScribeClient: Sendable {
     self.transport = transport
   }
 
+  /// A transcript and, when Scribe sent word timings, the time spent speaking.
+  public struct Transcript: Equatable, Sendable {
+    public let text: String
+    public let speechMs: Int?
+  }
+
   /// Transcribes one WAV file. `language` "auto" or empty lets Scribe detect it.
   public func transcribe(wav: URL, language: String) throws -> String {
+    try transcribeMeasured(wav: wav, language: language).text
+  }
+
+  /// `transcribe`, with speaking time from the response's `words`.
+  public func transcribeMeasured(wav: URL, language: String) throws -> Transcript {
     guard let found = credential.lookup() else { throw Failure.noKey }
     var isDirectory: ObjCBool = false
     guard FileManager.default.fileExists(atPath: wav.path, isDirectory: &isDirectory), !isDirectory.boolValue,
@@ -81,7 +92,21 @@ public struct ScribeClient: Sendable {
     }
     guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
           let text = object["text"] as? String else { throw Failure.unreadableTranscript }
-    return text
+    return Transcript(text: text, speechMs: Self.speechMs(words: object["words"]))
+  }
+
+  /// Speaking time from Scribe's `words` (seconds; only type "word" counts).
+  /// Anything missing or odd gives nil.
+  static func speechMs(words: Any?) -> Int? {
+    guard let words = words as? [[String: Any]] else { return nil }
+    let spans: [(Int, Int)] = words.compactMap { word in
+      guard (word["type"] as? String) == "word",
+            let start = (word["start"] as? NSNumber)?.doubleValue,
+            let end = (word["end"] as? NSNumber)?.doubleValue,
+            start.isFinite, end.isFinite else { return nil }
+      return (Int((start * 1000).rounded()), Int((end * 1000).rounded()))
+    }
+    return SpeechTime.speechMs(pairs: spans)
   }
 
   /// Fields in the order the CLI's curl sent them.

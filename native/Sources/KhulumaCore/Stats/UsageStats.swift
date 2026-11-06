@@ -7,13 +7,17 @@ public struct UsageStats: Equatable, Sendable {
     public let dictations: Int
     public let words: Int
     public let recordingMs: Int
-    /// Estimate: typing-equivalent at `typingWPM` minus record start → delivered.
+    /// Estimate: typing-equivalent at `typingWPM` minus record start →
+    /// delivered, measured pauses left out.
     public let estimatedSavedMs: Int
     public let typingWPM: Int
     public let since: Date?
+    /// Measured pauses (over 1 s) of the takes that have word timings.
+    public var pauseMs: Int = 0
 
-    /// Words per minute of recording (pauses included); nil before any.
-    public var wordsPerMinute: Int? { UsageStats.wpm(words: words, recordingMs: recordingMs) }
+    /// Words per minute while speaking (measured pauses left out; older
+    /// takes still include theirs); nil before any recording.
+    public var wordsPerMinute: Int? { UsageStats.wpm(words: words, recordingMs: recordingMs, pauseMs: pauseMs) }
   }
 
   public struct Streak: Equatable, Sendable {
@@ -48,7 +52,8 @@ public struct UsageStats: Equatable, Sendable {
     public let recordingMs: Int
     /// Days of the range before daily tracking began (excluded from totals).
     public let untrackedDays: Int
-    public var wordsPerMinute: Int? { UsageStats.wpm(words: words, recordingMs: recordingMs) }
+    public var pauseMs: Int = 0
+    public var wordsPerMinute: Int? { UsageStats.wpm(words: words, recordingMs: recordingMs, pauseMs: pauseMs) }
   }
 
   public struct Cell: Equatable, Sendable {
@@ -68,7 +73,8 @@ public struct UsageStats: Equatable, Sendable {
     public let dictations: Int
     public let words: Int
     public let recordingMs: Int
-    public var wordsPerMinute: Int? { UsageStats.wpm(words: words, recordingMs: recordingMs) }
+    public var pauseMs: Int = 0
+    public var wordsPerMinute: Int? { UsageStats.wpm(words: words, recordingMs: recordingMs, pauseMs: pauseMs) }
   }
 
   public struct Milestone: Equatable, Sendable {
@@ -96,6 +102,8 @@ public struct UsageStats: Equatable, Sendable {
   public let todayRecordingMs: Int
   /// Recording start → delivered, summed over today's dictations.
   public let todayFullElapsedMs: Int
+  /// Measured pauses in today's dictations.
+  public let todayPauseMs: Int
   public let streak: Streak
   public let records: Records
 
@@ -111,7 +119,7 @@ public struct UsageStats: Equatable, Sendable {
     self.firstWeekday = (1...7).contains(firstWeekday) ? firstWeekday : 2
     lifetime = Lifetime(dictations: report.dictations, words: report.words, recordingMs: report.recordingMs,
                         estimatedSavedMs: report.estimatedTimeDifferenceMs, typingWPM: report.typingWPM,
-                        since: report.trackingStartedAt)
+                        since: report.trackingStartedAt, pauseMs: report.pauseMs)
     hasDaily = daily != nil
     dailyStatus = report.daily?.status
     untrackedDeliveries = daily?.untrackedDeliveries ?? 0
@@ -128,6 +136,7 @@ public struct UsageStats: Equatable, Sendable {
     todayWords = byDate[today]?.words ?? 0
     todayRecordingMs = byDate[today]?.recordingMs ?? 0
     todayFullElapsedMs = byDate[today]?.fullElapsedMs ?? 0
+    todayPauseMs = byDate[today]?.pauseMs ?? 0
     let streak = Self.streak(dates: Set(byDate.keys), today: today)
     self.streak = streak
     records = Records(
@@ -154,7 +163,7 @@ public struct UsageStats: Equatable, Sendable {
   /// The last `days` calendar dates including today, untracked days left out.
   public func range(days: Int) -> RangeSummary {
     let start = today.adding(days: -(max(days, 1) - 1))
-    var words = 0, dictations = 0, recording = 0, untracked = 0
+    var words = 0, dictations = 0, recording = 0, pauses = 0, untracked = 0
     for offset in 0..<max(days, 1) {
       let date = start.adding(days: offset)
       if let since = dailySince, date < since {
@@ -165,10 +174,11 @@ public struct UsageStats: Equatable, Sendable {
         words += day.words
         dictations += day.count
         recording += day.recordingMs
+        pauses += day.pauseMs
       }
     }
     return RangeSummary(days: max(days, 1), words: words, dictations: dictations, recordingMs: recording,
-                        untrackedDays: untracked)
+                        untrackedDays: untracked, pauseMs: pauses)
   }
 
   /// Heatmap columns (one per week, oldest first), each 7 cells starting on
@@ -196,7 +206,7 @@ public struct UsageStats: Equatable, Sendable {
           state = .empty
         }
         return Cell(date: date, state: state, dictations: day?.count ?? 0, words: day?.words ?? 0,
-                    recordingMs: day?.recordingMs ?? 0)
+                    recordingMs: day?.recordingMs ?? 0, pauseMs: day?.pauseMs ?? 0)
       }
     }
   }
@@ -204,7 +214,8 @@ public struct UsageStats: Equatable, Sendable {
   /// The menu's three figures for all time or for today.
   public struct Figures: Equatable, Sendable {
     public let words: Int
-    /// Estimate, as the CLI computes it: typing-equivalent minus record start → delivered.
+    /// Estimate: typing-equivalent minus record start → delivered, measured
+    /// pauses left out.
     public let estimatedSavedMs: Int
     public let wordsPerMinute: Int?
   }
@@ -217,8 +228,9 @@ public struct UsageStats: Equatable, Sendable {
     case .today:
       let typing = todayWords > 0
         ? Int((Double(todayWords) * 60_000 / Double(max(lifetime.typingWPM, 1))).rounded()) : 0
-      return Figures(words: todayWords, estimatedSavedMs: typing - todayFullElapsedMs,
-                     wordsPerMinute: Self.wpm(words: todayWords, recordingMs: todayRecordingMs))
+      let speakingElapsed = max(0, todayFullElapsedMs - min(todayPauseMs, todayFullElapsedMs))
+      return Figures(words: todayWords, estimatedSavedMs: typing - speakingElapsed,
+                     wordsPerMinute: Self.wpm(words: todayWords, recordingMs: todayRecordingMs, pauseMs: todayPauseMs))
     }
   }
 
@@ -256,9 +268,12 @@ public struct UsageStats: Equatable, Sendable {
     return passed > lastSeen && passed > 0 && passed <= words ? passed : nil
   }
 
-  static func wpm(words: Int, recordingMs: Int) -> Int? {
+  /// Words per minute of recording less measured pauses, the time never
+  /// below 1 s; nil without recording or words.
+  static func wpm(words: Int, recordingMs: Int, pauseMs: Int = 0) -> Int? {
     guard recordingMs > 0, words > 0 else { return nil }
-    return Int((Double(words) / (Double(recordingMs) / 60_000)).rounded())
+    let speakingMs = max(recordingMs - max(pauseMs, 0), 1000)
+    return Int((Double(words) / (Double(speakingMs) / 60_000)).rounded())
   }
 
   static func streak(dates: Set<CivilDate>, today: CivilDate) -> Streak {

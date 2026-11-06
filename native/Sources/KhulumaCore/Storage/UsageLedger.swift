@@ -37,9 +37,14 @@ public struct UsageLedger: Sendable {
     /// counted with its done flag not yet saved, and its replay must stay a
     /// duplicate.
     public var protectedTakeIds: Set<String>
+    /// Time spent speaking, when measured. The rest of `recordMs` counts as
+    /// pauses (`pause_duration_ms`, daily `pause_ms`); nil adds nothing.
+    public var speechMs: Int?
 
     public init(flow: String = "inline", text: String, recordMs: Int, fullElapsedMs: Int,
-                takeId: String? = nil, localDate: String? = nil, protectedTakeIds: Set<String> = []) {
+                takeId: String? = nil, localDate: String? = nil, protectedTakeIds: Set<String> = [],
+                speechMs: Int? = nil) {
+      self.speechMs = speechMs
       self.protectedTakeIds = protectedTakeIds
       self.flow = flow
       self.text = text
@@ -131,6 +136,17 @@ public struct UsageLedger: Sendable {
     payload["processed_words"] = try Self.nonNegativeInt(payload["processed_words"], "processed_words") + words
     payload["recording_duration_ms"] = try Self.nonNegativeInt(payload["recording_duration_ms"], "recording_duration_ms") + recordMs
     payload["full_elapsed_duration_ms"] = try Self.nonNegativeInt(payload["full_elapsed_duration_ms"], "full_elapsed_duration_ms") + elapsedMs
+    // Optional and additive: a malformed value is left alone, never fatal.
+    let pauseMs = delivery.speechMs.map { max(0, recordMs - min(max($0, 0), recordMs)) }
+    if let pauseMs {
+      if payload["pause_duration_ms"] == nil {
+        payload["pause_duration_ms"] = pauseMs
+      } else if let total = Self.plainInt(payload["pause_duration_ms"]) {
+        payload["pause_duration_ms"] = total + pauseMs
+      } else {
+        warn("usage pause_duration_ms is unreadable; left it unchanged")
+      }
+    }
 
     let dayKey = Self.isoDate(day)
     var dailyValue = payload["daily"]
@@ -152,7 +168,18 @@ public struct UsageLedger: Sendable {
           bucket["full_elapsed_ms"]! += elapsedMs
           bucket["longest_recording_ms"] = max(bucket["longest_recording_ms"]!, recordMs)
           bucket["most_words"] = max(bucket["most_words"]!, words)
-          days[dayKey] = bucket
+          var stored: [String: Any] = bucket
+          if let old = bucketIn["pause_ms"] { stored["pause_ms"] = old }
+          if let pauseMs {
+            if bucketIn["pause_ms"] == nil {
+              stored["pause_ms"] = pauseMs
+            } else if let old = Self.plainInt(bucketIn["pause_ms"]) {
+              stored["pause_ms"] = old + pauseMs
+            } else {
+              warn("daily usage pause_ms for \(dayKey) is unreadable; left it unchanged")
+            }
+          }
+          days[dayKey] = stored
           daily["days"] = days
           dailyValue = daily
           recordedDay = true

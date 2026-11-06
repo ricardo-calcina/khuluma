@@ -122,7 +122,9 @@ private struct Hero: View {
       timeSaved
       figure("Average WPM", value: lifetime.wordsPerMinute.map { $0.formatted() } ?? "–",
              tracking: Double(lifetime.wordsPerMinute ?? 0),
-             info: "Words per minute of recording, including pauses.", caption: "pauses included")
+             info: "Words per minute while you're speaking: pauses longer than 1 second are left out. "
+               + "Dictations before 6 Nov 2026 still include their pauses, so this rises as new ones come in.",
+             caption: "pauses left out")
     }
     .padding(.top, 4)
     .fixedSize(horizontal: false, vertical: true)
@@ -134,7 +136,7 @@ private struct Hero: View {
       let parts = Format.typingDifferenceParts(ms: lifetime.estimatedSavedMs)
       figure("Time saved", value: Format.savedTime(ms: lifetime.estimatedSavedMs), tracking: nil,
              info: "Typing the same words at \(lifetime.typingWPM) words per minute, minus the time from starting "
-               + "a recording to its text arriving. An estimate: your typing speed will differ.",
+               + "a recording to its text arriving, leaving out pauses longer than 1 second. An estimate: your typing speed will differ.",
              caption: parts.caption)
     } else {
       figure("Time saved", value: "–", tracking: nil, caption: "no dictations yet")
