@@ -317,7 +317,8 @@ struct TimedOutTakesTests {
     let (store, recovered, root) = stores()
     defer { try? FileManager.default.removeItem(at: root) }
     let old = TimedOutTakes(directory: root.appendingPathComponent("old-tmp"), recovered: recovered)
-    let info = TimedOutTakes.Info(takeId: "t-old", app: "Notes", recordMs: 900, startupMs: 50, startedAtMs: 1)
+    let info = TimedOutTakes.Info(takeId: "t-old", app: "Notes", recordMs: 900, startupMs: 50, startedAtMs: 1,
+                                  savedAt: Date(timeIntervalSince1970: 2_000_000))
     let entry = try old.save(samples: [0.3, 0.3, 0.3], info: info)
     try WAVEncoder.encode(samples: [0.1]).write(to: old.directory.appendingPathComponent("orphan.wav"))
     // A name already taken here by different bytes stays in the old folder.

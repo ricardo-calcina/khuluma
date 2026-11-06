@@ -5,10 +5,16 @@ import KhulumaCore
 /// FluidAudio's own answers about the Parakeet model: where its shared cache
 /// keeps v3, which files a load-ready copy has, and the download.
 enum SpeechModel {
-  static var defaultPath: String { AsrModels.defaultCacheDirectory(for: .v3).path }
+  /// FluidAudio's shared cache, or in isolated runs a private folder
+  /// (`AppRuntimePaths.defaultModelDirectory`, shared with the helper).
+  static var defaultPath: String {
+    AppRuntimePaths.defaultModelDirectory(
+      environment: ProcessInfo.processInfo.environment, home: FileManager.default.homeDirectoryForCurrentUser,
+      sharedCache: AsrModels.defaultCacheDirectory(for: .v3)).path
+  }
 
-  /// One download at a time across processes (an isolated run and the daily
-  /// app share FluidAudio's cache and its fixed `.partial` names).
+  /// One download at a time across processes, beside the model folder (so
+  /// an isolated run locks its own folder, never the shared cache).
   static var downloadLockPath: String {
     (defaultPath as NSString).deletingLastPathComponent + "/.khuluma-download.lock"
   }
@@ -26,15 +32,18 @@ enum SpeechModel {
   /// The default cache only ever holds the downloaded v3.
   static func isCompleteV3(_ path: String) -> Bool { isComplete(path, version: "v3") }
 
-  /// Into FluidAudio's default cache, from this process. An incomplete
-  /// folder (interrupted download) is replaced: FluidAudio's own download
-  /// would otherwise take its bare folders for a finished model.
+  /// Into `defaultPath`, from this process. Only a folder that exists and
+  /// fails `ModelBundleCheck` (an interrupted download) is replaced
+  /// (`force` deletes it first): FluidAudio's own check would otherwise take
+  /// its bare folders for a finished model. A complete bundle is never
+  /// forced.
   static func download(progress: @escaping @Sendable (Double) -> Void,
                        done: @escaping @Sendable (Result<String, Error>) -> Void) {
-    let repair = FileManager.default.fileExists(atPath: defaultPath) && !isCompleteV3(defaultPath)
+    let target = URL(fileURLWithPath: defaultPath, isDirectory: true)
+    let repair = FileManager.default.fileExists(atPath: target.path) && !isCompleteV3(target.path)
     Task.detached(priority: .utility) {
       do {
-        let url = try await AsrModels.download(force: repair, version: .v3) { update in
+        let url = try await AsrModels.download(to: target, force: repair, version: .v3) { update in
           progress(update.fractionCompleted)
         }
         done(.success(url.path))

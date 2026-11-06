@@ -103,6 +103,21 @@ public enum AppRuntimePaths {
     return home.appendingPathComponent("Library/Logs/Khuluma", isDirectory: true)
   }
 
+  /// Where the default Parakeet v3 model lives. Ordinary runs: FluidAudio's
+  /// shared cache (`sharedCache`, which other apps use too). Isolated runs
+  /// never touch it: KHULUMA_DEFAULT_MODEL_DIR when set, else
+  /// `<support>/models/<the cache's folder name>`. The app (reading,
+  /// downloading, repairing, locking) and the `khuluma` helper both use this.
+  public static func defaultModelDirectory(environment: [String: String], home: URL, sharedCache: URL) -> URL {
+    guard isIsolated(environment: environment) else { return sharedCache }
+    if let path = environment["KHULUMA_DEFAULT_MODEL_DIR"], !path.isEmpty {
+      return URL(fileURLWithPath: path, isDirectory: true)
+    }
+    return supportDirectory(environment: environment, home: home)
+      .appendingPathComponent("models", isDirectory: true)
+      .appendingPathComponent(sharedCache.lastPathComponent, isDirectory: true)
+  }
+
   public static var isolated: Bool { isIsolated(environment: ProcessInfo.processInfo.environment) }
   public static var support: URL {
     supportDirectory(environment: ProcessInfo.processInfo.environment, home: FileManager.default.homeDirectoryForCurrentUser)
@@ -111,7 +126,12 @@ public enum AppRuntimePaths {
     logDirectory(environment: ProcessInfo.processInfo.environment, home: FileManager.default.homeDirectoryForCurrentUser)
   }
   public static var temporary: URL {
-    isolated ? support.appendingPathComponent("temporary", isDirectory: true) : FileManager.default.temporaryDirectory
+    temporaryDirectory(environment: ProcessInfo.processInfo.environment, home: FileManager.default.homeDirectoryForCurrentUser)
+  }
+  public static func temporaryDirectory(environment: [String: String], home: URL) -> URL {
+    isIsolated(environment: environment)
+      ? supportDirectory(environment: environment, home: home).appendingPathComponent("temporary", isDirectory: true)
+      : FileManager.default.temporaryDirectory
   }
   public static var defaults: UserDefaults {
     if let suite = ProcessInfo.processInfo.environment["KHULUMA_DEFAULTS_SUITE"], !suite.isEmpty {

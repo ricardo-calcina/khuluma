@@ -73,11 +73,11 @@ func inProcessEngine(path: String, version: String) -> FileTranscriber.Engine {
 func makeEngine() throws -> FileTranscriber.Engine {
   let support = AppRuntimePaths.support
   var environment = SettingsEnvironment.current(appFolder: support)
-  // FluidAudio's shared cache; an isolated run (KHULUMA_SUPPORT_DIR) may
-  // point it elsewhere, so tests can check the no-model path.
-  let override = ProcessInfo.processInfo.environment["KHULUMA_DEFAULT_MODEL_DIR"].flatMap { $0.isEmpty ? nil : $0 }
-  environment.defaultModelPath = AppRuntimePaths.isolated && override != nil
-    ? override : AsrModels.defaultCacheDirectory(for: .v3).path
+  // The same default model folder as the app: FluidAudio's shared cache,
+  // or a private one in isolated runs.
+  environment.defaultModelPath = AppRuntimePaths.defaultModelDirectory(
+    environment: ProcessInfo.processInfo.environment, home: FileManager.default.homeDirectoryForCurrentUser,
+    sharedCache: AsrModels.defaultCacheDirectory(for: .v3)).path
   environment.modelAvailable = { ModelBundleCheck.isComplete($0, required: requiredFiles($1)) }
   // Read-only: the helper never writes settings (no last-good refresh).
   var store = SettingsStore(folder: support)

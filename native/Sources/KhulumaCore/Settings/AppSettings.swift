@@ -335,7 +335,12 @@ public struct SettingsEnvironment: Sendable {
                              home: URL = FileManager.default.homeDirectoryForCurrentUser,
                              appFolder: URL = AppRuntimePaths.support) -> SettingsEnvironment {
     func value(_ key: String) -> String? { environment[key].flatMap { $0.isEmpty ? nil : $0 } }
-    let data = value("XDG_DATA_HOME") ?? home.appendingPathComponent(".local/share").path
+    // Isolated runs keep sounds and models under the app folder unless a
+    // data folder is named explicitly.
+    let isolated = AppRuntimePaths.isIsolated(environment: environment)
+    let data = value("XDG_DATA_HOME")
+      ?? (isolated ? AppRuntimePaths.supportDirectory(environment: environment, home: home).path
+                   : home.appendingPathComponent(".local/share").path)
     let tools = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin"] + (value("PATH")?.split(separator: ":").map(String.init) ?? [])
     let has = { (name: String) in tools.contains { FileManager.default.isExecutableFile(atPath: $0 + "/" + name) } }
     // `$SOUNDS_DIR` in sound paths means what it meant to the CLI: the
@@ -412,7 +417,8 @@ extension AppSettings {
 
   /// The model folder and its version, resolved together: the settings'
   /// folder (with the settings' version, if any) if it holds a model, else
-  /// FluidAudio's shared cache, which is always the downloaded v3 (an
+  /// `defaultModelPath` (FluidAudio's shared cache, or the isolated run's
+  /// own folder, see `AppRuntimePaths.defaultModelDirectory`), always v3 (an
   /// explicit v2 meant for the missing folder doesn't carry over).
   public func resolvedModel(in env: SettingsEnvironment) -> (path: String, version: String)? {
     if !transcription.modelPath.isEmpty {

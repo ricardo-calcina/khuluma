@@ -54,7 +54,11 @@ public struct TimedOutTakes: Sendable {
   /// Where build 415 and earlier kept them ($TMPDIR, or the isolated
   /// temporary folder).
   public static var legacyDirectory: URL {
-    AppRuntimePaths.temporary.appendingPathComponent("khuluma-timed-out", isDirectory: true)
+    legacyDirectory(environment: ProcessInfo.processInfo.environment, home: FileManager.default.homeDirectoryForCurrentUser)
+  }
+  public static func legacyDirectory(environment: [String: String], home: URL) -> URL {
+    AppRuntimePaths.temporaryDirectory(environment: environment, home: home)
+      .appendingPathComponent("khuluma-timed-out", isDirectory: true)
   }
 
   /// Moves takes left in `old` into this store: each file is durably copied

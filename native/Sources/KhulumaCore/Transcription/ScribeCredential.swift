@@ -120,6 +120,9 @@ public struct ScribeCredential: Sendable {
         return inherited.unicodeScalars.contains(where: { $0.value < 32 }) ? nil : (inherited, .environment)
       }
     }
+    // Isolated runs read only the (.isolated) Keychain item and the
+    // environment, never the user's shell files.
+    guard !AppRuntimePaths.isIsolated(environment: environment) else { return nil }
     var candidates: [String] = []
     if let zdotdir = environment["ZDOTDIR"], !zdotdir.isEmpty {
       candidates.append(PyText.join(PyText.expandUser(zdotdir, home: home.path), ".zshrc"))

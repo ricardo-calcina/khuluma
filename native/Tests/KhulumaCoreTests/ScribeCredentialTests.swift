@@ -106,6 +106,19 @@ struct ScribeCredentialParityTests {
     #expect(ScribeCredential(keychain: MemoryKeychain(), environment: [:], home: home).lookup() == nil)
   }
 
+  @Test func isolatedRunsNeverReadShellFiles() throws {
+    let home = try tempHome()
+    defer { try? FileManager.default.removeItem(at: home) }
+    try "export ELEVENLABS_API_KEY=fromrc\n".write(to: home.appendingPathComponent(".zshrc"), atomically: true, encoding: .utf8)
+    let isolated = ["KHULUMA_SUPPORT_DIR": "/fixture/support", "KHULUMA_LOG_DIR": "/fixture/logs",
+                    "KHULUMA_DEFAULTS_SUITE": "com.ricardo-nth.khuluma.test"]
+    #expect(ScribeCredential(keychain: MemoryKeychain(), environment: isolated, home: home).source == nil)
+    var withKey = isolated
+    withKey["ELEVENLABS_API_KEY"] = "fromenv"
+    #expect(ScribeCredential(keychain: MemoryKeychain(), environment: withKey, home: home).source == .environment)
+    #expect(ScribeCredential(keychain: MemoryKeychain(), environment: [:], home: home).source == .shellSettings)
+  }
+
   @Test func reportsWhereTheKeyCameFrom() throws {
     let home = try tempHome()
     defer { try? FileManager.default.removeItem(at: home) }

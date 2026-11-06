@@ -151,6 +151,8 @@ final class AppController: NSObject, NSApplicationDelegate {
   /// files wait until initialization (the import) is done and while a take
   /// is recording or in flight.
   private func registerQuickAction() {
+    // An isolated run must not register Services for the whole login.
+    guard !AppRuntimePaths.isolated else { return }
     let load = loadConfig
     let service = QuickActionService(loadConfig: { load() })
     service.dictationBusy = { [weak self] in
