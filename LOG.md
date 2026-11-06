@@ -2,8 +2,6 @@
 
 ## Now
 
-Design in progress (tab "Khuluma light theme and custom controls", 2026-11-06): main has unapproved light-mode, title bar tab and Activity control changes. Don't install from main without checking with that tab. Options: https://claude.ai/artifact/5sQziK73U4sMPBzpuJ2mCQ
-
 Pick up (CLI sunset tab): keep list handed to the app tab (t4j) on 2026-11-05 · next: when it confirms the app runs without the CLI, prepare phase 4 (final v0.12.0 with notice, formula disable!) for Ricardo's yes · branch: wip/product-split
 
 Installed build 458 on 2026-11-06 (speaking-pace WPM, Ricardo's OK, from main db4a4aa): WPM and time saved leave out pauses over 1 s, measured from word timings; the audio sent to ASR is unchanged. Rollback: `~/Applications/.khuluma-app.JvohaM/previous.app` (build 449).
@@ -100,6 +98,7 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 
 ## Done
 
+- 2026-11-06 · Light mode is white (warm-neutral tracks, re-tuned ember ramp), title bar tabs centred with hover, custom Words per day switch and range control, no ≈ on Time saved; dark unchanged; Codex review; installed as build 464 (rollback ~/Applications/.khuluma-app.glUePo/previous.app = 458) · 6e0559b, DESIGN.md Colors
 - 2026-11-06 · Affected-only checks: tools/test-affected.sh picks builds, suites and the isolated UI snapshot from the changed files (fail safe, two Codex reviews); CONTRIBUTING and AGENTS make it the default · tools/test_affected.py
 - 2026-11-06 · WPM measures speaking time (pauses over 1 s left out, via Parakeet/Scribe word timings; time saved too); real takes 185 → 194 WPM; two Codex reviews; installed as build 458 · db4a4aa, CHANGELOG Unreleased
 - 2026-11-06 · App independence merged and installed as build 449: own data folder + one-time import, bundled daemon and model download, Scribe, khuluma transcribe/Quick Action in the app, no CLI calls · docs/plans/APP_INDEPENDENCE.md, CHANGELOG Unreleased
