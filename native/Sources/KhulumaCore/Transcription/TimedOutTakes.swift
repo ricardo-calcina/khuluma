@@ -44,9 +44,54 @@ public struct TimedOutTakes: Sendable {
   /// Where expired, orphaned or broken-sidecar audio goes.
   public let recovered: RecoveredTakes
 
+  /// In the app folder, not $TMPDIR: macOS purges unused temp files after
+  /// about three days, which would lose a take before its handoff ran.
   public static var standard: TimedOutTakes {
-    TimedOutTakes(directory: AppRuntimePaths.temporary
-      .appendingPathComponent("khuluma-timed-out", isDirectory: true), recovered: .standard)
+    TimedOutTakes(directory: AppRuntimePaths.support.appendingPathComponent("timed-out", isDirectory: true),
+                  recovered: .standard)
+  }
+
+  /// Where build 415 and earlier kept them ($TMPDIR, or the isolated
+  /// temporary folder).
+  public static var legacyDirectory: URL {
+    AppRuntimePaths.temporary.appendingPathComponent("khuluma-timed-out", isDirectory: true)
+  }
+
+  /// Moves takes left in `old` into this store: each file is durably copied
+  /// (audio before its sidecar) and only then removed from `old`. A file
+  /// whose name is already taken here by different bytes is left in `old`.
+  /// Broken or orphaned files come across as they are; `all()` hands them
+  /// to recovered/. Returns how many files moved.
+  @discardableResult
+  public func adoptLegacy(from old: URL) -> Int {
+    Self.lock.withLock {
+      guard old.standardizedFileURL != directory.standardizedFileURL,
+            let names = try? FileManager.default.contentsOfDirectory(atPath: old.path) else { return 0 }
+      let files = names.filter { !$0.hasPrefix(".") && ($0.hasSuffix(".wav") || $0.hasSuffix(".json")) }
+        .sorted { ($0.hasSuffix(".wav") ? 0 : 1, $0) < ($1.hasSuffix(".wav") ? 0 : 1, $1) }
+      guard !files.isEmpty else { return 0 }
+      do {
+        try FileManager.default.createDirectory(
+          at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+      } catch { return 0 }
+      var moved = 0
+      for name in files {
+        let source = old.appendingPathComponent(name)
+        let target = directory.appendingPathComponent(name)
+        guard let data = try? Data(contentsOf: source) else { continue }
+        if let existing = try? Data(contentsOf: target) {
+          guard existing == data else { continue }
+        } else {
+          do { try DurableFile.write(data, to: target) } catch { continue }
+        }
+        try? FileManager.default.removeItem(at: source)
+        moved += 1
+      }
+      if (try? FileManager.default.contentsOfDirectory(atPath: old.path))?.isEmpty == true {
+        try? FileManager.default.removeItem(at: old)
+      }
+      return moved
+    }
   }
 
   public init(directory: URL, recovered: RecoveredTakes) {

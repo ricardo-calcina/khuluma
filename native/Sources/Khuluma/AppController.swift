@@ -137,6 +137,9 @@ final class AppController: NSObject, NSApplicationDelegate {
     settingsQueue.async { [weak self] in
       let imported = LegacyImport.run()
       Log.write("import: \(imported.logLine)")
+      // Timed-out takes from builds that kept them in $TMPDIR.
+      let moved = TimedOutTakes.standard.adoptLegacy(from: TimedOutTakes.legacyDirectory)
+      if moved > 0 { Log.write("timed-out: moved \(moved) file(s) from \(TimedOutTakes.legacyDirectory.path) into the app folder") }
       DispatchQueue.main.async {
         guard let self, !self.quitting else { return }
         self.finishInitialization()

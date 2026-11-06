@@ -39,7 +39,44 @@ public struct RecoveredTakes: Sendable {
     let safeId = String(takeId.unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) || $0 == "-" })
     let name = String(format: "%013lld", Int64(date.timeIntervalSince1970 * 1000)) + "-\(safeId.isEmpty ? UUID().uuidString.lowercased() : safeId).wav"
     let url = directory.appendingPathComponent(name)
-    let temp = directory.appendingPathComponent(".\(name).\(UUID().uuidString.prefix(8)).tmp")
+    try DurableFile.write(data, to: url)
+    return url
+  }
+
+  /// Saved takes, oldest first.
+  public func all() -> [URL] {
+    guard let names = try? FileManager.default.contentsOfDirectory(atPath: directory.path) else { return [] }
+    return names.filter { $0.hasSuffix(".wav") && !$0.hasPrefix(".") }.sorted()
+      .map { directory.appendingPathComponent($0) }
+  }
+
+  /// Samples of a WAV written by `save` (44-byte header, 16-bit mono PCM).
+  public static func samples(at url: URL) throws -> [Float] {
+    let data = try Data(contentsOf: url)
+    guard data.count >= 44 else { throw CocoaError(.fileReadCorruptFile, userInfo: [NSFilePathErrorKey: url.path]) }
+    let pcm: [Int16] = data.dropFirst(44).withUnsafeBytes { Array($0.bindMemory(to: Int16.self)) }
+    return pcm.map { Float($0) / 32767 }
+  }
+
+  /// The take id encoded in a saved file's name.
+  public static func takeId(of url: URL) -> String {
+    let stem = url.deletingPathExtension().lastPathComponent
+    guard let dash = stem.firstIndex(of: "-") else { return stem }
+    return String(stem[stem.index(after: dash)...])
+  }
+
+  public func remove(_ url: URL) {
+    try? FileManager.default.removeItem(at: url)
+  }
+}
+
+/// Crash-safe file writes: an exclusive 0600 temp file in the same folder,
+/// fsync, rename into place, fsync the folder. Done only after the folder
+/// fsync, so a caller may then delete its own copy.
+enum DurableFile {
+  static func write(_ data: Data, to url: URL) throws {
+    let directory = url.deletingLastPathComponent()
+    let temp = directory.appendingPathComponent(".\(url.lastPathComponent).\(UUID().uuidString.prefix(8)).tmp")
     func failure(_ path: String, _ code: Int32) -> Error {
       NSError(domain: NSPOSIXErrorDomain, code: Int(code), userInfo: [NSFilePathErrorKey: path])
     }
@@ -83,32 +120,5 @@ public struct RecoveredTakes: Sendable {
     let syncError = sync(dirFd)
     close(dirFd)
     if let syncError { throw failure(directory.path, syncError) }
-    return url
-  }
-
-  /// Saved takes, oldest first.
-  public func all() -> [URL] {
-    guard let names = try? FileManager.default.contentsOfDirectory(atPath: directory.path) else { return [] }
-    return names.filter { $0.hasSuffix(".wav") && !$0.hasPrefix(".") }.sorted()
-      .map { directory.appendingPathComponent($0) }
-  }
-
-  /// Samples of a WAV written by `save` (44-byte header, 16-bit mono PCM).
-  public static func samples(at url: URL) throws -> [Float] {
-    let data = try Data(contentsOf: url)
-    guard data.count >= 44 else { throw CocoaError(.fileReadCorruptFile, userInfo: [NSFilePathErrorKey: url.path]) }
-    let pcm: [Int16] = data.dropFirst(44).withUnsafeBytes { Array($0.bindMemory(to: Int16.self)) }
-    return pcm.map { Float($0) / 32767 }
-  }
-
-  /// The take id encoded in a saved file's name.
-  public static func takeId(of url: URL) -> String {
-    let stem = url.deletingPathExtension().lastPathComponent
-    guard let dash = stem.firstIndex(of: "-") else { return stem }
-    return String(stem[stem.index(after: dash)...])
-  }
-
-  public func remove(_ url: URL) {
-    try? FileManager.default.removeItem(at: url)
   }
 }

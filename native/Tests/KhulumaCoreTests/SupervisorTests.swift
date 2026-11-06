@@ -312,4 +312,33 @@ struct TimedOutTakesTests {
     #expect(handed.count == 1)
     #expect(try RecoveredTakes.samples(at: handed[0]).count == 3)
   }
+
+  @Test func takesLeftInTheOldTempFolderMoveIntoTheStore() throws {
+    let (store, recovered, root) = stores()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let old = TimedOutTakes(directory: root.appendingPathComponent("old-tmp"), recovered: recovered)
+    let info = TimedOutTakes.Info(takeId: "t-old", app: "Notes", recordMs: 900, startupMs: 50, startedAtMs: 1)
+    let entry = try old.save(samples: [0.3, 0.3, 0.3], info: info)
+    try WAVEncoder.encode(samples: [0.1]).write(to: old.directory.appendingPathComponent("orphan.wav"))
+    // A name already taken here by different bytes stays in the old folder.
+    try FileManager.default.createDirectory(at: store.directory, withIntermediateDirectories: true)
+    try Data("other".utf8).write(to: store.directory.appendingPathComponent("clash.json"))
+    try Data("mine".utf8).write(to: old.directory.appendingPathComponent("clash.json"))
+
+    #expect(store.adoptLegacy(from: old.directory) == 3)
+    #expect(try FileManager.default.contentsOfDirectory(atPath: old.directory.path) == ["clash.json"])
+    let listed = store.all(now: info.savedAt)
+    #expect(listed.map(\.info) == [info])
+    #expect(try RecoveredTakes.samples(at: listed[0].wav).count == 3)
+    #expect(listed[0].wav.deletingLastPathComponent().path == store.directory.path)
+    _ = entry
+    // The orphan came across and was handed to recovered/.
+    #expect(recovered.all().count == 1)
+    // all() dropped the lone clashing sidecar here, so the old one now moves;
+    // then nothing is left and the old folder is gone.
+    #expect(store.adoptLegacy(from: old.directory) == 1)
+    #expect(!FileManager.default.fileExists(atPath: old.directory.path))
+    #expect(store.adoptLegacy(from: old.directory) == 0)
+    #expect(store.adoptLegacy(from: root.appendingPathComponent("missing")) == 0)
+  }
 }
