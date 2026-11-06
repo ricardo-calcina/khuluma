@@ -46,6 +46,19 @@ public enum AppRuntimePaths {
         return "Isolated state cannot use home, system or daily application data trees: \(directory.path)"
       }
     }
+    // Data overrides must not lead an isolated run back into real data: the
+    // shared model cache, the CLI-era data folder or the daily app folder.
+    let realData = [home.appendingPathComponent("Library/Application Support/FluidAudio"),
+                    home.appendingPathComponent(".local/share"),
+                    home.appendingPathComponent("Library/Application Support/Khuluma")].map(physicalDirectory)
+    for key in ["KHULUMA_DEFAULT_MODEL_DIR", "XDG_DATA_HOME", "SOUNDS_DIR"] {
+      guard let value = environment[key], !value.isEmpty else { continue }
+      let resolved = physicalDirectory(URL(fileURLWithPath: value, isDirectory: true))
+      let literal = URL(fileURLWithPath: value, isDirectory: true).standardizedFileURL
+      if realData.contains(where: { contains($0, resolved) || contains($0, literal) }) {
+        return "\(key) must not point into real Khuluma or FluidAudio data in an isolated run: \(value)"
+      }
+    }
     guard environment["KHULUMA_DEFAULTS_SUITE"]!.hasPrefix("com.ricardo-nth.khuluma.") else {
       return "Isolated launch requires a separate Khuluma defaults suite"
     }
@@ -105,17 +118,16 @@ public enum AppRuntimePaths {
 
   /// Where the default Parakeet v3 model lives. Ordinary runs: FluidAudio's
   /// shared cache (`sharedCache`, which other apps use too). Isolated runs
-  /// never touch it: KHULUMA_DEFAULT_MODEL_DIR when set, else
-  /// `<support>/models/<the cache's folder name>`. The app (reading,
+  /// never touch it: `<models>/<the cache's folder name>`, where `<models>`
+  /// is KHULUMA_DEFAULT_MODEL_DIR (a parent models folder) when set, else
+  /// `<support>/models`. FluidAudio downloads into `<parent>/<fixed repo
+  /// folder name>`, so the target always matches what it writes. The app (reading,
   /// downloading, repairing, locking) and the `khuluma` helper both use this.
   public static func defaultModelDirectory(environment: [String: String], home: URL, sharedCache: URL) -> URL {
     guard isIsolated(environment: environment) else { return sharedCache }
-    if let path = environment["KHULUMA_DEFAULT_MODEL_DIR"], !path.isEmpty {
-      return URL(fileURLWithPath: path, isDirectory: true)
-    }
-    return supportDirectory(environment: environment, home: home)
-      .appendingPathComponent("models", isDirectory: true)
-      .appendingPathComponent(sharedCache.lastPathComponent, isDirectory: true)
+    let parent = environment["KHULUMA_DEFAULT_MODEL_DIR"].flatMap { $0.isEmpty ? nil : URL(fileURLWithPath: $0, isDirectory: true) }
+      ?? supportDirectory(environment: environment, home: home).appendingPathComponent("models", isDirectory: true)
+    return parent.appendingPathComponent(sharedCache.lastPathComponent, isDirectory: true)
   }
 
   public static var isolated: Bool { isIsolated(environment: ProcessInfo.processInfo.environment) }

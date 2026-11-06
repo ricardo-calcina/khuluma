@@ -18,9 +18,10 @@ struct IsolationPathsTests {
     #expect(AppRuntimePaths.defaultModelDirectory(environment: isolated, home: home, sharedCache: shared).path
             == "/fixture/support/models/parakeet-tdt-0.6b-v3-coreml")
     var overridden = isolated
-    overridden["KHULUMA_DEFAULT_MODEL_DIR"] = "/fixture/model"
+    // The override is the parent models folder; FluidAudio's folder name goes under it.
+    overridden["KHULUMA_DEFAULT_MODEL_DIR"] = "/fixture/models"
     #expect(AppRuntimePaths.defaultModelDirectory(environment: overridden, home: home, sharedCache: shared).path
-            == "/fixture/model")
+            == "/fixture/models/parakeet-tdt-0.6b-v3-coreml")
     overridden["KHULUMA_DEFAULT_MODEL_DIR"] = ""
     #expect(AppRuntimePaths.defaultModelDirectory(environment: overridden, home: home, sharedCache: shared).path
             == "/fixture/support/models/parakeet-tdt-0.6b-v3-coreml")
@@ -48,5 +49,35 @@ struct IsolationPathsTests {
             == "/fixture/support/temporary/khuluma-timed-out")
     #expect(TimedOutTakes.legacyDirectory(environment: [:], home: home).path
             == FileManager.default.temporaryDirectory.appendingPathComponent("khuluma-timed-out").path)
+  }
+
+  @Test func isolatedDataOverridesCantPointAtRealData() {
+    for (key, value) in [("KHULUMA_DEFAULT_MODEL_DIR", "/Users/x/Library/Application Support/FluidAudio/Models"),
+                         ("XDG_DATA_HOME", "/Users/x/.local/share"),
+                         ("SOUNDS_DIR", "/Users/x/.local/share/sounds"),
+                         ("KHULUMA_DEFAULT_MODEL_DIR", "/Users/x/Library/Application Support/Khuluma/models"),
+                         ("SOUNDS_DIR", "/Users/x/.local/share/../share/sounds")] {
+      var env = isolated
+      env[key] = value
+      let issue = AppRuntimePaths.isolationIssue(environment: env, home: home)
+      #expect(issue?.contains(key) == true, "\(key)=\(value): \(issue ?? "nil")")
+    }
+    // Elsewhere is fine as far as this check goes (later checks still apply).
+    var env = isolated
+    env["SOUNDS_DIR"] = "/fixture/sounds"
+    #expect(AppRuntimePaths.isolationIssue(environment: env, home: home)?.contains("SOUNDS_DIR") != true)
+  }
+
+  @Test func isolatedImportNeedsAnExplicitConfigDir() throws {
+    let dest = FileManager.default.temporaryDirectory.appendingPathComponent("khuluma-iso-\(UUID().uuidString)")
+    defer { try? FileManager.default.removeItem(at: dest) }
+    let result = LegacyImport.run(environment: isolated, home: home, destination: dest)
+    #expect(result.outcome == .skippedIsolated)
+    #expect(result.logLine.contains("KHULUMA_CONFIG_DIR"))
+    #expect(!FileManager.default.fileExists(atPath: dest.path))
+    var explicit = isolated
+    explicit["KHULUMA_CONFIG_DIR"] = dest.appendingPathComponent("missing-cli").path
+    #expect(LegacyImport.run(environment: explicit, home: home, destination: dest).outcome
+            == .noSource(dest.appendingPathComponent("missing-cli").path))
   }
 }

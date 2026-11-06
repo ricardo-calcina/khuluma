@@ -99,6 +99,9 @@ public enum LegacyImport {
     case imported(Receipt)
     case alreadyImported
     case noSource(String)
+    /// An isolated run with no explicit KHULUMA_CONFIG_DIR: never reads the
+    /// real CLI folder.
+    case skippedIsolated
     case refused(String)
     case failed(String)
   }
@@ -119,6 +122,7 @@ public enum LegacyImport {
           + "\(u), take ids \(r.legacy_take_ids), skipped \(r.skipped.count), \(ms) ms"
       case .alreadyImported: return "legacy import: already done (\(ms) ms)"
       case .noSource(let p): return "legacy import: no CLI data at \(p) (\(ms) ms)"
+      case .skippedIsolated: return "legacy import: skipped (isolated run without KHULUMA_CONFIG_DIR) (\(ms) ms)"
       case .refused(let why): return "legacy import: refused: \(why) (\(ms) ms)"
       case .failed(let why): return "legacy import: failed: \(why) (\(ms) ms)"
       }
@@ -142,6 +146,9 @@ public enum LegacyImport {
                          now: Date = Date(),
                          checkpoint: (Checkpoint) throws -> Void = { _ in }) -> Result {
     let started = Date()
+    if AppRuntimePaths.isIsolated(environment: environment), environment["KHULUMA_CONFIG_DIR"]?.isEmpty ?? true {
+      return Result(outcome: .skippedIsolated, duration: Date().timeIntervalSince(started))
+    }
     let src = source(environment: environment, home: home)
     let outcome: Outcome
     do {

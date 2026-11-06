@@ -43,6 +43,10 @@ enum SpeechModel {
     let repair = FileManager.default.fileExists(atPath: target.path) && !isCompleteV3(target.path)
     // Never delete a folder that changed in the last 15 minutes: another
     // app may be downloading into the shared cache. The provisioner retries.
+    // Known, accepted race: we can't coordinate with other apps' downloads
+    // (the lock is Khuluma's only), so one that pauses for over 15 minutes
+    // and then resumes could still lose its folder. The window is the
+    // mitigation.
     if repair, ModelRepair.isBusy(target.path) {
       done(.failure(ModelRepair.Busy()))
       return

@@ -31,13 +31,22 @@ public struct RecoveredTakes: Sendable {
   /// Hands over a WAV that already exists elsewhere (a timed-out take that
   /// expired): written to a temp file in recovered/, fsynced, renamed into
   /// place and the folder fsynced, so the caller may delete its copy once
-  /// this returns. `wav` must be at least a WAV header.
+  /// this returns. Idempotent: if recovered/ already holds this take id
+  /// with the same bytes (a crash after the copy, before the source was
+  /// removed), that file is synced and returned instead of a second copy.
   @discardableResult
   public func adopt(wav data: Data, takeId: String, at date: Date = Date()) throws -> URL {
     try FileManager.default.createDirectory(
       at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
-    let safeId = String(takeId.unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) || $0 == "-" })
-    let name = String(format: "%013lld", Int64(date.timeIntervalSince1970 * 1000)) + "-\(safeId.isEmpty ? UUID().uuidString.lowercased() : safeId).wav"
+    var safeId = String(takeId.unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) || $0 == "-" })
+    if safeId.isEmpty { safeId = "take" }
+    for existing in all() where Self.takeId(of: existing) == safeId {
+      if (try? Data(contentsOf: existing)) == data {
+        try DurableFile.syncExisting(existing)
+        return existing
+      }
+    }
+    let name = String(format: "%013lld", Int64(date.timeIntervalSince1970 * 1000)) + "-\(safeId).wav"
     let url = directory.appendingPathComponent(name)
     try DurableFile.write(data, to: url)
     return url
@@ -74,6 +83,36 @@ public struct RecoveredTakes: Sendable {
 /// fsync, rename into place, fsync the folder. Done only after the folder
 /// fsync, so a caller may then delete its own copy.
 enum DurableFile {
+  /// fsyncs an existing file and its folder (before a caller deletes its
+  /// own copy because this one already matches).
+  static func syncExisting(_ url: URL) throws {
+    func failure(_ path: String, _ code: Int32) -> Error {
+      NSError(domain: NSPOSIXErrorDomain, code: Int(code), userInfo: [NSFilePathErrorKey: path])
+    }
+    for (path, flags) in [(url.path, O_RDONLY), (url.deletingLastPathComponent().path, O_RDONLY)] {
+      var fd: Int32
+      repeat { fd = open(path, flags) } while fd < 0 && errno == EINTR
+      guard fd >= 0 else { throw failure(path, errno) }
+      var code: Int32 = 0
+      while fsync(fd) != 0 { if errno != EINTR { code = errno; break } }
+      close(fd)
+      if code != 0 { throw failure(path, code) }
+    }
+  }
+
+  /// Makes `url` hold `data` durably: synced if it already does, written if
+  /// missing; throws if it holds something else.
+  static func ensure(_ data: Data, at url: URL) throws {
+    if FileManager.default.fileExists(atPath: url.path) {
+      guard (try? Data(contentsOf: url)) == data else {
+        throw NSError(domain: NSPOSIXErrorDomain, code: Int(EEXIST), userInfo: [NSFilePathErrorKey: url.path])
+      }
+      try syncExisting(url)
+    } else {
+      try write(data, to: url)
+    }
+  }
+
   static func write(_ data: Data, to url: URL) throws {
     let directory = url.deletingLastPathComponent()
     let temp = directory.appendingPathComponent(".\(url.lastPathComponent).\(UUID().uuidString.prefix(8)).tmp")

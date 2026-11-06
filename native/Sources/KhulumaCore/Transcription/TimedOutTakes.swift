@@ -5,7 +5,7 @@ import Foundation
 /// recorded (0600, in a 0700 folder) plus a JSON sidecar. After `lifetime`
 /// (1 hour) it is handed to recovered/ (transcribed into history, never
 /// pasted), not deleted; only Discard, a finished retry or audio with no
-/// samples deletes it.
+/// samples deletes it. Audio that can't be read is never deleted.
 public struct TimedOutTakes: Sendable {
   /// What a retry needs to deliver and record the take like the original.
   public struct Info: Codable, Equatable, Sendable {
@@ -61,34 +61,50 @@ public struct TimedOutTakes: Sendable {
       .appendingPathComponent("khuluma-timed-out", isDirectory: true)
   }
 
-  /// Moves takes left in `old` into this store: each file is durably copied
-  /// (audio before its sidecar) and only then removed from `old`. A file
-  /// whose name is already taken here by different bytes is left in `old`.
-  /// Broken or orphaned files come across as they are; `all()` hands them
-  /// to recovered/. Returns how many files moved.
+  /// Where problems the store can't fix are reported (unreadable audio
+  /// left in place). The app sets it once at launch to its log.
+  nonisolated(unsafe) public static var report: @Sendable (String) -> Void = { _ in }
+
+  /// Moves takes left in `old` into this store, a take (`<stem>.wav` and
+  /// `<stem>.json`, whichever exist) at a time: every file is durably in
+  /// place here (written, or already identical and synced) before any of
+  /// the take's files are removed from `old`. If any file can't be read,
+  /// written, or clashes with different bytes here, the whole take stays in
+  /// `old`. Broken or orphaned takes come across as they are; `all()` hands
+  /// them to recovered/. Returns how many takes moved.
   @discardableResult
   public func adoptLegacy(from old: URL) -> Int {
     Self.lock.withLock {
       guard old.standardizedFileURL != directory.standardizedFileURL,
             let names = try? FileManager.default.contentsOfDirectory(atPath: old.path) else { return 0 }
-      let files = names.filter { !$0.hasPrefix(".") && ($0.hasSuffix(".wav") || $0.hasSuffix(".json")) }
-        .sorted { ($0.hasSuffix(".wav") ? 0 : 1, $0) < ($1.hasSuffix(".wav") ? 0 : 1, $1) }
-      guard !files.isEmpty else { return 0 }
+      var units: [String: [String]] = [:]
+      for name in names where !name.hasPrefix(".") && (name.hasSuffix(".wav") || name.hasSuffix(".json")) {
+        units[(name as NSString).deletingPathExtension, default: []].append(name)
+      }
+      guard !units.isEmpty else { return 0 }
       do {
         try FileManager.default.createDirectory(
           at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
       } catch { return 0 }
       var moved = 0
-      for name in files {
-        let source = old.appendingPathComponent(name)
-        let target = directory.appendingPathComponent(name)
-        guard let data = try? Data(contentsOf: source) else { continue }
-        if let existing = try? Data(contentsOf: target) {
-          guard existing == data else { continue }
-        } else {
-          do { try DurableFile.write(data, to: target) } catch { continue }
+      for stem in units.keys.sorted() {
+        let files = units[stem]!.sorted { ($0.hasSuffix(".wav") ? 0 : 1) < ($1.hasSuffix(".wav") ? 0 : 1) }
+        var contents: [(name: String, data: Data)] = []
+        for name in files {
+          guard let data = try? Data(contentsOf: old.appendingPathComponent(name)) else { break }
+          contents.append((name, data))
         }
-        try? FileManager.default.removeItem(at: source)
+        guard contents.count == files.count else {
+          Self.report("timed-out: left \(stem) in \(old.path): a file couldn't be read")
+          continue
+        }
+        do {
+          for file in contents { try DurableFile.ensure(file.data, at: directory.appendingPathComponent(file.name)) }
+        } catch {
+          Self.report("timed-out: left \(stem) in \(old.path): \(error.localizedDescription)")
+          continue
+        }
+        for name in files { try? FileManager.default.removeItem(at: old.appendingPathComponent(name)) }
         moved += 1
       }
       if (try? FileManager.default.contentsOfDirectory(atPath: old.path))?.isEmpty == true {
@@ -96,6 +112,15 @@ public struct TimedOutTakes: Sendable {
       }
       return moved
     }
+  }
+
+  /// A stable recovered/ id for audio whose sidecar is missing or broken,
+  /// from its file name, so a repeated handoff (after a crash) is
+  /// recognised rather than copied twice.
+  static func stableId(for wav: URL) -> String {
+    let stem = wav.deletingPathExtension().lastPathComponent
+    let safe = String(stem.unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) || $0 == "-" })
+    return "timedout-" + (safe.isEmpty ? "take" : safe)
   }
 
   public init(directory: URL, recovered: RecoveredTakes) {
@@ -147,7 +172,7 @@ public struct TimedOutTakes: Sendable {
       }
       guard let data = try? Data(contentsOf: sidecar), let info = try? decoder.decode(Info.self, from: data) else {
         // Broken sidecar: the audio still goes to recovered/, under a new id.
-        handOff(wav: wav, sidecar: sidecar, takeId: UUID().uuidString.lowercased(), now: now)
+        handOff(wav: wav, sidecar: sidecar, takeId: Self.stableId(for: wav), now: now)
         continue
       }
       let entry = Entry(info: info, wav: wav)
@@ -162,14 +187,15 @@ public struct TimedOutTakes: Sendable {
     for name in names where name.hasSuffix(".wav") {
       let wav = directory.appendingPathComponent(name)
       if !FileManager.default.fileExists(atPath: wav.deletingPathExtension().appendingPathExtension("json").path) {
-        handOff(wav: wav, sidecar: nil, takeId: UUID().uuidString.lowercased(), now: now)
+        handOff(wav: wav, sidecar: nil, takeId: Self.stableId(for: wav), now: now)
       }
     }
     return entries.sorted { $0.info.savedAt < $1.info.savedAt }
   }
 
   /// Moves a take's audio to recovered/ (durably first), then removes it
-  /// here. Audio that can't be read or has no samples is deleted; if the
+  /// here. Only audio proven empty (44 bytes or less: no samples) is
+  /// deleted. Audio that can't be read stays, and is reported; if the
   /// handoff fails, everything stays for the next listing. Returns whether
   /// the files here are gone.
   @discardableResult
@@ -178,14 +204,13 @@ public struct TimedOutTakes: Sendable {
       try? FileManager.default.removeItem(at: wav)
       if let sidecar { try? FileManager.default.removeItem(at: sidecar) }
     }
-    guard let data = try? Data(contentsOf: wav) else {
-      if FileManager.default.isReadableFile(atPath: wav.path) { return false }
+    if let size = (try? FileManager.default.attributesOfItem(atPath: wav.path))?[.size] as? Int, size <= 44 {
       removeHere()
       return true
     }
-    guard data.count > 44 else {
-      removeHere()
-      return true
+    guard let data = try? Data(contentsOf: wav), data.count > 44 else {
+      Self.report("timed-out: couldn't read \(wav.lastPathComponent); left in place")
+      return false
     }
     do {
       try recovered.adopt(wav: data, takeId: takeId, at: now)
