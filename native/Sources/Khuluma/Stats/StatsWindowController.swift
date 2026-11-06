@@ -13,6 +13,7 @@ final class StatsWindowController: NSWindowController, NSWindowDelegate, NSToolb
   private static let tabsItem = NSToolbarItem.Identifier("Khuluma.Tabs")
   private static let refreshItem = NSToolbarItem.Identifier("Khuluma.Refresh")
   private static let infoItem = NSToolbarItem.Identifier("Khuluma.UsageInfo")
+  private static let previewItem = NSToolbarItem.Identifier("Khuluma.Preview")
 
   private let settingsModel: SettingsModel
 
@@ -108,7 +109,9 @@ final class StatsWindowController: NSWindowController, NSWindowDelegate, NSToolb
     let statsItems = [Self.infoItem, Self.refreshItem]
     let showing = toolbar.items.map(\.itemIdentifier).filter(statsItems.contains)
     if page == .stats, showing.isEmpty {
-      for identifier in statsItems { toolbar.insertItem(withItemIdentifier: identifier, at: toolbar.items.count) }
+      // Before the preview label, which stays last.
+      let end = toolbar.items.firstIndex { $0.itemIdentifier == Self.previewItem } ?? toolbar.items.count
+      for (offset, identifier) in statsItems.enumerated() { toolbar.insertItem(withItemIdentifier: identifier, at: end + offset) }
     } else if page != .stats, !showing.isEmpty {
       for index in toolbar.items.indices.reversed() where statsItems.contains(toolbar.items[index].itemIdentifier) {
         toolbar.removeItem(at: index)
@@ -117,11 +120,13 @@ final class StatsWindowController: NSWindowController, NSWindowDelegate, NSToolb
   }
 
   func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-    [.flexibleSpace, Self.tabsItem, Self.infoItem, Self.refreshItem]
+    [.flexibleSpace, Self.tabsItem, Self.infoItem, Self.refreshItem, Self.previewItem]
   }
 
   func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+    // The title is hidden, so an isolated preview says so in the toolbar.
     [.flexibleSpace, Self.tabsItem, .flexibleSpace, Self.infoItem, Self.refreshItem]
+      + (AppRuntimePaths.isolated ? [Self.previewItem] : [])
   }
 
   func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier identifier: NSToolbarItem.Identifier,
@@ -140,6 +145,17 @@ final class StatsWindowController: NSWindowController, NSWindowDelegate, NSToolb
         host.heightAnchor.constraint(equalToConstant: size.height),
       ])
       item.view = host
+      return item
+    }
+    if identifier == Self.previewItem {
+      let item = NSToolbarItem(itemIdentifier: identifier)
+      item.label = "Preview"
+      // Short, so the tabs still fit centred beside Stats' two buttons.
+      let text = NSTextField(labelWithString: "Preview")
+      text.toolTip = "Khuluma Preview · Sample Data"
+      text.font = .systemFont(ofSize: 11)
+      text.textColor = .secondaryLabelColor
+      item.view = text
       return item
     }
     let label: String

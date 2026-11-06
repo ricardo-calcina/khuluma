@@ -1,29 +1,50 @@
 import AppKit
 import SwiftUI
-import KhulumaCore
 
 // Khuluma's look, shared by Stats, Vocabulary and Settings. Text and marks
 // are one ink, like the app icon's black line art (black on light, white on
 // dark); colour is the ember ramp, amber to red, used for activity, progress
 // and selection. See DESIGN.md.
 
-/// The light-mode palette. Dark mode has one look; light mode is chosen by
-/// the preview-only `KhulumaLightPalette` key while a direction is picked.
-enum LightPalette: String {
-  case system, ivory, white, glow
+/// Every colour Khuluma draws, for one appearance. Tokens below pick the
+/// light or dark palette by the view's appearance, so another theme can
+/// later slot in as one more pair of palettes.
+struct Palette {
+  var canvas: NSColor
+  var track: NSColor
+  var rule: NSColor
+  /// The ember ramp, faint to hot.
+  var amber, orange, flame, red: NSColor
+  var accentText: NSColor
+  /// Text on the selection fill: 4.5:1 against the composited pill.
+  var selectedText: NSColor
+  var selection: NSColor
+  var barBase, barTop: NSColor
+  /// Bars not hovered or today.
+  var barOpacity: Double
 
-  static let current: LightPalette = {
-    let key = "KhulumaLightPalette"
-    let value = AppRuntimePaths.defaults.string(forKey: key) ?? UserDefaults.standard.string(forKey: key)
-    return value.flatMap(LightPalette.init(rawValue:)) ?? .ivory
-  }()
+  /// White canvas; the ramp is re-tuned (OKLCH L 0.775 → 0.56) so every step
+  /// keeps contrast, and accent text reaches 4.5:1.
+  static let light = Palette(
+    canvas: hex(0xFFFFFF), track: hex(0xEFEDEB), rule: hex(0xE5E2E0),
+    amber: hex(0xF0A432), orange: hex(0xEC7F1F), flame: hex(0xE3581E), red: hex(0xCC3622),
+    accentText: hex(0xB8401A), selectedText: hex(0xA8370F), selection: hex(0xE3581E, alpha: 0.14),
+    barBase: hex(0xEC7F1F), barTop: hex(0xCC3622), barOpacity: 0.9)
+
+  static let dark = Palette(
+    canvas: .windowBackgroundColor, track: ink(0.07), rule: ink(0.1),
+    amber: hex(0xF6B44B), orange: hex(0xF28C38), flame: hex(0xEA5F2A), red: hex(0xD93A26),
+    accentText: hex(0xEA5F2A), selectedText: hex(0xFFB48E), selection: hex(0xEA5F2A, alpha: 0.22),
+    barBase: hex(0xF6B44B), barTop: hex(0xEA5F2A), barOpacity: 0.8)
+
+  static func current(_ appearance: NSAppearance) -> Palette {
+    appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? dark : light
+  }
 }
 
-/// A colour with a light and a dark value, resolved by the view's appearance.
-private func dynamic(_ name: String, light: @escaping () -> NSColor, dark: @escaping () -> NSColor) -> NSColor {
-  NSColor(name: NSColor.Name("Khuluma.\(name)")) { appearance in
-    appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? dark() : light()
-  }
+/// A token that follows the view's appearance.
+private func token(_ name: String, _ value: @escaping (Palette) -> NSColor) -> NSColor {
+  NSColor(name: NSColor.Name("Khuluma.\(name)")) { value(Palette.current($0)) }
 }
 
 private func hex(_ value: UInt32, alpha: CGFloat = 1) -> NSColor {
@@ -44,14 +65,7 @@ private func ink(_ opacity: CGFloat) -> NSColor {
 
 /// Window and page backgrounds.
 enum Surface {
-  static let canvasColor = dynamic("canvas", light: {
-    switch LightPalette.current {
-    case .system: return .windowBackgroundColor
-    case .ivory: return hex(0xFCF9F3)
-    case .white: return hex(0xFFFFFF)
-    case .glow: return hex(0xFFF9F0)
-    }
-  }, dark: { .windowBackgroundColor })
+  static let canvasColor = token("canvas", \.canvas)
   static let canvas = Color(nsColor: canvasColor)
 }
 
@@ -59,23 +73,9 @@ enum Surface {
 enum Ink {
   static let color = Color.primary
   /// Empty days, tracks and quiet fills.
-  static let track = Color(nsColor: dynamic("track", light: {
-    switch LightPalette.current {
-    case .system: return ink(0.07)
-    case .ivory: return hex(0xEDE7DE)
-    case .white: return hex(0xEFEDEB)
-    case .glow: return hex(0xF9E6D1)
-    }
-  }, dark: { ink(0.07) }))
+  static let track = Color(nsColor: token("track", \.track))
   /// Hairlines between sections and rows.
-  static let rule = Color(nsColor: dynamic("rule", light: {
-    switch LightPalette.current {
-    case .system: return ink(0.1)
-    case .ivory: return hex(0xE5DFD6)
-    case .white: return hex(0xE5E2E0)
-    case .glow: return hex(0xEDDACA)
-    }
-  }, dark: { ink(0.1) }))
+  static let rule = Color(nsColor: token("rule", \.rule))
 
   /// A small caps label: under a figure, or heading a group of rows.
   static func label(_ text: String) -> some View {
@@ -88,50 +88,38 @@ enum Ink {
   }
 }
 
-/// Amber to red: the brand colour. On a light canvas the ramp is re-tuned
-/// (OKLCH L 0.775 → 0.56) so every step keeps contrast.
+/// Amber to red: the brand colour.
 enum Ember {
-  private static func ramp(_ name: String, _ today: UInt32, light: UInt32) -> Color {
-    Color(nsColor: dynamic(name, light: { hex(LightPalette.current == .system ? today : light) },
-                           dark: { hex(today) }))
-  }
-  static let amber = ramp("amber", 0xF6B44B, light: 0xF0A432)
-  static let orange = ramp("orange", 0xF28C38, light: 0xEC7F1F)
-  static let flame = ramp("flame", 0xEA5F2A, light: 0xE3581E)
-  static let red = ramp("red", 0xD93A26, light: 0xCC3622)
+  static let amber = Color(nsColor: token("amber", \.amber))
+  static let orange = Color(nsColor: token("orange", \.orange))
+  static let flame = Color(nsColor: token("flame", \.flame))
+  static let red = Color(nsColor: token("red", \.red))
 
   /// Heatmap levels 1–4, faint to hot.
   static let levels = [amber, orange, flame, red]
   /// The single accent: selection, focus marks, the active control.
   static let accent = flame
-  /// Text in the accent colour: 4.5:1 on a light canvas.
-  static let accentText = Color(nsColor: dynamic("accentText", light: {
-    LightPalette.current == .system ? hex(0xEA5F2A) : hex(0xB8401A)
-  }, dark: { hex(0xEA5F2A) }))
+  /// Text in the accent colour.
+  static let accentText = Color(nsColor: token("accentText", \.accentText))
+  /// Text on `selection`.
+  static let selectedText = Color(nsColor: token("selectedText", \.selectedText))
   /// The selected row or segment's fill.
-  static let selection = Color(nsColor: dynamic("selection", light: {
-    hex(LightPalette.current == .system ? 0xEA5F2A : 0xE3581E, alpha: 0.14)
-  }, dark: { hex(0xEA5F2A, alpha: 0.22) }))
+  static let selection = Color(nsColor: token("selection", \.selection))
 
   static let horizontal = LinearGradient(colors: [amber, flame, red], startPoint: .leading, endPoint: .trailing)
-  /// Bars: amber to flame on dark; orange to red on a light canvas, where
-  /// amber reads washed out.
-  static let vertical = LinearGradient(colors: [
-    Color(nsColor: dynamic("barBase", light: { hex(LightPalette.current == .system ? 0xF6B44B : 0xEC7F1F) },
-                           dark: { hex(0xF6B44B) })),
-    Color(nsColor: dynamic("barTop", light: { hex(LightPalette.current == .system ? 0xEA5F2A : 0xCC3622) },
-                           dark: { hex(0xEA5F2A) })),
-  ], startPoint: .bottom, endPoint: .top)
+  /// Bars, base to top. Light starts at orange: amber reads washed out there.
+  static let vertical = LinearGradient(colors: [Color(nsColor: token("barBase", \.barBase)),
+                                                Color(nsColor: token("barTop", \.barTop))],
+                                       startPoint: .bottom, endPoint: .top)
 }
 
-/// A bar's opacity: full when highlighted, else 0.8 (0.9 on a light canvas).
+/// A bar's opacity: full when highlighted, else the palette's resting value.
 struct BarOpacity: ViewModifier {
   let highlighted: Bool
   @Environment(\.colorScheme) private var scheme
 
   func body(content: Content) -> some View {
-    let resting = scheme == .light && LightPalette.current != .system ? 0.9 : 0.8
-    return content.opacity(highlighted ? 1 : resting)
+    content.opacity(highlighted ? 1 : (scheme == .dark ? Palette.dark : Palette.light).barOpacity)
   }
 }
 
@@ -257,7 +245,8 @@ struct KhulumaSegments<Option: Hashable>: View {
     .overlay(Capsule().strokeBorder(Ink.rule, lineWidth: 0.5))
     .overlay(Capsule().strokeBorder(Ember.accent, lineWidth: focused ? 2 : 0))
     .fixedSize()
-    .focusable()
+    // One keyboard stop for the whole control; arrows move the selection.
+    .focusable(interactions: .activate)
     .focusEffectDisabled()
     .focused($focused)
     .onMoveCommand { direction in
@@ -295,13 +284,14 @@ struct KhulumaSegments<Option: Hashable>: View {
         Text(title)
           .font(size.font)
           .fontWeight(selected ? .semibold : .regular)
-          .foregroundStyle(selected ? Ember.accentText : hover.active ? Color.primary : Color.secondary)
+          .foregroundStyle(selected ? Ember.selectedText : hover.active ? Color.primary : Color.secondary)
           .lineLimit(1)
           .frame(width: width)
           .frame(maxHeight: .infinity)
           .contentShape(Capsule())
       }
       .buttonStyle(SegmentButtonStyle(selected: selected, hovering: hover.active, pill: pill))
+      .focusable(false)
       .onHover { hover.active = $0 }
       .accessibilityLabel(title)
       .accessibilityAddTraits(selected ? .isSelected : [])

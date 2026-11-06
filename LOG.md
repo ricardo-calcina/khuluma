@@ -26,6 +26,9 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 
 ## Next
 
+- [ ] P2 · Swift tests leave their temp fixture roots behind on purpose (RetainedTestArtifacts): ~4,900 `$TMPDIR/khuluma-*` dirs, 145 MB from 5-6 Nov runs; macOS sweeps them after ~3 days unused. Proposal: delete a test's root when it passes, keep it on failure. Needs Ricardo's yes, since retention was deliberate · added 2026-11-06
+- [ ] P2 · tests/test_app_build_helpers.py fails 8/36 on main (same before 34c0ac1): the fixture's mock git doesn't answer the build script's dirty-tree check, so success-path cases stop at "Working tree has uncommitted changes" · added 2026-11-06
+- [ ] P3 · Experiment with selectable app themes (e.g. Dracula, Catppuccin) and an ivory light variant; Theme.swift tokens are structured for it (Ricardo, 2026-11-06) · added 2026-11-06
 - [ ] P2 · Speaking-pace WPM on build 458: Ricardo is trying it in daily use and reports any issue; check new history entries carry metrics.speech_ms and usage.json gains pause_duration_ms · added 2026-11-06
 - [ ] P1 · Watch build 449 for 14 days (to 2026-11-20): no `khuluma` process started by the app, usage matches delivered takes in history, nothing lost; first-run on a clean account not tested (Ricardo skipped it) · added 2026-11-06
 - [ ] P2 · After the 14-day watch and the CLI sunset: write up why Khuluma became app-only (the reasons, what moved into the app, what was dropped, how the import works) for Ricardo's blog, and add a public roadmap page to the khuluma.app site (VPS products/Khuluma/site, its own tab) · added 2026-11-06
@@ -78,6 +81,7 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 
 ## Decisions
 
+- Checks and worktrees (Ricardo, 2026-11-06): local checks run only what a change affects, through `tools/test-affected.sh` (CONTRIBUTING.md, "Validation Requirements"); the full Swift suite is CI's job on push, locally only for `Package.swift` or cross-cutting changes, or before an install when CI isn't available. For Khuluma, tabs work in the main checkout and share `native/.build` (~1.4 GB each), committing only their own files; a worktree only when two tabs must edit the same files.
 - App data (Ricardo, 2026-11-05): the app keeps its data in `~/Library/Application Support/Khuluma`, settings in `settings.json`, bench.tsv dropped, a one-time copy-only import from `~/.config/khuluma` (the source stays as the rollback); Scribe ported (Keychain, then the CLI's zshrc lookup); the app runs its own bundled daemon. The shared data contract and writer tags are withdrawn with the sunset. Details in docs/plans/APP_INDEPENDENCE.md.
 - CLI sunset (Ricardo, 2026-11-05; replaces the 2026-10-27 two-product split): Khuluma is the native app only. Ricardo doesn't use the CLI from the terminal or tmux and won't maintain a separate tool or tap. What's kept moves into the app (file transcription as a small command built into the app, which the transcribe-audio skill uses; ElevenLabs Scribe). Then the CLI, its formula and the tap are retired. No long-term app and CLI sharing of data: a one-time import into the app instead.
 - Microphone choice stays a submenu row in the menu, not an inline ticked list (tried in f983018, reverted 2026-11-05): Ricardo rarely switches and mostly stays on System Default; the row only needs to show the input in use. The case for choosing is two inputs at once, e.g. recording a video on the phone while Khuluma keeps the MacBook mic.

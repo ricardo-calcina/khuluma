@@ -1200,7 +1200,8 @@ final class AppController: NSObject, NSApplicationDelegate {
       guard let self else { return }
       let store = self.settingsStore
       let result = Result { try store.set(key, value: value) }.map { _ in self.loadConfig() }
-      DispatchQueue.main.async {
+      // .common modes: the menu's Auto-send switch saves while the menu tracks.
+      onMainRunLoop {
         switch result {
         case .success(let config):
           self.apply(config)

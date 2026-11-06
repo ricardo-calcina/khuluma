@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Light mode gets its own look: a white window instead of grey, warm-neutral tracks and hairlines, and an ember ramp tuned for a light background so quiet days no longer wash out; words-per-day bars run orange to red. Dark mode is unchanged.
+- The title bar tabs (Stats | Vocabulary | Settings) are now centred and react to hover. Activity's Words per day switch and 30 / 60 / 90 days control are drawn in Khuluma's colours instead of stock controls.
+- Time saved shows a plain figure, without "≈", in Stats and the menu; its help still says it is an estimate.
 - Average WPM now measures how fast you speak: pauses longer than a second are left out, using Parakeet's (and Scribe's) word timings; the audio sent for transcription is unchanged. Dictations from before Khuluma measured this still include their pauses. Time saved leaves out those pauses too.
 - Khuluma no longer needs the `khuluma` CLI. It keeps its own data in `~/Library/Application Support/Khuluma` (history, usage, `settings.json`, vocabulary), imported once from `~/.config/khuluma` by copying, never moving. It runs its own bundled Parakeet daemon, downloads the model itself with progress in the menu, and ships its sounds. ElevenLabs Scribe runs in the app, with the key read from the Keychain or your shell settings. `khuluma transcribe` is now a small command inside the app (`Khuluma.app/Contents/Helpers/khuluma`), and Finder's "Transcribe with Khuluma" Quick Action is served by the app: it writes `<name>.txt`, or `<name>-2.txt` if that exists. A take that can't be transcribed is kept and retried, never sent to the CLI.
 - While the Khuluma window is open, it appears in Cmd-Tab and the Dock with a standard menu bar (Settings, Edit, Window); closing the window returns Khuluma to the menu bar only. In the menu, Auto-send shows ember when on, and the recording row gets a red mic emblem and a Cancel capsule.
