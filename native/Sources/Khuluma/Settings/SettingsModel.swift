@@ -1,7 +1,7 @@
 import AppKit
 import KhulumaCore
 
-/// Dictation settings come from the CLI; app presentation uses private defaults.
+/// Dictation settings come from settings.json; app presentation uses private defaults.
 final class SettingsModel: ObservableObject {
   @Published private(set) var config: AppConfig?
   @Published private(set) var iconTheme: StatusIconTheme
@@ -42,8 +42,12 @@ final class SettingsModel: ObservableObject {
   var onOpenConfig: () -> Void = {}
   /// Shows the window's Vocabulary tab.
   var onManageVocabulary: () -> Void = {}
-  var onLoadVocabulary: () throws -> VocabularySnapshot = { throw CLIBridge.BridgeError.notInstalled }
-  var onSaveVocabulary: (VocabularySnapshot) throws -> VocabularySnapshot = { _ in throw CLIBridge.BridgeError.notInstalled }
+  var onLoadVocabulary: () throws -> VocabularySnapshot = { throw SettingsModel.NotReady() }
+  var onSaveVocabulary: (VocabularySnapshot) throws -> VocabularySnapshot = { _ in throw SettingsModel.NotReady() }
+  /// The vocabulary isn't wired up yet (the app is still starting).
+  struct NotReady: Error, LocalizedError {
+    var errorDescription: String? { "Khuluma is still starting." }
+  }
   var onValidateVocabulary: (Data) throws -> VocabularySheet = { try VocabularySheet.decode($0) }
   var onLoadRecentDictations: () throws -> [String] = { [] }
   var preview = false

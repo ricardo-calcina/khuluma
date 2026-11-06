@@ -245,9 +245,16 @@ struct DaemonSupervisorTests {
 }
 
 struct TimedOutTakesTests {
-  @Test func keepsTakesPrivatelyForAnHour() throws {
-    let dir = URL(fileURLWithPath: NSTemporaryDirectory() + "khuluma-timedout-\(UUID().uuidString)")
-    let store = TimedOutTakes(directory: dir)
+  private func stores() -> (TimedOutTakes, RecoveredTakes, URL) {
+    let root = URL(fileURLWithPath: NSTemporaryDirectory() + "khuluma-timedout-\(UUID().uuidString)")
+    let recovered = RecoveredTakes(directory: root.appendingPathComponent("recovered"))
+    return (TimedOutTakes(directory: root.appendingPathComponent("timed-out"), recovered: recovered), recovered, root)
+  }
+
+  @Test func keepsTakesPrivatelyForAnHourThenHandsThemToRecovered() throws {
+    let (store, recovered, root) = stores()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let dir = store.directory
     let saved = Date(timeIntervalSince1970: 2_000_000)
     let info = TimedOutTakes.Info(takeId: "t-1/..", app: "Claude", recordMs: 2000, startupMs: 110,
                                   startedAtMs: 1_999_998_000, savedAt: saved, generation: "g1")
@@ -260,13 +267,49 @@ struct TimedOutTakesTests {
     #expect(try RecoveredTakes.samples(at: entry.wav).count == 3)
 
     #expect(store.all(now: saved.addingTimeInterval(3599)) == [entry])
-    // Orphaned audio is dropped; expired takes are deleted.
-    try Data([1, 2]).write(to: dir.appendingPathComponent("orphan.wav"))
+    #expect(recovered.all().isEmpty)
+    // Expired: handed to recovered/ under the same take id, not deleted.
     #expect(store.all(now: saved.addingTimeInterval(3600)).isEmpty)
     #expect(try FileManager.default.contentsOfDirectory(atPath: dir.path).isEmpty)
+    let handed = recovered.all()
+    #expect(handed.count == 1)
+    #expect(RecoveredTakes.takeId(of: handed[0]) == "t-1")
+    #expect(try RecoveredTakes.samples(at: handed[0]).count == 3)
+    let handedMode = try FileManager.default.attributesOfItem(atPath: handed[0].path)[.posixPermissions] as? Int
+    #expect(handedMode == 0o600)
+    #expect(try FileManager.default.contentsOfDirectory(atPath: recovered.directory.path).count == 1)  // no temp left
 
+    // Discard still deletes.
     let again = try store.save(samples: [0.1], info: info)
     store.remove(again)
     #expect(store.all(now: saved).isEmpty)
+    #expect(recovered.all().count == 1)
+  }
+
+  @Test func brokenSidecarAudioGoesToRecoveredUnderANewId() throws {
+    let (store, recovered, root) = stores()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let entry = try store.save(samples: [0.25, 0.25], info: .init(takeId: "t-2", app: nil, recordMs: 1, startupMs: 0, startedAtMs: 0))
+    try Data("{broken".utf8).write(to: entry.wav.deletingPathExtension().appendingPathExtension("json"))
+    #expect(store.all().isEmpty)
+    #expect(try FileManager.default.contentsOfDirectory(atPath: store.directory.path).isEmpty)
+    let handed = recovered.all()
+    #expect(handed.count == 1)
+    #expect(RecoveredTakes.takeId(of: handed[0]) != "t-2")
+    #expect(try RecoveredTakes.samples(at: handed[0]).count == 2)
+  }
+
+  @Test func orphanAudioGoesToRecoveredAndEmptyAudioIsDropped() throws {
+    let (store, recovered, root) = stores()
+    defer { try? FileManager.default.removeItem(at: root) }
+    try FileManager.default.createDirectory(at: store.directory, withIntermediateDirectories: true)
+    try WAVEncoder.encode(samples: [0.1, 0.2, 0.3]).write(to: store.directory.appendingPathComponent("orphan.wav"))
+    try Data([1, 2]).write(to: store.directory.appendingPathComponent("tiny.wav"))
+    try Data("{}".utf8).write(to: store.directory.appendingPathComponent("lonely.json"))
+    #expect(store.all().isEmpty)
+    #expect(try FileManager.default.contentsOfDirectory(atPath: store.directory.path).isEmpty)
+    let handed = recovered.all()
+    #expect(handed.count == 1)
+    #expect(try RecoveredTakes.samples(at: handed[0]).count == 3)
   }
 }

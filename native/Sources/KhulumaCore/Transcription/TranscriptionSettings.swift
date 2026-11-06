@@ -1,9 +1,8 @@
 import Foundation
 
-/// The `transcription` section of `khuluma app-config --json`: what the
-/// CLI's inline transcription would use. Numeric env overrides arrive raw and
-/// are parsed with the CLI's own rules; anything bash would read differently
-/// (leading zeros are octal in `(( ))`) sends the take to the CLI instead.
+/// The transcription settings takes use (built from settings.json). Numeric
+/// values stay raw strings, parsed with the rules the CLI used, so behaviour
+/// is unchanged from the CLI era.
 public struct TranscriptionSettings: Codable, Equatable, Sendable {
   /// The explicit transcription destination; cloud is always opt-in.
   public var provider: String
@@ -88,9 +87,9 @@ public struct TranscriptionSettings: Codable, Equatable, Sendable {
     processingDir = try values.decode(String.self, forKey: .processingDir)
   }
 
-  /// Why this configuration needs the CLI path, or nil if the native path
-  /// reproduces it.
-  public var cliReason: String? {
+  /// Why takes can't be transcribed with this configuration yet (they are
+  /// kept until they can), or nil if they can.
+  public var blocker: String? {
     // Scribe runs natively (`AppConfig.scribe`); it needs no local model.
     if provider == "elevenlabs" { return nil }
     if provider != "parakeet" { return "unsupported transcription provider" }

@@ -12,11 +12,11 @@ struct Take {
   /// Khuluma was in front at the hotkey, so `originalApp` is the app before
   /// it and must be re-activated for delivery.
   let retargeted: Bool
-  /// Settings read while recording, so each take uses what the CLI would
-  /// use now (e.g. after `khuluma autosend off`), not launch-time values.
+  /// Settings read while recording, so each take uses the current
+  /// settings.json (e.g. after a Settings change), not launch-time values.
   let settings: SettingsFetch?
-  /// Published before capture starts and removed when the take ends, so
-  /// the CLI never swaps the daemon out mid-take.
+  /// Published before capture starts and removed when the take ends: the
+  /// processing dir shows a take in progress.
   let marker: TakeMarker?
   /// The start chime: played once, when capture is confirmed.
   let chime: OneShot
@@ -43,9 +43,6 @@ struct UnsavedTake {
 final class SettingsFetch: @unchecked Sendable {
   enum Outcome {
     case config(AppConfig)
-    /// The CLI isn't the one Khuluma was built with: no take may use it.
-    /// (Settings no longer come from the CLI; kept for the CLI route.)
-    case mismatch(AppContract.Mismatch)
     /// Not read in time.
     case unavailable(String)
   }

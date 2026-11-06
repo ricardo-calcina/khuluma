@@ -2,7 +2,7 @@ import AppKit
 import Foundation
 import KhulumaCore
 
-/// ElevenLabs Scribe takes, without the CLI: `ScribeRoute` transcribes and
+/// ElevenLabs Scribe takes: `ScribeRoute` transcribes and
 /// cleans up; this delivers and persists exactly as a Parakeet take does.
 extension TakePipeline {
   /// A failure keeps the take (the caller saves the recording) and counts
@@ -31,9 +31,6 @@ extension TakePipeline {
       // Fixed wording only: never the key or a response body.
       logTake("failed") { $0.add("error", "scribe") }
       return .failed(message)
-    case .needsLaterRetry:
-      logTake("failed") { $0.add("error", "cleanup_locale") }
-      return .failed("Cleanup can't run with these settings; the recording is kept")
     case .noSpeech(var record):
       record.totalMs = recordMs + Int(monotonicMs() - stopAt)
       logTake("no_speech") { $0.add("asr", ms: Double(record.transcribeMs)) }
@@ -84,8 +81,6 @@ extension TakePipeline {
                      startedAtMs: startedEpochMs) {
     case .failed(let message):
       Log.write("recover: \(url.lastPathComponent) kept for later: \(message)")
-    case .needsLaterRetry:
-      Log.write("recover: \(url.lastPathComponent) kept for later (cleanup can't run with these settings)")
     case .noSpeech(let record):
       if persister.persist(record) {
         store.remove(url)
@@ -126,8 +121,6 @@ extension TakePipeline {
                      recordMs: info.recordMs, startupMs: info.startupMs, startedAtMs: info.startedAtMs) {
     case .failed(let message):
       return .failed("retry failed (recording kept): \(message)")
-    case .needsLaterRetry:
-      return .failed("retry failed (recording kept): cleanup can't run with these settings")
     case .noSpeech(let record):
       persister.persist(record)
       timedOut.remove(entry)

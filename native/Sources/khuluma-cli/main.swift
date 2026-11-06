@@ -79,7 +79,10 @@ func makeEngine() throws -> FileTranscriber.Engine {
   environment.defaultModelPath = AppRuntimePaths.isolated && override != nil
     ? override : AsrModels.defaultCacheDirectory(for: .v3).path
   environment.modelAvailable = { ModelBundleCheck.isComplete($0, required: requiredFiles($1)) }
-  let settings = SettingsStore(folder: support).load().settings
+  // Read-only: the helper never writes settings (no last-good refresh).
+  var store = SettingsStore(folder: support)
+  store.readOnly = true
+  let settings = store.load().settings
   guard let model = settings.resolvedModel(in: environment) else {
     throw FileTranscribeOptions.UsageError(FileEngineChoice.noModelMessage)
   }
@@ -94,7 +97,7 @@ func makeEngine() throws -> FileTranscriber.Engine {
       socketPath: socket.resolved.path, modelPath: model.path, modelVersion: model.version,
       language: settings.transcription.language)
     // The app quit meanwhile: nothing was sent, so load the model here.
-    return FileTranscriber.Engine(name: daemon.name, model: daemon.model) { wav, flow, timeout in
+    return FileTranscriber.Engine(name: daemon.name, model: daemon.model, chunksLongFiles: true) { wav, flow, timeout in
       do {
         return try daemon.transcribe(wav, flow, timeout)
       } catch DaemonClient.ClientError.unreachable {
@@ -109,6 +112,15 @@ func makeEngine() throws -> FileTranscriber.Engine {
 let userError = FileHandle(fileDescriptor: dup(STDERR_FILENO), closeOnDealloc: false)
 let devNull = open("/dev/null", O_WRONLY)
 if devNull >= 0 { dup2(devNull, STDERR_FILENO); close(devNull) }
+
+// The app's isolation rules, before any settings or socket is touched: a
+// partial or unsafe override is refused instead of mixing in daily state.
+do {
+  try AppRuntimePaths.prepareIsolation()
+} catch {
+  userError.write(Data("khuluma: \(error.localizedDescription)\n".utf8))
+  exit(2)
+}
 
 let command = FileTranscribeCommand(
   stdout: { FileHandle.standardOutput.write(Data($0.utf8)) },

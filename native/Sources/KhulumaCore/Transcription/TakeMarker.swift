@@ -14,8 +14,8 @@ public final class TakeMarker: @unchecked Sendable {
     case queued
     /// Transcribing, cleaning up or delivering in Khuluma.
     case processing
-    /// Handed to `khuluma inline process`, which has its own marker;
-    /// still busy for the idle check.
+    /// Formerly: handed to the CLI. No longer written; kept so markers
+    /// from older builds still read.
     case cli
   }
 

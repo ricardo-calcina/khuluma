@@ -44,11 +44,6 @@ public struct CleanupSettings: Codable, Equatable, Sendable {
     case localeCollate = "locale_collate"
   }
 
-  /// The native pipeline can't reproduce this configuration; use the CLI.
-  /// Always false: the native pipeline runs in the C locale whatever the
-  /// shell's locale was (the CLI's non-C-locale refusal is gone, slice C3).
-  public var requiresCLI: Bool { false }
-
   static func isCLocale(_ value: String?) -> Bool {
     ["", "C", "POSIX"].contains(value ?? "")
   }
@@ -67,8 +62,6 @@ public enum CleanupOutcome: Equatable, Sendable {
   case text(raw: String, text: String)
   /// Nothing left after artefact/filler cleanup ("No speech detected").
   case noSpeech
-  /// The CLI runs in a non-C locale: only the CLI can produce the result.
-  case needsCLI
 }
 
 /// Swift port of the inline cleanup in `process_inline_recording`
@@ -77,35 +70,45 @@ public enum CleanupOutcome: Equatable, Sendable {
 /// stages. Proven byte-identical by tests/fixtures/cleanup.
 public struct TextPipeline: Sendable {
   public let settings: CleanupSettings
+  /// Told when the saved vocabulary file can't be read; the take is then
+  /// cleaned without it rather than kept forever (the user fixes the file
+  /// in the Vocabulary editor).
+  public let onInvalidVocabulary: @Sendable (Error) -> Void
 
-  public init(settings: CleanupSettings) {
+  public init(settings: CleanupSettings,
+              onInvalidVocabulary: @escaping @Sendable (Error) -> Void = TextPipeline.reportInvalidVocabulary) {
     self.settings = settings
+    self.onInvalidVocabulary = onInvalidVocabulary
   }
+
+  /// Where an invalid vocabulary file is reported by default. The app sets
+  /// it once at launch (to its log); set before any take runs.
+  nonisolated(unsafe) public static var reportInvalidVocabulary: @Sendable (Error) -> Void = { _ in }
 
   /// `transcript` is the transcriber's output.
   public func process(transcript: String) -> CleanupOutcome {
-    if settings.requiresCLI { return .needsCLI }
     let sheet: VocabularySheet?
     do { sheet = try VocabularySheet.load(configDir: settings.configDir) }
-    catch { return .needsCLI } // Let the CLI report the invalid document and retain the take.
+    catch {
+      onInvalidVocabulary(error)
+      sheet = nil
+    }
     return process(transcript: transcript, sheet: sheet)
   }
 
   /// Cleans with `sheet` rather than the saved file: the vocabulary editor's
   /// preview of a draft, using the same stages as a take.
   public func preview(transcript: String, sheet: VocabularySheet) -> CleanupOutcome {
-    if settings.requiresCLI { return .needsCLI }
     return process(transcript: transcript, sheet: sheet)
   }
 
   /// The sheet's examples whose cleanup no longer gives the expected text,
-  /// with what it gives now ("" for no speech). Nil when only the CLI can tell.
-  public func failingExamples(_ sheet: VocabularySheet) -> [(example: VocabularySheet.Example, got: String)]? {
+  /// with what it gives now ("" for no speech).
+  public func failingExamples(_ sheet: VocabularySheet) -> [(example: VocabularySheet.Example, got: String)] {
     var failures: [(example: VocabularySheet.Example, got: String)] = []
     for example in sheet.examples ?? [] {
       let got: String
       switch preview(transcript: example.said, sheet: sheet) {
-      case .needsCLI: return nil
       case .noSpeech: got = ""
       case .text(_, let text): got = text
       }

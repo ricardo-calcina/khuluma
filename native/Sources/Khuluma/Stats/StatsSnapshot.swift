@@ -2,7 +2,7 @@ import AppKit
 import KhulumaCore
 import SwiftUI
 
-/// Renders fixed data without starting capture, recovery, the CLI or a daemon.
+/// Renders fixed data without starting capture, recovery or a daemon.
 @MainActor
 enum StatsSnapshot {
   static func write(to directory: String) -> Int32 {
@@ -222,15 +222,14 @@ enum StatsSnapshot {
 }
 
 /// An in-memory copy of app-config. Only these sample values can be changed
-/// by the preview; it never discovers a CLI or reads credentials/config files.
+/// by the preview; it never reads credentials or config files.
 @MainActor
 private struct UISettingsFixture {
   private var values: [String: Any]
 
   init(provider: String = "parakeet", keyAvailable: Bool = false) {
     values = [
-      "schema_version": 1, "app_contract": AppContract.version, "cli_version": "preview",
-      "hotkey": "ctrl+option+space", "sounds_enabled": true,
+      "schema_version": 1, "hotkey": "ctrl+option+space", "sounds_enabled": true,
       "sounds": ["start": ["enabled": true, "path": NSNull()],
                  "cancel": ["enabled": true, "path": NSNull()]],
       "inline": ["autosend": true, "send_mode": "enter", "paste_target": "current",
@@ -250,7 +249,7 @@ private struct UISettingsFixture {
   }
 
   func config() throws -> AppConfig {
-    try AppContract.decodeAppConfig(JSONSerialization.data(withJSONObject: values))
+    try JSONDecoder().decode(AppConfig.self, from: JSONSerialization.data(withJSONObject: values))
   }
 
   func model() throws -> SettingsModel {

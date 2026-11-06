@@ -145,7 +145,7 @@ struct CleanupParityTests {
         // bash ran these in a non-C locale; the app always cleans in C now
         // (slice C3), so there's no bash output to match. It must still run.
         sawLocale = true
-        #expect(outcome != .needsCLI, "\(item.id): non-C locale must not need the CLI")
+        _ = outcome
         continue
       }
       switch (item.status, outcome) {
@@ -164,10 +164,23 @@ struct CleanupParityTests {
   }
 
   @Test func nonCLocaleRunsNatively() {
-    #expect(!CleanupSettings(configDir: "/c").requiresCLI)
     let utf8 = CleanupSettings(configDir: "/c", localeCtype: "en_US.UTF-8", localeCollate: "en_US.UTF-8")
-    #expect(!utf8.requiresCLI)
-    #expect(TextPipeline(settings: utf8).process(transcript: "hello") != .needsCLI)
+    #expect(TextPipeline(settings: utf8).process(transcript: "hello") != .noSpeech)
+  }
+
+  /// An invalid vocabulary file must not keep every take forever: the take
+  /// is cleaned without it and the problem is reported.
+  @Test func invalidVocabularyCleansWithoutItAndReports() throws {
+    let dir = FileManager.default.temporaryDirectory.appendingPathComponent("khuluma-vocab-\(UUID().uuidString)")
+    try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: dir) }
+    try Data("{not json".utf8).write(to: dir.appendingPathComponent("vocabulary.json"))
+    let reported = LockedFlag()
+    let pipeline = TextPipeline(settings: CleanupSettings(configDir: dir.path), onInvalidVocabulary: { _ in reported.set() })
+    let outcome = pipeline.process(transcript: "hello there")
+    guard case .text(_, let text) = outcome else { Issue.record("expected text, got \(outcome)"); return }
+    #expect(text.lowercased().contains("hello there"))
+    #expect(reported.value)
   }
 
   @Test func appConfigCleanupSectionDecodes() throws {
@@ -186,7 +199,6 @@ struct ShadowCompareTests {
     let native = CleanupOutcome.text(raw: "open ai", text: "OpenAI")
     #expect(ShadowCompare.mismatch(native: native, cliStatus: "ok", cliRawText: "open ai", cliText: "OpenAI") == nil)
     #expect(ShadowCompare.mismatch(native: .noSpeech, cliStatus: "no_speech", cliRawText: "", cliText: "") == nil)
-    #expect(ShadowCompare.mismatch(native: .needsCLI, cliStatus: "failed", cliRawText: "", cliText: "") == nil)
   }
 
   @Test func reportsCanonicallyEquivalentButDifferentBytes() {
@@ -236,4 +248,11 @@ struct PerlTextTests {
     let text = "café \u{212A} 日本 😀 e\u{301}"
     #expect(Array(PerlText.byteMode(text) { $0 }.utf8) == Array(text.utf8))
   }
+}
+
+private final class LockedFlag: @unchecked Sendable {
+  private let lock = NSLock()
+  private var flag = false
+  func set() { lock.withLock { flag = true } }
+  var value: Bool { lock.withLock { flag } }
 }

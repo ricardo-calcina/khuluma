@@ -5,8 +5,7 @@ import KhulumaCore
 struct RetriedText {
   let entry: TimedOutTakes.Entry
   let text: String
-  /// The native path's record, persisted once the text is pasted (the CLI
-  /// path's `inline process` has already recorded the take).
+  /// The take's record, persisted once the text is pasted.
   let record: TakeRecord?
 }
 
@@ -18,8 +17,8 @@ enum RetryOutcome {
 
 /// Retry for takes whose transcription timed out.
 extension TakePipeline {
-  /// Transcribes a kept take again: natively when the daemon holds the model
-  /// now, else through `inline process`. Nothing is pasted here.
+  /// Transcribes a kept take again, once the daemon holds the model (else it
+  /// stays for a later Retry). Nothing is pasted here.
   func retranscribe(_ entry: TimedOutTakes.Entry) -> RetryOutcome {
     let info = entry.info
     let startedAt = monotonicMs()
@@ -31,11 +30,14 @@ extension TakePipeline {
       return .failed("retry: this dictation was already saved to history; recording removed")
     }
     if config.scribe != nil { return retranscribeWithScribe(entry, config: config) }
-    // Natively only if the daemon is warm now; otherwise the CLI starts it.
-    guard let (transcription, cleanup, modelPath) = config.native,
-          DaemonClient(socketPath: transcription.socketPath).status(timeout: 1)?
+    guard let (transcription, cleanup, modelPath) = config.native else {
+      return .failed("retry: can't transcribe yet (\(config.nativePipelineBlocker ?? "transcription settings missing")); recording kept")
+    }
+    // Only once the daemon is warm: a cold one would just time out again.
+    guard DaemonClient(socketPath: transcription.socketPath).status(timeout: 1)?
             .holds(path: modelPath, version: transcription.modelVersion ?? "v3") == true else {
-      return retranscribeWithCLI(entry, provider: config.transcription.provider)
+      onUnreachable()
+      return .failed("retry: Parakeet isn't ready yet; recording kept, try again shortly")
     }
     let samples: [Float]
     do {
@@ -66,8 +68,6 @@ extension TakePipeline {
     record.captureWavBytes = 44 + 2 * samples.count
     record.transcribeMs = Int(monotonicMs() - startedAt)
     switch TextPipeline(settings: cleanup).process(transcript: transcript) {
-    case .needsCLI:
-      return retranscribeWithCLI(entry, provider: config.transcription.provider)
     case .noSpeech:
       record.status = "no_speech"
       persister.persist(record)
@@ -77,38 +77,6 @@ extension TakePipeline {
       record.rawText = raw
       record.text = text
       return .ready(RetriedText(entry: entry, text: text, record: record))
-    }
-  }
-
-  /// `inline process` on the kept WAV (it records history itself; usage
-  /// waits until the retried text is pasted).
-  private func retranscribeWithCLI(_ entry: TimedOutTakes.Entry, provider: String) -> RetryOutcome {
-    let info = entry.info
-    do {
-      let result = try requireCLI().process(wav: entry.wav, app: info.app, recordMs: info.recordMs,
-                                   startupMs: info.startupMs, startedAtEpochMs: info.startedAtMs,
-                                   expectedProvider: provider)
-      guard result.ok else {
-        if result.status == "no_speech" {
-          timedOut.remove(entry)
-          return .noSpeech
-        }
-        return .failed("retry failed (recording kept): \(result.message ?? result.status)")
-      }
-      var usage: TakeRecord?
-      if result.usageDeferred {
-        var record = TakeRecord(takeId: info.takeId, status: "ok", delivered: false)
-        record.usageOnly = true
-        record.text = result.text
-        record.app = info.app
-        record.recordMs = info.recordMs
-        record.startupMs = info.startupMs
-        record.startedAtMs = info.startedAtMs
-        usage = record
-      }
-      return .ready(RetriedText(entry: entry, text: result.text, record: usage))
-    } catch {
-      return .failed("retry failed (recording kept): \(error.localizedDescription)")
     }
   }
 }

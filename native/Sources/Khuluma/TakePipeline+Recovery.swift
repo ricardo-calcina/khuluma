@@ -2,8 +2,8 @@ import AppKit
 import Foundation
 import KhulumaCore
 
-/// Takes saved to disk at Quit (or when the CLI changed under them) that
-/// still need transcribing.
+/// Takes saved to disk (at Quit, or kept because they couldn't be
+/// transcribed then) that still need transcribing.
 extension TakePipeline {
   /// Transcribes a saved take into history (status "recovered": no usage,
   /// nothing pasted) and optionally onto the clipboard, then deletes the
@@ -21,7 +21,7 @@ extension TakePipeline {
       return
     }
     guard let native = config?.native else {
-      Log.write("recover: \(url.lastPathComponent) kept for later (native pipeline unavailable)")
+      Log.write("recover: \(url.lastPathComponent) kept for later (\(config?.nativePipelineBlocker ?? "settings unavailable"))")
       return
     }
     let (transcription, cleanup, modelPath) = native
@@ -54,9 +54,6 @@ extension TakePipeline {
       case .noSpeech:
         record.status = "no_speech"
         Log.write("recover: \(url.lastPathComponent) had no speech")
-      case .needsCLI:
-        Log.write("recover: \(url.lastPathComponent) kept for later (settings need the CLI)")
-        return
       }
       if persister.persist(record) {
         store.remove(url)

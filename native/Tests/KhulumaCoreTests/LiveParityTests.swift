@@ -28,7 +28,7 @@ struct LiveParityTests {
     var compared = 0
     for variant in variants {
       let out = root.appendingPathComponent("out/\(variant)")
-      let config = try AppContract.decodeAppConfig(Data(contentsOf: out.appendingPathComponent("app-config.json")))
+      let config = try JSONDecoder().decode(AppConfig.self, from: Data(contentsOf: out.appendingPathComponent("app-config.json")))
       #expect(config.nativePipelineBlocker == nil, "\(variant): \(config.nativePipelineBlocker ?? "")")
       let transcription = config.transcription
       let cleanup = config.cleanup

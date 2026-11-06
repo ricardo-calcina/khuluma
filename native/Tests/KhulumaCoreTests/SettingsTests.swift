@@ -33,20 +33,19 @@ import Testing
                           processingDir: "/tmp/khuluma-processing", ffmpegAvailable: ffmpeg, keyAvailable: false)
     }
 
-    /// The CLI's output for a fixture, at this root, with the placeholder
-    /// version fields a settings-built config carries.
+    /// The CLI's output for a fixture, at this root (its contract fields
+    /// are ignored).
     func expected(_ name: String) throws -> AppConfig {
       var text = try String(contentsOf: SettingsTests.fixtures.appendingPathComponent("\(name).app-config.json"), encoding: .utf8)
       text = text.replacingOccurrences(of: "@ROOT@", with: path)
       var object = try JSONSerialization.jsonObject(with: Data(text.utf8)) as! [String: Any]
-      object["cli_version"] = AppConfig.nativeCLIVersion
       // Slice D: the app ignores a configured socket_path and always uses
       // its own daemon's socket (the environment's default).
       if var transcription = object["transcription"] as? [String: Any] {
         transcription["socket_path"] = path + "/config/.cache/khulumad.sock"
         object["transcription"] = transcription
       }
-      return try AppContract.decodeAppConfig(JSONSerialization.data(withJSONObject: object))
+      return try JSONDecoder().decode(AppConfig.self, from: JSONSerialization.data(withJSONObject: object))
     }
 
     func cleanup() { try? FileManager.default.removeItem(at: url) }

@@ -81,12 +81,33 @@ public enum TranscriptOutput {
     let reason = errno
     if reason == EEXIST { throw Failure(existsMessage(destination)) }
     if reason == ENOTSUP || reason == EINVAL {
-      // Filesystems without exclusive rename (exFAT/FAT recorders): the CLI's
-      // `mv -n`, with only a tiny check-then-rename window.
-      if exists(destination) { throw Failure(existsMessage(destination)) }
-      if rename(temp, destination) == 0 { return }
+      // No exclusive rename here (exFAT/FAT recorders): link(2) also refuses
+      // an existing name. Never a plain rename without --force.
+      if link(temp, destination) == 0 { return }
+      if errno == EEXIST { throw Failure(existsMessage(destination)) }
+      throw Failure("cannot write \(destination) safely")
     }
     throw Failure("cannot write output: \(destination)")
+  }
+
+  /// The Quick Action's naming: `destination`, else `<name>-2.<ext>`,
+  /// `-3`, ... the first free name. Each name is claimed by the exclusive
+  /// rename in `write`, so two runs never pick the same one or overwrite.
+  /// Returns the path written.
+  @discardableResult
+  public static func writeFirstFree(_ content: String, to destination: String, limit: Int = 1000) throws -> String {
+    let ext = (destination as NSString).pathExtension
+    let stem = (destination as NSString).deletingPathExtension
+    for n in 1...limit {
+      let candidate = n == 1 ? destination : "\(stem)-\(n)" + (ext.isEmpty ? "" : ".\(ext)")
+      do {
+        try write(content, to: candidate, force: false)
+        return candidate
+      } catch let failure as Failure where failure.message == existsMessage(candidate) {
+        continue
+      }
+    }
+    throw Failure("no free name for \(destination)")
   }
 
   static func exists(_ path: String) -> Bool {

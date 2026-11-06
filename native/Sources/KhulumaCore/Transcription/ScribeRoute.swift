@@ -1,6 +1,6 @@
 import Foundation
 
-/// A take through ElevenLabs Scribe without the CLI: the take's WAV, the
+/// A take through ElevenLabs Scribe: the take's WAV, the
 /// transport, then the same cleanup as Parakeet takes. Delivery and
 /// persistence stay with the app, which fills in what only it knows.
 public struct ScribeRoute: Sendable {
@@ -11,8 +11,6 @@ public struct ScribeRoute: Sendable {
     case noSpeech(TakeRecord)
     /// The take is kept and nothing is counted: the CLI's wording, no record.
     case failed(String)
-    /// Cleanup needs a non-C locale the app can't reproduce; keep the take.
-    case needsLaterRetry
   }
 
   public let client: ScribeClient
@@ -67,9 +65,6 @@ public struct ScribeRoute: Sendable {
     let outcome = TextPipeline(settings: cleanup).process(transcript: transcript)
     record.cleanMs = Int(Self.nowMs() - transcribedAt)
     switch outcome {
-    case .needsCLI:
-      keep = false
-      return .needsLaterRetry
     case .noSpeech:
       record.status = "no_speech"
       return .noSpeech(record)

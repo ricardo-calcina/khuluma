@@ -375,7 +375,7 @@ struct FileTranscribeCommandTests {
 }
 
 struct QuickActionRunTests {
-  @Test func writesBesideCopiesAndRefusesExisting() throws {
+  @Test func writesBesideCopiesAndPicksTheFirstFreeName() throws {
     let dir = try scratch()
     defer { try? FileManager.default.removeItem(at: dir) }
     let a = dir.appendingPathComponent("Voice memo.m4a")
@@ -391,9 +391,31 @@ struct QuickActionRunTests {
 
     let again = QuickActionRun.run([a.path], engine: { fakeEngine { _, _ in "other" } }, waitWhileBusy: {},
                                    workDirectory: { try scratch() })
-    #expect(again.combined.isEmpty)
-    #expect(again.notification.hasPrefix("Transcription failed: output exists (use --force to overwrite): "))
+    #expect(again.failures.isEmpty)
+    #expect(again.combined == "other")
+    #expect(again.notification == "Saved Voice memo-2.txt and copied it to the clipboard.")
     #expect(try String(contentsOfFile: dir.appendingPathComponent("Voice memo.txt").path, encoding: .utf8) == "hello\n")
+    #expect(try String(contentsOfFile: dir.appendingPathComponent("Voice memo-2.txt").path, encoding: .utf8) == "other\n")
+    // A gap is filled in order: -3 exists, so the next run skips to -4.
+    try "taken\n".write(toFile: dir.appendingPathComponent("Voice memo-3.txt").path, atomically: true, encoding: .utf8)
+    let third = QuickActionRun.run([a.path], engine: { fakeEngine { _, _ in "third" } }, waitWhileBusy: {},
+                                   workDirectory: { try scratch() })
+    #expect(third.written == [dir.appendingPathComponent("Voice memo-4.txt").path])
+    #expect(try String(contentsOfFile: dir.appendingPathComponent("Voice memo-3.txt").path, encoding: .utf8) == "taken\n")
+  }
+
+  @Test func concurrentClaimsNeverShareAName() throws {
+    let dir = try scratch()
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let base = dir.appendingPathComponent("memo.txt").path
+    let paths = Flows()
+    DispatchQueue.concurrentPerform(iterations: 8) { i in
+      if let path = try? TranscriptOutput.writeFirstFree("run \(i)", to: base) { paths.add(path) }
+    }
+    #expect(paths.all.count == 8)
+    #expect(Set(paths.all).count == 8)
+    let names = try FileManager.default.contentsOfDirectory(atPath: dir.path).sorted()
+    #expect(names == ["memo-2.txt", "memo-3.txt", "memo-4.txt", "memo-5.txt", "memo-6.txt", "memo-7.txt", "memo-8.txt", "memo.txt"])
   }
 
   @Test func severalFilesJoinForTheClipboard() throws {
@@ -439,15 +461,19 @@ struct BundledHelperTests {
   }
 
   @Test func noModelAndBadArgumentsFailCleanly() throws {
-    let dir = try scratch()
+    // Isolation refuses symlinked ancestors (/var → /private/var).
+    let made = try scratch()
+    let real = try #require(realpath(made.path, nil))
+    let dir = URL(fileURLWithPath: String(cString: real), isDirectory: true)
+    free(real)
     defer { try? FileManager.default.removeItem(at: dir) }
-    let support = dir.appendingPathComponent("support")
-    try FileManager.default.createDirectory(at: support, withIntermediateDirectories: true)
-    chmod(support.path, 0o700)
+    chmod(dir.path, 0o700)
+    let support = dir.appendingPathComponent("support"), logs = dir.appendingPathComponent("logs")
     let input = dir.appendingPathComponent("tiny.wav")
     try WAVEncoder.encode(samples: tone(seconds: 0.5)).write(to: input)
     let environment = ["HOME": dir.path, "TMPDIR": dir.path + "/",
-                       "KHULUMA_SUPPORT_DIR": support.path,
+                       "KHULUMA_SUPPORT_DIR": support.path, "KHULUMA_LOG_DIR": logs.path,
+                       "KHULUMA_DEFAULTS_SUITE": "com.ricardo-nth.khuluma.helper-test",
                        "KHULUMA_DEFAULT_MODEL_DIR": dir.appendingPathComponent("no-model").path]
     let (code, out, err) = try run(["transcribe", input.path, "--beside"], environment: environment)
     #expect(code == 2)
@@ -459,7 +485,149 @@ struct BundledHelperTests {
 
     let dropped = try run(["transcribe", "--out-dir", dir.path, input.path], environment: environment)
     #expect(dropped.0 == 2 && dropped.2.hasPrefix("khuluma: transcribe: --out-dir is no longer supported"))
+    // Partial isolation is refused before settings or sockets are touched.
+    let partial = try run(["transcribe", input.path], environment: ["HOME": dir.path, "KHULUMA_LOG_DIR": logs.path])
+    #expect(partial.0 == 2)
+    #expect(partial.2 == "khuluma: Isolated launch requires KHULUMA_SUPPORT_DIR, KHULUMA_LOG_DIR and KHULUMA_DEFAULTS_SUITE together\n")
+    // The helper never writes settings: no last-good copy appears.
+    try #"{"schema_version": 1}"#.write(to: support.appendingPathComponent("settings.json"), atomically: true, encoding: .utf8)
+    _ = try run(["transcribe", input.path], environment: environment)
+    #expect(!FileManager.default.fileExists(atPath: support.appendingPathComponent(".settings.json.last-good").path))
     let unknown = try run(["record"], environment: environment)
     #expect(unknown.0 == 2 && unknown.2 == "khuluma: unknown command: record (run: khuluma help)\n")
+  }
+}
+
+struct ChunkingTests {
+  /// Loud everywhere except 20 ms silences at the given seconds.
+  func pcm(seconds: Int, silences: [Double]) -> [Int16] {
+    var out = (0..<(seconds * 16_000)).map { Int16(truncatingIfNeeded: (($0 % 40) - 20) * 800) }
+    for at in silences {
+      let start = Int(at * 16_000)
+      for i in start..<min(out.count, start + 320) { out[i] = 0 }
+    }
+    return out
+  }
+
+  @Test func cutsAtTheQuietestPointBeforeTheLimit() {
+    let samples = pcm(seconds: 150, silences: [57.0, 116.5])
+    let cuts = FileTranscriber.chunkCuts(total: samples.count, limit: 60 * 16_000, search: 5 * 16_000,
+                                         read: { Array(samples[$0.clamped(to: 0..<samples.count)]) })
+    // Inside each 20 ms silence (frames are aligned to the search window).
+    #expect(cuts.count == 3 && cuts[2] == samples.count)
+    #expect(abs(cuts[0] - (57 * 16_000 + 160)) <= 320)
+    #expect(abs(cuts[1] - (116_5 * 1_600 + 160)) <= 320)
+    var start = 0
+    for end in cuts { #expect(end - start <= 60 * 16_000); start = end }
+  }
+
+  @Test func noQuietPointStillCutsWithinTheLimit() {
+    let samples = pcm(seconds: 70, silences: [])
+    let cuts = FileTranscriber.chunkCuts(total: samples.count, limit: 60 * 16_000, search: 5 * 16_000,
+                                         read: { Array(samples[$0.clamped(to: 0..<samples.count)]) })
+    #expect(cuts.count == 2 && cuts[0] <= 60 * 16_000 && cuts[0] >= 55 * 16_000 && cuts[1] == samples.count)
+  }
+
+  func chunkedEngine(_ flows: Flows, sizes: Flows? = nil) -> FileTranscriber.Engine {
+    FileTranscriber.Engine(name: "swift_parakeet", model: "m", chunksLongFiles: true) { wav, flow, _ in
+      flows.add(flow)
+      if flow == "file" {
+        let bytes = (try? FileManager.default.attributesOfItem(atPath: wav.path)[.size] as? Int) ?? 0
+        sizes?.add(String((bytes - 44) / 2))
+        return "part"
+      }
+      return "tail end"
+    }
+  }
+
+  @Test func longFilesGoInChunksAndKeepTheTailRescue() throws {
+    let dir = try scratch()
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let input = dir.appendingPathComponent("long.wav")
+    try WAVEncoder.encode(pcm: pcm(seconds: 13, silences: [4.5, 9.2])).write(to: input)
+    var transcriber = FileTranscriber()
+    transcriber.chunkSamples = 5 * 16_000
+    transcriber.cutSearchSamples = 1 * 16_000
+    var waits = 0
+    transcriber.beforeRequest = { waits += 1 }
+    let flows = Flows(), sizes = Flows()
+    let result = try transcriber.transcribe(input, label: "long", workDirectory: dir, engine: chunkedEngine(flows, sizes: sizes))
+    #expect(flows.all == ["file", "file", "file", "file-tail"])
+    #expect(sizes.all.compactMap(Int.init).allSatisfy { $0 <= 5 * 16_000 })
+    // Before each of the 3 chunks and the tail pass.
+    #expect(waits == 4)
+    #expect(result.text == "part part part tail end")
+    #expect(try FileManager.default.contentsOfDirectory(atPath: dir.path) == ["long.wav"])
+  }
+
+  @Test func shortFilesAndInProcessEnginesStayOnePass() throws {
+    let dir = try scratch()
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let input = dir.appendingPathComponent("short.wav")
+    try WAVEncoder.encode(pcm: pcm(seconds: 4, silences: [])).write(to: input)
+    var transcriber = FileTranscriber()
+    transcriber.chunkSamples = 5 * 16_000
+    let flows = Flows()
+    _ = try transcriber.transcribe(input, label: "s", workDirectory: dir, engine: chunkedEngine(flows))
+    #expect(flows.all == ["file"])
+    let long = dir.appendingPathComponent("long.wav")
+    try WAVEncoder.encode(pcm: pcm(seconds: 11, silences: [])).write(to: long)
+    let local = Flows()
+    _ = try transcriber.transcribe(long, label: "l", workDirectory: dir, engine: fakeEngine { _, flow in local.add(flow); return "x" })
+    #expect(local.all == ["file"])
+  }
+
+  @Test func quickActionWaitsForDictationBetweenChunks() throws {
+    let dir = try scratch()
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let input = dir.appendingPathComponent("memo.wav")
+    try WAVEncoder.encode(pcm: pcm(seconds: 11, silences: [])).write(to: input)
+    var transcriber = FileTranscriber()
+    transcriber.chunkSamples = 5 * 16_000
+    transcriber.cutSearchSamples = 16_000
+    var waits = 0
+    let flows = Flows()
+    let outcome = QuickActionRun.run([input.path], engine: { chunkedEngine(flows) }, waitWhileBusy: { waits += 1 },
+                                     workDirectory: { try scratch() }, transcriber: transcriber)
+    #expect(outcome.failures.isEmpty)
+    #expect(flows.all == ["file", "file", "file"])
+    // Right before each of the 3 chunk requests.
+    #expect(waits == 3)
+  }
+}
+
+struct BusyWaitTests {
+  /// A take that becomes busy while the file decodes holds the first request.
+  @Test func aTakeStartedDuringDecodingDelaysTheFirstRequest() throws {
+    let dir = try scratch()
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let input = dir.appendingPathComponent("memo.wav")
+    try WAVEncoder.encode(samples: tone(seconds: 2)).write(to: input)
+    let events = Flows()
+    final class State: @unchecked Sendable { var busy = false }
+    let state = State()
+    var transcriber = FileTranscriber()
+    transcriber.onDecoded = { _ in state.busy = true; events.add("take started") }
+    let engine = fakeEngine { _, flow in
+      events.add(state.busy ? "request while busy" : "request \(flow)")
+      return "hi"
+    }
+    let outcome = QuickActionRun.run([input.path], engine: { engine }, waitWhileBusy: {
+      if state.busy { events.add("waited"); state.busy = false }
+    }, workDirectory: { try scratch() }, transcriber: transcriber)
+    #expect(outcome.failures.isEmpty)
+    #expect(events.all == ["take started", "waited", "request file"])
+  }
+}
+
+struct ReadOnlySettingsTests {
+  @Test func readOnlyLoadNeverWrites() throws {
+    let dir = try scratch()
+    defer { try? FileManager.default.removeItem(at: dir) }
+    try #"{"schema_version": 1}"#.write(to: dir.appendingPathComponent("settings.json"), atomically: true, encoding: .utf8)
+    var store = SettingsStore(folder: dir)
+    store.readOnly = true
+    _ = store.load()
+    #expect(try FileManager.default.contentsOfDirectory(atPath: dir.path) == ["settings.json"])
   }
 }

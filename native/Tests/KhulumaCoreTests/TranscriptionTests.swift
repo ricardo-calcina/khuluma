@@ -56,22 +56,22 @@ struct TranscriptionSettingsTests {
     #expect(TranscriptionSettings.bashInt("99999999999999999999999", default: 1) == 1)
   }
 
-  @Test func reportsWhyTheCLIIsNeeded() {
+  @Test func reportsWhyTakesCantBeTranscribedYet() {
     let base = TranscriptionSettings(socketPath: "/s", modelPath: "/m")
-    #expect(base.cliReason == nil)
-    #expect(TranscriptionSettings(socketPath: "/s", modelPath: nil).cliReason != nil)
+    #expect(base.blocker == nil)
+    #expect(TranscriptionSettings(socketPath: "/s", modelPath: nil).blocker != nil)
     var octal = base
     octal.tailPadMs = "0500"
-    #expect(octal.cliReason == nil && octal.tailPad == 500)
+    #expect(octal.blocker == nil && octal.tailPad == 500)
     var keepLogs = base
     keepLogs.keepLogs = true
-    #expect(keepLogs.cliReason == nil)  // inline record writes the debug archive
+    #expect(keepLogs.blocker == nil)  // inline record writes the debug archive
     var noFFmpeg = base
     noFFmpeg.ffmpeg = false
-    #expect(noFFmpeg.cliReason == nil)  // native WAV prep needs no ffmpeg
+    #expect(noFFmpeg.blocker == nil)  // native WAV prep needs no ffmpeg
     var noPad = base
     noPad.tailPadMs = "0"
-    #expect(noPad.cliReason == nil && noPad.tailPad == 0)
+    #expect(noPad.blocker == nil && noPad.tailPad == 0)
   }
 
   @Test func decodesTheAppConfigSections() throws {
@@ -81,7 +81,6 @@ struct TranscriptionSettingsTests {
     #expect(config.transcription.socketPath == "/s.sock")
     #expect(config.delivery.sendDelayMs == 35)
     #expect(config.usage.summaryPath == "/c/usage.json")
-    #expect(config.appContract == AppContract.version)
     #expect(config.transcription.provider == "parakeet")
     #expect(config.transcription.keyAvailable == false)
     #expect(config.soundsEnabled)
@@ -107,6 +106,7 @@ struct TranscriptionSettingsTests {
       of: #""transcription":{"socket_path""#,
       with: #""transcription":{"provider":"unknown","socket_path""#))
     #expect(unknown.native == nil)
+    #expect(unknown.nativePipelineBlocker == "unsupported transcription provider")
     #expect(DaemonSupervisor.Target(config: unknown) == nil)
   }
 
@@ -123,34 +123,6 @@ struct TranscriptionSettingsTests {
     #expect(defaults.usingFallbackDefaults)
     #expect(defaults.delivery.autosend == false)
     #expect(defaults.delivery.sendMode == "enter" && defaults.delivery.sendDelayMs == 35)
-  }
-
-  @Test func onlyTheMatchingCLIContractDecodes() throws {
-    func mismatch(_ json: String) -> AppContract.Mismatch? {
-      do {
-        _ = try AppConfigFixture.decode(json)
-        return nil
-      } catch {
-        return error as? AppContract.Mismatch
-      }
-    }
-    // A CLI from before the contract number, missing sections too: a clear
-    // mismatch, not a decode error.
-    let old = #"""
-    {"schema_version":1,"cli_version":"0.9.0","hotkey":"ctrl+option+space","sounds":{},
-     "inline":{"autosend":true,"send_mode":"enter","paste_target":"current","process_sound":true,"activate_delay_ms":90,"send_delay_ms":35}}
-    """#
-    let tooOld = try #require(mismatch(old))
-    #expect(tooOld == AppContract.Mismatch(cliVersion: "0.9.0", cliContract: nil))
-    #expect(tooOld.localizedDescription.contains("./install.sh --force"))
-
-    let older = try #require(mismatch(AppConfigFixture.json.replacingOccurrences(
-      of: #""app_contract":5"#, with: #""app_contract":4"#)))
-    #expect(older.localizedDescription == "khuluma 0.10.0-dev (contract 4) is older than this Khuluma (contract 5): run ./install.sh --force")
-    let newer = try #require(mismatch(AppConfigFixture.json.replacingOccurrences(
-      of: #""app_contract":5"#, with: #""app_contract":6"#)))
-    #expect(newer.localizedDescription.contains("rebuild it with tools/build-khuluma-app.sh"))
-    #expect(mismatch(AppConfigFixture.json) == nil)
   }
 }
 

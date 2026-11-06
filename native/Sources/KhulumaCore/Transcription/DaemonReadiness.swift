@@ -3,7 +3,7 @@ import Foundation
 /// Tells "the daemon or its model isn't ready yet" apart from real
 /// transcription failures. A not-ready take is saved to recovered/ (durable)
 /// and transcribed once the supervisor reports the daemon ready, instead of
-/// the one-hour Retry list or the CLI.
+/// the one-hour Retry list.
 public enum DaemonReadiness {
   /// The reason when `error` came from a daemon that wasn't ready, else nil.
   /// `statusAfter` is asked (once, bounded) only for a timeout: a timed-out

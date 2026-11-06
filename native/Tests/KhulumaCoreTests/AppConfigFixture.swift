@@ -1,11 +1,11 @@
 import Foundation
 @testable import KhulumaCore
 
-/// A complete `app-config --json` as the CLI writes it today; tests rewrite
-/// parts of it with `replacingOccurrences`.
+/// A complete AppConfig as JSON; tests rewrite parts of it with
+/// `replacingOccurrences`.
 enum AppConfigFixture {
   static let json = #"""
-  {"schema_version":1,"app_contract":5,"cli_version":"0.10.0-dev","hotkey":"ctrl+option+space",
+  {"schema_version":1,"hotkey":"ctrl+option+space",
    "sounds":{"start":{"enabled":true,"path":"/s/start.wav"},"cancel":{"enabled":false,"path":null}},
    "inline":{"autosend":true,"send_mode":"enter","paste_target":"current","process_sound":true,"activate_delay_ms":90,"send_delay_ms":35},
    "cleanup":{"config_dir":"/c","clean":"0","repeats_level":"1","vocab_clean":"1","british_spelling":"1",
@@ -19,6 +19,6 @@ enum AppConfigFixture {
   """#
 
   static func decode(_ json: String = json) throws -> AppConfig {
-    try AppContract.decodeAppConfig(Data(json.utf8))
+    try JSONDecoder().decode(AppConfig.self, from: Data(json.utf8))
   }
 }

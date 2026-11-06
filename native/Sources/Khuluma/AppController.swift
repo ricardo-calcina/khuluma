@@ -37,8 +37,6 @@ final class AppController: NSObject, NSApplicationDelegate {
   }
   /// One start at a time; a failed start never leaves its marker behind.
   private let starter = TakeStarter()
-  /// The CLI, only for takes the native path can't handle (until slice G).
-  private var cli: CLIBridge?
   /// Settings live in settings.json in the app folder.
   private let settingsStore = SettingsStore.standard()
   /// The model folder resolves through FluidAudio (its shared cache, and
@@ -72,7 +70,7 @@ final class AppController: NSObject, NSApplicationDelegate {
   /// Asked for while a recovery pass was running: one more pass after it.
   private var recoveryRerun = false
   private let settingsQueue = DispatchQueue(label: "khuluma.settings", qos: .userInitiated, attributes: .concurrent)
-  /// Where take markers go: the CLI's processing dir.
+  /// Where take markers go: the processing dir.
   private var markerDirectory: String { config?.transcription.processingDir ?? TakeMarker.defaultDirectory }
   /// Marker dirs already swept for a previous run's leftovers.
   private var sweptMarkerDirectories: Set<String> = []
@@ -85,9 +83,6 @@ final class AppController: NSObject, NSApplicationDelegate {
   /// Why supervision is off, as last logged ("" = on).
   private var supervisionNote: String?
   private var supervisedTarget: DaemonSupervisor.Target?
-  /// Set while the installed CLI speaks a different app contract: takes are
-  /// refused until settings from a matching CLI arrive.
-  private var contractMismatch: AppContract.Mismatch?
   /// A hotkey change read while a take was recording, applied when it ends.
   private var pendingHotkey: HotkeySpec?
   /// Takes whose transcription timed out, for Retry/Discard.
@@ -131,27 +126,20 @@ final class AppController: NSObject, NSApplicationDelegate {
     }
     if let notice = Permissions.checkKeyboardAtLaunch() { menu.showPermission(notice) }
 
+    // An unreadable vocabulary file doesn't hold takes back: they are
+    // cleaned without it, and the log says so on every take until it's fixed.
+    TextPipeline.reportInvalidVocabulary = { error in
+      Log.write("vocabulary: vocabulary.json is invalid, cleaning without it (fix it in Vocabulary): \(error.localizedDescription)")
+    }
     // The one-time import of the CLI's data (settings included) runs before
-    // settings load and before the persister's replay. Then the CLI, only
-    // needed for takes the native path can't handle, is looked for; the app
-    // works without it. Off main: both touch the disk or run subprocesses.
+    // settings load and before the persister's replay. Off main: it touches
+    // the disk.
     settingsQueue.async { [weak self] in
       let imported = LegacyImport.run()
       Log.write("import: \(imported.logLine)")
       DispatchQueue.main.async {
         guard let self, !self.quitting else { return }
         self.finishInitialization()
-      }
-      // Discovery verifies the CLI with subprocesses. Keep the menu and Quit
-      // responsive if an installed candidate is stalled or incompatible.
-      let result = Result { try CLIBridge.locate() }
-      DispatchQueue.main.async {
-        guard let self, !self.quitting else { return }
-        switch result {
-        case .success(let cli?): self.adoptCLI(cli)
-        case .success(nil): Log.write("cli: khuluma CLI not found; native path only")
-        case .failure(let error): Log.write("cli: \(error.localizedDescription); native path only")
-        }
       }
     }
   }
@@ -171,18 +159,6 @@ final class AppController: NSObject, NSApplicationDelegate {
     NSUpdateDynamicServices()
   }
 
-  /// A CLI was found: takes the native path can't handle can use it (until
-  /// slice G). Daemon supervision doesn't need it.
-  private func adoptCLI(_ cli: CLIBridge) {
-    self.cli = cli
-    pipeline?.cli = cli
-    Log.write("cli: found, used only for takes the native path can't handle")
-    if let config {
-      // Leftovers that needed the CLI before it was found get another go.
-      recoverLeftoverTakes(config: config)
-    }
-  }
-
   private func finishInitialization() {
     let pipeline = TakePipeline(persister: TakePersister(), loadConfig: loadConfig) { [weak self] in
       self?.supervisor?.trigger(.unreachable)
@@ -191,7 +167,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     let schedule: @Sendable (TimeInterval, @escaping @Sendable () -> Void) -> Void = { delay, work in
       DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + delay, execute: work)
     }
-    // The app's own daemon on its own socket; never the CLI's.
+    // The app's own daemon on its own socket.
     let (socket, socketIssue) = Self.daemonSocket
     if socket.isFallback {
       Log.write("daemon: the app folder's path is too long for a socket; using \(socket.path)")
@@ -388,8 +364,7 @@ final class AppController: NSObject, NSApplicationDelegate {
                                    app: take.originalApp?.localizedName, marker: take.marker))
       }
     }
-    // With a mismatched CLI the audio is only saved, for the next launch.
-    let config = contractMismatch == nil ? self.config : nil
+    let config = self.config
     var stillUnsaved: [UnsavedTake] = []
     for pendingTake in unsaved {
       do {
@@ -470,7 +445,7 @@ final class AppController: NSObject, NSApplicationDelegate {
           self.menu.showRecovered("Saved dictations waiting (\(remaining)): Show in Finder", action: true)
         } else if done > 0 {
           self.menu.showRecovered(
-            "Recovered \(done) dictation\(done == 1 ? "" : "s") from the last quit (khuluma history)", action: false)
+            "Recovered \(done) dictation\(done == 1 ? "" : "s") into history (see Stats)", action: false)
         }
       }
     }
@@ -492,13 +467,6 @@ final class AppController: NSObject, NSApplicationDelegate {
       guard !settingsModel.saving else { return }
       guard !starter.isStarting else {
         Log.write("start: ignored a press while the microphone was still starting")
-        return
-      }
-      if let contractMismatch {
-        // Checked again now, so the press after a reinstall works.
-        sounds.play(.error)
-        fail(contractMismatch.localizedDescription)
-        reloadSettings()
         return
       }
       // A denied microphone still delivers buffers, of silence: don't start.
@@ -539,8 +507,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     let outcome = starter.start(marker: {
       let marker = TakeMarker.create(directory: directory, takeId: UUID().uuidString.lowercased(), phase: .recording)
       if marker == nil {
-        // Recording matters more: without the marker an upgrade could restart
-        // the daemon mid-take, which costs a slower (CLI) take, not the take.
+        // Recording matters more: the marker only shows a take in progress.
         Log.write("markers: could not publish a take marker in \(directory); recording anyway")
       }
       return marker
@@ -578,12 +545,12 @@ final class AppController: NSObject, NSApplicationDelegate {
       Log.write(String(format: "start: engine.start %.1fms, hotkey→capturing %.1fms, app=%@, input=%@",
                        engineMs, startedAt - hotkeyAt, original?.localizedName ?? "-", recorder.inputName))
       // While you speak: make sure the daemon is up with the model loaded
-      // (a ping when it is; the CLI's warmup when it isn't).
+      // (a ping when it is; a start or model load when it isn't).
       supervisor?.trigger(.recordingStart)
     case .busy:
       Log.write("start: ignored a press while the microphone was still starting")
     case .failed(let error):
-      // The marker is already gone, so the CLI's idle check isn't blocked.
+      // The marker is already gone.
       chime.cancel()
       sounds.play(.error)
       fail("could not start recording: \(error.localizedDescription)")
@@ -691,84 +658,45 @@ final class AppController: NSObject, NSApplicationDelegate {
       guard let self else { return }
       take.marker?.update(.processing)
       // Settings fetched during the recording; usually ready long before
-      // stop. The wait outlasts the fetch's own timeout, so no take reaches
-      // a CLI whose contract is still unknown. Without settings (the CLI
-      // failed), the CLI path reads its own.
+      // stop. Without them the take is kept, not guessed at.
       var fresh: AppConfig?
       var problem: String?
       switch take.settings?.wait(timeout: 20) ?? .unavailable("no settings fetch") {
       case .config(let config): fresh = config
       case .unavailable(let reason): problem = reason
-      case .mismatch(let mismatch):
-        self.keepForMatchingCLI(takeId: takeId, recordMs: recordMs, mismatch: mismatch)
-        return
-      }
-      // A mismatch found since this take's fetch (a reload, while recording
-      // or queued) is newer than its settings: read it now, on main.
-      if let mismatch = DispatchQueue.main.sync(execute: { self.contractMismatch }) {
-        self.keepForMatchingCLI(takeId: takeId, recordMs: recordMs, mismatch: mismatch)
-        return
       }
       if let fresh, fresh != cachedConfig {
         DispatchQueue.main.async { self.adopt(fresh) }
       }
-      let config = fresh ?? cachedConfig
       // The app history records: "restore" uses the app from recording start;
       // "current" uses whatever is frontmost when processing begins. A
       // retargeted take is delivered to its original app, so it's that one.
-      let appName = DeliveryTarget.deliveryApp(pasteTarget: config?.inline.pasteTarget, retargeted: take.retargeted,
+      let appName = DeliveryTarget.deliveryApp(pasteTarget: fresh?.inline.pasteTarget, retargeted: take.retargeted,
                                                original: take.originalApp?.localizedName, frontmostAtStop: frontmostAtStop)
-      // How the take reaches the CLI path, for the take log.
-      let route: (path: String, reason: String)
-      if let fresh {
-        if fresh.scribe != nil {
-          // ElevenLabs Scribe, natively. A failure keeps the take (saved
-          // like any failed one below) and counts nothing.
-          let result = pipeline.processWithScribe(samples: samples, take: take, takeId: takeId, recordMs: recordMs,
-                                                  appName: appName, config: fresh, stopAt: stopAt)
-          settled = result.settlesAudio
-          self.keepAudioIfUnsettled(result, takeId: takeId)
-          DispatchQueue.main.async { self.finish(result) }
+      let result: TakeResult
+      switch TakeRoute.decide(config: fresh, problem: problem) {
+      case .keep(let kept):
+        // No model yet, unusable settings: the take waits in recovered/.
+        self.keepTake(takeId: takeId, recordMs: recordMs, kept: kept)
+        return
+      case .scribe:
+        // ElevenLabs Scribe. A failure keeps the take (saved like any
+        // failed one below) and counts nothing.
+        guard let fresh else { return }
+        result = pipeline.processWithScribe(samples: samples, take: take, takeId: takeId, recordMs: recordMs,
+                                            appName: appName, config: fresh, stopAt: stopAt)
+      case .native:
+        guard let fresh else { return }
+        switch pipeline.processNatively(samples: samples, take: take, takeId: takeId, recordMs: recordMs, appName: appName,
+                                        config: fresh, stopAt: stopAt) {
+        case .handled(let handled): result = handled
+        case .kept(let kept):
+          self.keepTake(takeId: takeId, recordMs: recordMs, kept: kept)
           return
-        } else if fresh.nativePipelineBlocker == TranscriptionSettings.modelMissing {
-          // No CLI detour: keep the take; it's recovered once the model is in.
-          self.keepUntilDaemonReady(takeId: takeId, recordMs: recordMs, reason: TranscriptionSettings.modelMissing,
-                                    category: "model_missing")
-          return
-        } else if let blocker = fresh.nativePipelineBlocker {
-          route = ("cli", blocker)
-        } else {
-          switch pipeline.processNatively(samples: samples, take: take, takeId: takeId, recordMs: recordMs, appName: appName,
-                                          config: fresh, stopAt: stopAt) {
-          case .handled(let result):
-            settled = result.settlesAudio
-            self.keepAudioIfUnsettled(result, takeId: takeId)
-            DispatchQueue.main.async { self.finish(result) }
-            return
-          case .fallback(let reason): route = ("fallback", reason)
-          case .notReady(let reason):
-            self.keepUntilDaemonReady(takeId: takeId, recordMs: recordMs, reason: reason, category: "daemon_not_ready")
-            return
-          }
         }
-      } else {
-        Log.write("pipeline: CLI path (\(problem ?? "settings unavailable"))")
-        route = ("cli", problem ?? "settings unavailable")
       }
-      take.marker?.update(.cli)
-      let result = pipeline.processWithCLI(samples: samples, take: take, recordMs: recordMs, appName: appName,
-                                           stopAt: stopAt, config: config, route: route)
       settled = result.settlesAudio
-      if !settled {
-        do {
-          _ = try inFlight.keep(takeId)
-          DispatchQueue.main.async {
-            self.menu.showRecovered("Saved recording waiting: Show in Finder", action: true)
-          }
-        } catch {
-          Log.write("pipeline: failed recording held until Quit (could not save audio)")
-        }
-      }
+      self.keepAudioIfUnsettled(result, takeId: takeId)
       DispatchQueue.main.async { self.finish(result) }
     }
   }
@@ -806,46 +734,15 @@ final class AppController: NSObject, NSApplicationDelegate {
     }
   }
 
-  /// The CLI changed under a take to one Khuluma can't use: nothing is
-  /// transcribed with it. The audio is saved like a quit's, and transcribed
-  /// into history once a matching CLI's settings arrive. If it can't be
-  /// written it stays in memory (held by `inFlight`), and Quit writes it.
-  /// Runs on `work`.
-  private func keepForMatchingCLI(takeId: String, recordMs: Int, mismatch: AppContract.Mismatch) {
-    let kept: Bool
-    do {
-      // Reuses the copy Quit saved, if it got there first.
-      let url = try inFlight.keep(takeId)
-      Log.write("pipeline: CLI contract mismatch; saved the recording to \(url.lastPathComponent)")
-      kept = true
-    } catch {
-      Log.write("pipeline: CLI contract mismatch; could not save the recording: \(error.localizedDescription)")
-      kept = false
-    }
-    var line = TakeLog()
-    line.add("path", "none")
-    line.add("outcome", "failed")
-    line.add("record", recordMs)
-    line.add("error", "cli_mismatch")
-    line.add("kept", kept ? 1 : 0)
-    Log.write(line.line)
-    DispatchQueue.main.async {
-      self.refuseTakes(mismatch)
-      if kept {
-        self.menu.showRecovered("Saved dictations waiting (\(self.leftoverTakes().count)): Show in Finder", action: true)
-      }
-      self.sounds.play(.error)
-      self.finishProcessing(error: mismatch.localizedDescription + (kept ? " (recording saved)" : " (recording kept until Quit)"))
-      // The mismatch may be older than a reinstall since: check again.
-      self.reloadSettings()
-    }
-  }
-
-  /// The speech model is still downloading, or the daemon/model isn't
-  /// ready (starting, loading): the take is saved to recovered/ and
-  /// transcribed into history once the supervisor reports ready (or the
-  /// model arrives). Runs on `work`.
-  private func keepUntilDaemonReady(takeId: String, recordMs: Int, reason: String, category: String) {
+  /// The take can't be transcribed now (the model is still downloading, the
+  /// daemon or model isn't ready, transcription failed, settings unusable):
+  /// it is saved to recovered/ and transcribed into history once the
+  /// supervisor reports ready, settings change or the app next launches.
+  /// Nothing retries it in a loop: a permanent condition just waits. If it
+  /// can't be written it stays in memory (held by `inFlight`), and Quit
+  /// writes it. Runs on `work`.
+  private func keepTake(takeId: String, recordMs: Int, kept keptTake: KeptTake) {
+    let reason = keptTake.reason, category = keptTake.category
     let kept: Bool
     do {
       let url = try inFlight.keep(takeId)
@@ -880,18 +777,6 @@ final class AppController: NSObject, NSApplicationDelegate {
       let shown = reason.prefix(1).uppercased() + reason.dropFirst()
       self.finishProcessing(error: shown + (kept ? " (recording saved)" : " (recording kept until Quit)"))
     }
-  }
-
-  /// Stops using a CLI that speaks another app contract: no takes, no
-  /// daemon supervision, until `apply` gets settings from a matching one.
-  private func refuseTakes(_ mismatch: AppContract.Mismatch) {
-    if contractMismatch != mismatch {
-      Log.write("settings: \(mismatch.localizedDescription)")
-    }
-    contractMismatch = mismatch
-    supervisedTarget = nil
-    supervisor?.configure(nil)
-    menu.showDaemon(nil)
   }
 
   private func sweepStaleMarkers() {
@@ -954,7 +839,6 @@ final class AppController: NSObject, NSApplicationDelegate {
     self.config = config
     adoptPersistence(config)
     settingsModel.adopt(config)
-    contractMismatch = nil
     sweepStaleMarkers()
     sounds.load(from: config)
     showConfigStatus(config)
@@ -963,7 +847,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     do {
       let spec = try HotkeySpec.parse(config.hotkey)
       Log.write("settings: hotkey \(spec.display), settings.json (\(config.config.source)), pipeline "
-                + (config.nativePipelineBlocker.map { "CLI (\($0))" } ?? "native"))
+                + (config.nativePipelineBlocker.map { "takes kept (\($0))" } ?? "ready"))
       if take != nil || starter.isStarting {
         // Re-registering now could drop the press that stops this take. The
         // latest settings win: a change back to the current key clears it.
@@ -1000,7 +884,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     configureSupervision(fresh, trigger: .settings)
     sounds.load(from: fresh)
     if pipelineChanged {
-      Log.write("settings: pipeline " + (fresh.nativePipelineBlocker.map { "CLI (\($0))" } ?? "native"))
+      Log.write("settings: pipeline " + (fresh.nativePipelineBlocker.map { "takes kept (\($0))" } ?? "ready"))
     }
   }
 
@@ -1073,7 +957,7 @@ final class AppController: NSObject, NSApplicationDelegate {
       Log.write("model: ready at \(path)")
       menu.showDaemon(nil)
       reloadSettings()
-      if let config, contractMismatch == nil { recoverLeftoverTakes(config: config) }
+      if let config { recoverLeftoverTakes(config: config) }
     case .downloading:
       if supervisedTarget == nil { menu.showDaemon(state.menuTitle) }
     case .failed(let reason):
@@ -1092,7 +976,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     case .ready:
       menu.showDaemon(nil)
       // Saved takes that failed while the daemon was down or loading.
-      if let config, contractMismatch == nil { recoverLeftoverTakes(config: config) }
+      if let config { recoverLeftoverTakes(config: config) }
     case .warming(let reason):
       menu.showDaemon("Parakeet: warming up (\(reason))")
     case .unavailable(let reason):

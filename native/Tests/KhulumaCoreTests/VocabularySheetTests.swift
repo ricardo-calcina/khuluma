@@ -42,13 +42,13 @@ struct VocabularySheetTests {
     sheet.examples = [.init(said: "Um, use PN PM.", expect: "use pnpm."), .init(said: "open kaluma", expect: "open Khuluma")]
     // No vocabulary.json in this directory: only the draft's rules apply.
     let pipeline = TextPipeline(settings: CleanupSettings(configDir: "/nonexistent", clean: "1", repeatsLevel: "3"))
-    let failures = try #require(pipeline.failingExamples(sheet))
+    let failures = pipeline.failingExamples(sheet)
     #expect(failures.map(\.example.said) == ["open kaluma"])
     #expect(failures.first?.got == "open kaluma")
     let rule = try #require(TextChange.suggestedRule(got: "open kaluma.", expected: "open Khuluma."))
     #expect(rule == .init(heard: "kaluma", write: "Khuluma"))
     sheet.words.append(rule)
-    #expect(try #require(pipeline.failingExamples(sheet)).isEmpty)
+    #expect(pipeline.failingExamples(sheet).isEmpty)
   }
 
   @Test func changesAreReportedAsWordRuns() {

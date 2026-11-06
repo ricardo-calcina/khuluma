@@ -1,53 +1,8 @@
 import Foundation
 
-/// The contract between Khuluma and the CLI it was built with. App and CLI
-/// ship from one tree, so instead of feature checks Khuluma requires the CLI
-/// to speak exactly this version (`app_contract` in `app-config --json`,
-/// `KHULUMA_APP_CONTRACT` in `bin/khuluma`; CI keeps them equal).
-public enum AppContract {
-  public static let version = 5
-
-  /// The installed CLI speaks a different contract: Khuluma takes no
-  /// dictations until the two match.
-  public struct Mismatch: Error, LocalizedError, Equatable, Sendable {
-    public let cliVersion: String
-    /// nil: a CLI from before the contract number existed.
-    public let cliContract: Int?
-
-    public var errorDescription: String? {
-      let cli = "khuluma \(cliVersion)"
-      guard let cliContract else {
-        return "\(cli) is older than this Khuluma: run ./install.sh --force"
-      }
-      if cliContract < AppContract.version {
-        return "\(cli) (contract \(cliContract)) is older than this Khuluma (contract \(AppContract.version)): run ./install.sh --force"
-      }
-      return "this Khuluma (contract \(AppContract.version)) is older than \(cli) (contract \(cliContract)): rebuild it with tools/build-khuluma-app.sh"
-    }
-  }
-
-  private struct Probe: Decodable {
-    let appContract: Int?
-    let cliVersion: String?
-
-    enum CodingKeys: String, CodingKey {
-      case appContract = "app_contract"
-      case cliVersion = "cli_version"
-    }
-  }
-
-  /// Decodes `app-config --json`, checking the contract before anything
-  /// else so an older or newer CLI fails with `Mismatch`, not a decode error.
-  public static func decodeAppConfig(_ data: Data) throws -> AppConfig {
-    let probe = try JSONDecoder().decode(Probe.self, from: data)
-    guard probe.appContract == version else {
-      throw Mismatch(cliVersion: probe.cliVersion ?? "?", cliContract: probe.appContract)
-    }
-    return try JSONDecoder().decode(AppConfig.self, from: data)
-  }
-}
-
-/// `khuluma app-config --json`
+/// The app's resolved settings (from settings.json, see
+/// `AppConfig.init(settings:environment:)`), in the shape the app has always
+/// consumed.
 public struct AppConfig: Decodable, Equatable, Sendable {
   public struct Sound: Decodable, Equatable, Sendable {
     public let enabled: Bool
@@ -88,8 +43,6 @@ public struct AppConfig: Decodable, Equatable, Sendable {
   }
 
   public let schemaVersion: Int
-  public let appContract: Int
-  public let cliVersion: String
   public let hotkey: String
   public let sounds: [String: Sound]
   private let declaredSoundsEnabled: Bool?
@@ -150,12 +103,10 @@ public struct AppConfig: Decodable, Equatable, Sendable {
     public init(supervise: Bool) { self.supervise = supervise }
   }
 
-  public init(schemaVersion: Int, appContract: Int, cliVersion: String, hotkey: String, sounds: [String: Sound],
+  public init(schemaVersion: Int, hotkey: String, sounds: [String: Sound],
               soundsEnabled: Bool?, inline: Inline, cleanup: CleanupSettings, transcription: TranscriptionSettings,
               pipeline: Pipeline, config: ConfigStatus, usage: Usage) {
     self.schemaVersion = schemaVersion
-    self.appContract = appContract
-    self.cliVersion = cliVersion
     self.hotkey = hotkey
     self.sounds = sounds
     self.declaredSoundsEnabled = soundsEnabled
@@ -169,8 +120,6 @@ public struct AppConfig: Decodable, Equatable, Sendable {
 
   enum CodingKeys: String, CodingKey {
     case schemaVersion = "schema_version"
-    case appContract = "app_contract"
-    case cliVersion = "cli_version"
     case hotkey
     case sounds
     case declaredSoundsEnabled = "sounds_enabled"
@@ -191,17 +140,17 @@ public struct AppConfig: Decodable, Equatable, Sendable {
     return nil
   }
 
-  /// The delivery settings as `inline process` reports them (made safe when
-  /// config.toml is invalid with no last valid copy).
+  /// The delivery settings (made safe when settings.json is invalid with no
+  /// last valid copy).
   public var delivery: Delivery {
     safeDelivery(Delivery(autosend: inline.autosend, sendMode: inline.sendMode, pasteTarget: inline.pasteTarget,
                           activateDelayMs: inline.activateDelayMs, sendDelayMs: inline.sendDelayMs))
   }
 
-  /// Why a take must go through `inline process` instead of the native
-  /// pipeline, or nil if the native path reproduces the CLI.
+  /// Why takes can't be transcribed with these settings right now (they are
+  /// kept in recovered/ until they can), or nil if they can.
   public var nativePipelineBlocker: String? {
-    return transcription.cliReason
+    transcription.blocker
   }
 
   /// What the native path needs, or nil when it can't run (see
@@ -215,42 +164,6 @@ public struct AppConfig: Decodable, Equatable, Sendable {
   /// What the native ElevenLabs Scribe route needs, or nil when Scribe isn't chosen.
   public var scribe: (transcription: TranscriptionSettings, cleanup: CleanupSettings)? {
     transcription.provider == "elevenlabs" ? (transcription, cleanup) : nil
-  }
-}
-
-/// `khuluma inline process <wav> --json`
-public struct ProcessResult: Decodable, Equatable, Sendable {
-  public let ok: Bool
-  public let status: String
-  public let text: String
-  public let rawText: String
-  public let message: String?
-  public let delivery: Delivery
-  public let timings: [String: Int]
-  /// `--defer-usage` was honoured: the caller records usage after delivery.
-  public let usageDeferred: Bool
-  /// The take's history entry is on disk. Missing (a CLI from before the
-  /// field) counts as not saved, so a Quit copy of the take is kept.
-  public let historySaved: Bool
-
-  enum CodingKeys: String, CodingKey {
-    case ok, status, text, message, delivery, timings
-    case rawText = "raw_text"
-    case usageDeferred = "usage_deferred"
-    case historySaved = "history_saved"
-  }
-
-  public init(from decoder: Decoder) throws {
-    let c = try decoder.container(keyedBy: CodingKeys.self)
-    ok = try c.decode(Bool.self, forKey: .ok)
-    status = try c.decode(String.self, forKey: .status)
-    text = try c.decode(String.self, forKey: .text)
-    rawText = try c.decode(String.self, forKey: .rawText)
-    message = try c.decodeIfPresent(String.self, forKey: .message)
-    delivery = try c.decode(Delivery.self, forKey: .delivery)
-    timings = try c.decode([String: Int].self, forKey: .timings)
-    usageDeferred = try c.decode(Bool.self, forKey: .usageDeferred)
-    historySaved = try c.decodeIfPresent(Bool.self, forKey: .historySaved) ?? false
   }
 }
 
@@ -291,7 +204,7 @@ public struct Delivery: Decodable, Equatable, Sendable {
   }
 }
 
-/// `khuluma warmup --json`.
+/// How the daemon answered a warm-up: ready, warming or unavailable.
 public struct WarmupReport: Decodable, Equatable, Sendable {
   public enum State: String, Decodable, Sendable {
     /// The daemon holds this model and version.

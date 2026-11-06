@@ -47,9 +47,9 @@ final class VocabularyModel: ObservableObject {
   var entries: [Entry] { document.rows(section) }
 
   /// Cleanup as a take would run it now, except with the draft vocabulary.
-  /// Nil until settings load or when only the CLI can clean (non-C locale).
+  /// Nil until settings load.
   private var pipeline: TextPipeline? {
-    settings.config.map { TextPipeline(settings: $0.cleanup) }.flatMap { $0.settings.requiresCLI ? nil : $0 }
+    settings.config.map { TextPipeline(settings: $0.cleanup) }
   }
 
   private func checkExamples() {
@@ -74,7 +74,6 @@ final class VocabularyModel: ObservableObject {
   var preview: (text: String, changes: [TextChange])? {
     guard let said = inspectedSaid, !said.trimmingCharacters(in: .whitespaces).isEmpty, let pipeline else { return nil }
     switch pipeline.preview(transcript: said, sheet: document) {
-    case .needsCLI: return nil
     case .noSpeech: return ("", [TextChange(before: said, after: "")])
     case .text(_, let text): return (text, TextChange.between(said, text))
     }

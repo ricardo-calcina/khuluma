@@ -2,7 +2,8 @@ import Foundation
 
 /// The Quick Action's work, as the CLI's Finder handler did it
 /// (`khuluma transcribe --beside --clipboard`): `<name>.txt` beside each file,
-/// never over an existing one (that file fails, as with the CLI), the
+/// never over an existing one (then `<name>-2.txt`, `-3`, ... the first
+/// free name, claimed atomically; Ricardo's call, 2026-11-06), the
 /// transcripts joined for the clipboard, and one notification line.
 public enum QuickActionRun {
   public struct Outcome: Equatable, Sendable {
@@ -15,8 +16,12 @@ public enum QuickActionRun {
   }
 
   public static func run(_ inputs: [String], engine: () throws -> FileTranscriber.Engine,
-                         waitWhileBusy: () -> Void, workDirectory: () throws -> URL,
-                         transcriber: FileTranscriber = FileTranscriber()) -> Outcome {
+                         waitWhileBusy: @escaping () -> Void, workDirectory: () throws -> URL,
+                         transcriber base: FileTranscriber = FileTranscriber()) -> Outcome {
+    var transcriber = base
+    // A take recording or in flight goes first: checked right before every
+    // daemon request (long files go in chunks).
+    transcriber.beforeRequest = waitWhileBusy
     var texts: [String] = [], written: [String] = [], failures: [String] = []
     let work: URL
     do { work = try workDirectory() } catch {
@@ -26,13 +31,13 @@ public enum QuickActionRun {
     for input in inputs {
       let destination = TranscriptOutput.besidePath(for: input, ext: "txt")
       do {
-        try TranscriptOutput.precheck(destination: destination, input: input, force: false)
-        waitWhileBusy()
+        if TranscriptOutput.sameFile(destination, input) {
+          throw TranscriptOutput.Failure("refusing to overwrite the input file: \(input)")
+        }
         let transcript = try transcriber.transcribe(URL(fileURLWithPath: input), label: input,
                                                     workDirectory: work, engine: try engine())
-        try TranscriptOutput.write(transcript.text, to: destination, force: false)
+        written.append(try TranscriptOutput.writeFirstFree(transcript.text, to: destination))
         texts.append(transcript.text)
-        written.append(destination)
       } catch {
         failures.append(error.localizedDescription)
       }
@@ -45,9 +50,8 @@ public enum QuickActionRun {
     let message: String
     if let last = failures.last {
       message = "Transcription failed: \(last)"
-    } else if inputs.count == 1 {
-      let name = ((inputs[0] as NSString).lastPathComponent as NSString).deletingPathExtension
-      message = "Saved \(name).txt and copied it to the clipboard."
+    } else if written.count == 1 {
+      message = "Saved \((written[0] as NSString).lastPathComponent) and copied it to the clipboard."
     } else {
       message = "Saved \(inputs.count) transcripts and copied them to the clipboard."
     }

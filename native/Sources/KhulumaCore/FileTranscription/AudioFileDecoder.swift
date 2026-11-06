@@ -219,3 +219,26 @@ final class StreamingWAVWriter {
     try? FileManager.default.removeItem(at: url)
   }
 }
+
+/// Random access to a decoded WAV's samples, for chunking.
+final class WAVSampleReader {
+  private let handle: FileHandle
+  private let count: Int
+
+  init(_ decoded: AudioFileDecoder.Decoded) throws {
+    do { handle = try FileHandle(forReadingFrom: decoded.wav) } catch {
+      throw AudioFileDecoder.DecodeError.write(error.localizedDescription)
+    }
+    count = decoded.samples
+  }
+
+  deinit { try? handle.close() }
+
+  func samples(_ range: Range<Int>) throws -> [Int16] {
+    let clamped = range.clamped(to: 0..<count)
+    guard !clamped.isEmpty else { return [] }
+    try handle.seek(toOffset: UInt64(StreamingWAVWriter.headerSize + clamped.lowerBound * 2))
+    let data = try handle.read(upToCount: clamped.count * 2) ?? Data()
+    return data.withUnsafeBytes { Array($0.bindMemory(to: Int16.self)) }
+  }
+}

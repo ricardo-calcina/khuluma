@@ -28,16 +28,6 @@ public struct TakeLog: Sendable {
     add(key, value.map { Int($0.rounded()) })
   }
 
-  /// The take-log code for an `inline process` status: one of the statuses
-  /// the CLI emits, else `other`, so an unexpected response can never put
-  /// free text in the log.
-  public static func cliStatus(_ status: String?) -> String {
-    switch status {
-    case "ok", "no_speech", "failed": return "cli_\(status!)"
-    default: return "other"
-    }
-  }
-
   public var line: String {
     (["take:"] + fields.map { "\($0.key)=\(Self.quoted($0.value))" }).joined(separator: " ")
   }

@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 
 /// Audio of takes that were still recording when Khuluma quit. Written before
@@ -24,6 +25,64 @@ public struct RecoveredTakes: Sendable {
       atPath: url.path, contents: WAVEncoder.encode(samples: samples), attributes: [.posixPermissions: 0o600]) else {
       throw CocoaError(.fileWriteUnknown, userInfo: [NSFilePathErrorKey: url.path])
     }
+    return url
+  }
+
+  /// Hands over a WAV that already exists elsewhere (a timed-out take that
+  /// expired): written to a temp file in recovered/, fsynced, renamed into
+  /// place and the folder fsynced, so the caller may delete its copy once
+  /// this returns. `wav` must be at least a WAV header.
+  @discardableResult
+  public func adopt(wav data: Data, takeId: String, at date: Date = Date()) throws -> URL {
+    try FileManager.default.createDirectory(
+      at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+    let safeId = String(takeId.unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) || $0 == "-" })
+    let name = String(format: "%013lld", Int64(date.timeIntervalSince1970 * 1000)) + "-\(safeId.isEmpty ? UUID().uuidString.lowercased() : safeId).wav"
+    let url = directory.appendingPathComponent(name)
+    let temp = directory.appendingPathComponent(".\(name).\(UUID().uuidString.prefix(8)).tmp")
+    func failure(_ path: String, _ code: Int32) -> Error {
+      NSError(domain: NSPOSIXErrorDomain, code: Int(code), userInfo: [NSFilePathErrorKey: path])
+    }
+    func sync(_ fd: Int32) -> Int32? {
+      while fsync(fd) != 0 { if errno != EINTR { return errno } }
+      return nil
+    }
+    var fd: Int32
+    repeat { fd = open(temp.path, O_WRONLY | O_CREAT | O_EXCL, 0o600) } while fd < 0 && errno == EINTR
+    guard fd >= 0 else { throw failure(temp.path, errno) }
+    var code: Int32 = 0
+    if fchmod(fd, 0o600) != 0 { code = errno }
+    if code == 0 {
+      data.withUnsafeBytes { raw in
+        var offset = 0
+        while offset < raw.count {
+          let n = Darwin.write(fd, raw.baseAddress! + offset, raw.count - offset)
+          if n < 0 {
+            if errno == EINTR { continue }
+            code = errno
+            return
+          }
+          offset += n
+        }
+      }
+    }
+    if code == 0, let e = sync(fd) { code = e }
+    close(fd)
+    if code != 0 {
+      unlink(temp.path)
+      throw failure(temp.path, code)
+    }
+    if rename(temp.path, url.path) != 0 {
+      let e = errno
+      unlink(temp.path)
+      throw failure(url.path, e)
+    }
+    var dirFd: Int32
+    repeat { dirFd = open(directory.path, O_RDONLY) } while dirFd < 0 && errno == EINTR
+    guard dirFd >= 0 else { throw failure(directory.path, errno) }
+    let syncError = sync(dirFd)
+    close(dirFd)
+    if let syncError { throw failure(directory.path, syncError) }
     return url
   }
 

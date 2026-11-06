@@ -2,8 +2,10 @@ import Foundation
 
 /// Takes whose transcription timed out, kept privately so the user can
 /// Retry (or Discard) from the menu. Each is a 16 kHz WAV of the take as
-/// recorded (0600, in a 0700 folder) plus a JSON sidecar, and is removed
-/// after `lifetime` (1 hour) or on retry/discard.
+/// recorded (0600, in a 0700 folder) plus a JSON sidecar. After `lifetime`
+/// (1 hour) it is handed to recovered/ (transcribed into history, never
+/// pasted), not deleted; only Discard, a finished retry or audio with no
+/// samples deletes it.
 public struct TimedOutTakes: Sendable {
   /// What a retry needs to deliver and record the take like the original.
   public struct Info: Codable, Equatable, Sendable {
@@ -39,14 +41,17 @@ public struct TimedOutTakes: Sendable {
   private static let lock = NSLock()
 
   public let directory: URL
+  /// Where expired, orphaned or broken-sidecar audio goes.
+  public let recovered: RecoveredTakes
 
   public static var standard: TimedOutTakes {
     TimedOutTakes(directory: AppRuntimePaths.temporary
-      .appendingPathComponent("khuluma-timed-out", isDirectory: true))
+      .appendingPathComponent("khuluma-timed-out", isDirectory: true), recovered: .standard)
   }
 
-  public init(directory: URL) {
+  public init(directory: URL, recovered: RecoveredTakes) {
     self.directory = directory
+    self.recovered = recovered
   }
 
   @discardableResult
@@ -86,27 +91,60 @@ public struct TimedOutTakes: Sendable {
     for name in names where name.hasSuffix(".json") {
       let sidecar = directory.appendingPathComponent(name)
       let wav = sidecar.deletingPathExtension().appendingPathExtension("wav")
-      guard let data = try? Data(contentsOf: sidecar), let info = try? decoder.decode(Info.self, from: data),
-            FileManager.default.fileExists(atPath: wav.path) else {
+      guard FileManager.default.fileExists(atPath: wav.path) else {
+        // A sidecar with no audio: nothing to keep.
         try? FileManager.default.removeItem(at: sidecar)
-        try? FileManager.default.removeItem(at: wav)
+        continue
+      }
+      guard let data = try? Data(contentsOf: sidecar), let info = try? decoder.decode(Info.self, from: data) else {
+        // Broken sidecar: the audio still goes to recovered/, under a new id.
+        handOff(wav: wav, sidecar: sidecar, takeId: UUID().uuidString.lowercased(), now: now)
         continue
       }
       let entry = Entry(info: info, wav: wav)
       if now.timeIntervalSince(info.savedAt) >= Self.lifetime {
-        removeLocked(entry)
+        // Same id: recovery skips it if a retry already saved it.
+        if !handOff(wav: wav, sidecar: sidecar, takeId: info.takeId, now: now) { entries.append(entry) }
       } else {
         entries.append(entry)
       }
     }
-    // Orphaned audio (no sidecar) can't be retried.
+    // Audio without a sidecar can't be retried, but is still a take.
     for name in names where name.hasSuffix(".wav") {
       let wav = directory.appendingPathComponent(name)
       if !FileManager.default.fileExists(atPath: wav.deletingPathExtension().appendingPathExtension("json").path) {
-        try? FileManager.default.removeItem(at: wav)
+        handOff(wav: wav, sidecar: nil, takeId: UUID().uuidString.lowercased(), now: now)
       }
     }
     return entries.sorted { $0.info.savedAt < $1.info.savedAt }
+  }
+
+  /// Moves a take's audio to recovered/ (durably first), then removes it
+  /// here. Audio that can't be read or has no samples is deleted; if the
+  /// handoff fails, everything stays for the next listing. Returns whether
+  /// the files here are gone.
+  @discardableResult
+  private func handOff(wav: URL, sidecar: URL?, takeId: String, now: Date) -> Bool {
+    let removeHere = {
+      try? FileManager.default.removeItem(at: wav)
+      if let sidecar { try? FileManager.default.removeItem(at: sidecar) }
+    }
+    guard let data = try? Data(contentsOf: wav) else {
+      if FileManager.default.isReadableFile(atPath: wav.path) { return false }
+      removeHere()
+      return true
+    }
+    guard data.count > 44 else {
+      removeHere()
+      return true
+    }
+    do {
+      try recovered.adopt(wav: data, takeId: takeId, at: now)
+    } catch {
+      return false
+    }
+    removeHere()
+    return true
   }
 
   public func remove(_ entry: Entry) {

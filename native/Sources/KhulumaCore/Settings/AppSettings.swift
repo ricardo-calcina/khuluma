@@ -439,10 +439,6 @@ extension AppSettings {
 }
 
 extension AppConfig {
-  /// The fixed `cli_version` of a config built from settings.json (slice G
-  /// removes the field).
-  public static let nativeCLIVersion = "app"
-
   /// The app's settings as the in-memory model the rest of the app reads,
   /// equal to what `khuluma app-config --json` reported for the same
   /// settings. `status` says where the settings came from.
@@ -478,8 +474,7 @@ extension AppConfig {
       tailRescueMs: "", tailRescueMinMs: "", keepLogs: s.debug.keepLogs, ffmpeg: env.ffmpegAvailable,
       timeoutSeconds: "600", processingDir: env.processingDir, provider: s.transcription.provider,
       keyAvailable: env.keyCheck?() ?? env.keyAvailable)
-    self.init(schemaVersion: 1, appContract: AppContract.version, cliVersion: AppConfig.nativeCLIVersion,
-              hotkey: s.hotkey, sounds: sounds, soundsEnabled: s.sounds.enabled, inline: inline, cleanup: cleanup,
+    self.init(schemaVersion: 1, hotkey: s.hotkey, sounds: sounds, soundsEnabled: s.sounds.enabled, inline: inline, cleanup: cleanup,
               transcription: transcription, pipeline: Pipeline(supervise: s.app.superviseDaemon && !cloud),
               config: status, usage: Usage(summaryPath: env.appFolder.appendingPathComponent("usage.json").path))
   }

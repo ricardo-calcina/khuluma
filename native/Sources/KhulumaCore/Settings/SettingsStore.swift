@@ -9,6 +9,9 @@ import Foundation
 public struct SettingsStore: Sendable {
   public let folder: URL
   public let lockTimeout: TimeInterval
+  /// Never writes (the bundled `khuluma` helper): `load` skips refreshing
+  /// the last-good copy.
+  public var readOnly = false
   /// The CLI's config.toml. If it exists while settings.json doesn't (the
   /// import failed or was refused), the defaults are used with safe delivery
   /// and a warning, never autosend.
@@ -66,7 +69,7 @@ public struct SettingsStore: Sendable {
     }
     do {
       let settings = try Self.decode(data)
-      refreshLastGood(data)
+      if !readOnly { refreshLastGood(data) }
       if let warning = settings.importWarning {
         return Loaded(settings: settings, status: .init(error: warning, source: Self.importedDefaultsSource))
       }

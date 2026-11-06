@@ -2,27 +2,18 @@ import AppKit
 import Foundation
 import KhulumaCore
 
-/// Transcribes, cleans up, delivers and persists one take: natively (daemon
-/// socket + Swift cleanup) or through the CLI's `inline process`. Runs on
-/// the controller's work queue; every call is synchronous and touches no UI.
+/// Transcribes, cleans up, delivers and persists one take: through the app's
+/// daemon socket + Swift cleanup (or ElevenLabs Scribe). Runs on the
+/// controller's work queue; every call is synchronous and touches no UI.
 final class TakePipeline {
   enum NativeRoute {
     case handled(TakeResult)
-    /// Nothing visible happened: the take goes through the CLI instead.
-    case fallback(String)
-    /// The daemon or its model wasn't ready (starting, loading): keep the
+    /// Nothing visible happened and nothing was counted: the daemon or its
+    /// model wasn't ready, or transcription failed. The caller keeps the
     /// take in recovered/ until the supervisor reports ready.
-    case notReady(String)
+    case kept(KeptTake)
   }
 
-  /// The CLI, for takes the native path can't handle (until slice G); nil
-  /// when none is installed. Set once found.
-  var cli: CLIBridge? {
-    get { cliLock.lock(); defer { cliLock.unlock() }; return storedCLI }
-    set { cliLock.lock(); storedCLI = newValue; cliLock.unlock() }
-  }
-  private var storedCLI: CLIBridge?
-  private let cliLock = NSLock()
   /// The ElevenLabs Scribe transport (the real network unless a test injects one).
   var scribe = ScribeClient()
   /// The current settings (settings.json).
@@ -31,19 +22,12 @@ final class TakePipeline {
   /// Takes whose transcription timed out, for Retry/Discard.
   let timedOut = TimedOutTakes.standard
   /// The daemon didn't answer: the supervisor should look at it.
-  private let onUnreachable: () -> Void
+  let onUnreachable: () -> Void
 
   init(persister: TakePersister, loadConfig: @escaping () -> AppConfig, onUnreachable: @escaping () -> Void) {
     self.loadConfig = loadConfig
     self.persister = persister
     self.onUnreachable = onUnreachable
-  }
-
-  /// The CLI, or `notInstalled`: the caller keeps the take as a saved
-  /// recording rather than losing it.
-  func requireCLI() throws -> CLIBridge {
-    guard let cli else { throw CLIBridge.BridgeError.notInstalled }
-    return cli
   }
 
   /// How long a take waits, after WAV prep, for the ping that tags it
@@ -59,7 +43,9 @@ final class TakePipeline {
   /// Swift, deliver, then persist in the background.
   func processNatively(samples: [Float], take: Take, takeId: String, recordMs: Int, appName: String?,
                        config: AppConfig, stopAt: Double) -> NativeRoute {
-    guard let native = config.native else { return .fallback("transcription settings missing") }
+    guard let native = config.native else {
+      return .kept(KeptTake(reason: "transcription settings missing", category: "settings_missing"))
+    }
     let (transcription, cleanup, modelPath) = native
     let startedAt = monotonicMs()
 
@@ -121,11 +107,11 @@ final class TakePipeline {
         if let kept = failure.keptWAV { try? FileManager.default.removeItem(at: kept) }
         Log.write("pipeline: daemon not ready (\(reason): \(failure.underlying.localizedDescription)); keeping the take until it is")
         onUnreachable()
-        return .notReady(reason)
+        return .kept(KeptTake(reason: reason, category: "daemon_not_ready"))
       }
       if case DaemonClient.ClientError.timedOut(let seconds) = failure.underlying {
-        // Re-running through the CLI would wait on the same daemon again.
-        // No automatic retry: keep the audio for an hour for Retry/Discard.
+        // No automatic retry (it would wait on the same daemon again): keep
+        // the audio for an hour for Retry/Discard.
         record.status = "transcribe_failed"
         record.wavPath = failure.keptWAV?.path
         record.transcribeMs = Int(monotonicMs() - startedAt)
@@ -154,17 +140,17 @@ final class TakePipeline {
       }
       if case DaemonClient.ClientError.unreachable = failure.underlying { onUnreachable() }
       if let kept = failure.keptWAV { try? FileManager.default.removeItem(at: kept) }
-      Log.write("pipeline: native transcription unavailable (\(failure.underlying.localizedDescription)); using the CLI path")
-      return .fallback(Self.fallbackReason(failure.underlying))
+      Log.write("pipeline: transcription failed (\(failure.underlying.localizedDescription)); keeping the take")
+      return .kept(KeptTake.afterNativeFailure(failure.underlying))
     } catch {
-      Log.write("pipeline: native transcription unavailable (\(error.localizedDescription)); using the CLI path")
-      return .fallback("native transcription failed")
+      Log.write("pipeline: transcription failed (\(error.localizedDescription)); keeping the take")
+      return .kept(KeptTake.afterNativeFailure(error))
     }
     let transcribedAt = monotonicMs()
     record.transcribeMs = Int(transcribedAt - startedAt)
     record.wavPath = transcribed.keptWAV?.path
     if transcribed.tailRescueFailed {
-      Log.write("pipeline: tail rescue pass failed; kept the full transcript (as the CLI does)")
+      Log.write("pipeline: tail rescue pass failed; kept the full transcript")
     }
 
     let outcome = TextPipeline(settings: cleanup).process(transcript: transcribed.transcript)
@@ -172,9 +158,6 @@ final class TakePipeline {
     record.cleanMs = Int(cleanedAt - transcribedAt)
 
     switch outcome {
-    case .needsCLI:
-      if let kept = transcribed.keptWAV { try? FileManager.default.removeItem(at: kept) }
-      return .fallback("cleanup needs the CLI")
     case .noSpeech:
       record.status = "no_speech"
       record.totalMs = recordMs + Int(monotonicMs() - stopAt)
@@ -223,110 +206,8 @@ final class TakePipeline {
     }
   }
 
-  /// The CLI path: `khuluma inline process` transcribes, cleans up and
-  /// saves history; the app delivers, then records usage.
-  func processWithCLI(samples: [Float], take: Take, recordMs: Int, appName: String?,
-                      stopAt: Double, config: AppConfig?, route: (path: String, reason: String)) -> TakeResult {
-    let wav = AppRuntimePaths.temporary.appendingPathComponent("khuluma-\(UUID().uuidString).wav")
-    defer { try? FileManager.default.removeItem(at: wav) }
-    let startedAt = monotonicMs()
-    var processedAt: Double?
-    func logTake(_ outcome: String, _ extra: (inout TakeLog) -> Void = { _ in }) {
-      var line = TakeLog()
-      line.add("path", route.path)
-      line.add("reason", route.reason)
-      line.add("outcome", outcome)
-      line.add("record", recordMs)
-      line.add("total", ms: monotonicMs() - stopAt)
-      line.add("queue", ms: startedAt - stopAt)
-      line.add("cli", ms: processedAt.map { $0 - startedAt })
-      extra(&line)
-      Log.write(line.line)
-    }
-    guard let cli else {
-      // No CLI: the take is kept as a saved recording (not settled), never lost.
-      logTake("failed") { $0.add("error", "cli_missing") }
-      return .failed("This dictation needs the khuluma CLI (\(route.reason)); recording saved")
-    }
-    do {
-      try WAVEncoder.encode(samples: samples).write(to: wav, options: [.atomic])
-      chmod(wav.path, 0o600)
-      let result = try cli.process(wav: wav, app: appName, recordMs: recordMs,
-                                   startupMs: take.startupMs, startedAtEpochMs: take.startedEpochMs,
-                                   expectedProvider: config?.transcription.provider ?? "parakeet")
-      processedAt = monotonicMs()
-      guard result.ok else {
-        logTake(result.status == "no_speech" ? "no_speech" : "failed") { line in
-          if result.status != "no_speech" { line.add("error", TakeLog.cliStatus(result.status)) }
-        }
-        return result.status == "no_speech" ? .noSpeech : .failed(result.message ?? result.status)
-      }
-      // settings.json decides delivery, not the CLI's own config.toml
-      // (`result.delivery`). `delivery` is already made safe (no autosend
-      // on fallback defaults).
-      let delivery = (config ?? loadConfig()).delivery
-      let steps = DeliveryPlan.steps(text: result.text, delivery: take.delivery(delivery),
-                                     hasOriginalApp: take.originalApp != nil)
-      let delivering = monotonicMs()
-      let target = try Deliverer.perform(steps, originalApp: take.originalApp)
-      if result.usageDeferred {
-        // Count it now that the text is delivered (`inline process` has
-        // saved bench and, per `historySaved`, history).
-        let deliveredDate = Date()
-        var usage = TakeRecord(takeId: UUID().uuidString.lowercased(), status: "ok", delivered: true)
-        usage.usageOnly = true
-        usage.text = result.text
-        usage.app = appName
-        usage.recordMs = recordMs
-        usage.totalMs = recordMs + Int(monotonicMs() - stopAt)
-        usage.startupMs = take.startupMs
-        usage.startedAtMs = take.startedEpochMs
-        usage.deliveredAtMs = Int(deliveredDate.timeIntervalSince1970 * 1000)
-        usage.deliveredLocalDate = LocalDate.string(for: deliveredDate)
-        usage.startupSource = "app:avaudioengine"
-        persister.persist(usage)
-      }
-      logTake("delivered") { line in
-        line.add("transcribe", result.timings["transcribe_ms"])
-        line.add("deliver", ms: monotonicMs() - delivering)
-        line.add("waits", DeliveryPlan.waitMs(steps))
-        line.add("chars", result.text.count)
-        line.add("target", target ?? "-")
-        if !result.historySaved { line.add("history", "unsaved") }
-      }
-      // `inline process` saves history itself and says whether it did: if
-      // not, a Quit copy of the take stays for the next launch to recover.
-      return .delivered(recorded: result.historySaved)
-    } catch {
-      logTake("failed") { $0.add("error", Self.errorCategory(error)) }
-      return .failed(error.localizedDescription)
-    }
-  }
-
-  /// A short, stable reason for the take log (details go on the
-  /// `pipeline:` line).
-  private static func fallbackReason(_ error: Error) -> String {
-    switch error as? DaemonClient.ClientError {
-    case .unreachable?: return "daemon unreachable"
-    case .protocolError?: return "daemon protocol error"
-    case .daemon(let code, _)?: return "daemon error \(code)"
-    case .timedOut?: return "daemon timed out"
-    case nil: return "native transcription failed"
-    }
-  }
-
-  /// A fixed error category for the take log: never the message, which
-  /// can carry CLI output (and so dictated text).
+  /// A fixed error category for the take log: never the message.
   private static func errorCategory(_ error: Error) -> String {
-    if error is AppContract.Mismatch { return "cli_mismatch" }
-    if let bridge = error as? CLIBridge.BridgeError {
-      switch bridge {
-      case .notInstalled: return "cli_missing"
-      case .failed: return "cli_failed"
-      case .timedOut: return "cli_timed_out"
-      case .badOutput: return "cli_bad_output"
-      }
-    }
     let error = error as NSError
     if error.domain == "Khuluma" {
       switch error.code {

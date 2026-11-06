@@ -73,19 +73,6 @@ struct CLIModelTests {
     #expect(config.inline.sendDelayMs == 35)
     #expect(config.cleanup.configDir == "/c")
   }
-
-  @Test func decodesProcessResult() throws {
-    let json = #"""
-    {"ok":true,"status":"ok","text":"Hello there.","raw_text":"hello there","message":null,
-     "delivery":{"autosend":false,"send_mode":"cmd_enter","paste_target":"restore","activate_delay_ms":90,"send_delay_ms":35},
-     "timings":{"transcribe_ms":638,"total_ms":6382},"usage_deferred":true}
-    """#
-    let result = try JSONDecoder().decode(ProcessResult.self, from: Data(json.utf8))
-    #expect(result.ok)
-    #expect(result.text == "Hello there.")
-    #expect(result.delivery.pasteTarget == "restore")
-    #expect(result.timings["transcribe_ms"] == 638)
-  }
 }
 
 struct DeliveryPlanTests {
@@ -136,45 +123,3 @@ struct DeliveryPlanTests {
   }
 }
 
-struct CLIEnvironmentTests {
-  @Test func dropsLocaleAndSetsPath() {
-    let env = CLIEnvironment.forCLI(
-      base: ["LANG": "C.UTF-8", "LC_ALL": "en_US.UTF-8", "LC_CTYPE": "UTF-8", "HOME": "/Users/x",
-             "PATH": "/usr/bin", "DICTATE_CLEAN": "1", "KHULUMA_CLEAN": "0", "KHULUMA_CLI": "/x"],
-      home: "/Users/x")
-    #expect(env["LANG"] == nil && env["LC_ALL"] == nil && env["LC_CTYPE"] == nil)
-    #expect(env["HOME"] == "/Users/x" && env["DICTATE_CLEAN"] == "1" && env["KHULUMA_CLI"] == "/x")
-    #expect(env["KHULUMA_CLEAN"] == "0")
-    #expect(env["PATH"]?.hasPrefix("/Users/x/.local/bin:/opt/homebrew/bin:") == true)
-  }
-
-  @Test func fallbackConfigRootUsesCanonicalThenXDG() {
-    #expect(CLIEnvironment.configDirectory(base: [:], home: "/Users/x") == "/Users/x/.config/khuluma")
-    #expect(CLIEnvironment.configDirectory(base: ["XDG_CONFIG_HOME": "/fixture/config"], home: "/Users/x") == "/fixture/config/khuluma")
-    #expect(CLIEnvironment.configDirectory(base: ["KHULUMA_CONFIG_DIR": "~/custom"], home: "/Users/x") == "/Users/x/custom")
-    #expect(CLIEnvironment.configDirectory(base: ["KHULUMA_CONFIG_DIR": "", "XDG_CONFIG_HOME": "/fixture/config"], home: "/Users/x") == "/fixture/config/khuluma")
-    #expect(CLIEnvironment.configDirectory(base: ["DICTATE_CONFIG_DIR": "/legacy/custom"], home: "/Users/x") == "/Users/x/.config/khuluma")
-    #expect(CLIEnvironment.configDirectory(base: ["KHULUMA_CONFIG_DIR": "/canonical", "DICTATE_CONFIG_DIR": "/legacy"], home: "/Users/x") == "/canonical")
-  }
-
-  @Test(arguments: ["DICTATE_CONFIG_DIR", "DICTATE_FUTURE_OVERRIDE", "LOWKEY_KEYCHAIN", "LOWKEY_SIGNING_IDENTITY"])
-  func obsoleteOverridePresenceIsReportedForBridgeRefusal(_ name: String) {
-    for value in ["", "/private/fixture/obsolete"] {
-      let base = [name: value, "KHULUMA_CONFIG_DIR": "/canonical"]
-      // Presence is rejected before a candidate can translate it or write a
-      // profile, even when the obsolete input is empty or canonical is set.
-      #expect(CLIEnvironment.obsoleteOverrideNames(base: base) == [name])
-      // The environment builder must not silently strip the offending input
-      // and bypass the CLI's own post-zshenv refusal.
-      #expect(CLIEnvironment.forCLI(base: base, home: "/Users/x")[name] == value)
-    }
-  }
-
-  @Test func obsoleteOverrideDiagnosticsContainOnlySortedNames() {
-    let base = ["DICTATE_CONFIG_DIR": "/private/fixture/old", "DICTATE_BIN": "secret-value",
-                "LOWKEY_KEYCHAIN": "", "LOWKEY_OTHER_APP": "unchanged",
-                "KHULUMA_CONFIG_DIR": "/canonical", "KHULUMA_CLI": "/canonical/bin/khuluma"]
-    #expect(CLIEnvironment.obsoleteOverrideNames(base: base) == ["DICTATE_BIN", "DICTATE_CONFIG_DIR", "LOWKEY_KEYCHAIN"])
-    #expect(CLIEnvironment.obsoleteOverrideNames(base: ["KHULUMA_CONFIG_DIR": "/canonical", "LOWKEY_OTHER_APP": "unchanged"]).isEmpty)
-  }
-}

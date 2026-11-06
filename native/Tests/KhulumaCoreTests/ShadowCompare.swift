@@ -6,12 +6,12 @@ import KhulumaCore
 enum ShadowCompare {
   /// nil when the native and CLI results agree (byte-identical text and raw
   /// text, or both found no speech), else a one-line description
-  /// for app.log. A native `.needsCLI` is never compared.
+  /// for app.log.
   static func mismatch(
     native: CleanupOutcome, cliStatus: String, cliRawText: String, cliText: String
   ) -> String? {
     switch (native, cliStatus) {
-    case (.needsCLI, _), (.noSpeech, "no_speech"):
+    case (.noSpeech, "no_speech"):
       return nil
     case (.text(let raw, let text), "ok"):
       var diffs: [String] = []

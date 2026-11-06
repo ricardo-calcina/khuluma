@@ -16,15 +16,6 @@ struct TakeLogTests {
       == #"take: path=native record=3200 total=1912 target="Google Chrome" error="said \"no\" \\ twice really" empty="""#)
   }
 
-  @Test func cliStatusesNeverCarryFreeText() {
-    #expect(TakeLog.cliStatus("failed") == "cli_failed")
-    #expect(TakeLog.cliStatus("no_speech") == "cli_no_speech")
-    #expect(TakeLog.cliStatus("superseded") == "other")
-    #expect(TakeLog.cliStatus("Bad output: \"my dictated words\"") == "other")
-    #expect(TakeLog.cliStatus("mydictatedwords") == "other")
-    #expect(TakeLog.cliStatus(nil) == "other")
-  }
-
   @Test func quotesValuesThatWouldBreakParsing() {
     #expect(TakeLog.quoted("a=b") == #""a=b""#)
     #expect(TakeLog.quoted("tab\there") == #""tab here""#)
