@@ -4,7 +4,7 @@
 
 Pick up (CLI sunset tab): keep list handed to the app tab (t4j) on 2026-11-05 · next: when it confirms the app runs without the CLI, prepare phase 4 (final v0.12.0 with notice, formula disable!) for Ricardo's yes · branch: wip/product-split
 
-Installed build 458 on 2026-11-06 (speaking-pace WPM, Ricardo's OK, from main db4a4aa): WPM and time saved leave out pauses over 1 s, measured from word timings; the audio sent to ASR is unchanged. Rollback: `~/Applications/.khuluma-app.JvohaM/previous.app` (build 449).
+Installed build 458 on 2026-11-06 (speaking-pace WPM, Ricardo's OK, from main db4a4aa): WPM and time saved leave out pauses over 1 s, measured from word timings; the audio sent to ASR is unchanged. Build 464 (white light theme) is on top; old rollbacks removed 2026-11-06.
 
 Installed build 449 on 2026-11-06 (app independence, Ricardo's OK): the app runs without the CLI and keeps its own data, imported from ~/.config/khuluma (copy only, left as rollback). Rollback: `~/Applications/.khuluma-app.NH9hiz/previous.app` (build 415). 14-day watch to 2026-11-20: no `khuluma` process started by the app; usage matches delivered takes in history. Until the CLI is retired, the CLI's daemon and the app's own daemon both hold the model. The CLI sunset (phase 4) can start now.
 
