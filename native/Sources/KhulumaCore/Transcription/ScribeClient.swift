@@ -104,7 +104,11 @@ public struct ScribeClient: Sendable {
             let start = (word["start"] as? NSNumber)?.doubleValue,
             let end = (word["end"] as? NSNumber)?.doubleValue,
             start.isFinite, end.isFinite else { return nil }
-      return (Int((start * 1000).rounded()), Int((end * 1000).rounded()))
+      let startMs = (start * 1000).rounded(), endMs = (end * 1000).rounded()
+      // Up to ~100 days: anything past that is not a real timestamp.
+      let limit = 1e10
+      guard abs(startMs) < limit, abs(endMs) < limit else { return nil }
+      return (Int(startMs), Int(endMs))
     }
     return SpeechTime.speechMs(pairs: spans)
   }

@@ -152,16 +152,33 @@ public actor ASREngine {
 
   /// [startMs, endMs] per word, from FluidAudio's token timings.
   static func wordSpansMs(_ tokens: [TokenTiming]) -> [[Int]] {
-    // Punctuation is often emitted late (a full stop just before the next
-    // word, after the pause), so it doesn't extend a word.
-    let spoken = tokens.filter { $0.token.unicodeScalars.contains { CharacterSet.alphanumerics.contains($0) } }
-    let capped = spoken.map {
-      TokenTiming(token: $0.token, tokenId: $0.tokenId, startTime: $0.startTime,
-                  endTime: min($0.endTime, $0.startTime + maxTokenSeconds), confidence: $0.confidence)
+    // Words are grouped here, not with buildWordTimings: a boundary token
+    // (▁ or a leading space) always ends the word, even when it is only
+    // punctuation or a space, and only tokens with letters or digits give a
+    // word its span. Punctuation is often emitted late (a full stop just
+    // before the next word, after the pause), so it never extends a span.
+    var spans: [[Int]] = []
+    var current: (start: TimeInterval, end: TimeInterval)?
+    func flush() {
+      if let c = current, c.start.isFinite, c.end.isFinite, abs(c.end) < 1e7 {
+        spans.append([Int((c.start * 1000).rounded()), Int((c.end * 1000).rounded())])
+      }
+      current = nil
     }
-    return buildWordTimings(from: capped).map {
-      [Int(($0.startTime * 1000).rounded()), Int(($0.endTime * 1000).rounded())]
+    for token in tokens {
+      let text = token.token
+      if text.isEmpty || text == "<blank>" || text == "<pad>" { continue }
+      if text.hasPrefix("▁") || text.hasPrefix(" ") { flush() }
+      guard text.unicodeScalars.contains(where: { CharacterSet.alphanumerics.contains($0) }) else { continue }
+      let end = min(token.endTime, token.startTime + maxTokenSeconds)
+      if let c = current {
+        current = (c.start, max(c.end, end))
+      } else {
+        current = (token.startTime, end)
+      }
     }
+    flush()
+    return spans
   }
 
   private func ensureInitialized(

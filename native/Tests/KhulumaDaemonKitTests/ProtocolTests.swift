@@ -163,3 +163,24 @@ struct WordSpansProtocolTests {
     #expect(ASREngine.wordSpansMs(tokens) == [[1840, 2000], [6080, 6320]])
   }
 }
+
+struct WordGroupingTests {
+  @Test func aBareBoundaryTokenSplitsWordsAcrossAPause() {
+    let tokens = [
+      TokenTiming(token: " hello", tokenId: 1, startTime: 0, endTime: 0.2, confidence: 1),
+      TokenTiming(token: " ", tokenId: 2, startTime: 6, endTime: 6.08, confidence: 1),
+      TokenTiming(token: "world", tokenId: 3, startTime: 6.08, endTime: 6.32, confidence: 1),
+    ]
+    #expect(ASREngine.wordSpansMs(tokens) == [[0, 200], [6080, 6320]])
+  }
+
+  @Test func blanksAndPunctuationGiveNoSpan() {
+    let tokens = [
+      TokenTiming(token: "<blank>", tokenId: 0, startTime: 0, endTime: 1, confidence: 1),
+      TokenTiming(token: "▁,", tokenId: 1, startTime: 1, endTime: 2, confidence: 1),
+      TokenTiming(token: "▁ok", tokenId: 2, startTime: 3, endTime: 3.1, confidence: 1),
+      TokenTiming(token: "!", tokenId: 3, startTime: 5, endTime: 5.2, confidence: 1),
+    ]
+    #expect(ASREngine.wordSpansMs(tokens) == [[3000, 3100]])
+  }
+}

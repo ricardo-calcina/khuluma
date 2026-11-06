@@ -66,6 +66,23 @@ public struct DaemonClient: Sendable {
       case modelLoaded = "model_loaded"
       case activeRequests = "active_requests"
     }
+
+    init(from decoder: Decoder) throws {
+      let c = try decoder.container(keyedBy: CodingKeys.self)
+      id = try c.decode(String.self, forKey: .id)
+      ok = try c.decode(Bool.self, forKey: .ok)
+      text = try c.decodeIfPresent(String.self, forKey: .text)
+      errorCode = try c.decodeIfPresent(String.self, forKey: .errorCode)
+      message = try c.decodeIfPresent(String.self, forKey: .message)
+      version = try c.decodeIfPresent(String.self, forKey: .version)
+      pid = try c.decodeIfPresent(Int.self, forKey: .pid)
+      generation = try c.decodeIfPresent(String.self, forKey: .generation)
+      modelLoaded = try c.decodeIfPresent(DaemonStatus.LoadedModel.self, forKey: .modelLoaded)
+      activeRequests = try c.decodeIfPresent(Int.self, forKey: .activeRequests)
+      durationMs = try c.decodeIfPresent(Int.self, forKey: .durationMs)
+      // A metric only: malformed spans read as none, the text still counts.
+      wordSpansMs = (try? c.decodeIfPresent([[Int]].self, forKey: .wordSpansMs)) ?? nil
+    }
   }
 
   public let socketPath: String

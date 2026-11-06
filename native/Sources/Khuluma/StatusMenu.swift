@@ -551,7 +551,7 @@ struct MenuSummary: View {
         metric(today ? "Saved today" : "Time saved", value: timeSaved)
           .help("Estimated time saved compared with typing at \(stats.stats?.lifetime.typingWPM ?? 40) words per minute, including delivery time and leaving out pauses longer than 1 second.")
         metric(today ? "WPM today" : "Average WPM", value: figures?.wordsPerMinute.map { $0.formatted() } ?? "–")
-          .help("Words per minute while speaking, leaving out pauses longer than 1 second.")
+          .help("Words per minute while speaking: pauses longer than 1 second are left out.")
       }
       .fixedSize(horizontal: false, vertical: true)
       if settings.menuShowsWeek, let days = stats.stats?.lastDays(7), stats.stats?.hasDaily == true {

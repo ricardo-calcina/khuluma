@@ -17,7 +17,11 @@ public struct TakeRecord: Codable, Equatable, Sendable {
   public var recordMs: Int = 0
   /// Time spent speaking (word timings, pauses over 1 s left out), at most
   /// `recordMs`; nil when unknown (older records, no timings).
-  public var speechMs: Int?
+  public var speechMs: Int? {
+    get { speechMsField.value }
+    set { speechMsField = TolerantInt(newValue) }
+  }
+  private var speechMsField = TolerantInt(nil)
   public var transcribeMs: Int = 0
   public var cleanMs: Int = 0
   public var pasteMs: Int = 0
@@ -49,7 +53,7 @@ public struct TakeRecord: Codable, Equatable, Sendable {
     case status, delivered, text, app, model
     case rawText = "raw_text"
     case recordMs = "record_ms"
-    case speechMs = "speech_ms"
+    case speechMsField = "speech_ms"
     case transcribeMs = "transcribe_ms"
     case cleanMs = "clean_ms"
     case pasteMs = "paste_ms"
@@ -63,5 +67,37 @@ public struct TakeRecord: Codable, Equatable, Sendable {
     case wavPath = "wav_path"
     case deliveredLocalDate = "delivered_local_date"
     case usageOnly = "usage_only"
+  }
+}
+
+/// An optional metric that never fails decoding: anything that isn't a
+/// non-negative integer reads as nil, so a bad value can't cost a take.
+struct TolerantInt: Codable, Equatable, Sendable {
+  var value: Int?
+
+  init(_ value: Int?) { self.value = value }
+
+  init(from decoder: Decoder) throws {
+    let c = try decoder.singleValueContainer()
+    value = (try? c.decode(Int.self)).flatMap { $0 >= 0 ? $0 : nil }
+  }
+
+  func encode(to encoder: Encoder) throws {
+    var c = encoder.singleValueContainer()
+    if let value { try c.encode(value) } else { try c.encodeNil() }
+  }
+}
+
+extension KeyedEncodingContainer {
+  /// Omits the key when the metric is unknown, as an Optional would.
+  mutating func encode(_ value: TolerantInt, forKey key: Key) throws {
+    if let v = value.value { try encode(v, forKey: key) }
+  }
+}
+
+extension KeyedDecodingContainer {
+  /// A missing key is nil too.
+  func decode(_ type: TolerantInt.Type, forKey key: Key) throws -> TolerantInt {
+    (try? decodeIfPresent(TolerantInt.self, forKey: key)).flatMap { $0 } ?? TolerantInt(nil)
   }
 }

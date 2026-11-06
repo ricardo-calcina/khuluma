@@ -122,8 +122,8 @@ private struct Hero: View {
       timeSaved
       figure("Average WPM", value: lifetime.wordsPerMinute.map { $0.formatted() } ?? "–",
              tracking: Double(lifetime.wordsPerMinute ?? 0),
-             info: "Words per minute while you're speaking: pauses longer than 1 second are left out. "
-               + "Dictations before 6 Nov 2026 still include their pauses, so this rises as new ones come in.",
+             info: "Words per minute while you're speaking. Pauses longer than 1 second, and the silence before "
+               + "and after you speak, are left out. Dictations from before Khuluma measured this still include their pauses.",
              caption: "pauses left out")
     }
     .padding(.top, 4)

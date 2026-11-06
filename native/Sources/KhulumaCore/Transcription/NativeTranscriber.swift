@@ -94,12 +94,13 @@ public struct NativeTranscriber: Sendable {
       return now - mark
     }
     /// One pass, timed whether it answers or throws.
-    var speechMs: Int?
+    var inlineSpans: [[Int]]?
+    var tailSpans: [[Int]]?
     func run(_ url: URL, _ flow: String) throws -> String {
       _ = lap()
       do {
         let pass = try transcribe(url, flow)
-        if flow == "inline" { speechMs = pass.wordSpansMs.flatMap { SpeechTime.speechMs(spans: $0) } }
+        if flow == "inline" { inlineSpans = pass.wordSpansMs } else { tailSpans = pass.wordSpansMs }
         timings.passes.append(.init(flow: flow, elapsedMs: lap(), daemonMs: pass.daemonMs))
         return pass.text
       } catch {
@@ -125,6 +126,7 @@ public struct NativeTranscriber: Sendable {
     } catch {
       throw Failure(underlying: error, keptWAV: kept)
     }
+    var speechMs = inlineSpans.flatMap { SpeechTime.speechMs(spans: $0) }
     guard let window = AudioPrep.tailRescueWindowMs(paddedSampleCount: padded.count, settings: settings) else {
       return Result(transcript: full, captureSamples: pcm.count, paddedSamples: padded.count,
                     tailRescueMs: nil, tailRescueFailed: false, keptWAV: kept, timings: timings, speechMs: speechMs)
@@ -147,9 +149,18 @@ public struct NativeTranscriber: Sendable {
                     tailRescueMs: window, tailRescueFailed: true, keptWAV: kept, timings: timings, speechMs: speechMs)
     }
     let spaced = String(String.UnicodeScalarView(tail.unicodeScalars.map { $0 == "\n" ? " " : $0 }))
-    let transcript = PerlText.isBlank(spaced)
-      ? full
-      : PerlText.bashCapture(TranscriptMerge.mergeTailRescue(full: full, tail: spaced))
+    let merged = !PerlText.isBlank(spaced)
+    let transcript = merged
+      ? PerlText.bashCapture(TranscriptMerge.mergeTailRescue(full: full, tail: spaced))
+      : full
+    // Rescued words count, so their time does too: the tail's spans, moved
+    // to where the tail window starts in the padded audio, joined with the
+    // inline ones (overlaps merge).
+    if merged, let tailSpans {
+      let offsetMs = (padded.count - AudioPrep.tail(padded, windowMs: window).count) * 1000 / AudioPrep.sampleRate
+      let moved = tailSpans.compactMap { $0.count == 2 ? [$0[0] + offsetMs, $0[1] + offsetMs] : nil }
+      speechMs = SpeechTime.speechMs(spans: (inlineSpans ?? []) + moved) ?? speechMs
+    }
     return Result(transcript: transcript, captureSamples: pcm.count, paddedSamples: padded.count,
                   tailRescueMs: window, tailRescueFailed: false, keptWAV: kept, timings: timings, speechMs: speechMs)
   }

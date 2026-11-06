@@ -141,10 +141,11 @@ public struct UsageLedger: Sendable {
     if let pauseMs {
       if payload["pause_duration_ms"] == nil {
         payload["pause_duration_ms"] = pauseMs
-      } else if let total = Self.plainInt(payload["pause_duration_ms"]) {
-        payload["pause_duration_ms"] = total + pauseMs
+      } else if let total = Self.plainInt(payload["pause_duration_ms"]),
+                case let (sum, overflow) = total.addingReportingOverflow(pauseMs), !overflow {
+        payload["pause_duration_ms"] = sum
       } else {
-        warn("usage pause_duration_ms is unreadable; left it unchanged")
+        warn("usage pause_duration_ms is unreadable or too large; left it unchanged")
       }
     }
 
@@ -173,10 +174,11 @@ public struct UsageLedger: Sendable {
           if let pauseMs {
             if bucketIn["pause_ms"] == nil {
               stored["pause_ms"] = pauseMs
-            } else if let old = Self.plainInt(bucketIn["pause_ms"]) {
-              stored["pause_ms"] = old + pauseMs
+            } else if let old = Self.plainInt(bucketIn["pause_ms"]),
+                      case let (sum, overflow) = old.addingReportingOverflow(pauseMs), !overflow {
+              stored["pause_ms"] = sum
             } else {
-              warn("daily usage pause_ms for \(dayKey) is unreadable; left it unchanged")
+              warn("daily usage pause_ms for \(dayKey) is unreadable or too large; left it unchanged")
             }
           }
           days[dayKey] = stored

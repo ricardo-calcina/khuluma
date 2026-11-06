@@ -58,11 +58,12 @@ struct SpeechPaceTranscriptionTests {
     #expect(pass.wordSpansMs == [[0, 500], [700, 1000], [5000, 5600]])
   }
 
-  @Test func speechComesFromTheInlinePassOnly() throws {
-    // 13 s: long enough for a tail pass, whose spans must be ignored.
+  @Test func speechIgnoresAFailedTailPass() throws {
+    // 13 s: long enough for a tail pass; it fails, so only inline time counts.
     let samples = [Float](repeating: 0, count: 16_000 * 13)
     let result = try NativeTranscriber(settings: settings).transcribeTimed(samples: samples, passes: { _, flow in
-      NativeTranscriber.Pass(text: "x", wordSpansMs: flow == "inline" ? [[0, 500], [700, 1000], [5000, 5600]] : [[0, 9000]])
+      if flow != "inline" { throw DaemonClient.ClientError.daemon(code: "x", message: "y") }
+      return NativeTranscriber.Pass(text: "x", wordSpansMs: [[0, 500], [700, 1000], [5000, 5600]])
     })
     #expect(result.timings.passes.count == 2)
     #expect(result.speechMs == 1600)
@@ -284,5 +285,94 @@ struct SpeechPaceStatsTests {
     // 300 words at 40 wpm = 450 s typing; 130 s elapsed less 60 s pauses.
     #expect(stats(pause: 0, dayPause: 60_000).figures(.today).estimatedSavedMs == 450_000 - 70_000)
     #expect(stats(pause: 0, dayPause: 0).figures(.today).estimatedSavedMs == 450_000 - 130_000)
+  }
+}
+
+struct SpeechPaceRobustnessTests {
+  private func ledgerURL(_ bucketPause: Any?, _ totalPause: Any?) throws -> URL {
+    let root = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("pace-\(UUID().uuidString)")
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    let url = root.appendingPathComponent("usage.json")
+    var bucket: [String: Any] = ["count": 1, "inline": 1, "tmux": 0, "words": 1, "recording_ms": 1, "full_elapsed_ms": 1,
+                                 "longest_recording_ms": 1, "most_words": 1]
+    bucket["pause_ms"] = bucketPause
+    let payload: [String: Any] = [
+      "schema_version": 1, "delivered_dictations": ["count": 1, "by_flow": ["inline": 1, "tmux": 0]],
+      "pause_duration_ms": totalPause as Any,
+      "daily": ["started_at": "2026-10-01T00:00:00Z", "baseline_count": 0, "days": ["2026-11-05": bucket]],
+    ]
+    try JSONSerialization.data(withJSONObject: payload).write(to: url)
+    return url
+  }
+
+  @Test func pauseNearIntMaxDoesNotTrapAndTheTakeCounts() throws {
+    let url = try ledgerURL(Int.max - 1, Int.max - 1)
+    defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+    var warnings: [String] = []
+    let ledger = UsageLedger(url: url, now: { Date(timeIntervalSince1970: 1_793_870_042) },
+                             timeZone: TimeZone(identifier: "UTC")!)
+    let outcome = try ledger.record(.init(text: "a b", recordMs: 5_000, fullElapsedMs: 5_000, takeId: "o1",
+                                          speechMs: 1_000)) { warnings.append($0) }
+    #expect(outcome == .recorded(words: 2))
+    let out = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as! [String: Any]
+    #expect((out["pause_duration_ms"] as? NSNumber)?.int64Value == Int64(Int.max - 1))
+    let day = ((out["daily"] as! [String: Any])["days"] as! [String: Any])["2026-11-05"] as! [String: Any]
+    #expect((day["pause_ms"] as? NSNumber)?.int64Value == Int64(Int.max - 1))
+    #expect(day["count"] as? Int == 2)
+    #expect(warnings.count == 2)
+  }
+
+  @Test func badSpeechMsInASpooledRecordReadsAsUnknown() throws {
+    for bad in [#""bad""#, "1e40", "99999999999999999999999", "-5", "null"] {
+      let json = #"{"take_id":"a","status":"ok","delivered":true,"raw_text":"","text":"hi","record_ms":10,"transcribe_ms":0,"clean_ms":0,"paste_ms":0,"total_ms":0,"startup_ms":0,"startup_source":"app:native","speech_ms":"# + bad + "}"
+      let record = try JSONDecoder().decode(TakeRecord.self, from: Data(json.utf8))
+      #expect(record.speechMs == nil && record.text == "hi")
+    }
+    var record = TakeRecord(takeId: "a", status: "ok", delivered: true)
+    #expect(!String(decoding: try JSONEncoder().encode(record), as: UTF8.self).contains("speech_ms"))
+    record.speechMs = 42
+    let back = try JSONDecoder().decode(TakeRecord.self, from: JSONEncoder().encode(record))
+    #expect(back.speechMs == 42 && back == record)
+  }
+
+  @Test func malformedWordSpansStillGiveTheText() throws {
+    for spans in [#""x""#, #"[[1,"a"]]"#, "[[1e40,2]]"] {
+      let body = #"{"id":"1","ok":true,"text":"hello","word_spans_ms":"# + spans + "}"
+      let response = try JSONDecoder().decode(DaemonClient.Response.self, from: Data(body.utf8))
+      #expect(response.text == "hello" && response.wordSpansMs == nil)
+    }
+  }
+
+  @Test func hugeScribeTimestampsAreDropped() {
+    let words: [[String: Any]] = [
+      ["type": "word", "start": 1e20, "end": 1e20 + 1],
+      ["type": "word", "start": 0.0, "end": 0.5],
+    ]
+    #expect(ScribeClient.speechMs(words: words) == 500)
+    #expect(ScribeClient.speechMs(words: [["type": "word", "start": 1e20, "end": 2e20]]) == nil)
+  }
+
+  private let settings = TranscriptionSettings(socketPath: "/s", modelPath: "/m")
+
+  @Test func mergedTailWordsAddTheirTime() throws {
+    let samples = [Float](repeating: 0, count: 16_000 * 13)
+    var tailWindow = 0
+    let result = try NativeTranscriber(settings: settings).transcribeTimed(samples: samples, passes: { url, flow in
+      if flow == "inline" { return NativeTranscriber.Pass(text: "one two", wordSpansMs: [[0, 1000]]) }
+      return NativeTranscriber.Pass(text: "two three", wordSpansMs: [[0, 500]])
+    })
+    tailWindow = try #require(result.tailRescueMs)
+    let offset = (result.paddedSamples - tailWindow * AudioPrep.sampleRate / 1000) * 1000 / AudioPrep.sampleRate
+    #expect(result.speechMs == SpeechTime.speechMs(spans: [[0, 1000], [offset, offset + 500]]))
+    #expect(result.speechMs == 1500)
+  }
+
+  @Test func mergedTailWithoutSpansKeepsInlineSpeech() throws {
+    let samples = [Float](repeating: 0, count: 16_000 * 13)
+    let result = try NativeTranscriber(settings: settings).transcribeTimed(samples: samples, passes: { _, flow in
+      flow == "inline" ? NativeTranscriber.Pass(text: "one two", wordSpansMs: [[0, 1000]])
+        : NativeTranscriber.Pass(text: "two three")
+    })
+    #expect(result.speechMs == 1000)
   }
 }
