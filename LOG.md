@@ -2,9 +2,9 @@
 
 ## Now
 
-Pick up (Hex parity push): slice 1 installed as build 476 (f8d3aa5), Ricardo is trying it · next: fix what he reports, then slice 2 (vocabulary inside the model) · branch: wip/hex-parity
+Pick up (Hex parity push): slice 1 installed as build 478 (31451d0) with the restyled indicator; Ricardo keeps all four features, hold-to-talk still untried · next: slice 2 (vocabulary inside the model) · branch: wip/hex-parity
 
-Installed build 476 on 2026-11-10 (Ricardo's OK, f8d3aa5, from wip/hex-parity). Rollback: `~/Applications/.khuluma-app.s8gnMk/previous.app` (build 470).
+Installed build 478 on 2026-11-10 (Ricardo's OK, 31451d0, from wip/hex-parity). Rollback: `~/Applications/.khuluma-app.cf3alm/previous.app` (build 476); build 470, the last one from before this push, is `~/Applications/.khuluma-app.s8gnMk/previous.app`.
 
 Hex parity push (Ricardo, 2026-11-10): after comparing Khuluma with anomalyco/hex, bring over what suits a Mac-only app, in slices on `wip/hex-parity`, each one a setting. Order and what was left out are in Next and Decisions.
 
@@ -115,6 +115,7 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 
 ## Done
 
+- 2026-11-10 · Indicator restyled (dark capsule, level waveform, clipped-shadow square fixed) and installed as build 478; Ricardo confirmed mute and the indicator work on 476 · 31451d0
 - 2026-11-10 · Installed build 476 with Hex parity slice 1 (Ricardo's OK); app and daemon relaunched · ~/Applications/.khuluma-app.s8gnMk/previous.app
 - 2026-11-10 · Hex parity slice 1 in source: hold-to-talk on a second shortcut, mute other audio, keep Mac awake, on-screen indicator, all off by default; policy tests and snapshots pass, not installed · wip/hex-parity, CHANGELOG Unreleased
 
