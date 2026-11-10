@@ -122,7 +122,7 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 
 ## Done
 
-- 2026-11-10 · Installed build 483 (Transcribe while recording, Ricardo's OK); removed temp builds at his request (four app-build workspaces, /private/tmp finder-preview, scribe-tests, swift-check, claude-501/d2-build, hex-compare), about 3.4 GB; kept native/.build, the rollback apps and the test fixture roots · ~/Applications/.khuluma-app.HjMnkA/previous.app
+- 2026-11-10 · Installed build 483 (Transcribe while recording, Ricardo's OK); removed temp builds at his request (four app-build workspaces, /private/tmp finder-preview, scribe-tests, swift-check, claude-501/d2-build, hex-compare), about 3 GB; kept native/.build, the rollback apps and the test fixture roots · ~/Applications/.khuluma-app.HjMnkA/previous.app
 - 2026-11-10 · Transcribe while recording in source: LiveSession, LiveSpool, switch in Settings › Dictation, whole-clip fallback, launch recovery of interrupted recordings; pure parts tested, the pipeline join has no test seam; not installed · wip/hex-parity, CHANGELOG Unreleased
 - 2026-11-10 · Installed build 481 with the tail-merge fix (Ricardo's OK); app and daemon relaunched warm · ~/Applications/.khuluma-app.A88hoo/previous.app
 - 2026-11-10 · Tail-rescue merge no longer repeats the end of a take; pause segmenter, joiner and CLI simulation for transcribe-while-recording; 365 tests pass; not installed · wip/hex-parity, CHANGELOG Unreleased
