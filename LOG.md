@@ -2,7 +2,7 @@
 
 ## Now
 
-Pick up (Hex parity push): build 481 installed (6d1c26e) with the tail-merge fix · next: slice 3b, wire transcribe-while-recording into the app as a switch, with the audio spooled to disk · branch: wip/hex-parity
+Pick up (Hex parity push): slice 3b (Transcribe while recording switch, live spool) built and reviewed in source, not installed (build 481 is) · next: Ricardo's OK to install, then he switches it on and I compare live=on takes in app.log and history against before · branch: wip/hex-parity
 
 Installed build 481 on 2026-11-10 (Ricardo's OK, 6d1c26e, from wip/hex-parity). Rollback: `~/Applications/.khuluma-app.A88hoo/previous.app` (build 478); build 470, the last one from before this push, is `~/Applications/.khuluma-app.s8gnMk/previous.app`.
 
@@ -34,7 +34,8 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 - [x] P1 · Hex parity slice 1: hold-to-talk on its own shortcut (300 ms short-tap discard, 200 ms release tail), mute other audio while recording, keep Mac awake, on-screen recording/transcribing indicator; all off by default, in Settings › Dictation · added 2026-11-10
 - [x] P1 · Hex parity slice 2: vocabulary inside the model measured and parked (Decisions) · added 2026-11-10
 - [ ] P1 · Tail-merge fix is in build 481: after a few days, recount repeated endings in history for takes from 2026-11-10 on (was 28 of 189; the count is in Decisions). Original item: watch history for repeated endings: before the fix 28 of 189 takes of 12 s or more had one · added 2026-11-10
-- [ ] P1 · Hex parity slice 3b: wire it into the app (segments at pauses of 500 ms, 12–30 s, tail rescue only on the last segment; whole-clip fallback; audio spooled to disk during the take; switch off by default); 3a measurements in Decisions. Original item: Hex parity slice 3: transcribe while recording, with whole-clip fallback; today stop→delivered is p50 1.2 s, p90 2.1 s, nearly all transcription (app.log, 211 takes); measure before it ships · added 2026-11-10
+- [x] P1 · Hex parity slice 3b: Transcribe while recording wired into the app as a switch, with the recording spooled to disk · added 2026-11-10
+- [ ] P1 · Install slice 3b (needs Ricardo's OK) and check on real takes: `live=on` lines in app.log (stop→delivered, live_segments, live_forced, any live=fallback and its reason), a crash-recovery try (force-quit mid-recording, relaunch, take appears in history), and that nothing is left in `~/Library/Application Support/Khuluma/live/` after normal takes · added 2026-11-10
 - [ ] P2 · Hex parity slice 4: History window with paste-last (already in phase 2), a Labs page for experiments, and "Keep microphone ready" (pre-roll; costs an always-on mic indicator, so opt-in) · added 2026-11-10
 
 - [ ] P2 · Retire `~/.config/dictate` (pre-rename folder, untouched since 2026-10-22) so it can be binned. Still pointing at it: `~/.local/bin/tmux-whisper-lib/` (config.sh socket `~/.config/dictate/.cache/tmux-whisperd.sock` and sounds in `~/.local/share/sounds/dictate`, which is already gone) and `~/.local/bin/dictate-lib.sh`, both old tmux-whisper libs from 2026-10-21 (fits CLI sunset phase 4); `khuluma-lib/identity.sh` lines 107–119 treat `~/.config/dictate` as the legacy marker for rename-v1, so confirm removing it doesn't re-trigger or break that check; `~/.config/khuluma/tools/pad-sfx.sh` examples still say `sounds/dictate`. Then bin the remaining install leftovers once rollback isn't needed: `.khuluma-install.*` (2026-11-05) and `.khuluma-cutover-*` in `~/.local/bin`, `~/.local/share/khuluma`, `~/.config/khuluma`, plus `~/.config/khuluma/.migration` (rename-v1, committed) · added 2026-11-08
@@ -121,6 +122,7 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 
 ## Done
 
+- 2026-11-10 · Transcribe while recording in source: LiveSession, LiveSpool, switch in Settings › Dictation, whole-clip fallback, launch recovery of interrupted recordings; pure parts tested, the pipeline join has no test seam; not installed · wip/hex-parity, CHANGELOG Unreleased
 - 2026-11-10 · Installed build 481 with the tail-merge fix (Ricardo's OK); app and daemon relaunched warm · ~/Applications/.khuluma-app.A88hoo/previous.app
 - 2026-11-10 · Tail-rescue merge no longer repeats the end of a take; pause segmenter, joiner and CLI simulation for transcribe-while-recording; 365 tests pass; not installed · wip/hex-parity, CHANGELOG Unreleased
 - 2026-11-10 · Measured FluidAudio vocabulary boosting on 5 real takes: wrong replacements or none, +0.8–3.4 s per take; parked · wip/vocab-boost-experiment

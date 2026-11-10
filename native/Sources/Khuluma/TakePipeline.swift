@@ -42,7 +42,7 @@ final class TakePipeline {
   /// The native path: transcribe through the daemon socket, clean up in
   /// Swift, deliver, then persist in the background.
   func processNatively(samples: [Float], take: Take, takeId: String, recordMs: Int, appName: String?,
-                       config: AppConfig, stopAt: Double) -> NativeRoute {
+                       config: AppConfig, stopAt: Double, live: LiveTake? = nil) -> NativeRoute {
     guard let native = config.native else {
       return .kept(KeptTake(reason: "transcription settings missing", category: "settings_missing"))
     }
@@ -78,6 +78,16 @@ final class TakePipeline {
         }
         if transcribed?.tailRescueFailed == true { line.add("tail_failed", 1) }
       }
+      if let livePrefix {
+        line.add("live", "on")
+        line.add("live_segments", livePrefix.segments)
+        line.add("live_forced", livePrefix.forced)
+        line.add("live_covered", livePrefix.coveredSamples * 1000 / AudioPrep.sampleRate)
+        line.add("live_asr", livePrefix.asrMs)
+      } else if live != nil {
+        line.add("live", "fallback")
+        if let liveReason { line.add("live_reason", liveReason) }
+      }
       extra(&line)
       Log.write(line.line)
     }
@@ -91,14 +101,71 @@ final class TakePipeline {
     record.captureWavMs = AudioPrep.ffprobeDurationMs(sampleCount: samples.count)
     record.captureWavBytes = 44 + 2 * samples.count
 
+    // "Transcribe while recording": the segments finished during capture
+    // are already transcribed; only the still-open tail needs a pass, then
+    // the texts are joined. Trusted only when the settings it was built
+    // with still match.
+    var livePrefix: LiveSession.Prefix?
+    var liveReason: String?
+    if let live {
+      if live.transcription != transcription || live.modelPath != modelPath {
+        liveReason = "settings_changed"
+        live.session.cancel()
+      } else {
+        switch live.session.finish(timeout: 15) {
+        case .success(let prefix):
+          if prefix.coveredSamples <= samples.count {
+            livePrefix = prefix
+          } else {
+            liveReason = LiveSession.Fallback.none_cut.rawValue
+          }
+        case .failure(let reason):
+          liveReason = reason.rawValue
+        }
+      }
+    }
+
     let transcribed: NativeTranscriber.Result
     do {
-      transcribed = try NativeTranscriber(settings: transcription, keepWAV: transcription.keepLogs)
-        .transcribeTimed(samples: samples) { wav, flow in
-        // Tag the take before its own request can count as contention.
-        if flow == "inline" { _ = probeState() }
-        return try client.transcribePass(wav: wav, language: transcription.language, flow: flow, modelPath: modelPath,
-                                         modelVersion: transcription.modelVersion, timeout: timeout)
+      if let livePrefix {
+        let tail = Array(samples[livePrefix.coveredSamples...])
+        let tailSpans = SpansBox()
+        var tailResult: NativeTranscriber.Result?
+        if !tail.isEmpty {
+          tailResult = try NativeTranscriber(settings: transcription)
+            .transcribeTimed(samples: tail) { wav, flow in
+            // Tag the take before its own request can count as contention.
+            if flow == "inline" { _ = probeState() }
+            let pass = try client.transcribePass(wav: wav, language: transcription.language, flow: flow,
+                                                 modelPath: modelPath,
+                                                 modelVersion: transcription.modelVersion, timeout: timeout)
+            if flow == "inline" { tailSpans.value = pass.wordSpansMs }
+            return pass
+          }
+        }
+        var parts = livePrefix.parts
+        if let tailResult {
+          parts.append(.init(text: tailResult.transcript, wordSpansMs: tailSpans.value,
+                             startMs: livePrefix.coveredSamples * 1000 / AudioPrep.sampleRate))
+        }
+        let joined = LiveTranscript.join(parts)
+        if var tailResult {
+          tailResult.transcript = joined.text
+          tailResult.speechMs = joined.wordSpansMs.flatMap { SpeechTime.speechMs(spans: $0) }
+          transcribed = tailResult
+        } else {
+          transcribed = NativeTranscriber.Result(
+            transcript: joined.text, captureSamples: samples.count, paddedSamples: samples.count,
+            speechMs: joined.wordSpansMs.flatMap { SpeechTime.speechMs(spans: $0) })
+        }
+      } else {
+        transcribed = try NativeTranscriber(settings: transcription, keepWAV: transcription.keepLogs)
+          .transcribeTimed(samples: samples) { wav, flow in
+          // Tag the take before its own request can count as contention.
+          if flow == "inline" { _ = probeState() }
+          return try client.transcribePass(wav: wav, language: transcription.language, flow: flow, modelPath: modelPath,
+                                           modelVersion: transcription.modelVersion, timeout: timeout)
+        }
       }
     } catch let failure as NativeTranscriber.Failure {
       if let reason = DaemonReadiness.notReadyReason(
@@ -195,6 +262,14 @@ final class TakePipeline {
       record.deliveredLocalDate = LocalDate.string(for: deliveredDate)
       record.pasteMs = Int(deliveredAt - cleanedAt)
       record.totalMs = recordMs + Int(deliveredAt - stopAt)
+      // Live transcription kept no WAV of its own: the debug archive is the
+      // whole take, padded exactly as NativeTranscriber would have written it.
+      if livePrefix != nil, transcription.keepLogs {
+        let wav = AppRuntimePaths.temporary.appendingPathComponent("khuluma-\(UUID().uuidString).wav")
+        let pcm = AudioPrep.padded(WAVEncoder.pcm16(samples), tailPadMs: transcription.tailPad ?? 0)
+        try? WAVEncoder.encode(pcm: pcm).write(to: wav)
+        record.wavPath = wav.path
+      }
       logTake("delivered", endedAt: deliveredAt, transcribed: transcribed) { line in
         line.add("asr", ms: transcribedAt - startedAt)
         line.add("clean", ms: cleanedAt - transcribedAt)

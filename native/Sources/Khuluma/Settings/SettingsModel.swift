@@ -13,6 +13,7 @@ final class SettingsModel: ObservableObject {
   @Published private(set) var muteWhileRecording: Bool
   @Published private(set) var keepAwakeWhileRecording: Bool
   @Published private(set) var showRecordingHUD: Bool
+  @Published private(set) var liveTranscription: Bool
   /// The chosen input (nil = System Default), as UID and the name it had.
   @Published private(set) var microphone: AudioInput?
   /// Connected inputs, from CoreAudio or sample data in previews.
@@ -73,6 +74,7 @@ final class SettingsModel: ObservableObject {
   private static let muteWhileRecordingKey = "muteWhileRecording"
   private static let keepAwakeWhileRecordingKey = "keepAwakeWhileRecording"
   private static let showRecordingHUDKey = "showRecordingHUD"
+  private static let liveTranscriptionKey = "liveTranscription"
 
   init(defaults: UserDefaults = AppRuntimePaths.defaults, isolated: Bool = AppRuntimePaths.isolated) {
     self.defaults = defaults
@@ -85,6 +87,7 @@ final class SettingsModel: ObservableObject {
     muteWhileRecording = defaults.bool(forKey: Self.muteWhileRecordingKey)
     keepAwakeWhileRecording = defaults.bool(forKey: Self.keepAwakeWhileRecordingKey)
     showRecordingHUD = defaults.bool(forKey: Self.showRecordingHUDKey)
+    liveTranscription = defaults.bool(forKey: Self.liveTranscriptionKey)
     microphone = defaults.string(forKey: Self.microphoneUIDKey).map {
       AudioInput(uid: $0, name: defaults.string(forKey: Self.microphoneNameKey) ?? "Chosen microphone")
     }
@@ -248,6 +251,12 @@ final class SettingsModel: ObservableObject {
     showRecordingHUD = on
     if !preview || isolated { defaults.set(on, forKey: Self.showRecordingHUDKey) }
     onWhileRecordingChange()
+  }
+
+  /// Read when each take starts, so a change applies from the next take.
+  func setLiveTranscription(_ on: Bool) {
+    liveTranscription = on
+    if !preview || isolated { defaults.set(on, forKey: Self.liveTranscriptionKey) }
   }
 
   func save(_ key: String, _ value: String) {

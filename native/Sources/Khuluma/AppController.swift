@@ -77,6 +77,8 @@ final class AppController: NSObject, NSApplicationDelegate {
   private let work = DispatchQueue(label: "khuluma.work", qos: .userInitiated)
   private let recovered = RecoveredTakes.standard
   private var recoveryRunning = false
+  /// Spool files are folded into recovered/ once, before the first recovery.
+  private var liveSpoolRecovered = false
   /// Asked for while a recovery pass was running: one more pass after it.
   private var recoveryRerun = false
   private let settingsQueue = DispatchQueue(label: "khuluma.settings", qos: .userInitiated, attributes: .concurrent)
@@ -404,14 +406,20 @@ final class AppController: NSObject, NSApplicationDelegate {
     environment.end()
     if let take {
       let samples = recorder.stop()
+      // Flush the live spool (so a failed save below still leaves complete
+      // audio on disk), then cancel the session: Quit doesn't wait on it.
+      take.live?.stop(allSamples: samples)
+      take.live?.session.cancel()
       self.take = nil
       if samples.isEmpty {
+        take.live?.removeSpool()
         take.marker?.remove()
       } else {
         take.marker?.update(.processing)
-        unsaved.append(UnsavedTake(samples: samples, takeId: UUID().uuidString.lowercased(),
+        unsaved.append(UnsavedTake(samples: samples, takeId: take.id.uuidString.lowercased(),
                                    startedEpochMs: take.startedEpochMs, startupMs: take.startupMs,
-                                   app: take.originalApp?.localizedName, marker: take.marker))
+                                   app: take.originalApp?.localizedName, marker: take.marker,
+                                   live: take.live))
       }
     }
     let config = self.config
@@ -419,6 +427,8 @@ final class AppController: NSObject, NSApplicationDelegate {
     for pendingTake in unsaved {
       do {
         let url = try recovered.save(samples: pendingTake.samples, takeId: pendingTake.takeId)
+        // The recovered copy exists: the spool can go.
+        pendingTake.live?.removeSpool()
         Log.write("quit: saved a recording (\(pendingTake.samples.count / AudioPrep.sampleRate)s) to \(url.lastPathComponent)")
         // Only the newest take goes onto the clipboard.
         let copy = pendingTake.takeId == unsaved.last?.takeId
@@ -454,6 +464,13 @@ final class AppController: NSObject, NSApplicationDelegate {
   /// Takes saved at a previous quit that didn't finish: transcribe them into
   /// history (no clipboard: it may hold something newer) and say so.
   private func recoverLeftoverTakes(config: AppConfig) {
+    // Once per launch: spool files left by an interrupted recording become
+    // ordinary recovered takes (de-duplicated by take id).
+    if !liveSpoolRecovered {
+      liveSpoolRecovered = true
+      let count = LiveSpool.standard.recoverAll(into: recovered)
+      if count > 0 { Log.write("live: recovered \(count) interrupted recording(s)") }
+    }
     // While quitting, saved takes are already queued or still in flight.
     guard !quitting else { return }
     guard !recoveryRunning else {
@@ -571,6 +588,7 @@ final class AppController: NSObject, NSApplicationDelegate {
       cancelHotkey.unregister()
       pasteOnlyHotkey.unregister()
       _ = recorder.stop()
+      take.live?.discard()
       take.marker?.remove()
       self.take = nil
       environment.end()
@@ -650,6 +668,50 @@ final class AppController: NSObject, NSApplicationDelegate {
         playChime("with no audio yet after \(Int(Self.chimeFallback * 1000))ms")
       }
       environment.begin(takeID: takeID, keepAwake: settingsModel.keepAwakeWhileRecording)
+      // "Transcribe while recording": spool to disk and feed the segmenter
+      // on a 250 ms timer while the take runs. Parakeet only, opt-in.
+      if settingsModel.liveTranscription, config?.transcription.provider == "parakeet",
+         let native = config?.native {
+        var segmentSettings = native.transcription
+        // Segments are mid-take; a diverging tail pass there would waste a
+        // call for no mergeable benefit. The take's final open segment keeps
+        // tail rescue in processNatively.
+        segmentSettings.tailRescue = false
+        var segmenterConfig = PauseSegmenter.Config()
+        segmenterConfig.minSegmentMs = 12_000
+        segmenterConfig.maxSegmentMs = 30_000
+        segmenterConfig.pauseMs = 500
+        let modelPath = native.modelPath
+        let settings = segmentSettings
+        let client = DaemonClient(socketPath: settings.socketPath)
+        let session = LiveSession(config: segmenterConfig) { samples in
+          let started = ContinuousClock.now
+          let spans = SpansBox()
+          let result = try NativeTranscriber(settings: settings).transcribeTimed(samples: samples) { wav, _ in
+            let pass = try client.transcribePass(
+              wav: wav, language: settings.language, flow: "inline-live",
+              modelPath: modelPath, modelVersion: settings.modelVersion,
+              timeout: TakePipeline.timeout(settings, sampleCount: samples.count))
+            spans.value = pass.wordSpansMs
+            return pass
+          }
+          let elapsed = started.duration(to: ContinuousClock.now)
+          return .init(text: result.transcript, wordSpansMs: spans.value,
+                       asrMs: Int(elapsed.components.seconds * 1000)
+                         + Int(elapsed.components.attoseconds / 1_000_000_000_000_000))
+        }
+        var writer: LiveSpool.Writer?
+        do {
+          writer = try LiveSpool.standard.open(takeId: takeID.uuidString.lowercased())
+        } catch {
+          writer = nil
+          Log.write("live: could not open the recording spool: \(error.localizedDescription)")
+        }
+        take?.live = LiveTake(session: session, writer: writer,
+                              transcription: native.transcription, modelPath: modelPath,
+                              recorder: recorder)
+        take?.live?.start()
+      }
       // Levels are metered only while the indicator needs them.
       recorder.meteringEnabled = settingsModel.showRecordingHUD
         && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
@@ -700,6 +762,9 @@ final class AppController: NSObject, NSApplicationDelegate {
     }
     let firstBuffer = recorder.firstBufferTime
     let samples = recorder.stop()
+    // Stop the live timer; it hands the unspooled tail to the spool and the
+    // session on the live queue.
+    take.live?.stop(allSamples: samples)
     let engineStopMs = monotonicMs() - stopAt
     self.take = nil
     let recordMs = Int((stopAt - take.startedAt).rounded())
@@ -708,6 +773,7 @@ final class AppController: NSObject, NSApplicationDelegate {
                        recordMs, firstBuffer - take.hotkeyAt, samples.count, engineStopMs))
     }
     guard !samples.isEmpty else {
+      take.live?.discard()
       take.marker?.remove()
       applyPendingHotkey()
       sounds.play(.error)
@@ -735,6 +801,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     cancelHotkey.unregister()
     pasteOnlyHotkey.unregister()
     _ = recorder.stop()
+    take.live?.discard()
     take.marker?.remove()
     self.take = nil
     sounds.play(.cancel)
@@ -756,10 +823,17 @@ final class AppController: NSObject, NSApplicationDelegate {
     guard let pipeline else {
       // Still starting (the import runs first): never drop the samples.
       // Saved like a quit's take and transcribed once settings are loaded.
+      // Still starting: cancel the session but keep the spool until the
+      // audio is safely in recovered/.
+      take.live?.cancelSession()
       take.marker?.remove()
-      let takeId = inFlight.add(samples: samples)
+      let takeId = inFlight.add(samples: samples, takeId: take.id.uuidString.lowercased())
       let kept: Bool
-      do { _ = try inFlight.keep(takeId); kept = true } catch {
+      do {
+        _ = try inFlight.keep(takeId)
+        kept = true
+        take.live?.removeSpool()
+      } catch {
         kept = false
         Log.write("pipeline: could not save the recording yet (held until Quit): \(error.localizedDescription)")
       }
@@ -777,14 +851,17 @@ final class AppController: NSObject, NSApplicationDelegate {
     let frontmostAtStop = NSWorkspace.shared.frontmostApplication?.localizedName
     let cachedConfig = self.config
     // In memory only until the take ends: Quit saves it from here.
-    let takeId = inFlight.add(samples: samples)
+    let takeId = inFlight.add(samples: samples, takeId: take.id.uuidString.lowercased())
     work.async { [weak self, inFlight] in
       // Every path below is synchronous on this queue: the take is over when
       // it returns. A copy Quit saved is deleted only if the take settled.
       var settled = false
       defer {
         take.marker?.remove()
-        if settled { inFlight.finish(takeId) } else { inFlight.release(takeId) }
+        if settled {
+          take.live?.removeSpool()
+          inFlight.finish(takeId)
+        } else { inFlight.release(takeId) }
       }
       guard let self else { return }
       take.marker?.update(.processing)
@@ -808,26 +885,29 @@ final class AppController: NSObject, NSApplicationDelegate {
       switch TakeRoute.decide(config: fresh, problem: problem) {
       case .keep(let kept):
         // No model yet, unusable settings: the take waits in recovered/.
-        self.keepTake(takeId: takeId, recordMs: recordMs, kept: kept)
+        // Cancel the session; the spool goes once inFlight.keep succeeds.
+        take.live?.cancelSession()
+        self.keepTake(takeId: takeId, recordMs: recordMs, kept: kept, live: take.live)
         return
       case .scribe:
         // ElevenLabs Scribe. A failure keeps the take (saved like any
         // failed one below) and counts nothing.
+        take.live?.cancelSession()
         guard let fresh else { return }
         result = pipeline.processWithScribe(samples: samples, take: take, takeId: takeId, recordMs: recordMs,
                                             appName: appName, config: fresh, stopAt: stopAt)
       case .native:
         guard let fresh else { return }
         switch pipeline.processNatively(samples: samples, take: take, takeId: takeId, recordMs: recordMs, appName: appName,
-                                        config: fresh, stopAt: stopAt) {
+                                        config: fresh, stopAt: stopAt, live: take.live) {
         case .handled(let handled): result = handled
         case .kept(let kept):
-          self.keepTake(takeId: takeId, recordMs: recordMs, kept: kept)
+          self.keepTake(takeId: takeId, recordMs: recordMs, kept: kept, live: take.live)
           return
         }
       }
       settled = result.settlesAudio
-      self.keepAudioIfUnsettled(result, takeId: takeId)
+      self.keepAudioIfUnsettled(result, takeId: takeId, live: take.live)
       DispatchQueue.main.async { self.finish(result) }
     }
   }
@@ -836,9 +916,11 @@ final class AppController: NSObject, NSApplicationDelegate {
   /// delivered without a spooled record, timed out without a kept copy)
   /// saves the recording for recovery; if that can't be written it is held
   /// until Quit. Runs on `work`.
-  private func keepAudioIfUnsettled(_ result: TakeResult, takeId: String) {
+  private func keepAudioIfUnsettled(_ result: TakeResult, takeId: String, live: LiveTake? = nil) {
     guard result.keepsAudio else { return }
     if (try? inFlight.keep(takeId)) != nil {
+      // The audio is safely in recovered/: the spool's job is done.
+      live?.removeSpool()
       DispatchQueue.main.async { self.menu.showRecovered("Saved recording waiting: Show in Finder", action: true) }
     } else {
       Log.write("pipeline: unsettled recording held until Quit (could not save audio)")
@@ -872,11 +954,12 @@ final class AppController: NSObject, NSApplicationDelegate {
   /// Nothing retries it in a loop: a permanent condition just waits. If it
   /// can't be written it stays in memory (held by `inFlight`), and Quit
   /// writes it. Runs on `work`.
-  private func keepTake(takeId: String, recordMs: Int, kept keptTake: KeptTake) {
+  private func keepTake(takeId: String, recordMs: Int, kept keptTake: KeptTake, live: LiveTake? = nil) {
     let reason = keptTake.reason, category = keptTake.category
     let kept: Bool
     do {
       let url = try inFlight.keep(takeId)
+      live?.removeSpool()
       Log.write("pipeline: \(reason); saved the recording to \(url.lastPathComponent)")
       kept = true
     } catch {

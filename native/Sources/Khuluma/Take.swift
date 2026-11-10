@@ -31,6 +31,8 @@ struct Take {
   let chime: OneShot
   /// Stopped with the paste-only shortcut: paste, never send.
   var pasteOnly = false
+  /// "Transcribe while recording" side-band, when it was on at take start.
+  var live: LiveTake?
 
   func delivery(_ base: Delivery) -> Delivery {
     let delivery = retargeted ? base.restoringOriginalApp() : base
@@ -46,6 +48,8 @@ struct UnsavedTake {
   let startupMs: Int
   let app: String?
   let marker: TakeMarker?
+  /// Its spool file is removed once the recovered copy is safely written.
+  let live: LiveTake?
 }
 
 /// The settings (settings.json), read in the background while recording.

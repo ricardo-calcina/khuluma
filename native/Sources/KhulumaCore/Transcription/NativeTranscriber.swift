@@ -40,11 +40,13 @@ public struct NativeTranscriber: Sendable {
     public var prepMs: Double = 0
     public var passes: [PassTiming] = []
 
+    public init() {}
+
     public func pass(_ flow: String) -> PassTiming? { passes.first { $0.flow == flow } }
   }
 
   public struct Result: Equatable, Sendable {
-    public let transcript: String
+    public var transcript: String
     /// Sample count of the capture as recorded (before padding).
     public let captureSamples: Int
     public let paddedSamples: Int
@@ -59,6 +61,21 @@ public struct NativeTranscriber: Sendable {
     /// nil when the daemon sent none. Spans are in the padded WAV, but this
     /// is a duration, so the padding doesn't matter.
     public var speechMs: Int? = nil
+
+    /// For callers assembling a result themselves (live transcription joins
+    /// the per-segment answers into the take's transcript).
+    public init(transcript: String, captureSamples: Int = 0, paddedSamples: Int = 0,
+                tailRescueMs: Int? = nil, tailRescueFailed: Bool = false,
+                keptWAV: URL? = nil, timings: Timings = Timings(), speechMs: Int? = nil) {
+      self.transcript = transcript
+      self.captureSamples = captureSamples
+      self.paddedSamples = paddedSamples
+      self.tailRescueMs = tailRescueMs
+      self.tailRescueFailed = tailRescueFailed
+      self.keptWAV = keptWAV
+      self.timings = timings
+      self.speechMs = speechMs
+    }
   }
 
   /// A failed transcription, with the padded WAV when `keepWAV` is set (for

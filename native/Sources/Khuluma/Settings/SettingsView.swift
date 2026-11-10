@@ -196,6 +196,13 @@ struct SettingsView: View {
         .labelsHidden().fixedSize()
         .disabled(!model.editable)
       }
+      SettingsRow("Transcribe while recording",
+                  note: "Finishes long dictation faster and saves the recording to disk as you speak. Parakeet only.") {
+        Toggle("Transcribe while recording", isOn: Binding(get: { model.liveTranscription },
+                                                           set: model.setLiveTranscription))
+          .labelsHidden()
+          .disabled(model.provider == "elevenlabs")
+      }
       if model.provider == "elevenlabs" {
         SettingsRow("Language") {
           Picker("Language", selection: Binding(get: { model.config?.transcription.language ?? "en" },

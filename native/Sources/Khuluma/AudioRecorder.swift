@@ -370,6 +370,13 @@ final class AudioRecorder {
     Log.write("audio: take input requested=\(requested) actual=\(inputName) fallback=\(fallbackReason ?? "none")")
   }
 
+  /// The take's samples from `offset` to the end (empty past the count), for
+  /// the live-transcription spool. A copy under the lock, so the audio
+  /// thread never waits on the caller.
+  func samples(from offset: Int) -> [Float] {
+    lock.withLock { offset >= samples.count ? [] : Array(samples[offset...]) }
+  }
+
   /// Stops capture and returns the take.
   func stop() -> [Float] {
     guard isRecording else { return [] }
