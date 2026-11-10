@@ -62,12 +62,88 @@ func runBlocking<T: Sendable>(_ body: @escaping @Sendable () async throws -> T) 
   return try box.result!.get()
 }
 
-func inProcessEngine(path: String, version: String) -> FileTranscriber.Engine {
+func inProcessEngine(path: String, version: String, boost: [EngineBoostTerm] = [],
+                     minSimilarity: Float? = nil, stats: BoostStats? = nil) -> FileTranscriber.Engine {
   let engine = ASREngine()
   let modelURL = URL(fileURLWithPath: path, isDirectory: true)
   return FileTranscriber.Engine(name: DaemonInfo.engineName, model: modelURL.lastPathComponent) { wav, _, _ in
-    try runBlocking { try await engine.transcribe(audioURL: wav, modelURL: modelURL, modelVersion: version).text }
+    let result = try runBlocking {
+      try await engine.transcribe(audioURL: wav, modelURL: modelURL, modelVersion: version,
+                                  boost: boost, minSimilarity: minSimilarity)
+    }
+    stats?.record(result)
+    return result.text
   }
+}
+
+/// Per-file boosting figures for the `boost:` stderr line (experiment).
+final class BoostStats: @unchecked Sendable {
+  private let lock = NSLock()
+  /// The decoded terms (empty = the experiment is off).
+  private(set) var list: [EngineBoostTerm] = []
+  /// KHULUMA_BOOST_MIN_SIMILARITY as parsed (nil = FluidAudio default).
+  private(set) var minSimilarity: Float?
+  private var terms = 0
+  private var aliasesLabel = "on"
+  private var minSimLabel = "default"
+  private var calls = 0
+  private var ms = 0
+  private var loadMs: Int?
+  private var replacements = 0
+  private var asrMs = 0
+
+  func adopt(_ terms: [EngineBoostTerm], aliasesOff: Bool, minSimilarity: Float?) {
+    list = terms
+    self.terms = terms.count
+    self.minSimilarity = minSimilarity
+    aliasesLabel = aliasesOff ? "off" : "on"
+    minSimLabel = minSimilarity.map { String(format: "%g", $0) } ?? "default"
+  }
+
+  func record(_ result: TranscriptionResult) {
+    lock.withLock {
+      calls += 1
+      ms += result.boostMs ?? 0
+      asrMs += result.durationMs
+      replacements += result.boostReplacements ?? 0
+      if loadMs == nil { loadMs = result.boostLoadMs }
+    }
+  }
+
+  /// A new file is starting.
+  func reset() {
+    lock.withLock {
+      calls = 0; ms = 0; loadMs = nil; replacements = 0; asrMs = 0
+    }
+  }
+
+  /// The line to print after the file finished, if any calls ran.
+  func line() -> String? {
+    lock.withLock {
+      guard calls > 0 else { return nil }
+      return "boost: terms=\(terms) aliases=\(aliasesLabel) min_sim=\(minSimLabel) ms=\(ms) load_ms=\(loadMs ?? 0) replacements=\(replacements) asr_ms=\(asrMs)"
+    }
+  }
+}
+
+/// Experimental vocabulary boost: `KHULUMA_BOOST_VOCABULARY=<vocabulary.json>`
+/// maps the Brands section through `BoostTerms` and forces the in-process
+/// engine (never the daemon).
+let boostStats = BoostStats()
+func loadBoostTerms() throws {
+  guard let path = ProcessInfo.processInfo.environment["KHULUMA_BOOST_VOCABULARY"], !path.isEmpty else { return }
+  let environment = ProcessInfo.processInfo.environment
+  let data = try Data(contentsOf: URL(fileURLWithPath: path))
+  let sheet = try VocabularySheet.decode(data)
+  // KHULUMA_BOOST_NO_ALIASES=1 strips heard-forms; KHULUMA_BOOST_MIN_SIMILARITY
+  // raises the vocabulary-level similarity floor (experiment knobs).
+  let aliasesOff = environment["KHULUMA_BOOST_NO_ALIASES"] == "1"
+  let minSimilarity = environment["KHULUMA_BOOST_MIN_SIMILARITY"].flatMap { Float($0) }
+  boostStats.adopt(
+    BoostTerms.from(sheet).map {
+      EngineBoostTerm(text: $0.text, aliases: aliasesOff ? [] : $0.aliases)
+    },
+    aliasesOff: aliasesOff, minSimilarity: minSimilarity)
 }
 
 func makeEngine() throws -> FileTranscriber.Engine {
@@ -85,6 +161,11 @@ func makeEngine() throws -> FileTranscriber.Engine {
   let settings = store.load().settings
   guard let model = settings.resolvedModel(in: environment) else {
     throw FileTranscribeOptions.UsageError(FileEngineChoice.noModelMessage)
+  }
+  // Boost experiment: always the in-process engine, never the daemon.
+  if !boostStats.list.isEmpty {
+    return inProcessEngine(path: model.path, version: model.version, boost: boostStats.list,
+                           minSimilarity: boostStats.minSimilarity, stats: boostStats)
   }
   let socket = DaemonSocketPath.prepared(support: support)
   let status = socket.issue == nil ? DaemonClient(socketPath: socket.resolved.path).status(timeout: 1) : nil
@@ -117,6 +198,7 @@ if devNull >= 0 { dup2(devNull, STDERR_FILENO); close(devNull) }
 // partial or unsafe override is refused instead of mixing in daily state.
 do {
   try AppRuntimePaths.prepareIsolation()
+  try loadBoostTerms()
 } catch {
   userError.write(Data("khuluma: \(error.localizedDescription)\n".utf8))
   exit(2)
@@ -124,7 +206,15 @@ do {
 
 let command = FileTranscribeCommand(
   stdout: { FileHandle.standardOutput.write(Data($0.utf8)) },
-  stderr: { userError.write(Data($0.utf8)) },
+  stderr: { line in
+    // The boost line lands after each file's "Done in …": accumulated over
+    // however many engine calls that file needed (chunks, tail pass).
+    if !boostStats.list.isEmpty, line.contains("Transcribing ") { boostStats.reset() }
+    userError.write(Data(line.utf8))
+    if !boostStats.list.isEmpty, line.hasPrefix("Done in "), let report = boostStats.line() {
+      userError.write(Data((report + "\n").utf8))
+    }
+  },
   version: appVersion(),
   makeEngine: makeEngine,
   makeWorkDirectory: {

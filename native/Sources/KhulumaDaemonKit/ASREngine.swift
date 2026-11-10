@@ -25,13 +25,32 @@ final class LoadedModelSnapshot: @unchecked Sendable {
   }
 }
 
-public struct TranscriptionResult: Sendable {
+/// A vocabulary-boost term for `transcribe(boost:)`: the written form and
+/// other ways it may be heard. DaemonKit doesn't see KhulumaCore's
+/// `BoostTerm`; callers map one to the other.
+public struct EngineBoostTerm: Sendable, Equatable {
   public let text: String
+  public let aliases: [String]
+  public init(text: String, aliases: [String] = []) {
+    self.text = text
+    self.aliases = aliases
+  }
+}
+
+public struct TranscriptionResult: Sendable {
+  public var text: String
   public let model: String
   public let durationMs: Int
   /// Word spans as [startMs, endMs] from the model's token timings, or nil
   /// when it gave none. Only measured, never used to change the audio.
   public var wordSpansMs: [[Int]]? = nil
+  /// Wall time boosting added on this call (samples load + CTC pass),
+  /// nil when no boost was requested. `durationMs` stays the primary pass.
+  public var boostMs: Int? = nil
+  /// Replacements the rescorer applied (0 when it changed nothing or failed).
+  public var boostReplacements: Int? = nil
+  /// CTC model/tokenizer/session build time when it happened on this call.
+  public var boostLoadMs: Int? = nil
 }
 
 /// Serializes async critical sections. Actor methods are reentrant at `await`
@@ -109,14 +128,48 @@ public actor ASREngine {
   }
 
   public func transcribe(
-    audioURL: URL, modelURL: URL, modelVersion: String, requestedPath: String? = nil
+    audioURL: URL, modelURL: URL, modelVersion: String, requestedPath: String? = nil,
+    boost: [EngineBoostTerm] = [], minSimilarity: Float? = nil
   ) async throws -> TranscriptionResult {
     let version = try Self.parseModelVersion(modelVersion)
     return try await gate.withExclusiveAccess {
       try await self.runTranscription(
         audioURL: audioURL, modelURL: modelURL, version: version, versionLabel: modelVersion,
-        requestedPath: requestedPath)
+        requestedPath: requestedPath, boost: boost, minSimilarity: minSimilarity)
     }
+  }
+
+  /// CTC models + tokenizer for boosting, loaded once per engine.
+  private var boostModels: (models: CtcModels, tokenizer: CtcTokenizer)?
+  /// The boosting session as last built, for exactly these terms and floor.
+  private var boostSession: (terms: [EngineBoostTerm], minSimilarity: Float?, session: VocabularyBoostingSession)?
+
+  /// Builds (or reuses) the boosting session for `terms`. Returns the
+  /// session and, when anything had to be built on this call, its build ms.
+  private func boostingSession(for terms: [EngineBoostTerm],
+                               minSimilarity: Float?) async throws -> (VocabularyBoostingSession, Int?) {
+    if let boostSession, boostSession.terms == terms, boostSession.minSimilarity == minSimilarity {
+      return (boostSession.session, nil)
+    }
+    let started = ContinuousClock.now
+    if boostModels == nil {
+      let models = try await CtcModels.downloadAndLoad(variant: .ctc110m)
+      let tokenizer = try await CtcTokenizer.load(from: CtcModels.defaultCacheDirectory(for: .ctc110m))
+      boostModels = (models, tokenizer)
+    }
+    let (models, tokenizer) = boostModels!
+    let vocabTerms = terms.compactMap { term -> CustomVocabularyTerm? in
+      let ids = tokenizer.encode(term.text)
+      guard !ids.isEmpty else { return nil }
+      return CustomVocabularyTerm(text: term.text, aliases: term.aliases, ctcTokenIds: ids)
+    }
+    let session = try await VocabularyBoostingSession(
+      vocabulary: CustomVocabularyContext(
+        terms: vocabTerms,
+        minSimilarity: minSimilarity ?? ContextBiasingConstants.defaultMinSimilarity),
+      ctcModels: models)
+    boostSession = (terms, minSimilarity, session)
+    return (session, Self.elapsedMs(since: started))
   }
 
   private func runTranscription(
@@ -124,7 +177,9 @@ public actor ASREngine {
     modelURL: URL,
     version: AsrModelVersion,
     versionLabel: String,
-    requestedPath: String?
+    requestedPath: String?,
+    boost: [EngineBoostTerm],
+    minSimilarity: Float?
   ) async throws -> TranscriptionResult {
     try await ensureInitialized(
       modelURL: modelURL, version: version, versionLabel: versionLabel, requestedPath: requestedPath)
@@ -136,12 +191,35 @@ public actor ASREngine {
     // A fresh decoder state per take, as the per-source state was before.
     var decoderState = TdtDecoderState.make(decoderLayers: version.decoderLayers)
     let result = try await manager.transcribe(audioURL, decoderState: &decoderState)
-    return TranscriptionResult(
+    var transcription = TranscriptionResult(
       text: result.text,
       model: modelURL.lastPathComponent,
       durationMs: Self.elapsedMs(since: started),
       wordSpansMs: result.tokenTimings.map(Self.wordSpansMs)
     )
+    guard !boost.isEmpty else { return transcription }
+    // Vocabulary boost (experimental): CTC keyword spotting + constrained
+    // rescoring over the same 16 kHz mono samples the primary pass used
+    // (`AudioConverter.resampleAudioFile`, so time zero is the first sample
+    // and the token timings line up). Any error or a nil rescore keeps the
+    // original text: boosting must never fail a take.
+    let boostStart = ContinuousClock.now
+    do {
+      let (session, loadMs) = try await boostingSession(for: boost, minSimilarity: minSimilarity)
+      transcription.boostLoadMs = loadMs
+      let samples = try AudioConverter().resampleAudioFile(audioURL)
+      if let output = await session.rescore(
+        text: transcription.text, tokenTimings: result.tokenTimings ?? [], audioSamples: samples) {
+        transcription.text = output.text
+        transcription.boostReplacements = output.replacements.filter { $0.shouldReplace }.count
+      } else {
+        transcription.boostReplacements = 0
+      }
+    } catch {
+      transcription.boostReplacements = transcription.boostReplacements ?? 0
+    }
+    transcription.boostMs = Self.elapsedMs(since: boostStart)
+    return transcription
   }
 
   /// Longest a single token is taken to last. Without TDT durations
