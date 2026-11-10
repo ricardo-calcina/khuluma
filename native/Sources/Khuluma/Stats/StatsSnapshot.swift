@@ -117,11 +117,12 @@ enum StatsSnapshot {
       // The recording indicator (Settings › Dictation › Show on-screen
       // indicator), in its two live states.
       let hudRecording = RecordingHUD.Model()
-      hudRecording.state = .recording(elapsed: "0:07")
-      save("hud-recording", view: AnyView(RecordingHUDView(model: hudRecording).padding(20)), width: 160)
+      hudRecording.state = .recording(elapsed: "0:07",
+                                      levels: [0.15, 0.4, 0.75, 0.5, 0.9, 0.6, 0.3, 0.55, 0.2])
+      save("hud-recording", view: AnyView(RecordingHUDView(model: hudRecording).padding(20)), width: 200)
       let hudProcessing = RecordingHUD.Model()
       hudProcessing.state = .processing
-      save("hud-processing", view: AnyView(RecordingHUDView(model: hudProcessing).padding(20)), width: 160)
+      save("hud-processing", view: AnyView(RecordingHUDView(model: hudProcessing).padding(20)), width: 200)
       // A long message truncates instead of stretching the capsule.
       let hudError = RecordingHUD.Model()
       hudError.state = .error("Couldn't save 2 recordings for quitting; Quit retries, or use Discard unsaved recordings")

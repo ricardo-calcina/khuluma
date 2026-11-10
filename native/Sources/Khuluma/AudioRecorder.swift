@@ -1,3 +1,4 @@
+import Accelerate
 import AVFoundation
 import CoreAudio
 import Foundation
@@ -32,6 +33,13 @@ final class AudioRecorder {
     didSet { if failedUID != oldValue { onFallbackChange(failedUID) } }
   }
   private var configurationObserver: NSObjectProtocol?
+  /// Set on main before a take starts: the on-screen indicator wants
+  /// levels. Off, `append` does no metering work on the audio thread.
+  var meteringEnabled = false
+  /// The max normalized level since `takeLevel` last drained it.
+  private var level: Float = 0
+  /// Guards `level` alone, so metering never lengthens the sample lock.
+  private let levelLock = NSLock()
   private let targetFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16_000, channels: 1, interleaved: false)!
   private let lock = NSLock()
   private var samples: [Float] = []
@@ -315,6 +323,7 @@ final class AudioRecorder {
       firstBufferAt = nil
       self.onFirstAudio = onFirstAudio
     }
+    levelLock.withLock { level = 0 }
 
     try ObjCException.catching {
       engine.inputNode.installTap(onBus: 0, bufferSize: 1024, format: tapFormat) { [weak self] buffer, _ in
@@ -401,6 +410,15 @@ final class AudioRecorder {
     lock.withLock { firstBufferAt }
   }
 
+  /// The loudest normalized input level (0…1) since the previous call;
+  /// drains the stored max. Called by the indicator's timer.
+  func takeLevel() -> Float {
+    levelLock.withLock {
+      defer { level = 0 }
+      return level
+    }
+  }
+
   private func append(_ buffer: AVAudioPCMBuffer) {
     let format = CaptureFormat(buffer.format)
     // Explicit self and types: the local `converter` below otherwise makes
@@ -450,6 +468,14 @@ final class AudioRecorder {
     }
     guard error == nil, let channel = output.floatChannelData?[0] else { return }
     let count = Int(output.frameLength)
+    // Metered only while the on-screen indicator wants it; the fold into
+    // `level` uses its own lock, keeping the sample lock as short as before.
+    if meteringEnabled {
+      var rms: Float = 0
+      vDSP_rmsqv(channel, 1, &rms, vDSP_Length(count))
+      let normalized = InputLevel.normalized(rms: rms)
+      levelLock.withLock { level = max(level, normalized) }
+    }
     let first = lock.withLock { () -> (() -> Void)? in
       samples.append(contentsOf: UnsafeBufferPointer(start: channel, count: count))
       guard firstBufferAt == nil else { return nil }

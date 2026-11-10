@@ -113,6 +113,7 @@ final class AppController: NSObject, NSApplicationDelegate {
   func applicationDidFinishLaunching(_ notification: Notification) {
     // A previous run that crashed mid-take may have left the output muted.
     environment.restoreAfterLaunch()
+    hud.level = { [weak self] in self?.recorder.takeLevel() ?? 0 }
     connectMenu()
     registerQuickAction()
     menu.install()
@@ -649,6 +650,9 @@ final class AppController: NSObject, NSApplicationDelegate {
         playChime("with no audio yet after \(Int(Self.chimeFallback * 1000))ms")
       }
       environment.begin(takeID: takeID, keepAwake: settingsModel.keepAwakeWhileRecording)
+      // Levels are metered only while the indicator needs them.
+      recorder.meteringEnabled = settingsModel.showRecordingHUD
+        && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
       // No start sound loaded: mute now rather than after the chime.
       if settingsModel.muteWhileRecording && muteDelay == nil {
         environment.mute(takeID: takeID)
