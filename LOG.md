@@ -2,7 +2,7 @@
 
 ## Now
 
-Pick up (Hex parity push): slice 1 installed as build 478; slice 2 (vocabulary in the model) measured and parked · next: slice 3, transcribe while recording, with audio and text saved to disk as it goes · branch: wip/hex-parity
+Pick up (Hex parity push): slice 3a done in source (pause segmenter, joiner, CLI simulation, tail-merge fix), measured on 5 kept takes; not installed (build 478 is) · next: Ricardo's OK to install the tail-merge fix, then slice 3b: wire transcribe-while-recording into the app as a switch, with the audio spooled to disk · branch: wip/hex-parity
 
 Installed build 478 on 2026-11-10 (Ricardo's OK, 31451d0, from wip/hex-parity). Rollback: `~/Applications/.khuluma-app.cf3alm/previous.app` (build 476); build 470, the last one from before this push, is `~/Applications/.khuluma-app.s8gnMk/previous.app`.
 
@@ -33,7 +33,8 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 - [ ] P1 · Try Hex parity slice 1 on build 476: hold key, a real mute during a take with other audio playing, the indicator over a full-screen app · added 2026-11-10
 - [x] P1 · Hex parity slice 1: hold-to-talk on its own shortcut (300 ms short-tap discard, 200 ms release tail), mute other audio while recording, keep Mac awake, on-screen recording/transcribing indicator; all off by default, in Settings › Dictation · added 2026-11-10
 - [x] P1 · Hex parity slice 2: vocabulary inside the model measured and parked (Decisions) · added 2026-11-10
-- [ ] P1 · Hex parity slice 3: transcribe while recording, with whole-clip fallback; today stop→delivered is p50 1.2 s, p90 2.1 s, nearly all transcription (app.log, 211 takes); measure before it ships · added 2026-11-10
+- [ ] P1 · Install the tail-merge fix (needs Ricardo's OK) and watch history for repeated endings: before the fix 28 of 189 takes of 12 s or more had one · added 2026-11-10
+- [ ] P1 · Hex parity slice 3b: wire it into the app (segments at pauses of 500 ms, 12–30 s, tail rescue only on the last segment; whole-clip fallback; audio spooled to disk during the take; switch off by default); 3a measurements in Decisions. Original item: Hex parity slice 3: transcribe while recording, with whole-clip fallback; today stop→delivered is p50 1.2 s, p90 2.1 s, nearly all transcription (app.log, 211 takes); measure before it ships · added 2026-11-10
 - [ ] P2 · Hex parity slice 4: History window with paste-last (already in phase 2), a Labs page for experiments, and "Keep microphone ready" (pre-roll; costs an always-on mic indicator, so opt-in) · added 2026-11-10
 
 - [ ] P2 · Retire `~/.config/dictate` (pre-rename folder, untouched since 2026-10-22) so it can be binned. Still pointing at it: `~/.local/bin/tmux-whisper-lib/` (config.sh socket `~/.config/dictate/.cache/tmux-whisperd.sock` and sounds in `~/.local/share/sounds/dictate`, which is already gone) and `~/.local/bin/dictate-lib.sh`, both old tmux-whisper libs from 2026-10-21 (fits CLI sunset phase 4); `khuluma-lib/identity.sh` lines 107–119 treat `~/.config/dictate` as the legacy marker for rename-v1, so confirm removing it doesn't re-trigger or break that check; `~/.config/khuluma/tools/pad-sfx.sh` examples still say `sounds/dictate`. Then bin the remaining install leftovers once rollback isn't needed: `.khuluma-install.*` (2026-11-05) and `.khuluma-cutover-*` in `~/.local/bin`, `~/.local/share/khuluma`, `~/.config/khuluma`, plus `~/.config/khuluma/.migration` (rename-v1, committed) · added 2026-11-08
@@ -94,6 +95,9 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 
 ## Decisions
 
+- Transcribe while recording (2026-11-10): cut at pauses and transcribe finished segments with the normal whole-clip path, rather than FluidAudio's streaming manager; it needs no daemon change. Simulated on 5 kept takes (33 s to 3 min, 1,420 words) with `KHULUMA_LIVE_SIMULATE=1` on the bundled CLI: the wait for transcription after stop falls from 0.5–1.8 s to 0.09–0.37 s; 13–17 words differ from the whole-clip text (about 1%, neither side clearly better) and about 110 tokens differ in punctuation or capitals. The simulation stays in the CLI helper, inert without the variable, for re-measuring.
+- Tail-rescue merge replaced (2026-11-10): the old merge needed an exact suffix match and otherwise appended the whole re-transcribed tail, repeating the last ~25 words. In history 28 of 189 takes of 12 s or more had such a repeat (0 of 23 shorter ones), 20 at the very end. `TranscriptMerge.mergeTailAnchored` only ever extends the transcript from a shared run of 3 or more words. The old function stays for the CLI-parity fixtures.
+
 - Vocabulary inside the model is parked (2026-11-10). FluidAudio 0.15.6's CTC boosting, run on the 5 kept takes with the 17 Brands terms: at its default threshold every replacement was wrong (15 with aliases, 7 without; e.g. better → WezTerm), at 0.8 it changed nothing, and it added 0.8–3.4 s to every take, more than the transcription. Recall on real mishearings is untested: the takes held one brand term, already right. Code and numbers are on `wip/vocab-boost-experiment`. Worth another look only with a cheaper method or a set of recordings where names were really misheard.
 
 - Hex parity (Ricardo, 2026-11-10): tap to start and stop stays the default; hold-to-talk is a second shortcut, off until set. The on-screen indicator, mute other audio and keep-awake are switches, off by default (Ricardo prefers the menu bar to a HUD). Mute, not media pause: pausing other apps needs a private macOS API. Pre-roll is left for slice 4: first audio arrives ~210 ms after the key and the chime follows it, so tap-to-talk loses nothing today. Not brought over: cross-platform, meetings, Annotate, local API/SDK, TypeScript config, LLM rewriting. Sparkle and onboarding stay in phase 2.
@@ -117,6 +121,7 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 
 ## Done
 
+- 2026-11-10 · Tail-rescue merge no longer repeats the end of a take; pause segmenter, joiner and CLI simulation for transcribe-while-recording; 365 tests pass; not installed · wip/hex-parity, CHANGELOG Unreleased
 - 2026-11-10 · Measured FluidAudio vocabulary boosting on 5 real takes: wrong replacements or none, +0.8–3.4 s per take; parked · wip/vocab-boost-experiment
 - 2026-11-10 · Indicator restyled (dark capsule, level waveform, clipped-shadow square fixed) and installed as build 478; Ricardo confirmed mute and the indicator work on 476 · 31451d0
 - 2026-11-10 · Installed build 476 with Hex parity slice 1 (Ricardo's OK); app and daemon relaunched · ~/Applications/.khuluma-app.s8gnMk/previous.app

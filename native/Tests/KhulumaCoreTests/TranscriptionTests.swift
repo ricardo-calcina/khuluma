@@ -170,7 +170,9 @@ struct NativeTranscriberTests {
     #expect(calls[1].samples.count == 128_000)
     #expect(Array(calls[1].samples) == Array(calls[0].samples.suffix(128_000)))
     #expect(result.tailRescueMs == 8_000)
-    #expect(result.transcript == "so the plan is to ship it today and test")
+    // Anchored merge: "ship it" is only a 2-word run, so the diverging tail
+    // is dropped rather than appended over the overlap.
+    #expect(result.transcript == "so the plan is to ship it")
   }
 
   @Test func failedOrBlankTailKeepsTheFullTranscript() throws {

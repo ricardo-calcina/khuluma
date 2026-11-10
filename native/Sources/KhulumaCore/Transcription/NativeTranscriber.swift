@@ -154,7 +154,7 @@ public struct NativeTranscriber: Sendable {
     let spaced = String(String.UnicodeScalarView(tail.unicodeScalars.map { $0 == "\n" ? " " : $0 }))
     let merged = !PerlText.isBlank(spaced)
     let transcript = merged
-      ? PerlText.bashCapture(TranscriptMerge.mergeTailRescue(full: full, tail: spaced))
+      ? PerlText.bashCapture(TranscriptMerge.mergeTailAnchored(full: full, tail: spaced))
       : full
     // Rescued words count, so their time does too: the tail's spans, moved
     // to where the tail window starts in the padded audio, joined with the

@@ -98,7 +98,7 @@ public struct FileTranscriber {
          let tail = try? request(engine, tailWAV, "file-tail", timeout) {
         let spaced = PerlText.bashCapture(tail).replacingOccurrences(of: "\n", with: " ")
         if !PerlText.isBlank(spaced) {
-          text = PerlText.bashCapture(TranscriptMerge.mergeTailRescue(full: full, tail: spaced))
+          text = PerlText.bashCapture(TranscriptMerge.mergeTailAnchored(full: full, tail: spaced))
         }
       }
     }

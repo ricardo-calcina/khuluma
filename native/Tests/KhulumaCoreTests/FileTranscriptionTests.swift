@@ -238,7 +238,9 @@ struct FileTranscriberTests {
     }
     let result = try FileTranscriber().transcribe(try wav(dir, seconds: 13), label: "x", workDirectory: dir, engine: engine)
     #expect(flows.all == ["file", "file-tail"])
-    #expect(result.text == "one two three four five six")
+    // Anchored merge: a 2-word shared run is no anchor, so the tail is
+    // dropped rather than appended as a repeat.
+    #expect(result.text == "one two three four five")
   }
 
   @Test func failuresUseTheCLIsWords() throws {
@@ -556,7 +558,8 @@ struct ChunkingTests {
     #expect(sizes.all.compactMap(Int.init).allSatisfy { $0 <= 5 * 16_000 })
     // Before each of the 3 chunks and the tail pass.
     #expect(waits == 4)
-    #expect(result.text == "part part part tail end")
+    // Anchored merge: no shared run, so the diverging tail is dropped.
+    #expect(result.text == "part part part")
     #expect(try FileManager.default.contentsOfDirectory(atPath: dir.path) == ["long.wav"])
   }
 

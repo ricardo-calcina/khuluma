@@ -70,6 +70,157 @@ func inProcessEngine(path: String, version: String) -> FileTranscriber.Engine {
   }
 }
 
+/// Live-transcription simulation (`KHULUMA_LIVE_SIMULATE=1`, experiment only):
+/// one in-process engine, the file cut at pauses with `PauseSegmenter`, each
+/// segment through the normal `NativeTranscriber` path, joined; the whole
+/// file also transcribed for comparison into `<input>.whole.txt`.
+final class LiveSim: @unchecked Sendable {
+  static let shared = LiveSim()
+  var on = false
+  /// KHULUMA_LIVE_NO_SEGMENT_TAIL=1: non-final segments skip tail rescue.
+  var noSegmentTail = false
+  var config = PauseSegmenter.Config()
+  var engine: ASREngine?
+  var modelURL: URL?
+  var modelVersion = ""
+  var warmed = false
+
+  // Per-file figures for the `live:` stderr line.
+  var input = ""
+  var audioMs = 0
+  var segments = 0
+  var forced = 0
+  var segMs: [Int] = []
+  var segAsrMs: [Int] = []
+  var wholeAsrMs = 0
+  var inlineSpans: [[Int]]?
+
+  /// `Transcribing <input> (<dur>)...` (or `[i/n] ` prefixed) resets the
+  /// per-file figures and learns the input path for `.whole.txt`.
+  func note(_ line: String) {
+    guard let range = line.range(of: "Transcribing ") else { return }
+    let rest = line[range.upperBound...]
+    if let open = rest.range(of: " (", options: .backwards) {
+      input = String(rest[..<open.lowerBound])
+    }
+    audioMs = 0; segments = 0; forced = 0
+    segMs = []; segAsrMs = []; wholeAsrMs = 0
+  }
+
+  func line() -> String {
+    let seg = segMs.map(String.init).joined(separator: ",")
+    let asr = segAsrMs.map(String.init).joined(separator: ",")
+    return "live: audio_ms=\(audioMs) segments=\(segments) forced=\(forced)"
+      + " seg_ms=\(seg) seg_asr_ms=\(asr)"
+      + " last_asr_ms=\(segAsrMs.last ?? 0) whole_asr_ms=\(wholeAsrMs)"
+  }
+
+  /// 16-bit PCM RIFF → Float samples: finds the "data" chunk and reads LE.
+  static func wavFloats(_ url: URL) throws -> [Float] {
+    let data = try Data(contentsOf: url)
+    var offset = 12
+    while offset + 8 <= data.count {
+      let tag = String(decoding: data[offset..<offset + 4], as: UTF8.self)
+      let size = Int(data[offset + 4]) | Int(data[offset + 5]) << 8
+        | Int(data[offset + 6]) << 16 | Int(data[offset + 7]) << 24
+      if tag == "data" {
+        let end = min(offset + 8 + size, data.count)
+        var samples: [Float] = []
+        samples.reserveCapacity((end - offset - 8) / 2)
+        var index = offset + 8
+        while index + 1 < end {
+          let pcm = Int16(bitPattern: UInt16(data[index]) | UInt16(data[index + 1]) << 8)
+          samples.append(Float(pcm) / 32768)
+          index += 2
+        }
+        return samples
+      }
+      offset += 8 + size + (size & 1)
+    }
+    return []
+  }
+
+  private static func wallMs(_ start: ContinuousClock.Instant) -> Int {
+    let elapsed = start.duration(to: ContinuousClock.now)
+    return Int(elapsed.components.seconds * 1000)
+      + Int(elapsed.components.attoseconds / 1_000_000_000_000_000)
+  }
+
+  /// One decoded WAV through the whole + segmented paths; returns the LIVE
+  /// joined text (the file's normal output is this text).
+  func transcribeSimulated(wav: URL) throws -> String {
+    guard let engine, let modelURL else { throw FileTranscriber.Failure("live simulation is not set up") }
+    let samples = try Self.wavFloats(wav)
+    audioMs = samples.count * 1000 / 16_000
+    if !warmed {
+      warmed = true
+      _ = try runBlocking { try await engine.warmup(modelURL: modelURL, modelVersion: self.modelVersion) }
+    }
+    let transcriber = NativeTranscriber(settings: TranscriptionSettings(socketPath: "", modelPath: nil))
+    // KHULUMA_LIVE_NO_SEGMENT_TAIL: finished segments skip the tail pass;
+    // the last open one and WHOLE keep it.
+    var noTailSettings = TranscriptionSettings(socketPath: "", modelPath: nil)
+    noTailSettings.tailRescue = false
+    let noTailTranscriber = NativeTranscriber(settings: noTailSettings)
+    let pass: NativeTranscriber.TranscribePass = { url, flow in
+      let result = try runBlocking {
+        try await engine.transcribe(audioURL: url, modelURL: modelURL, modelVersion: self.modelVersion)
+      }
+      if flow == "inline" { self.inlineSpans = result.wordSpansMs }
+      return .init(text: result.text, daemonMs: result.durationMs, wordSpansMs: result.wordSpansMs)
+    }
+
+    // WHOLE: the take as one transcription, for comparison.
+    var mark = ContinuousClock.now
+    let whole = try transcriber.transcribeTimed(samples: samples, passes: pass)
+    wholeAsrMs = Self.wallMs(mark)
+    try? (whole.transcript + "\n").write(
+      toFile: input + ".whole.txt", atomically: true, encoding: .utf8)
+
+    // LIVE: feed the audio in 250 ms chunks, cut at pauses, transcribe each
+    // finished segment and the last open one, join.
+    var segmenter = PauseSegmenter(config: config)
+    var cuts: [PauseSegmenter.Cut] = []
+    var offset = 0
+    while offset < samples.count {
+      cuts.append(contentsOf: segmenter.feed(Array(samples[offset..<min(offset + 4_000, samples.count)])))
+      offset += 4_000
+    }
+    forced = cuts.filter { $0.forced }.count
+    var bounds: [(Int, Int)] = []
+    var start = 0
+    for cut in cuts {
+      bounds.append((start, cut.sample))
+      start = cut.sample
+    }
+    bounds.append((start, samples.count))
+    segments = bounds.count
+    var parts: [LiveTranscript.Part] = []
+    for (index, (from, to)) in bounds.enumerated() {
+      inlineSpans = nil
+      mark = ContinuousClock.now
+      let segmentTranscriber = noSegmentTail && index < bounds.count - 1 ? noTailTranscriber : transcriber
+      let result = try segmentTranscriber.transcribeTimed(samples: Array(samples[from..<to]), passes: pass)
+      segMs.append((to - from) * 1000 / 16_000)
+      segAsrMs.append(Self.wallMs(mark))
+      parts.append(.init(text: result.transcript, wordSpansMs: inlineSpans, startMs: from * 1000 / 16_000))
+    }
+    return LiveTranscript.join(parts).text
+  }
+}
+
+/// The simulation always runs the in-process engine (never the daemon).
+func liveEngine(path: String, version: String) -> FileTranscriber.Engine {
+  let live = LiveSim.shared
+  let engine = ASREngine()
+  live.engine = engine
+  live.modelURL = URL(fileURLWithPath: path, isDirectory: true)
+  live.modelVersion = version
+  return FileTranscriber.Engine(name: DaemonInfo.engineName, model: live.modelURL!.lastPathComponent) { wav, _, _ in
+    try live.transcribeSimulated(wav: wav)
+  }
+}
+
 func makeEngine() throws -> FileTranscriber.Engine {
   let support = AppRuntimePaths.support
   var environment = SettingsEnvironment.current(appFolder: support)
@@ -86,6 +237,7 @@ func makeEngine() throws -> FileTranscriber.Engine {
   guard let model = settings.resolvedModel(in: environment) else {
     throw FileTranscribeOptions.UsageError(FileEngineChoice.noModelMessage)
   }
+  if LiveSim.shared.on { return liveEngine(path: model.path, version: model.version) }
   let socket = DaemonSocketPath.prepared(support: support)
   let status = socket.issue == nil ? DaemonClient(socketPath: socket.resolved.path).status(timeout: 1) : nil
   let local = inProcessEngine(path: model.path, version: model.version)
@@ -122,9 +274,26 @@ do {
   exit(2)
 }
 
-let command = FileTranscribeCommand(
+// Live-transcription simulation (experiment): env tuning knobs, parsed as
+// ints when present.
+let liveEnvironment = ProcessInfo.processInfo.environment
+if liveEnvironment["KHULUMA_LIVE_SIMULATE"] == "1" {
+  LiveSim.shared.on = true
+  if let ms = liveEnvironment["KHULUMA_LIVE_MIN_MS"].flatMap(Int.init) { LiveSim.shared.config.minSegmentMs = ms }
+  if let ms = liveEnvironment["KHULUMA_LIVE_MAX_MS"].flatMap(Int.init) { LiveSim.shared.config.maxSegmentMs = ms }
+  if let ms = liveEnvironment["KHULUMA_LIVE_PAUSE_MS"].flatMap(Int.init) { LiveSim.shared.config.pauseMs = ms }
+  if liveEnvironment["KHULUMA_LIVE_NO_SEGMENT_TAIL"] == "1" { LiveSim.shared.noSegmentTail = true }
+}
+
+var command = FileTranscribeCommand(
   stdout: { FileHandle.standardOutput.write(Data($0.utf8)) },
-  stderr: { userError.write(Data($0.utf8)) },
+  stderr: { line in
+    if LiveSim.shared.on { LiveSim.shared.note(line) }
+    userError.write(Data(line.utf8))
+    if LiveSim.shared.on, line.hasPrefix("Done in ") {
+      userError.write(Data((LiveSim.shared.line() + "\n").utf8))
+    }
+  },
   version: appVersion(),
   makeEngine: makeEngine,
   makeWorkDirectory: {
@@ -132,4 +301,7 @@ let command = FileTranscribeCommand(
     Cleanup.shared.set(url)
     return url
   })
+// The simulation does its own segmentation; a second "file-tail" pass per
+// file would double-transcribe the last segment.
+if LiveSim.shared.on { command.transcriber.tailRescueMinMs = .max }
 exit(command.main(Array(CommandLine.arguments.dropFirst())))
