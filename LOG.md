@@ -2,9 +2,9 @@
 
 ## Now
 
-Pick up (Hex parity push): slice 3a done in source (pause segmenter, joiner, CLI simulation, tail-merge fix), measured on 5 kept takes; not installed (build 478 is) · next: Ricardo's OK to install the tail-merge fix, then slice 3b: wire transcribe-while-recording into the app as a switch, with the audio spooled to disk · branch: wip/hex-parity
+Pick up (Hex parity push): build 481 installed (6d1c26e) with the tail-merge fix · next: slice 3b, wire transcribe-while-recording into the app as a switch, with the audio spooled to disk · branch: wip/hex-parity
 
-Installed build 478 on 2026-11-10 (Ricardo's OK, 31451d0, from wip/hex-parity). Rollback: `~/Applications/.khuluma-app.cf3alm/previous.app` (build 476); build 470, the last one from before this push, is `~/Applications/.khuluma-app.s8gnMk/previous.app`.
+Installed build 481 on 2026-11-10 (Ricardo's OK, 6d1c26e, from wip/hex-parity). Rollback: `~/Applications/.khuluma-app.A88hoo/previous.app` (build 478); build 470, the last one from before this push, is `~/Applications/.khuluma-app.s8gnMk/previous.app`.
 
 Hex parity push (Ricardo, 2026-11-10): after comparing Khuluma with anomalyco/hex, bring over what suits a Mac-only app, in slices on `wip/hex-parity`, each one a setting. Order and what was left out are in Next and Decisions.
 
@@ -33,7 +33,7 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 - [ ] P1 · Try Hex parity slice 1 on build 476: hold key, a real mute during a take with other audio playing, the indicator over a full-screen app · added 2026-11-10
 - [x] P1 · Hex parity slice 1: hold-to-talk on its own shortcut (300 ms short-tap discard, 200 ms release tail), mute other audio while recording, keep Mac awake, on-screen recording/transcribing indicator; all off by default, in Settings › Dictation · added 2026-11-10
 - [x] P1 · Hex parity slice 2: vocabulary inside the model measured and parked (Decisions) · added 2026-11-10
-- [ ] P1 · Install the tail-merge fix (needs Ricardo's OK) and watch history for repeated endings: before the fix 28 of 189 takes of 12 s or more had one · added 2026-11-10
+- [ ] P1 · Tail-merge fix is in build 481: after a few days, recount repeated endings in history for takes from 2026-11-10 on (was 28 of 189; the count is in Decisions). Original item: watch history for repeated endings: before the fix 28 of 189 takes of 12 s or more had one · added 2026-11-10
 - [ ] P1 · Hex parity slice 3b: wire it into the app (segments at pauses of 500 ms, 12–30 s, tail rescue only on the last segment; whole-clip fallback; audio spooled to disk during the take; switch off by default); 3a measurements in Decisions. Original item: Hex parity slice 3: transcribe while recording, with whole-clip fallback; today stop→delivered is p50 1.2 s, p90 2.1 s, nearly all transcription (app.log, 211 takes); measure before it ships · added 2026-11-10
 - [ ] P2 · Hex parity slice 4: History window with paste-last (already in phase 2), a Labs page for experiments, and "Keep microphone ready" (pre-roll; costs an always-on mic indicator, so opt-in) · added 2026-11-10
 
@@ -121,6 +121,7 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 
 ## Done
 
+- 2026-11-10 · Installed build 481 with the tail-merge fix (Ricardo's OK); app and daemon relaunched warm · ~/Applications/.khuluma-app.A88hoo/previous.app
 - 2026-11-10 · Tail-rescue merge no longer repeats the end of a take; pause segmenter, joiner and CLI simulation for transcribe-while-recording; 365 tests pass; not installed · wip/hex-parity, CHANGELOG Unreleased
 - 2026-11-10 · Measured FluidAudio vocabulary boosting on 5 real takes: wrong replacements or none, +0.8–3.4 s per take; parked · wip/vocab-boost-experiment
 - 2026-11-10 · Indicator restyled (dark capsule, level waveform, clipped-shadow square fixed) and installed as build 478; Ricardo confirmed mute and the indicator work on 476 · 31451d0
