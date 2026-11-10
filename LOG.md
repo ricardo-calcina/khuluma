@@ -2,7 +2,7 @@
 
 ## Now
 
-Pick up (Hex parity push): slice 1 (hold-to-talk on a second shortcut, mute other audio, keep awake, on-screen indicator; all off by default) being built · next: review, Ricardo's OK to install, then slice 2 (vocabulary inside the model) · branch: wip/hex-parity
+Pick up (Hex parity push): slice 1 built and checked in source (tests and snapshots pass), not installed · next: Ricardo's OK to install and try it, then slice 2 (vocabulary inside the model) · branch: wip/hex-parity
 
 Hex parity push (Ricardo, 2026-11-10): after comparing Khuluma with anomalyco/hex, bring over what suits a Mac-only app, in slices on `wip/hex-parity`, each one a setting. Order and what was left out are in Next and Decisions.
 
@@ -28,7 +28,8 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 
 ## Next
 
-- [ ] P1 · Hex parity slice 1: hold-to-talk on its own shortcut (300 ms short-tap discard, 200 ms release tail), mute other audio while recording, keep Mac awake, on-screen recording/transcribing indicator; all off by default, in Settings › Dictation · added 2026-11-10
+- [ ] P1 · Install and try Hex parity slice 1 (needs Ricardo's OK): hold key, a real mute during a take with other audio playing, the indicator over a full-screen app · added 2026-11-10
+- [x] P1 · Hex parity slice 1: hold-to-talk on its own shortcut (300 ms short-tap discard, 200 ms release tail), mute other audio while recording, keep Mac awake, on-screen recording/transcribing indicator; all off by default, in Settings › Dictation · added 2026-11-10
 - [ ] P1 · Hex parity slice 2: vocabulary inside the model (FluidAudio 0.15.6 CTC rescoring in khulumad, extra ~98 MB model, off by default); measure on real kept takes before it ships · added 2026-11-10
 - [ ] P1 · Hex parity slice 3: transcribe while recording, with whole-clip fallback; today stop→delivered is p50 1.2 s, p90 2.1 s, nearly all transcription (app.log, 211 takes); measure before it ships · added 2026-11-10
 - [ ] P2 · Hex parity slice 4: History window with paste-last (already in phase 2), a Labs page for experiments, and "Keep microphone ready" (pre-roll; costs an always-on mic indicator, so opt-in) · added 2026-11-10
@@ -111,6 +112,8 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 - Rename the existing repository in place to preserve all history; retain neutral `ricardo-calcina/tap` and rename its formula to `khuluma`. The in-place repository rename, immutable v0.10.0 release and canonical formula/map are published and verified. The app continues to depend on its matching CLI; cask/CLI-independence/deprecation/archive are separate future work.
 
 ## Done
+
+- 2026-11-10 · Hex parity slice 1 in source: hold-to-talk on a second shortcut, mute other audio, keep Mac awake, on-screen indicator, all off by default; policy tests and snapshots pass, not installed · wip/hex-parity, CHANGELOG Unreleased
 
 - 2026-11-08 · Machine tidy-up binned the October `.khuluma-install.*`/`.khuluma-cutover-*` leftovers and `*.bak.*` config copies in `~/.config/khuluma` and `~/.config/dictate`; kept the app rollback `~/Applications/.khuluma-app.V9Bt9W`, the 2026-11-05 install dirs and `.migration` · chief tab
 - 2026-11-07 · Moved the old Automator Finder workflow to the Bin; verified only Local and Cloud remain on a WAV · build 470

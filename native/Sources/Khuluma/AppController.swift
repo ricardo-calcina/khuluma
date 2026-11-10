@@ -24,6 +24,16 @@ final class AppController: NSObject, NSApplicationDelegate {
   private var inputMonitor: AudioInputMonitor?
   private let sounds = SoundPlayer()
   private lazy var hotkey = HotkeyMonitor { [weak self] in self?.toggle() }
+  /// Hold-to-talk's own shortcut (Settings › Dictation › Hold to talk): its
+  /// press starts a `.hold` take, its release finishes or discards it.
+  private lazy var holdKey = HotkeyMonitor(signature: 0x4B484C44 /* 'KHLD' */,
+                                           onRelease: { [weak self] in self?.holdReleased() }) { [weak self] in
+    self?.holdPressed()
+  }
+  /// While-recording extras: the output mute and the idle-sleep block.
+  private let environment = RecordingEnvironment()
+  /// The bottom-of-screen marker (off unless Settings turns it on).
+  private let hud = RecordingHUD()
   /// Ctrl+Esc cancels a recording. Bound only while
   /// recording, so the combination stays free for other apps otherwise.
   private lazy var cancelHotkey = HotkeyMonitor(signature: 0x4B48434E /* 'KHCN' */) { [weak self] in
@@ -101,6 +111,8 @@ final class AppController: NSObject, NSApplicationDelegate {
   private var quickAction: QuickActionService?
 
   func applicationDidFinishLaunching(_ notification: Notification) {
+    // A previous run that crashed mid-take may have left the output muted.
+    environment.restoreAfterLaunch()
     connectMenu()
     registerQuickAction()
     menu.install()
@@ -250,11 +262,18 @@ final class AppController: NSObject, NSApplicationDelegate {
     }
     settingsModel.onShortcutRecordingChange = { [weak self] recording in
       guard let self else { return }
-      if recording { self.hotkey.unregister() }
-      else if self.pipeline != nil, self.hotkey.binding == nil, let spec = try? HotkeySpec.parse(self.config?.hotkey ?? "") {
-        self.registerHotkey(spec)
+      if recording {
+        self.hotkey.unregister()
+        self.holdKey.unregister()
+      } else {
+        if self.pipeline != nil, self.hotkey.binding == nil, let spec = try? HotkeySpec.parse(self.config?.hotkey ?? "") {
+          self.registerHotkey(spec)
+        }
+        self.syncHoldHotkey()
       }
     }
+    settingsModel.onHoldHotkeyChange = { [weak self] in self?.syncHoldHotkey() }
+    settingsModel.onWhileRecordingChange = { [weak self] in self?.refreshStatus() }
     menu.onWillOpen = { [weak self] in
       self?.refreshTimedOutItems()
       self?.menu.showLogin(LoginItem.status)
@@ -298,6 +317,12 @@ final class AppController: NSObject, NSApplicationDelegate {
       return .terminateCancel
     }
     return terminateAfterDraining()
+  }
+
+  /// Last chance to put the output back and drop the wake block; `end` is
+  /// idempotent, so the take paths that already called it do nothing here.
+  func applicationWillTerminate(_ notification: Notification) {
+    environment.end()
   }
 
   /// Offers "Discard … and quit" for every take whose audio is only in memory.
@@ -375,6 +400,7 @@ final class AppController: NSObject, NSApplicationDelegate {
   /// then queues transcriptions that only copy the text. Returns false if
   /// any audio couldn't be written; those takes stay in `unsaved`.
   private func saveRecordingForQuit() -> Bool {
+    environment.end()
     if let take {
       let samples = recorder.stop()
       self.take = nil
@@ -486,38 +512,106 @@ final class AppController: NSObject, NSApplicationDelegate {
   private func toggle() {
     let hotkeyAt = monotonicMs()
     if take == nil {
-      guard !quitting else { return }
-      guard !settingsModel.saving else { return }
-      guard !starter.isStarting else {
-        Log.write("start: ignored a press while the microphone was still starting")
-        return
-      }
-      // A denied microphone still delivers buffers, of silence: don't start.
-      if let notice = PermissionPolicy.microphoneNotice(for: Permissions.microphoneStatus) {
-        Log.write("start: refused, microphone access denied")
-        sounds.play(.error)
-        menu.showPermission(notice)
-        fail("microphone access is off")
-        return
-      }
-      menu.clearPermission(.microphone)
-      startRecording(hotkeyAt: hotkeyAt)
+      guard canStart() else { return }
+      startRecording(hotkeyAt: hotkeyAt, mode: .toggle)
+    } else if take?.mode == .hold {
+      // The hold key's release may have been swallowed; the toggle press
+      // finishes the take rather than leaving it recording.
+      Log.write("toggle: finished a hold-to-talk take")
+      stopRecording()
     } else {
       stopRecording()
     }
   }
 
-  private func startRecording(hotkeyAt: Double) {
+  /// The shared start gate for the toggle and hold keys.
+  private func canStart() -> Bool {
+    guard !quitting else { return false }
+    guard !settingsModel.saving else { return false }
+    guard !starter.isStarting else {
+      Log.write("start: ignored a press while the microphone was still starting")
+      return false
+    }
+    // A denied microphone still delivers buffers, of silence: don't start.
+    if let notice = PermissionPolicy.microphoneNotice(for: Permissions.microphoneStatus) {
+      Log.write("start: refused, microphone access denied")
+      sounds.play(.error)
+      menu.showPermission(notice)
+      fail("microphone access is off")
+      return false
+    }
+    menu.clearPermission(.microphone)
+    return true
+  }
+
+  /// The hold key went down. A press during a toggle take is ignored; a
+  /// second press of a hold take means its release was lost, so finish it.
+  private func holdPressed() {
+    let hotkeyAt = monotonicMs()
+    if let take {
+      if take.mode == .hold {
+        Log.write("hold: pressed again, finishing the take")
+        stopRecording()
+      }
+      return
+    }
+    guard canStart() else { return }
+    Log.write("hold: pressed, starting a hold-to-talk take")
+    startRecording(hotkeyAt: hotkeyAt, mode: .hold)
+  }
+
+  /// The hold key came up. Ignored unless the take in progress is a hold
+  /// take; a tap discards it, a hold finishes it after a short tail.
+  private func holdReleased() {
+    guard let take, take.mode == .hold else { return }
+    let heldMs = Int(monotonicMs() - take.hotkeyAt)
+    switch HoldPolicy.onRelease(heldMs: heldMs) {
+    case .discard:
+      cancelHotkey.unregister()
+      pasteOnlyHotkey.unregister()
+      _ = recorder.stop()
+      take.marker?.remove()
+      self.take = nil
+      environment.end()
+      // The chime never played: nothing sounded, so stay silent. If it did,
+      // say the take was discarded.
+      if !take.chime.fire() { sounds.play(.cancel) }
+      status.recordingCancelled()
+      Log.write("hold: released after \(heldMs)ms, discarded")
+      applyPendingHotkey()
+    case .finish(let tailMs):
+      Log.write("hold: released after \(heldMs)ms, finishing in \(tailMs)ms")
+      let id = take.id
+      DispatchQueue.main.asyncAfter(deadline: .now() + Double(tailMs) / 1000) { [weak self] in
+        // A cancel or a device-change stop in between ends this take; there
+        // must be no second stop on whatever take is current then.
+        guard let self, self.take?.id == id else { return }
+        self.stopRecording()
+      }
+    }
+  }
+
+  private func startRecording(hotkeyAt: Double, mode: TakeMode) {
     // The chime is the cue to speak, so it plays only once the first audio
     // buffer has arrived: words spoken at the chime are always captured.
     // (It used to play before the engine started, ~120 ms before capture.)
     let chime = OneShot()
+    let takeID = UUID()
     let sounds = self.sounds
+    let environment = self.environment
+    // Mute other audio only after the start chime, so it stays audible.
+    // Without a loaded start sound the mute happens when the take starts.
+    let muteDelay = settingsModel.muteWhileRecording ? sounds.duration(.start) : nil
     let playChime: (String) -> Void = { how in
       guard chime.fire() else { return }
       sounds.play(.start) { playMs in
         Log.write(String(format: "start: chime %@, hotkey→chime ≈ %.1fms (play() %.1fms)",
                          how, monotonicMs() - hotkeyAt, playMs))
+      }
+      if let muteDelay {
+        DispatchQueue.main.asyncAfter(deadline: .now() + muteDelay + 0.05) {
+          environment.mute(takeID: takeID)
+        }
       }
     }
     let frontmost = NSWorkspace.shared.frontmostApplication
@@ -539,6 +633,8 @@ final class AppController: NSObject, NSApplicationDelegate {
     case .started(let engineMs, let marker):
       let startedAt = monotonicMs()
       take = Take(
+        id: takeID,
+        mode: mode,
         hotkeyAt: hotkeyAt,
         startedAt: startedAt,
         startedEpochMs: Int(Date().timeIntervalSince1970 * 1000),
@@ -552,6 +648,11 @@ final class AppController: NSObject, NSApplicationDelegate {
       DispatchQueue.main.asyncAfter(deadline: .now() + Self.chimeFallback) {
         playChime("with no audio yet after \(Int(Self.chimeFallback * 1000))ms")
       }
+      environment.begin(takeID: takeID, keepAwake: settingsModel.keepAwakeWhileRecording)
+      // No start sound loaded: mute now rather than after the chime.
+      if settingsModel.muteWhileRecording && muteDelay == nil {
+        environment.mute(takeID: takeID)
+      }
       status.recordingStarted()
       do {
         // A toggle bound to the same keys already stops the take.
@@ -559,7 +660,8 @@ final class AppController: NSObject, NSApplicationDelegate {
       } catch {
         Log.write("hotkey: \(Self.cancelKey.display) to cancel is unavailable this take: \(error.localizedDescription)")
       }
-      if let binding = hotkey.binding,
+      // The paste-without-sending stop key applies to toggle takes only.
+      if mode == .toggle, let binding = hotkey.binding,
          let pasteOnly = settingsModel.pasteOnlyModifier.stopShortcut(for: binding) {
         do { try pasteOnlyHotkey.register(pasteOnly) } catch {
           Log.write("hotkey: \(pasteOnly.display) to paste without sending is unavailable this take: \(error.localizedDescription)")
@@ -585,6 +687,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     // "Stop → delivered" starts here, before the engine is torn down.
     let stopAt = monotonicMs()
     take.chime.cancel()
+    environment.end()
     cancelHotkey.unregister()
     pasteOnlyHotkey.unregister()
     if pasteOnly {
@@ -624,6 +727,7 @@ final class AppController: NSObject, NSApplicationDelegate {
   private func cancelRecording() {
     guard let take else { return }
     take.chime.cancel()
+    environment.end()
     cancelHotkey.unregister()
     pasteOnlyHotkey.unregister()
     _ = recorder.stop()
@@ -825,6 +929,8 @@ final class AppController: NSObject, NSApplicationDelegate {
   }
 
   private func refreshStatus() {
+    hud.update(phase: status.phase, recordingStartedAt: take?.startedAt,
+               enabled: settingsModel.showRecordingHUD)
     menu.show(status, recording: take != nil)
     settingsModel.recording = take != nil || starter.isStarting || status.processing > 0
   }
@@ -898,6 +1004,7 @@ final class AppController: NSObject, NSApplicationDelegate {
       pendingHotkey = nil
       fail("hotkey \"\(config.hotkey)\": \(error)")
     }
+    syncHoldHotkey()
   }
 
   /// Takes on settings read for a take: everything except re-registering an
@@ -952,9 +1059,37 @@ final class AppController: NSObject, NSApplicationDelegate {
   }
 
   private func applyPendingHotkey() {
-    guard let spec = pendingHotkey, take == nil, !starter.isStarting else { return }
-    pendingHotkey = nil
-    if registerHotkey(spec) { Log.write("settings: hotkey changed to \(spec.display)") }
+    guard take == nil, !starter.isStarting else { return }
+    if let spec = pendingHotkey {
+      pendingHotkey = nil
+      if registerHotkey(spec) { Log.write("settings: hotkey changed to \(spec.display)") }
+    }
+    syncHoldHotkey()
+  }
+
+  /// Binds or unbinds the hold-to-talk key from the current preference.
+  /// Never mid-take or mid-start: a change waiting then is picked up by
+  /// `applyPendingHotkey` when the take ends. A failed registration keeps
+  /// the old binding, like `registerHotkey`.
+  private func syncHoldHotkey() {
+    guard take == nil, !starter.isStarting else { return }
+    let text = settingsModel.holdHotkey
+    guard !text.isEmpty else {
+      if holdKey.binding != nil { holdKey.unregister() }
+      return
+    }
+    // Settings validates before storing; an unparseable leftover just
+    // leaves the key unbound.
+    guard let spec = try? HotkeySpec.parse(text) else {
+      holdKey.unregister()
+      return
+    }
+    do {
+      try holdKey.register(spec)
+    } catch {
+      let kept = holdKey.binding.map { "; keeping \($0.display)" } ?? ""
+      fail("\(error.localizedDescription)\(kept)")
+    }
   }
 
   // MARK: - Daemon supervision
@@ -1199,6 +1334,13 @@ final class AppController: NSObject, NSApplicationDelegate {
       return
     }
     let previousHotkey = hotkey.binding ?? (try? HotkeySpec.parse(config?.hotkey ?? ""))
+    // The toggle shortcut can't take over the hold-to-talk key.
+    if key == "app.hotkey",
+       let hold = holdKey.binding ?? (try? HotkeySpec.parse(settingsModel.holdHotkey)),
+       let spec = try? HotkeySpec.parse(value), spec == hold {
+      settingsModel.finished(error: "\(hold.display) is your hold-to-talk shortcut; clear it or choose another")
+      return
+    }
     if key == "app.hotkey" {
       do { try hotkey.register(HotkeySpec.parse(value)) }
       catch { settingsModel.finished(error: error.localizedDescription); return }

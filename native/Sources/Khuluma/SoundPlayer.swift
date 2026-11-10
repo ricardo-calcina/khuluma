@@ -29,6 +29,12 @@ final class SoundPlayer {
     lock.withLock { self.players = players }
   }
 
+  /// The loaded sound's duration, or nil when the event has no sound (the
+  /// mute-after-chime timing falls back to muting at take start).
+  func duration(_ event: Event) -> TimeInterval? {
+    lock.withLock { players[event]?.duration }
+  }
+
   private let queue = DispatchQueue(label: "khuluma.sound", qos: .userInteractive)
 
   /// Plays without blocking the caller: on a cold output device `play()` can

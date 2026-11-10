@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Add four opt-in dictation features in Settings → Dictation, all off by default: **Hold to talk** (a second shortcut you hold to record and release to finish; a quick tap discards the take), **Mute other audio** (silences the Mac's output while you dictate, after the start sound, and puts it back afterwards), **Keep Mac awake** (stops the Mac sleeping during long dictation) and **Show on-screen indicator** (a small recording and transcribing marker at the bottom of the screen).
 - Add **Label sounds** in Dictation settings for ElevenLabs Scribe. It is on by default and includes labels such as `(laughter)` in the transcript.
 - Finder offers **Transcribe with Local** and **Transcribe with Cloud** independently of the dictation model. Cloud confirms the upload to ElevenLabs and includes sound labels.
 

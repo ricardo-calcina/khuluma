@@ -2,8 +2,17 @@ import AppKit
 import Foundation
 import KhulumaCore
 
+/// How the take was started: a toggle press, or the hold-to-talk key.
+enum TakeMode {
+  case toggle, hold
+}
+
 /// A recording in progress, and what it carries into processing.
 struct Take {
+  /// Tells takes apart, so a delayed hold-release finish can't stop the
+  /// next take.
+  let id: UUID
+  var mode: TakeMode = .toggle
   let hotkeyAt: Double
   let startedAt: Double
   let startedEpochMs: Int

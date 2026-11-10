@@ -146,12 +146,43 @@ struct SettingsView: View {
           .fixedSize()
       }
       .help("Click to record a shortcut. Press it once to start dictation, then again to finish. Control–Escape cancels dictation.")
+      SettingsRow("Hold to talk", note: "Hold to record, release to finish. Off until you set a shortcut.") {
+        HStack(spacing: 8) {
+          ShortcutRecorder(value: model.holdHotkey, isEnabled: model.editable,
+                           onCapture: { model.setHoldHotkey($0) },
+                           onRecordingChange: model.onShortcutRecordingChange)
+            .fixedSize()
+          if !model.holdHotkey.isEmpty {
+            Button("Clear") { model.setHoldHotkey("") }
+              .fixedSize()
+          }
+        }
+      }
+      .help("A second shortcut: hold it to record, release to finish. A quick tap discards the take.")
       microphoneRow
       SettingsRow("Sounds", last: true) {
         Toggle("Sounds", isOn: setting("audio.sounds.enabled", model.config?.soundsEnabled ?? true))
           .labelsHidden()
           .disabled(!model.editable)
           .help("Play sounds during dictation.")
+      }
+    }
+    SettingsGroup("While recording") {
+      SettingsRow("Mute other audio", note: "Silences this Mac's sound output while you dictate, after the start sound.") {
+        Toggle("Mute other audio", isOn: Binding(get: { model.muteWhileRecording },
+                                               set: model.setMuteWhileRecording))
+          .labelsHidden()
+      }
+      SettingsRow("Keep Mac awake", note: "Stops the Mac sleeping during long dictation.") {
+        Toggle("Keep Mac awake", isOn: Binding(get: { model.keepAwakeWhileRecording },
+                                               set: model.setKeepAwakeWhileRecording))
+          .labelsHidden()
+      }
+      SettingsRow("Show on-screen indicator",
+                  note: "A small recording and transcribing marker at the bottom of the screen.", last: true) {
+        Toggle("Show on-screen indicator", isOn: Binding(get: { model.showRecordingHUD },
+                                                         set: model.setShowRecordingHUD))
+          .labelsHidden()
       }
     }
     SettingsGroup("Transcription") {

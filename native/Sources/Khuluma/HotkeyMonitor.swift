@@ -11,9 +11,13 @@ final class HotkeyMonitor {
   private var handlerRef: EventHandlerRef?
   private let action: () -> Void
   private let signature: OSType
+  /// Given, the monitor also receives hot-key releases (hold-to-talk).
+  private let onRelease: (() -> Void)?
 
-  init(signature: OSType = 0x4B48554C /* 'KHUL' */, action: @escaping () -> Void) {
+  init(signature: OSType = 0x4B48554C /* 'KHUL' */, onRelease: (() -> Void)? = nil,
+       action: @escaping () -> Void) {
     self.signature = signature
+    self.onRelease = onRelease
     self.action = action
   }
 
@@ -48,7 +52,10 @@ final class HotkeyMonitor {
 
   private func installHandlerIfNeeded() throws {
     guard handlerRef == nil else { return }
-    var eventType = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
+    var eventTypes = [EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))]
+    if onRelease != nil {
+      eventTypes.append(EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyReleased)))
+    }
     // Unretained: the handler is removed (unregister, deinit) before self goes.
     let userData = Unmanaged.passUnretained(self).toOpaque()
     let installStatus = InstallEventHandler(GetApplicationEventTarget(), { _, event, userData in
@@ -62,12 +69,16 @@ final class HotkeyMonitor {
       // Carbon delivers hot keys on the main thread. HIToolbox swallows an
       // Objective-C exception raised in here without a trace: log it.
       do {
-        try ObjCException.catching { monitor.action() }
+        if GetEventKind(event) == UInt32(kEventHotKeyReleased), let onRelease = monitor.onRelease {
+          try ObjCException.catching { onRelease() }
+        } else {
+          try ObjCException.catching { monitor.action() }
+        }
       } catch {
         Log.write("hotkey: the action raised \(error.localizedDescription)")
       }
       return noErr
-    }, 1, &eventType, userData, &handlerRef)
+    }, eventTypes.count, &eventTypes, userData, &handlerRef)
     guard installStatus == noErr else {
       throw NSError(domain: "Khuluma", code: Int(installStatus), userInfo: [NSLocalizedDescriptionKey: "cannot install hotkey handler (\(installStatus))"])
     }

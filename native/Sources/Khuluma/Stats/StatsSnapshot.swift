@@ -114,6 +114,18 @@ enum StatsSnapshot {
       brands.changeSection(.brands)
       save("vocabulary-short", view: AnyView(VocabularyView(model: brands, settings: local)),
            width: 560, height: 420)
+      // The recording indicator (Settings › Dictation › Show on-screen
+      // indicator), in its two live states.
+      let hudRecording = RecordingHUD.Model()
+      hudRecording.state = .recording(elapsed: "0:07")
+      save("hud-recording", view: AnyView(RecordingHUDView(model: hudRecording).padding(20)), width: 160)
+      let hudProcessing = RecordingHUD.Model()
+      hudProcessing.state = .processing
+      save("hud-processing", view: AnyView(RecordingHUDView(model: hudProcessing).padding(20)), width: 160)
+      // A long message truncates instead of stretching the capsule.
+      let hudError = RecordingHUD.Model()
+      hudError.state = .error("Couldn't save 2 recordings for quitting; Quit retries, or use Discard unsaved recordings")
+      save("hud-error", view: AnyView(RecordingHUDView(model: hudError).padding(20)), width: 400)
       let navigation = AppNavigation()
       save("app-stats", view: AnyView(AppView(stats: full, settings: local, navigation: navigation, vocabulary: VocabularyModel(settings: local))),
            width: 560, height: 634)

@@ -8,6 +8,11 @@ final class SettingsModel: ObservableObject {
   @Published private(set) var pasteOnlyModifier: PasteOnlyModifier
   @Published private(set) var menuFigures: MenuFigures
   @Published private(set) var menuShowsWeek: Bool
+  /// Hold-to-talk's own shortcut, "" = off (Settings › Dictation).
+  @Published private(set) var holdHotkey: String
+  @Published private(set) var muteWhileRecording: Bool
+  @Published private(set) var keepAwakeWhileRecording: Bool
+  @Published private(set) var showRecordingHUD: Bool
   /// The chosen input (nil = System Default), as UID and the name it had.
   @Published private(set) var microphone: AudioInput?
   /// Connected inputs, from CoreAudio or sample data in previews.
@@ -33,6 +38,10 @@ final class SettingsModel: ObservableObject {
   var onToggleLogin: () -> Void = {}
   var onShortcutRecordingChange: (Bool) -> Void = { _ in }
   var onIconThemeChange: (StatusIconTheme) -> Void = { _ in }
+  /// Runs after the hold-to-talk shortcut changes (re-register it).
+  var onHoldHotkeyChange: () -> Void = {}
+  /// Runs after a While-recording preference changes (e.g. hide the HUD).
+  var onWhileRecordingChange: () -> Void = {}
   /// Each runs when anything the Microphone row shows changes.
   private var microphoneObservers: [() -> Void] = []
   /// Each runs only when the choice or the connected inputs change (the
@@ -60,6 +69,10 @@ final class SettingsModel: ObservableObject {
   private static let menuShowsWeekKey = "menuShowsWeek"
   private static let microphoneUIDKey = "microphoneUID"
   private static let microphoneNameKey = "microphoneName"
+  private static let holdHotkeyKey = "holdHotkey"
+  private static let muteWhileRecordingKey = "muteWhileRecording"
+  private static let keepAwakeWhileRecordingKey = "keepAwakeWhileRecording"
+  private static let showRecordingHUDKey = "showRecordingHUD"
 
   init(defaults: UserDefaults = AppRuntimePaths.defaults, isolated: Bool = AppRuntimePaths.isolated) {
     self.defaults = defaults
@@ -68,6 +81,10 @@ final class SettingsModel: ObservableObject {
     pasteOnlyModifier = PasteOnlyModifier(storedValue: defaults.string(forKey: Self.pasteOnlyModifierKey))
     menuFigures = MenuFigures(storedValue: defaults.string(forKey: Self.menuFiguresKey))
     menuShowsWeek = defaults.object(forKey: Self.menuShowsWeekKey) as? Bool ?? true
+    holdHotkey = defaults.string(forKey: Self.holdHotkeyKey) ?? ""
+    muteWhileRecording = defaults.bool(forKey: Self.muteWhileRecordingKey)
+    keepAwakeWhileRecording = defaults.bool(forKey: Self.keepAwakeWhileRecordingKey)
+    showRecordingHUD = defaults.bool(forKey: Self.showRecordingHUDKey)
     microphone = defaults.string(forKey: Self.microphoneUIDKey).map {
       AudioInput(uid: $0, name: defaults.string(forKey: Self.microphoneNameKey) ?? "Chosen microphone")
     }
@@ -198,6 +215,39 @@ final class SettingsModel: ObservableObject {
   /// The paste-only shortcut for the current hotkey, if it can be bound.
   var pasteOnlyShortcut: HotkeySpec? {
     (try? HotkeySpec.parse(config?.hotkey ?? "")).flatMap { pasteOnlyModifier.stopShortcut(for: $0) }
+  }
+
+  /// "" turns hold-to-talk off. A shortcut that can't be used keeps the old
+  /// one and says why in the footer.
+  func setHoldHotkey(_ text: String) {
+    switch HoldPolicy.hotkey(text, toggle: try? HotkeySpec.parse(config?.hotkey ?? ""), pasteOnly: pasteOnlyShortcut) {
+    case .refused(let reason):
+      message = reason
+      failed = true
+    case .ok:
+      holdHotkey = text
+      failed = false
+      message = nil
+      if !preview || isolated { defaults.set(text, forKey: Self.holdHotkeyKey) }
+      onHoldHotkeyChange()
+    }
+  }
+
+  /// Read when each take starts, so a change applies from the next take.
+  func setMuteWhileRecording(_ on: Bool) {
+    muteWhileRecording = on
+    if !preview || isolated { defaults.set(on, forKey: Self.muteWhileRecordingKey) }
+  }
+
+  func setKeepAwakeWhileRecording(_ on: Bool) {
+    keepAwakeWhileRecording = on
+    if !preview || isolated { defaults.set(on, forKey: Self.keepAwakeWhileRecordingKey) }
+  }
+
+  func setShowRecordingHUD(_ on: Bool) {
+    showRecordingHUD = on
+    if !preview || isolated { defaults.set(on, forKey: Self.showRecordingHUDKey) }
+    onWhileRecordingChange()
   }
 
   func save(_ key: String, _ value: String) {
