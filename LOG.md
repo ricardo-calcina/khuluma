@@ -2,7 +2,7 @@
 
 ## Now
 
-Pick up (Hex parity push): slice 1 installed as build 478 (31451d0) with the restyled indicator; Ricardo keeps all four features, hold-to-talk still untried · next: slice 2 (vocabulary inside the model) · branch: wip/hex-parity
+Pick up (Hex parity push): slice 1 installed as build 478; slice 2 (vocabulary in the model) measured and parked · next: slice 3, transcribe while recording, with audio and text saved to disk as it goes · branch: wip/hex-parity
 
 Installed build 478 on 2026-11-10 (Ricardo's OK, 31451d0, from wip/hex-parity). Rollback: `~/Applications/.khuluma-app.cf3alm/previous.app` (build 476); build 470, the last one from before this push, is `~/Applications/.khuluma-app.s8gnMk/previous.app`.
 
@@ -32,7 +32,7 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 
 - [ ] P1 · Try Hex parity slice 1 on build 476: hold key, a real mute during a take with other audio playing, the indicator over a full-screen app · added 2026-11-10
 - [x] P1 · Hex parity slice 1: hold-to-talk on its own shortcut (300 ms short-tap discard, 200 ms release tail), mute other audio while recording, keep Mac awake, on-screen recording/transcribing indicator; all off by default, in Settings › Dictation · added 2026-11-10
-- [ ] P1 · Hex parity slice 2: vocabulary inside the model (FluidAudio 0.15.6 CTC rescoring in khulumad, extra ~98 MB model, off by default); measure on real kept takes before it ships · added 2026-11-10
+- [x] P1 · Hex parity slice 2: vocabulary inside the model measured and parked (Decisions) · added 2026-11-10
 - [ ] P1 · Hex parity slice 3: transcribe while recording, with whole-clip fallback; today stop→delivered is p50 1.2 s, p90 2.1 s, nearly all transcription (app.log, 211 takes); measure before it ships · added 2026-11-10
 - [ ] P2 · Hex parity slice 4: History window with paste-last (already in phase 2), a Labs page for experiments, and "Keep microphone ready" (pre-roll; costs an always-on mic indicator, so opt-in) · added 2026-11-10
 
@@ -94,6 +94,8 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 
 ## Decisions
 
+- Vocabulary inside the model is parked (2026-11-10). FluidAudio 0.15.6's CTC boosting, run on the 5 kept takes with the 17 Brands terms: at its default threshold every replacement was wrong (15 with aliases, 7 without; e.g. better → WezTerm), at 0.8 it changed nothing, and it added 0.8–3.4 s to every take, more than the transcription. Recall on real mishearings is untested: the takes held one brand term, already right. Code and numbers are on `wip/vocab-boost-experiment`. Worth another look only with a cheaper method or a set of recordings where names were really misheard.
+
 - Hex parity (Ricardo, 2026-11-10): tap to start and stop stays the default; hold-to-talk is a second shortcut, off until set. The on-screen indicator, mute other audio and keep-awake are switches, off by default (Ricardo prefers the menu bar to a HUD). Mute, not media pause: pausing other apps needs a private macOS API. Pre-roll is left for slice 4: first audio arrives ~210 ms after the key and the chime follows it, so tap-to-talk loses nothing today. Not brought over: cross-platform, meetings, Annotate, local API/SDK, TypeScript config, LLM rewriting. Sparkle and onboarding stay in phase 2.
 
 - Checks and worktrees (Ricardo, 2026-11-06): local checks run only what a change affects, through `tools/test-affected.sh` (CONTRIBUTING.md, "Validation Requirements"); the full Swift suite is CI's job on push, locally only for `Package.swift` or cross-cutting changes, or before an install when CI isn't available. For Khuluma, tabs work in the main checkout and share `native/.build` (~1.4 GB each), committing only their own files; a worktree only when two tabs must edit the same files.
@@ -115,6 +117,7 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 
 ## Done
 
+- 2026-11-10 · Measured FluidAudio vocabulary boosting on 5 real takes: wrong replacements or none, +0.8–3.4 s per take; parked · wip/vocab-boost-experiment
 - 2026-11-10 · Indicator restyled (dark capsule, level waveform, clipped-shadow square fixed) and installed as build 478; Ricardo confirmed mute and the indicator work on 476 · 31451d0
 - 2026-11-10 · Installed build 476 with Hex parity slice 1 (Ricardo's OK); app and daemon relaunched · ~/Applications/.khuluma-app.s8gnMk/previous.app
 - 2026-11-10 · Hex parity slice 1 in source: hold-to-talk on a second shortcut, mute other audio, keep Mac awake, on-screen indicator, all off by default; policy tests and snapshots pass, not installed · wip/hex-parity, CHANGELOG Unreleased
