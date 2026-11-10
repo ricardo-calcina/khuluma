@@ -2,6 +2,10 @@
 
 ## Now
 
+Pick up (Hex parity push): slice 1 (hold-to-talk on a second shortcut, mute other audio, keep awake, on-screen indicator; all off by default) being built · next: review, Ricardo's OK to install, then slice 2 (vocabulary inside the model) · branch: wip/hex-parity
+
+Hex parity push (Ricardo, 2026-11-10): after comparing Khuluma with anomalyco/hex, bring over what suits a Mac-only app, in slices on `wip/hex-parity`, each one a setting. Order and what was left out are in Next and Decisions.
+
 Pick up (CLI sunset tab): keep list handed to the app tab (t4j) on 2026-11-05 · next: when it confirms the app runs without the CLI, prepare phase 4 (final v0.12.0 with notice, formula disable!) for Ricardo's yes · branch: wip/product-split
 
 Installed build 470 on 2026-11-07 (Ricardo's OK, 9f412d4). Parakeet is selected for dictation. Both transcription actions appear in Finder under Services. Rollback: `~/Applications/.khuluma-app.V9Bt9W/previous.app` (build 464).
@@ -23,6 +27,11 @@ The installed Settings and vocabulary editor load the existing rules and export 
 App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (build 355). CLI/code receipts and installer backups remain recorded under `/private/tmp/khuluma-vocabulary-install-aef6o_rh/`; verification and preservation evidence are there too. Preserve newer user data when recovering. Continue the daily-use phase-0 observation before native-writer work.
 
 ## Next
+
+- [ ] P1 · Hex parity slice 1: hold-to-talk on its own shortcut (300 ms short-tap discard, 200 ms release tail), mute other audio while recording, keep Mac awake, on-screen recording/transcribing indicator; all off by default, in Settings › Dictation · added 2026-11-10
+- [ ] P1 · Hex parity slice 2: vocabulary inside the model (FluidAudio 0.15.6 CTC rescoring in khulumad, extra ~98 MB model, off by default); measure on real kept takes before it ships · added 2026-11-10
+- [ ] P1 · Hex parity slice 3: transcribe while recording, with whole-clip fallback; today stop→delivered is p50 1.2 s, p90 2.1 s, nearly all transcription (app.log, 211 takes); measure before it ships · added 2026-11-10
+- [ ] P2 · Hex parity slice 4: History window with paste-last (already in phase 2), a Labs page for experiments, and "Keep microphone ready" (pre-roll; costs an always-on mic indicator, so opt-in) · added 2026-11-10
 
 - [ ] P2 · Retire `~/.config/dictate` (pre-rename folder, untouched since 2026-10-22) so it can be binned. Still pointing at it: `~/.local/bin/tmux-whisper-lib/` (config.sh socket `~/.config/dictate/.cache/tmux-whisperd.sock` and sounds in `~/.local/share/sounds/dictate`, which is already gone) and `~/.local/bin/dictate-lib.sh`, both old tmux-whisper libs from 2026-10-21 (fits CLI sunset phase 4); `khuluma-lib/identity.sh` lines 107–119 treat `~/.config/dictate` as the legacy marker for rename-v1, so confirm removing it doesn't re-trigger or break that check; `~/.config/khuluma/tools/pad-sfx.sh` examples still say `sounds/dictate`. Then bin the remaining install leftovers once rollback isn't needed: `.khuluma-install.*` (2026-11-05) and `.khuluma-cutover-*` in `~/.local/bin`, `~/.local/share/khuluma`, `~/.config/khuluma`, plus `~/.config/khuluma/.migration` (rename-v1, committed) · added 2026-11-08
 - [x] P2 · Try Finder Local and Cloud on the same file with quiet speech and laughter and compare output and timing · added 2026-11-06
@@ -81,6 +90,8 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 - [ ] P3 · Deferred separate labs: voxtral-inline API/realtime dictation and faster-whisper-tool batch/subtitle/offline exploration; only after core reliability is stable · added 2026-10-22
 
 ## Decisions
+
+- Hex parity (Ricardo, 2026-11-10): tap to start and stop stays the default; hold-to-talk is a second shortcut, off until set. The on-screen indicator, mute other audio and keep-awake are switches, off by default (Ricardo prefers the menu bar to a HUD). Mute, not media pause: pausing other apps needs a private macOS API. Pre-roll is left for slice 4: first audio arrives ~210 ms after the key and the chime follows it, so tap-to-talk loses nothing today. Not brought over: cross-platform, meetings, Annotate, local API/SDK, TypeScript config, LLM rewriting. Sparkle and onboarding stay in phase 2.
 
 - Checks and worktrees (Ricardo, 2026-11-06): local checks run only what a change affects, through `tools/test-affected.sh` (CONTRIBUTING.md, "Validation Requirements"); the full Swift suite is CI's job on push, locally only for `Package.swift` or cross-cutting changes, or before an install when CI isn't available. For Khuluma, tabs work in the main checkout and share `native/.build` (~1.4 GB each), committing only their own files; a worktree only when two tabs must edit the same files.
 - App data (Ricardo, 2026-11-05): the app keeps its data in `~/Library/Application Support/Khuluma`, settings in `settings.json`, bench.tsv dropped, a one-time copy-only import from `~/.config/khuluma` (the source stays as the rollback); Scribe ported (Keychain, then the CLI's zshrc lookup); the app runs its own bundled daemon. The shared data contract and writer tags are withdrawn with the sunset. Details in docs/plans/APP_INDEPENDENCE.md.
