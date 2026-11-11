@@ -2,9 +2,9 @@
 
 ## Now
 
-Pick up (Hex parity push): six-page Settings and the two repetition controls built in source, not installed (build 483 is, with Transcribe while recording on and working on Ricardo's first takes) · next: Ricardo's OK to install; keep reading live=on takes, the five-minute ones especially; then slice 4 · branch: wip/hex-parity
+Pick up (Hex parity push): build 486 installed (214c29c) with six-page Settings and the two repetition controls; Transcribe while recording is on and working · next: keep reading live=on takes, the five-minute ones especially; then slice 4 · branch: wip/hex-parity
 
-Installed build 483 on 2026-11-10 (Ricardo's OK, 19181ca, from wip/hex-parity). Rollback: `~/Applications/.khuluma-app.HjMnkA/previous.app` (build 481); build 470, the last one from before this push, is `~/Applications/.khuluma-app.s8gnMk/previous.app`. Rollbacks for 464, 476 and 478 are also still there (V9Bt9W, cf3alm, A88hoo).
+Installed build 486 on 2026-11-11 (Ricardo's OK, 214c29c, from wip/hex-parity). Rollback: `~/Applications/.khuluma-app.dYvZKO/previous.app` (build 483); build 470, the last one from before this push, is `~/Applications/.khuluma-app.s8gnMk/previous.app`. Rollbacks for 464, 476, 478 and 481 are also still there (V9Bt9W, cf3alm, A88hoo, HjMnkA).
 
 Hex parity push (Ricardo, 2026-11-10): after comparing Khuluma with anomalyco/hex, bring over what suits a Mac-only app, in slices on `wip/hex-parity`, each one a setting. Order and what was left out are in Next and Decisions.
 
@@ -125,6 +125,7 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 
 ## Done
 
+- 2026-11-11 · Installed build 486 (six-page Settings, repetition controls; Ricardo's OK); added “herder” → Herdr to his Brands (112 hits in history; “her” alone can't be mapped) · ~/Applications/.khuluma-app.dYvZKO/previous.app
 - 2026-11-11 · Settings split into six pages; repetition cleanup is now two controls with examples and can combine sentences with words and phrases; not installed · wip/hex-parity, CHANGELOG Unreleased
 - 2026-11-11 · Added “11 Labs” and “eleven labs” → ElevenLabs to Ricardo's Brands (file edit with a backup in vocabulary-backups) · ~/Library/Application Support/Khuluma/vocabulary.json
 - 2026-11-11 · First takes with Transcribe while recording on build 483: 70 s take delivered 0.66 s after stop (live, 4 segments), 15 s take 0.60 s; no fallbacks, live/ empty · app.log 06:02Z, 06:03Z
