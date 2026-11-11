@@ -2,9 +2,9 @@
 
 ## Now
 
-Pick up (Hex parity push): Sounds page built and reviewed in source (60d7026), not installed (build 486 is) · next: Ricardo's OK to install; then per-app auto-send rules with restore-clipboard, then the History tab with paste-last · branch: wip/hex-parity
+Pick up (Hex parity push): build 490 installed (8896b11) with the Sounds page · next: per-app auto-send rules with restore-clipboard, then the History tab with paste-last · branch: wip/hex-parity
 
-Installed build 486 on 2026-11-11 (Ricardo's OK, 214c29c, from wip/hex-parity). Rollback: `~/Applications/.khuluma-app.dYvZKO/previous.app` (build 483); build 470, the last one from before this push, is `~/Applications/.khuluma-app.s8gnMk/previous.app`. Rollbacks for 464, 476, 478 and 481 are also still there (V9Bt9W, cf3alm, A88hoo, HjMnkA).
+Installed build 490 on 2026-11-11 (Ricardo's OK, 8896b11, from wip/hex-parity). Rollback: `~/Applications/.khuluma-app.J0WSN6/previous.app` (build 486); build 470, the last one from before this push, is `~/Applications/.khuluma-app.s8gnMk/previous.app`. Rollbacks for 464, 476, 478, 481 and 483 are also still there (V9Bt9W, cf3alm, A88hoo, HjMnkA, dYvZKO).
 
 Hex parity push (Ricardo, 2026-11-10): after comparing Khuluma with anomalyco/hex, bring over what suits a Mac-only app, in slices on `wip/hex-parity`, each one a setting. Order and what was left out are in Next and Decisions.
 
@@ -132,6 +132,7 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 
 ## Done
 
+- 2026-11-11 · Installed build 490 with the Sounds page (Ricardo's OK); app and daemon relaunched warm · ~/Applications/.khuluma-app.J0WSN6/previous.app
 - 2026-11-11 · Sounds page in source: a menu and play button per event, files from the app's sounds folder, Choose File copies in without overwriting, Show in Finder, reload when the app becomes active; seven Settings pages; not installed · 60d7026, CHANGELOG Unreleased
 - 2026-11-11 · Installed build 486 (six-page Settings, repetition controls; Ricardo's OK); added “herder” → Herdr to his Brands (112 hits in history; “her” alone can't be mapped) · ~/Applications/.khuluma-app.dYvZKO/previous.app
 - 2026-11-11 · Settings split into six pages; repetition cleanup is now two controls with examples and can combine sentences with words and phrases; not installed · wip/hex-parity, CHANGELOG Unreleased
