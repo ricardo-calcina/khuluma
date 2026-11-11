@@ -258,6 +258,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     settingsModel.onSave = { [weak self] key, value in self?.saveSetting(key, value: value) }
     settingsModel.onSaveSound = { [weak self] event, path, enabled in
       self?.saveSoundSetting(event: event, path: path, enabled: enabled) }
+    settingsModel.onSaveAppRules = { [weak self] rules in self?.saveAppRulesSetting(rules) }
     // The Sounds page reads the configured (unresolved) audio.sounds, and
     // expands `~`/`$SOUNDS_DIR` exactly as the resolver does.
     let store = settingsStore, env = settingsEnvironment
@@ -1443,6 +1444,32 @@ final class AppController: NSObject, NSApplicationDelegate {
 
   func applicationDidBecomeActive(_ notification: Notification) {
     if let config { reloadSounds(from: config) }
+  }
+
+  /// The whole per-app send list in a single write, like saveSetting.
+  private func saveAppRulesSetting(_ rules: [AppSettings.AppRule]) {
+    guard pipeline != nil else {
+      settingsModel.finished(error: "Khuluma is still starting.")
+      return
+    }
+    guard take == nil, !starter.isStarting, status.processing == 0 else {
+      settingsModel.finished(error: "Finish the recording before changing settings.")
+      return
+    }
+    work.async { [weak self] in
+      guard let self else { return }
+      let result = Result { try self.settingsStore.setAppRules(rules) }
+        .map { _ in self.loadConfig() }
+      onMainRunLoop {
+        switch result {
+        case .success(let config):
+          self.apply(config)
+          self.settingsModel.finished(error: nil)
+        case .failure(let error):
+          self.settingsModel.finished(error: error.localizedDescription)
+        }
+      }
+    }
   }
 
   /// One sound choice (path + enabled) in a single write, like saveSetting.

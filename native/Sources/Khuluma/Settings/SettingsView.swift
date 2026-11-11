@@ -341,6 +341,98 @@ struct SettingsView: View {
     }
   }
 
+  /// The rules list and the "Add App…" picker, inside the Delivery group.
+  @ViewBuilder private func appRulesSection(_ rules: [AppSettings.AppRule]) -> some View {
+    Ink.label("App rules")
+      .padding(.top, 14)
+      .padding(.bottom, 6)
+    if rules.isEmpty {
+      Text("No app rules. Add an app to make it paste without sending, or always send.")
+        .font(.callout).foregroundStyle(.secondary)
+        .padding(.bottom, 10)
+    }
+    ForEach(Array(rules.enumerated()), id: \.offset) { index, rule in
+      SettingsRow(rule.name, icon: appIcon(rule.bundleID), last: false) {
+        HStack(spacing: 8) {
+          Picker(rule.name, selection: Binding(
+            get: { rule.autosend },
+            set: { send in updateRule(rules, at: index) { $0.autosend = send } })) {
+            Text("Send").tag(true)
+            Text("Don't send").tag(false)
+          }
+          .labelsHidden().fixedSize()
+          Button { model.saveAppRules(rules.filter { $0.bundleID != rule.bundleID }) } label: {
+            Image(systemName: "minus.circle")
+          }
+          .buttonStyle(.plain)
+          .accessibilityLabel("Remove rule for \(rule.name)")
+        }
+      }
+    }
+    Picker("Add App…", selection: Binding(get: { "" }, set: { pickApp(rules, tag: $0) })) {
+      Text("Add App…").tag("")
+      ForEach(addableApps(rules), id: \.bundleID) { app in
+        Text(app.name).tag(app.bundleID)
+      }
+      Divider()
+      Text("Choose…").tag("__choose__")
+    }
+    .labelsHidden().fixedSize()
+    .padding(.top, 10)
+    .disabled(!model.editable)
+  }
+
+  private func appIcon(_ bundleID: String) -> Image {
+    if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
+      return Image(nsImage: NSWorkspace.shared.icon(forFile: url.path))
+    }
+    return Image(systemName: "app.dashed")
+  }
+
+  /// Rules come from the config (one write per change); new apps start
+  /// as "Don't send".
+  private func updateRule(_ rules: [AppSettings.AppRule], at index: Int,
+                          _ change: (inout AppSettings.AppRule) -> Void) {
+    var rules = rules
+    guard index < rules.count else { return }
+    change(&rules[index])
+    model.saveAppRules(rules)
+  }
+
+  private func addableApps(_ rules: [AppSettings.AppRule]) -> [AppSettings.AppRule] {
+    let listed = Set(rules.map { $0.bundleID.lowercased() })
+    let own = Bundle.main.bundleIdentifier?.lowercased()
+    return NSWorkspace.shared.runningApplications
+      .filter { $0.activationPolicy == .regular && !$0.isTerminated }
+      .compactMap { app -> AppSettings.AppRule? in
+        guard let id = app.bundleIdentifier?.lowercased(), id != own, !listed.contains(id) else { return nil }
+        return AppSettings.AppRule(bundleID: app.bundleIdentifier ?? "",
+                                   name: app.localizedName ?? id, autosend: false)
+      }
+      .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+  }
+
+  private func pickApp(_ rules: [AppSettings.AppRule], tag: String) {
+    guard !tag.isEmpty else { return }
+    if tag == "__choose__" { chooseApp(rules); return }
+    guard let app = addableApps(rules).first(where: { $0.bundleID == tag }) else { return }
+    model.saveAppRules(rules + [app])
+  }
+
+  private func chooseApp(_ rules: [AppSettings.AppRule]) {
+    let panel = NSOpenPanel()
+    panel.directoryURL = URL(fileURLWithPath: "/Applications")
+    panel.allowedContentTypes = [.applicationBundle]
+    panel.allowsMultipleSelection = false
+    panel.canChooseDirectories = false
+    guard panel.runModal() == .OK, let url = panel.url,
+          let bundle = Bundle(url: url), let id = bundle.bundleIdentifier else { return }
+    let name = (bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String)
+      ?? (bundle.object(forInfoDictionaryKey: "CFBundleName") as? String)
+      ?? url.deletingPathExtension().lastPathComponent
+    model.saveAppRules(rules + [AppSettings.AppRule(bundleID: id, name: name, autosend: false)])
+  }
+
   private func showSoundsFolder(_ library: SoundLibrary) {
     try? FileManager.default.createDirectory(
       at: library.directory, withIntermediateDirectories: true,
@@ -432,15 +524,17 @@ struct SettingsView: View {
 
   @ViewBuilder private var text: some View {
     SettingsGroup("Delivery") {
-      SettingsRow("Auto-send", note: "Paste the transcript, then send it with your send key.") {
+      let rules = model.config?.inline.appRules ?? []
+      SettingsRow("Auto-send",
+                  note: "Paste the transcript, then send it with your send key."
+                    + (rules.isEmpty ? "" : " Apps listed below follow their own rule.")) {
         Toggle("Auto-send", isOn: setting("inline.autosend", model.config?.inline.autosend ?? false))
           .labelsHidden()
           .disabled(!model.editable)
           .help("Paste the transcript, then send it with your configured send key.")
       }
       SettingsRow("Paste without sending",
-                  note: model.config?.inline.autosend == true && model.pasteOnlyModifier != .off ? pasteOnlyNote : nil,
-                  last: true) {
+                  note: model.config?.inline.autosend == true && model.pasteOnlyModifier != .off ? pasteOnlyNote : nil) {
         Picker("Paste without sending", selection: Binding(get: { model.pasteOnlyModifier },
                                                            set: model.selectPasteOnlyModifier)) {
           ForEach(PasteOnlyModifier.allCases, id: \.self) { Text($0.title).tag($0) }
@@ -449,6 +543,15 @@ struct SettingsView: View {
         .disabled(model.config?.inline.autosend != true)
         .help("Hold this key with your shortcut when you finish a take to paste it without sending.")
       }
+      SettingsRow("Restore clipboard after pasting",
+                  note: "Puts back what you had copied before the dictation. The dictation stays in History.",
+                  last: rules.isEmpty) {
+        Toggle("Restore clipboard after pasting",
+               isOn: setting("inline.restore_clipboard", model.config?.inline.restoreClipboard ?? false))
+          .labelsHidden()
+          .disabled(!model.editable)
+      }
+      appRulesSection(rules)
     }
     SettingsGroup("Cleanup") {
       SettingsRow("Clean up dictation",
@@ -682,15 +785,18 @@ private struct SettingsGroup<Content: View>: View {
 /// Title and optional note on the left, the control on the right.
 private struct SettingsRow<Control: View>: View {
   let title: String
+  /// A 16 pt image before the title (app icons in the rules list).
+  var icon: Image?
   var note: String?
   /// A note under the whole row, for text too long beside the control.
   var footnote: String?
   var last = false
   @ViewBuilder let control: Control
 
-  init(_ title: String, note: String? = nil, footnote: String? = nil, last: Bool = false,
-       @ViewBuilder control: () -> Control) {
+  init(_ title: String, icon: Image? = nil, note: String? = nil, footnote: String? = nil,
+       last: Bool = false, @ViewBuilder control: () -> Control) {
     self.title = title
+    self.icon = icon
     self.note = note
     self.footnote = footnote
     self.last = last
@@ -701,7 +807,10 @@ private struct SettingsRow<Control: View>: View {
     VStack(spacing: 0) {
       HStack(alignment: .center, spacing: 16) {
         VStack(alignment: .leading, spacing: 2) {
-          Text(title).fixedSize()
+          HStack(spacing: 8) {
+            icon?.resizable().aspectRatio(contentMode: .fit).frame(width: 16, height: 16)
+            Text(title).fixedSize()
+          }
           if let note {
             Text(note).font(.caption).foregroundStyle(.secondary)
               .fixedSize(horizontal: false, vertical: true)

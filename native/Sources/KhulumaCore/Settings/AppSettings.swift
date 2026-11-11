@@ -53,6 +53,35 @@ public struct AppSettings: Codable, Equatable, Sendable {
     }
   }
 
+  /// One per-app auto-send rule: an app's bundle id, its display name for
+  /// the list, and whether dictations pasted into it send.
+  public struct AppRule: Codable, Equatable, Sendable {
+    public var bundleID: String
+    public var name: String
+    public var autosend: Bool
+    public init(bundleID: String, name: String, autosend: Bool) {
+      self.bundleID = bundleID
+      self.name = name
+      self.autosend = autosend
+    }
+    enum CodingKeys: String, CodingKey {
+      case bundleID = "bundle_id"
+      case name, autosend
+    }
+  }
+
+  /// Rules with a real, unique bundle id (case-insensitive), capped at 100.
+  public static func sanitizedAppRules(_ rules: [AppRule]) -> [AppRule] {
+    var seen = Set<String>()
+    var out: [AppRule] = []
+    for rule in rules where !rule.bundleID.isEmpty {
+      guard seen.insert(rule.bundleID.lowercased()).inserted else { continue }
+      out.append(rule)
+      if out.count == 100 { break }
+    }
+    return out
+  }
+
   public struct Inline: Codable, Equatable, Sendable {
     public var autosend = true
     /// enter, ctrl_j or cmd_enter.
@@ -62,6 +91,10 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var processSound = true
     public var activateDelayMs = 90
     public var sendDelayMs = 35
+    /// Put back what was on the clipboard after a successful paste.
+    public var restoreClipboard = false
+    /// Per-app auto-send rules, matching the pasted-into app's bundle id.
+    public var appRules: [AppRule] = []
     public init() {}
 
     enum CodingKeys: String, CodingKey {
@@ -71,6 +104,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
       case processSound = "process_sound"
       case activateDelayMs = "activate_delay_ms"
       case sendDelayMs = "send_delay_ms"
+      case restoreClipboard = "restore_clipboard"
+      case appRules = "app_rules"
     }
 
     public init(from d: Decoder) throws {
@@ -81,6 +116,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
       processSound = try c.decodeIfPresent(Bool.self, forKey: .processSound) ?? true
       activateDelayMs = max(0, try c.decodeIfPresent(Int.self, forKey: .activateDelayMs) ?? 90)
       sendDelayMs = max(0, try c.decodeIfPresent(Int.self, forKey: .sendDelayMs) ?? 35)
+      restoreClipboard = try c.decodeIfPresent(Bool.self, forKey: .restoreClipboard) ?? false
+      appRules = AppSettings.sanitizedAppRules(try c.decodeIfPresent([AppRule].self, forKey: .appRules) ?? [])
     }
   }
 
@@ -472,7 +509,8 @@ extension AppConfig {
     let autosend = s.inline.autosend && !(status.error != nil && status.source != "last_good")
     let inline = Inline(autosend: autosend, sendMode: s.inline.sendMode, pasteTarget: s.inline.pasteTarget,
                         processSound: s.inline.processSound, activateDelayMs: s.inline.activateDelayMs,
-                        sendDelayMs: s.inline.sendDelayMs)
+                        sendDelayMs: s.inline.sendDelayMs, restoreClipboard: s.inline.restoreClipboard,
+                        appRules: s.inline.appRules)
     let cleanup = CleanupSettings(configDir: env.appFolder.path, clean: s.cleanup.enabled ? "1" : "0",
                                   repeatsLevel: String(s.cleanup.repeatsLevel),
                                   vocabClean: s.cleanup.vocabulary ? "1" : "0",

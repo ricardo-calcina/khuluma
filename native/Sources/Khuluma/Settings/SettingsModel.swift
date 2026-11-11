@@ -69,6 +69,17 @@ final class SettingsModel: ObservableObject {
   var expandSoundPath: (String) -> String = { $0 }
   /// Sets an event's path and enabled in one write (wired in AppController).
   var onSaveSound: (_ event: String, _ path: String, _ enabled: Bool) -> Void = { _, _, _ in }
+  /// Writes the whole per-app send list in one write.
+  var onSaveAppRules: ([AppSettings.AppRule]) -> Void = { _ in }
+  /// The per-app send rules, from the resolved config.
+  var appRules: [AppSettings.AppRule] { config?.inline.appRules ?? [] }
+  func saveAppRules(_ rules: [AppSettings.AppRule]) {
+    guard editable else { return }
+    saving = true
+    message = nil
+    failed = false
+    onSaveAppRules(rules)
+  }
   /// Where the user's own sound files live (`<support>/sounds`).
   var soundsDirectory: URL { SoundLibrary.standard.directory }
   /// Plays a row's selected sound once, independent of the master switch.

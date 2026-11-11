@@ -38,6 +38,30 @@ struct Take {
     let delivery = retargeted ? base.restoringOriginalApp() : base
     return pasteOnly ? delivery.withoutSending() : delivery
   }
+
+  /// The take's delivery with `inline.app_rules` applied — the target is
+  /// the app the paste will reach: `originalApp` when the delivery
+  /// re-activates it (restore or retargeted), else the frontmost app read
+  /// by the caller just before the plan is built. Fallback-default safety
+  /// always wins over a rule; paste-only still wins over everything.
+  /// Returns the `rule=` log value when a rule matched.
+  func ruledDelivery(_ config: AppConfig,
+                     frontmostBundleID: () -> String?) -> (Delivery, rule: String?) {
+    var delivery = config.delivery
+    var rule: String?
+    if !config.usingFallbackDefaults {
+      let reactivates = (delivery.pasteTarget == "restore" || retargeted)
+      let bundleID = reactivates ? (originalApp?.bundleIdentifier ?? frontmostBundleID())
+                                 : frontmostBundleID()
+      let resolved = AppRules.autosend(bundleID: bundleID, default: delivery.autosend,
+                                       rules: config.inline.appRules)
+      if resolved.matched {
+        delivery = delivery.withAutosend(resolved.autosend)
+        rule = resolved.autosend ? "send" : "nosend"
+      }
+    }
+    return (self.delivery(delivery), rule)
+  }
 }
 
 /// A take stopped for Quit whose audio couldn't be written yet.

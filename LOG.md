@@ -2,7 +2,7 @@
 
 ## Now
 
-Pick up (Hex parity push): build 490 installed (8896b11) with the Sounds page · next: per-app auto-send rules with restore-clipboard, then the History tab with paste-last · branch: wip/hex-parity
+Pick up (Hex parity push): per-app auto-send rules and restore-clipboard built in source, not installed (build 490 is running) · next: install on Ricardo's OK and check live (rule in WhatsApp, Shift override, clipboard put back), then the History tab with paste-last · branch: wip/hex-parity
 
 Installed build 490 on 2026-11-11 (Ricardo's OK, 8896b11, from wip/hex-parity). Rollback: `~/Applications/.khuluma-app.J0WSN6/previous.app` (build 486); build 470, the last one from before this push, is `~/Applications/.khuluma-app.s8gnMk/previous.app`. Rollbacks for 464, 476, 478, 481 and 483 are also still there (V9Bt9W, cf3alm, A88hoo, HjMnkA, dYvZKO).
 
@@ -132,6 +132,7 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 
 ## Done
 
+- 2026-11-11 · Per-app auto-send rules (Settings → Text → Delivery) and opt-in restore-clipboard after pasting; source only, not installed · wip/hex-parity
 - 2026-11-11 · Installed build 490 with the Sounds page (Ricardo's OK); app and daemon relaunched warm · ~/Applications/.khuluma-app.J0WSN6/previous.app
 - 2026-11-11 · Sounds page in source: a menu and play button per event, files from the app's sounds folder, Choose File copies in without overwriting, Show in Finder, reload when the app becomes active; seven Settings pages; not installed · 60d7026, CHANGELOG Unreleased
 - 2026-11-11 · Installed build 486 (six-page Settings, repetition controls; Ricardo's OK); added “herder” → Herdr to his Brands (112 hits in history; “her” alone can't be mapped) · ~/Applications/.khuluma-app.dYvZKO/previous.app

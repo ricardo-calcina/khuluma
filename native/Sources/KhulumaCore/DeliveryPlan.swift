@@ -13,6 +13,41 @@ public enum DeliveryStep: Equatable, Sendable {
   case shortcut(character: Character, command: Bool, control: Bool)
   /// A layout-independent key (Return), as an ANSI virtual key code.
   case key(code: UInt16, command: Bool, control: Bool)
+  /// Put back what was on the clipboard before the dictation, `afterMs`
+  /// after it. Reached only when every key step has succeeded.
+  case restoreClipboard(afterMs: Int)
+}
+
+/// Which app a take's auto-send choice comes from, per `inline.app_rules`.
+public enum AppRules {
+  /// The matching rule's answer, or the global default when the app is
+  /// unknown or unlisted (bundle ids compare case-insensitively).
+  public static func autosend(bundleID: String?, default defaultValue: Bool,
+                              rules: [AppSettings.AppRule]) -> (autosend: Bool, matched: Bool) {
+    guard let bundleID,
+          let rule = rules.first(where: { $0.bundleID.caseInsensitiveCompare(bundleID) == .orderedSame })
+    else { return (defaultValue, false) }
+    return (rule.autosend, true)
+  }
+}
+
+/// The restore-the-clipboard decision, kept pure for tests.
+public enum ClipboardRestore {
+  public enum Plan: Equatable, Sendable {
+    case restore
+    /// The log reason: "empty" (nothing to put back) or "too_large".
+    case skip(String)
+  }
+
+  public static func plan(itemSizes: [Int], limitBytes: Int) -> Plan {
+    guard !itemSizes.isEmpty else { return .skip("empty") }
+    return itemSizes.reduce(0, +) > limitBytes ? .skip("too_large") : .restore
+  }
+
+  /// Restore only when the pasteboard still holds what was written.
+  public static func shouldRestore(written: Int, current: Int) -> Bool {
+    written == current
+  }
 }
 
 /// Which app a take is delivered to.
@@ -61,7 +96,20 @@ public enum DeliveryPlan {
   /// not sent.
   public static let minimumSendGapMs = 150
 
+  /// How long after pasting the previous clipboard is restored.
+  public static let clipboardRestoreDelayMs = 400
+  /// A snapshot bigger than this is left alone ("too_large").
+  public static let clipboardRestoreLimitBytes = 20_000_000
+
   public static func steps(text: String, delivery: Delivery, hasOriginalApp: Bool) -> [DeliveryStep] {
+    let steps = keySteps(text: text, delivery: delivery, hasOriginalApp: hasOriginalApp)
+    if delivery.restoreClipboard {
+      return steps + [.restoreClipboard(afterMs: clipboardRestoreDelayMs)]
+    }
+    return steps
+  }
+
+  private static func keySteps(text: String, delivery: Delivery, hasOriginalApp: Bool) -> [DeliveryStep] {
     var steps: [DeliveryStep] = [.setClipboard(text)]
     if delivery.pasteTarget == "restore" && hasOriginalApp {
       steps.append(.activateOriginalApp)

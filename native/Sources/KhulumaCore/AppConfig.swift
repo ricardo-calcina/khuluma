@@ -21,15 +21,34 @@ public struct AppConfig: Decodable, Equatable, Sendable {
     public let processSound: Bool
     public let activateDelayMs: Int
     public let sendDelayMs: Int
+    /// Restore the previous clipboard after a successful paste.
+    public let restoreClipboard: Bool
+    /// Per-app auto-send rules, matched by bundle id.
+    public let appRules: [AppSettings.AppRule]
 
     public init(autosend: Bool, sendMode: String, pasteTarget: String, processSound: Bool,
-                activateDelayMs: Int, sendDelayMs: Int) {
+                activateDelayMs: Int, sendDelayMs: Int, restoreClipboard: Bool = false,
+                appRules: [AppSettings.AppRule] = []) {
       self.autosend = autosend
       self.sendMode = sendMode
       self.pasteTarget = pasteTarget
       self.processSound = processSound
       self.activateDelayMs = activateDelayMs
       self.sendDelayMs = sendDelayMs
+      self.restoreClipboard = restoreClipboard
+      self.appRules = appRules
+    }
+
+    public init(from decoder: Decoder) throws {
+      let c = try decoder.container(keyedBy: CodingKeys.self)
+      autosend = try c.decode(Bool.self, forKey: .autosend)
+      sendMode = try c.decode(String.self, forKey: .sendMode)
+      pasteTarget = try c.decode(String.self, forKey: .pasteTarget)
+      processSound = try c.decode(Bool.self, forKey: .processSound)
+      activateDelayMs = try c.decode(Int.self, forKey: .activateDelayMs)
+      sendDelayMs = try c.decode(Int.self, forKey: .sendDelayMs)
+      restoreClipboard = try c.decodeIfPresent(Bool.self, forKey: .restoreClipboard) ?? false
+      appRules = try c.decodeIfPresent([AppSettings.AppRule].self, forKey: .appRules) ?? []
     }
 
     enum CodingKeys: String, CodingKey {
@@ -39,6 +58,8 @@ public struct AppConfig: Decodable, Equatable, Sendable {
       case processSound = "process_sound"
       case activateDelayMs = "activate_delay_ms"
       case sendDelayMs = "send_delay_ms"
+      case restoreClipboard = "restore_clipboard"
+      case appRules = "app_rules"
     }
   }
 
@@ -93,7 +114,8 @@ public struct AppConfig: Decodable, Equatable, Sendable {
   public func safeDelivery(_ delivery: Delivery) -> Delivery {
     guard usingFallbackDefaults, delivery.autosend else { return delivery }
     return Delivery(autosend: false, sendMode: delivery.sendMode, pasteTarget: delivery.pasteTarget,
-                    activateDelayMs: delivery.activateDelayMs, sendDelayMs: delivery.sendDelayMs)
+                    activateDelayMs: delivery.activateDelayMs, sendDelayMs: delivery.sendDelayMs,
+                    restoreClipboard: delivery.restoreClipboard)
   }
 
   public struct Pipeline: Decodable, Equatable, Sendable {
@@ -144,7 +166,8 @@ public struct AppConfig: Decodable, Equatable, Sendable {
   /// last valid copy).
   public var delivery: Delivery {
     safeDelivery(Delivery(autosend: inline.autosend, sendMode: inline.sendMode, pasteTarget: inline.pasteTarget,
-                          activateDelayMs: inline.activateDelayMs, sendDelayMs: inline.sendDelayMs))
+                          activateDelayMs: inline.activateDelayMs, sendDelayMs: inline.sendDelayMs,
+                          restoreClipboard: inline.restoreClipboard))
   }
 
   /// Why takes can't be transcribed with these settings right now (they are
@@ -173,13 +196,27 @@ public struct Delivery: Decodable, Equatable, Sendable {
   public let pasteTarget: String
   public let activateDelayMs: Int
   public let sendDelayMs: Int
+  /// Restore the previous clipboard after a successful paste.
+  public let restoreClipboard: Bool
 
-  public init(autosend: Bool, sendMode: String, pasteTarget: String, activateDelayMs: Int, sendDelayMs: Int) {
+  public init(autosend: Bool, sendMode: String, pasteTarget: String, activateDelayMs: Int,
+              sendDelayMs: Int, restoreClipboard: Bool = false) {
     self.autosend = autosend
     self.sendMode = sendMode
     self.pasteTarget = pasteTarget
     self.activateDelayMs = activateDelayMs
     self.sendDelayMs = sendDelayMs
+    self.restoreClipboard = restoreClipboard
+  }
+
+  public init(from decoder: Decoder) throws {
+    let c = try decoder.container(keyedBy: CodingKeys.self)
+    autosend = try c.decode(Bool.self, forKey: .autosend)
+    sendMode = try c.decode(String.self, forKey: .sendMode)
+    pasteTarget = try c.decode(String.self, forKey: .pasteTarget)
+    activateDelayMs = try c.decode(Int.self, forKey: .activateDelayMs)
+    sendDelayMs = try c.decode(Int.self, forKey: .sendDelayMs)
+    restoreClipboard = try c.decodeIfPresent(Bool.self, forKey: .restoreClipboard) ?? false
   }
 
   enum CodingKeys: String, CodingKey {
@@ -188,19 +225,29 @@ public struct Delivery: Decodable, Equatable, Sendable {
     case pasteTarget = "paste_target"
     case activateDelayMs = "activate_delay_ms"
     case sendDelayMs = "send_delay_ms"
+    case restoreClipboard = "restore_clipboard"
   }
 
   /// The same delivery, re-activating the take's original app first (e.g.
   /// a take started with Khuluma itself in front, whatever `paste_target` is).
   public func restoringOriginalApp() -> Delivery {
     Delivery(autosend: autosend, sendMode: sendMode, pasteTarget: "restore",
-             activateDelayMs: activateDelayMs, sendDelayMs: sendDelayMs)
+             activateDelayMs: activateDelayMs, sendDelayMs: sendDelayMs,
+             restoreClipboard: restoreClipboard)
   }
 
   /// The same delivery, pasting without pressing the send key.
   public func withoutSending() -> Delivery {
     Delivery(autosend: false, sendMode: sendMode, pasteTarget: pasteTarget,
-             activateDelayMs: activateDelayMs, sendDelayMs: sendDelayMs)
+             activateDelayMs: activateDelayMs, sendDelayMs: sendDelayMs,
+             restoreClipboard: restoreClipboard)
+  }
+
+  /// The same delivery with its send key switched (an app rule's answer).
+  public func withAutosend(_ on: Bool) -> Delivery {
+    Delivery(autosend: on, sendMode: sendMode, pasteTarget: pasteTarget,
+             activateDelayMs: activateDelayMs, sendDelayMs: sendDelayMs,
+             restoreClipboard: restoreClipboard)
   }
 }
 

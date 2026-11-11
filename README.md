@@ -82,6 +82,8 @@ Under **Settings → Transcription → Dictation model**, Parakeet is the defaul
 
 **Sounds:** Settings → Sounds sets a sound for each moment: recording starts, recording stops, text delivered, cancelled and a problem. Each event can use the bundled default, be silent (None), or play your own file from the sounds folder (Show in Finder opens it; Choose File… copies a file in). Play sounds turns them all off at once. If there is no Keychain key, Khuluma looks for `ELEVENLABS_API_KEY` or `ELEVEN_LABS_API_KEY` in its environment or as a literal export in supported zsh settings without executing those files.
 
+**Delivery:** on Settings → Text, **App rules** let one app always paste without sending, or always send, whatever the Auto-send switch says; the paste-only key still wins everywhere. **Restore clipboard after pasting** puts back what you had copied once the text has pasted; the dictation stays in History.
+
 In Finder, right-click an audio or video file and choose **Transcribe with Local** or **Transcribe with Cloud**. Local uses Parakeet. Cloud asks before uploading the selected files to ElevenLabs, uses your API credits, detects the language and includes sound labels. Either action writes a separate `.txt` beside each file and copies the transcript to the clipboard. The app's bundled file transcription command uses Parakeet.
 
 - **Timed-out takes:** when the daemon times out on a take, its audio is kept privately for an hour. **Retry** transcribes it again, and **Paste retried dictation** pastes it wherever you are, without sending. If Scribe fails, including on a network or authentication error, Khuluma keeps the recording for recovery.

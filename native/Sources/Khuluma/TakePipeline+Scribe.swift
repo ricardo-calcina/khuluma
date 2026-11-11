@@ -38,7 +38,10 @@ extension TakePipeline {
       return .noSpeech
     case .text(let text, var record):
       let cleanedAt = monotonicMs()
-      let steps = DeliveryPlan.steps(text: text, delivery: take.delivery(config.delivery),
+      let (delivery, rule) = take.ruledDelivery(config) {
+        DispatchQueue.main.sync { NSWorkspace.shared.frontmostApplication?.bundleIdentifier }
+      }
+      let steps = DeliveryPlan.steps(text: text, delivery: delivery,
                                      hasOriginalApp: take.originalApp != nil)
       let target: String?
       do {
@@ -64,6 +67,7 @@ extension TakePipeline {
         line.add("waits", DeliveryPlan.waitMs(steps))
         line.add("chars", text.count)
         line.add("target", target ?? "-")
+        if let rule { line.add("rule", rule) }
       }
       return .delivered(recorded: persister.persist(record))
     }

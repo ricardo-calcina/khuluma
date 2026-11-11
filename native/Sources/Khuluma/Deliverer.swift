@@ -15,6 +15,67 @@ enum Deliverer {
   /// The post-event check, replaceable in tests.
   nonisolated(unsafe) static var postEventAllowed: () -> Bool = { CGPreflightPostEventAccess() }
 
+  /// The general pasteboard before a dictation overwrites it, per item per
+  /// type. Kept whole: restoring means writing every item back.
+  private typealias ClipboardSnapshot = [[String: Data]]
+  /// A restore still due when another delivery starts: its snapshot is the
+  /// user's clipboard (the pasteboard between holds dictation text).
+  nonisolated(unsafe) private static var pendingRestore: (snapshot: ClipboardSnapshot, token: Int)?
+  nonisolated(unsafe) private static var restoreToken = 0
+
+  /// Snapshots the pasteboard on the main thread. A pending restore's
+  /// snapshot is adopted (and the pending one cancelled) so back-to-back
+  /// dictations put back the user's own clipboard. nil: nothing to restore
+  /// or too large (logged).
+  private static func snapshotClipboard() -> ClipboardSnapshot? {
+    DispatchQueue.main.sync {
+      if let pending = pendingRestore {
+        pendingRestore = nil
+        return pending.snapshot
+      }
+      let items = (NSPasteboard.general.pasteboardItems ?? []).map { item -> [String: Data] in
+        var types: [String: Data] = [:]
+        for type in item.types {
+          if let data = item.data(forType: type) { types[type.rawValue] = data }
+        }
+        return types
+      }.filter { !$0.isEmpty }
+      let sizes = items.map { $0.values.reduce(0) { $0 + $1.count } }
+      switch ClipboardRestore.plan(itemSizes: sizes, limitBytes: DeliveryPlan.clipboardRestoreLimitBytes) {
+      case .restore:
+        return items
+      case .skip(let reason):
+        Log.write("deliver: clipboard not restored (\(reason))")
+        return nil
+      }
+    }
+  }
+
+  /// Schedules the write-back on the main queue after the delay; it runs
+  /// only if the pasteboard still holds what was pasted.
+  private static func scheduleRestore(_ snapshot: ClipboardSnapshot, written: Int, afterMs: Int) {
+    DispatchQueue.main.async {
+      restoreToken += 1
+      let token = restoreToken
+      pendingRestore = (snapshot, token)
+      DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(afterMs)) {
+        guard pendingRestore?.token == token else { return }
+        pendingRestore = nil
+        let board = NSPasteboard.general
+        guard ClipboardRestore.shouldRestore(written: written, current: board.changeCount) else {
+          Log.write("deliver: clipboard left alone (changed since paste)")
+          return
+        }
+        board.clearContents()
+        board.writeObjects(snapshot.map { types -> NSPasteboardItem in
+          let item = NSPasteboardItem()
+          for (type, data) in types { item.setData(data, forType: NSPasteboard.PasteboardType(rawValue: type)) }
+          return item
+        })
+      }
+    }
+  }
+
   /// Runs on a background queue; waits are real sleeps between steps.
   /// Returns the app that was frontmost when the first key was posted (the
   /// one that received the paste), for the log.
@@ -23,6 +84,8 @@ enum Deliverer {
     // The clipboard needs no permission, so the text is never lost: copy it
     // first, then require Accessibility only for activation and key events.
     var remaining = steps[...]
+    let snapshot = steps.contains { if case .restoreClipboard = $0 { return true }; return false }
+      ? snapshotClipboard() : nil
     while case .setClipboard(let text)? = remaining.first {
       DispatchQueue.main.sync {
         let board = NSPasteboard.general
@@ -31,6 +94,9 @@ enum Deliverer {
       }
       remaining = remaining.dropFirst()
     }
+    // The changeCount the restore step compares against.
+    let written = snapshot == nil ? 0
+      : DispatchQueue.main.sync { NSPasteboard.general.changeCount }
     // A denied or revoked permission fails the delivery: macOS would drop the
     // key events silently and the take would look delivered. The text stays
     // on the clipboard.
@@ -74,6 +140,8 @@ enum Deliverer {
         postKey(code: code, command: command, control: control)
       case .key(let code, let command, let control):
         postKey(code: code, command: command, control: control)
+      case .restoreClipboard(let afterMs):
+        if let snapshot { scheduleRestore(snapshot, written: written, afterMs: afterMs) }
       }
     }
     return target
@@ -97,7 +165,7 @@ private extension DeliveryStep {
   var postsKey: Bool {
     switch self {
     case .shortcut, .key: true
-    case .setClipboard, .activateOriginalApp, .wait: false
+    case .setClipboard, .activateOriginalApp, .wait, .restoreClipboard: false
     }
   }
 }

@@ -230,6 +230,24 @@ public struct SettingsStore: Sendable {
     }
   }
 
+  /// The whole `inline.app_rules` list in one locked write, with the same
+  /// rules the decoder applies (unique non-empty bundle ids, ≤ 100).
+  @discardableResult
+  public func setAppRules(_ rules: [AppSettings.AppRule]) throws -> AppSettings {
+    guard rules.count <= 100 else { throw InvalidSetting("at most 100 app rules") }
+    var seen = Set<String>()
+    for rule in rules {
+      guard !rule.bundleID.isEmpty, !rule.bundleID.contains("\n"), !rule.bundleID.contains("\r"),
+            !rule.name.isEmpty, !rule.name.contains("\n"), !rule.name.contains("\r") else {
+        throw InvalidSetting("app rules need a single-line bundle id and name")
+      }
+      guard seen.insert(rule.bundleID.lowercased()).inserted else {
+        throw InvalidSetting("two rules name \(rule.bundleID)")
+      }
+    }
+    return try update(clearsWarning: false) { $0.inline.appRules = rules }
+  }
+
   /// One locked write for both halves of an event's sound choice, so a
   /// pop-up selection can't be torn between two saves.
   @discardableResult
@@ -279,6 +297,8 @@ public struct SettingsStore: Sendable {
       let b = try bool(); return { $0.debug.keepLogs = b }
     case "inline.autosend":
       let b = try bool(); return { $0.inline.autosend = b }
+    case "inline.restore_clipboard":
+      let b = try bool(); return { $0.inline.restoreClipboard = b }
     case "audio.sounds.enabled":
       let b = try bool(); return { $0.sounds.enabled = b }
     case "audio.sounds.start.enabled", "audio.sounds.stop.enabled", "audio.sounds.process.enabled",

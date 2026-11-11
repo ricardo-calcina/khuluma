@@ -238,7 +238,10 @@ final class TakePipeline {
     case .text(let raw, let text):
       record.rawText = raw
       record.text = text
-      let steps = DeliveryPlan.steps(text: text, delivery: take.delivery(config.delivery),
+      let (delivery, rule) = take.ruledDelivery(config) {
+        DispatchQueue.main.sync { NSWorkspace.shared.frontmostApplication?.bundleIdentifier }
+      }
+      let steps = DeliveryPlan.steps(text: text, delivery: delivery,
                                      hasOriginalApp: take.originalApp != nil)
       let target: String?
       do {
@@ -277,6 +280,7 @@ final class TakePipeline {
         line.add("waits", DeliveryPlan.waitMs(steps))
         line.add("chars", text.count)
         line.add("target", target ?? "-")
+        if let rule { line.add("rule", rule) }
       }
       return .handled(.delivered(recorded: persister.persist(record)))
     }

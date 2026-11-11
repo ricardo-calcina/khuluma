@@ -103,6 +103,16 @@ enum StatsSnapshot {
       sounds.refreshConfiguredSounds()
       sounds.page = .sounds
       save("settings-sounds", view: AnyView(SettingsView(model: sounds)), width: 560, height: 634)
+      // Text with two app rules and the clipboard restore switch on.
+      var textFixture = UISettingsFixture()
+      textFixture.set("inline", key: "restore_clipboard", value: true)
+      textFixture.set("inline", key: "app_rules", value: [
+        ["bundle_id": "com.example.messages", "name": "Messages", "autosend": true],
+        ["bundle_id": "com.example.draftpad", "name": "Draftpad", "autosend": false],
+      ])
+      let textRules = try textFixture.model()
+      textRules.page = .text
+      save("settings-text-rules", view: AnyView(SettingsView(model: textRules)), width: 560, height: 634)
       // A chosen microphone that isn't connected: still chosen, with a note.
       let missingMicrophone = try UISettingsFixture().model()
       missingMicrophone.page = .recording
@@ -324,7 +334,7 @@ private struct UISettingsFixture {
     }
   }
 
-  private mutating func set(_ section: String, key: String, value: Any) {
+  mutating func set(_ section: String, key: String, value: Any) {
     var object = values[section] as! [String: Any]
     object[key] = value
     values[section] = object
