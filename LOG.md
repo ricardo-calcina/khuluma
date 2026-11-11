@@ -2,9 +2,9 @@
 
 ## Now
 
-Pick up (Hex parity push): History tab and paste-last shortcut built in source, not installed (build 492 is running) · next: install on Ricardo's OK and check live (History list, search, copy, paste-last hot key), then a few days of real use before merging to main · branch: wip/hex-parity
+Pick up (Hex parity push): build 494 installed (d02add2) with the History tab and paste-last shortcut; every planned slice is in · next: a few days of Ricardo's real use (long takes, live transcription, app rules, clipboard restore, History, paste-last), then merge to main on his OK · branch: wip/hex-parity
 
-Installed build 492 on 2026-11-11 (Ricardo's OK, e8c12e3, from wip/hex-parity). Rollback: `~/Applications/.khuluma-app.nAOhx2/previous.app` (build 490). Earlier: Installed build 490 on 2026-11-11 (Ricardo's OK, 8896b11, from wip/hex-parity). Rollback: `~/Applications/.khuluma-app.J0WSN6/previous.app` (build 486); build 470, the last one from before this push, is `~/Applications/.khuluma-app.s8gnMk/previous.app`. Rollbacks for 464, 476, 478, 481 and 483 are also still there (V9Bt9W, cf3alm, A88hoo, HjMnkA, dYvZKO).
+Installed build 494 on 2026-11-11 (Ricardo's OK, d02add2, from wip/hex-parity). Rollback: `~/Applications/.khuluma-app.RBK4ff/previous.app` (build 492). Earlier: Installed build 492 on 2026-11-11 (Ricardo's OK, e8c12e3, from wip/hex-parity). Rollback: `~/Applications/.khuluma-app.nAOhx2/previous.app` (build 490). Earlier: Installed build 490 on 2026-11-11 (Ricardo's OK, 8896b11, from wip/hex-parity). Rollback: `~/Applications/.khuluma-app.J0WSN6/previous.app` (build 486); build 470, the last one from before this push, is `~/Applications/.khuluma-app.s8gnMk/previous.app`. Rollbacks for 464, 476, 478, 481 and 483 are also still there (V9Bt9W, cf3alm, A88hoo, HjMnkA, dYvZKO).
 
 Hex parity push (Ricardo, 2026-11-10): after comparing Khuluma with anomalyco/hex, bring over what suits a Mac-only app, in slices on `wip/hex-parity`, each one a setting. Order and what was left out are in Next and Decisions.
 
@@ -132,6 +132,7 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 
 ## Done
 
+- 2026-11-11 · Installed build 494 with the History tab and paste-last shortcut (Ricardo's OK); app and daemon relaunched warm · ~/Applications/.khuluma-app.RBK4ff/previous.app
 - 2026-11-11 · History tab (search, copy, grouped by day) and optional paste-last-dictation shortcut; source only, not installed · wip/hex-parity
 - 2026-11-11 · Installed build 492 with per-app rules and restore-clipboard (Ricardo's OK); app and daemon relaunched warm · ~/Applications/.khuluma-app.nAOhx2/previous.app
 - 2026-11-11 · Per-app auto-send rules (Settings → Text → Delivery) and opt-in restore-clipboard after pasting; source only, not installed · wip/hex-parity
