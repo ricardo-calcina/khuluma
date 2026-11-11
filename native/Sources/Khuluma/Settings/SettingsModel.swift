@@ -26,7 +26,7 @@ final class SettingsModel: ObservableObject {
   @Published var failed = false
   @Published var loginStatus = LoginItem.status
   /// The Settings tab's page. Kept here so it survives tab switches; not saved.
-  @Published var page: SettingsPage = .dictation {
+  @Published var page: SettingsPage = .recording {
     didSet { keyDraft = "" }
   }
   /// Where the ElevenLabs key was found (never the key itself).

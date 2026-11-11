@@ -2,7 +2,7 @@
 
 ## Now
 
-Pick up (Hex parity push): build 483 installed (19181ca) with the Transcribe while recording switch; Ricardo is testing it · next: read the live=on lines in app.log and check `live/` is empty after normal takes, then slice 4 · branch: wip/hex-parity
+Pick up (Hex parity push): six-page Settings and the two repetition controls built in source, not installed (build 483 is, with Transcribe while recording on and working on Ricardo's first takes) · next: Ricardo's OK to install; keep reading live=on takes, the five-minute ones especially; then slice 4 · branch: wip/hex-parity
 
 Installed build 483 on 2026-11-10 (Ricardo's OK, 19181ca, from wip/hex-parity). Rollback: `~/Applications/.khuluma-app.HjMnkA/previous.app` (build 481); build 470, the last one from before this push, is `~/Applications/.khuluma-app.s8gnMk/previous.app`. Rollbacks for 464, 476 and 478 are also still there (V9Bt9W, cf3alm, A88hoo).
 
@@ -68,10 +68,10 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 - [ ] P1 · Phase 1 after the native writers: port config, bundle and supervise the daemon, add model download and bundled sounds, then port or drop CLI fallbacks; keep shared files/locks compatible while both writers exist · added 2026-10-22
 - [ ] P1 · Phase 1 delivery: use PostEvent permission gates and a bundled child daemon; verify clean-account dictation/Stats/history without CLI and 14 days without CLI invocations or usage mismatch before calling it independent · added 2026-10-22
 - [ ] P2 · Add “Show app icon in Dock” next to the Open at login setting · added 2026-10-24
-- [ ] P2 · Clarify the Repetition selector with plain labels and before/after examples; explain each option’s scope, preserved repeats and how it interacts with cleanup · added 2026-10-24
+- [x] P2 · Clarify the Repetition selector with plain labels and before/after examples; explain each option’s scope, preserved repeats and how it interacts with cleanup · added 2026-10-24
 - [ ] P2 · Audit existing CLI/config options against the app Settings; identify useful controls still missing from the UI before expanding it · added 2026-10-24
 - [ ] P2 · Cleanup round (after the split): better transcript cleanup with selectable levels, including an optional cloud model; covers the repetition labels, repeated-word cleanup and Parakeet vs Scribe items · added 2026-11-05
-- [ ] P2 · Test conservative repeated-word cleanup such as “don't don't”, preserving intentional emphasis and grammatical doubles · added 2026-10-24
+- [x] P2 · Test conservative repeated-word cleanup such as “don't don't”, preserving intentional emphasis and grammatical doubles · added 2026-10-24
 - [ ] P2 · Compare Parakeet and ElevenLabs Scribe on real repeats, intonation and laughter/non-speech output; verify provider behavior before choosing cleanup rules · added 2026-10-24
 - [x] P2 · Remove old command/env/app compatibility after canonical-only caller and daily-app checks · added 2026-10-23
 - [x] P2 · Align formula updater and intact source/tap siblings at khuluma and homebrew-tap · added 2026-10-22
@@ -95,6 +95,9 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 - [ ] P3 · Deferred separate labs: voxtral-inline API/realtime dictation and faster-whisper-tool batch/subtitle/offline exploration; only after core reliability is stable · added 2026-10-22
 
 ## Decisions
+
+- Settings pages (Ricardo, 2026-11-11): General, Recording, Transcription, Text, Cloud, Advanced. The ElevenLabs key is on Cloud; delivery, cleanup and vocabulary share Text. Nothing new went to Advanced: each switch sits with what it affects.
+- Repetition cleanup (2026-11-11): two controls over one stored level. Levels 0–3 keep the bash CLI's meaning (and its parity fixtures); 4 is sentences plus single words, 5 adds 2–3 word phrases. Word-level cleanup still joins doubles such as “had had”; no keep-list yet. Ricardo's case was a spoken restart (“a branded uh a branded entry”), not a transcription fault.
 
 - Transcribe while recording (2026-11-10): cut at pauses and transcribe finished segments with the normal whole-clip path, rather than FluidAudio's streaming manager; it needs no daemon change. Simulated on 5 kept takes (33 s to 3 min, 1,420 words) with `KHULUMA_LIVE_SIMULATE=1` on the bundled CLI: the wait for transcription after stop falls from 0.5–1.8 s to 0.09–0.37 s; 13–17 words differ from the whole-clip text (about 1%, neither side clearly better) and about 110 tokens differ in punctuation or capitals. The simulation stays in the CLI helper, inert without the variable, for re-measuring.
 - Tail-rescue merge replaced (2026-11-10): the old merge needed an exact suffix match and otherwise appended the whole re-transcribed tail, repeating the last ~25 words. In history 28 of 189 takes of 12 s or more had such a repeat (0 of 23 shorter ones), 20 at the very end. `TranscriptMerge.mergeTailAnchored` only ever extends the transcript from a shared run of 3 or more words. The old function stays for the CLI-parity fixtures.
@@ -122,6 +125,9 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 
 ## Done
 
+- 2026-11-11 · Settings split into six pages; repetition cleanup is now two controls with examples and can combine sentences with words and phrases; not installed · wip/hex-parity, CHANGELOG Unreleased
+- 2026-11-11 · Added “11 Labs” and “eleven labs” → ElevenLabs to Ricardo's Brands (file edit with a backup in vocabulary-backups) · ~/Library/Application Support/Khuluma/vocabulary.json
+- 2026-11-11 · First takes with Transcribe while recording on build 483: 70 s take delivered 0.66 s after stop (live, 4 segments), 15 s take 0.60 s; no fallbacks, live/ empty · app.log 06:02Z, 06:03Z
 - 2026-11-10 · Installed build 483 (Transcribe while recording, Ricardo's OK); removed temp builds at his request (four app-build workspaces, /private/tmp finder-preview, scribe-tests, swift-check, claude-501/d2-build, hex-compare), about 3 GB; kept native/.build, the rollback apps and the test fixture roots · ~/Applications/.khuluma-app.HjMnkA/previous.app
 - 2026-11-10 · Transcribe while recording in source: LiveSession, LiveSpool, switch in Settings › Dictation, whole-clip fallback, launch recovery of interrupted recordings; pure parts tested, the pipeline join has no test seam; not installed · wip/hex-parity, CHANGELOG Unreleased
 - 2026-11-10 · Installed build 481 with the tail-merge fix (Ricardo's OK); app and daemon relaunched warm · ~/Applications/.khuluma-app.A88hoo/previous.app

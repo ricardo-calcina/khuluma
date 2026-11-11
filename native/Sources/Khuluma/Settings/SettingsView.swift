@@ -4,14 +4,16 @@ import SwiftUI
 
 /// The Settings tab's pages, in sidebar order.
 enum SettingsPage: String, CaseIterable, Identifiable {
-  case general, dictation, cleanup, advanced
+  case general, recording, transcription, text, cloud, advanced
   var id: String { rawValue }
 
   var title: String {
     switch self {
     case .general: "General"
-    case .dictation: "Dictation"
-    case .cleanup: "Cleanup"
+    case .recording: "Recording"
+    case .transcription: "Transcription"
+    case .text: "Text"
+    case .cloud: "Cloud"
     case .advanced: "Advanced"
     }
   }
@@ -19,8 +21,10 @@ enum SettingsPage: String, CaseIterable, Identifiable {
   var symbol: String {
     switch self {
     case .general: "gearshape"
-    case .dictation: "mic"
-    case .cleanup: "wand.and.stars"
+    case .recording: "mic"
+    case .transcription: "waveform"
+    case .text: "text.alignleft"
+    case .cloud: "cloud"
     case .advanced: "wrench.and.screwdriver"
     }
   }
@@ -69,7 +73,8 @@ struct SettingsView: View {
     }
     .padding(.horizontal, 10)
     .padding(.vertical, 18)
-    .frame(width: 150)
+    // Wide enough for "Transcription" on one line.
+    .frame(width: 165)
   }
 
   private func select(_ page: SettingsPage) {
@@ -91,8 +96,10 @@ struct SettingsView: View {
   @ViewBuilder private var page: some View {
     switch model.page {
     case .general: general
-    case .dictation: dictation
-    case .cleanup: cleanup
+    case .recording: recording
+    case .transcription: transcription
+    case .text: text
+    case .cloud: cloud
     case .advanced: advanced
     }
   }
@@ -137,8 +144,8 @@ struct SettingsView: View {
     }
   }
 
-  @ViewBuilder private var dictation: some View {
-    SettingsGroup("Recording") {
+  @ViewBuilder private var recording: some View {
+    SettingsGroup("Shortcuts") {
       SettingsRow("Shortcut", note: "Press once to start, again to finish. Control–Escape cancels.") {
         ShortcutRecorder(value: model.config?.hotkey ?? "", isEnabled: model.editable,
                          onCapture: { model.save("app.hotkey", $0) },
@@ -146,7 +153,7 @@ struct SettingsView: View {
           .fixedSize()
       }
       .help("Click to record a shortcut. Press it once to start dictation, then again to finish. Control–Escape cancels dictation.")
-      SettingsRow("Hold to talk", note: "Hold to record, release to finish. Off until you set a shortcut.") {
+      SettingsRow("Hold to talk", note: "Hold to record, release to finish. Off until you set a shortcut.", last: true) {
         HStack(spacing: 8) {
           ShortcutRecorder(value: model.holdHotkey, isEnabled: model.editable,
                            onCapture: { model.setHoldHotkey($0) },
@@ -159,6 +166,8 @@ struct SettingsView: View {
         }
       }
       .help("A second shortcut: hold it to record, release to finish. A quick tap discards the take.")
+    }
+    SettingsGroup("Microphone and sounds") {
       microphoneRow
       SettingsRow("Sounds", last: true) {
         Toggle("Sounds", isOn: setting("audio.sounds.enabled", model.config?.soundsEnabled ?? true))
@@ -185,7 +194,10 @@ struct SettingsView: View {
           .labelsHidden()
       }
     }
-    SettingsGroup("Transcription") {
+  }
+
+  @ViewBuilder private var transcription: some View {
+    SettingsGroup("Model") {
       // Shown before Scribe is chosen too: choosing it saves at once.
       SettingsRow("Dictation model",
                   note: "Scribe uploads new and recovered dictation to ElevenLabs and uses your credits.") {
@@ -196,8 +208,15 @@ struct SettingsView: View {
         .labelsHidden().fixedSize()
         .disabled(!model.editable)
       }
+      if model.provider == "elevenlabs", model.config?.transcription.keyAvailable != true {
+        SettingsRow("Scribe needs an ElevenLabs key.") {
+          Button("Open Cloud") { model.page = .cloud }
+            .fixedSize()
+        }
+      }
       SettingsRow("Transcribe while recording",
-                  note: "Finishes long dictation faster and saves the recording to disk as you speak. Parakeet only.") {
+                  note: "Finishes long dictation faster and saves the recording to disk as you speak. Parakeet only.",
+                  last: model.provider != "elevenlabs") {
         Toggle("Transcribe while recording", isOn: Binding(get: { model.liveTranscription },
                                                            set: model.setLiveTranscription))
           .labelsHidden()
@@ -213,7 +232,7 @@ struct SettingsView: View {
           .disabled(!model.editable)
           .help("Auto-detect lets Scribe recognise the language of each recording.")
         }
-        SettingsRow("Label sounds", note: "Include labels like (laughter) in Scribe dictation.") {
+        SettingsRow("Label sounds", note: "Include labels like (laughter) in Scribe dictation.", last: true) {
           Toggle("Label sounds", isOn: setting("transcription.scribe_tag_audio_events",
                                                model.config?.transcription.scribeTagAudioEvents ?? true))
             .labelsHidden()
@@ -221,9 +240,18 @@ struct SettingsView: View {
             .help("Include labels for sounds such as laughter in Scribe dictation.")
         }
       }
+    }
+  }
+
+  @ViewBuilder private var cloud: some View {
+    SettingsGroup("ElevenLabs") {
+      Text("Audio only leaves this Mac when you choose Scribe or Transcribe with Cloud.")
+        .font(.callout).foregroundStyle(.secondary)
+        .fixedSize(horizontal: false, vertical: true)
+        .padding(.bottom, 6)
       let available = model.config?.transcription.keyAvailable == true
       SettingsRow("ElevenLabs key", note: Self.keyStatus(model.keySource, available: available),
-                  footnote: "Used for Scribe dictation and Transcribe with Cloud. Saved keys go in Keychain.",
+                  footnote: "Used for Scribe dictation and Finder's Transcribe with Cloud. Saved keys go in Keychain.",
                   last: true) {
         HStack(spacing: 8) {
           SecureField("API key", text: $model.keyDraft)
@@ -240,6 +268,17 @@ struct SettingsView: View {
         }
       }
     }
+  }
+
+  private static func keyStatus(_ source: ScribeCredential.Source?, available: Bool) -> String {
+    switch source {
+    case .keychain?: return "In Keychain"
+    case .environment?, .shellSettings?: return "From shell settings"
+    case nil: return available ? "Available" : "Missing"
+    }
+  }
+
+  @ViewBuilder private var text: some View {
     SettingsGroup("Delivery") {
       SettingsRow("Auto-send", note: "Paste the transcript, then send it with your send key.") {
         Toggle("Auto-send", isOn: setting("inline.autosend", model.config?.inline.autosend ?? false))
@@ -259,31 +298,38 @@ struct SettingsView: View {
         .help("Hold this key with your shortcut when you finish a take to paste it without sending.")
       }
     }
-  }
-
-  private static func keyStatus(_ source: ScribeCredential.Source?, available: Bool) -> String {
-    switch source {
-    case .keychain?: return "In Keychain"
-    case .environment?, .shellSettings?: return "From shell settings"
-    case nil: return available ? "Available" : "Missing"
-    }
-  }
-
-  @ViewBuilder private var cleanup: some View {
     SettingsGroup("Cleanup") {
-      SettingsRow("Clean up dictation", note: "Removes the fillers in your vocabulary.") {
+      SettingsRow("Clean up dictation",
+                  note: "Removes the fillers in your vocabulary. The two options below need this on.") {
         Toggle("Clean up dictation", isOn: setting("clean.enabled", model.config?.cleanup.clean == "1"))
           .labelsHidden()
           .disabled(!model.editable)
       }
-      SettingsRow("Repetition", note: "Sentence cleanup keeps changed wording and short emphasis.", last: true) {
-        Picker("Repetition", selection: Binding(
-          get: { model.config?.cleanup.repeatsLevel ?? "0" },
-          set: { model.save("clean.repeats_level", $0) })) {
-          Text("Keep repetitions").tag("0")
-          Text("Repeated words").tag("1")
-          Text("Words and short phrases").tag("2")
-          Text("Exact repeated sentences").tag("3")
+      SettingsRow("Repeated sentences",
+                  note: "A sentence of five or more words said twice in a row is kept once.") {
+        Toggle("Repeated sentences", isOn: Binding(
+          get: { RepetitionChoice(level: model.config?.cleanup.repeatsLevel ?? "0").sentences },
+          set: { on in
+            var choice = RepetitionChoice(level: model.config?.cleanup.repeatsLevel ?? "0")
+            choice.sentences = on
+            model.save("clean.repeats_level", choice.level)
+          }))
+          .labelsHidden()
+          .disabled(!model.editable || model.config?.cleanup.clean != "1")
+      }
+      SettingsRow("Repeated words",
+                  note: repeatedWordsNote,
+                  last: true) {
+        Picker("Repeated words", selection: Binding(
+          get: { RepetitionChoice(level: model.config?.cleanup.repeatsLevel ?? "0").words },
+          set: { words in
+            var choice = RepetitionChoice(level: model.config?.cleanup.repeatsLevel ?? "0")
+            choice.words = words
+            model.save("clean.repeats_level", choice.level)
+          })) {
+          Text("Keep").tag(RepetitionChoice.Words.keep)
+          Text("Single words").tag(RepetitionChoice.Words.words)
+          Text("Words and short phrases").tag(RepetitionChoice.Words.phrases)
         }
         .labelsHidden().fixedSize()
         .disabled(!model.editable || model.config?.cleanup.clean != "1")
@@ -396,6 +442,18 @@ struct SettingsView: View {
 
   private func languageTitle(_ code: String) -> String {
     code == "auto" ? "Auto-detect" : Locale.current.localizedString(forLanguageCode: code) ?? code
+  }
+
+  /// The note under "Repeated words" follows the current selection.
+  private var repeatedWordsNote: String {
+    switch RepetitionChoice(level: model.config?.cleanup.repeatsLevel ?? "0").words {
+    case .keep:
+      "Repeated words are left as you said them."
+    case .words:
+      "\u{201C}I I think\u{201D} becomes \u{201C}I think\u{201D}. Doubles such as \u{201C}had had\u{201D} are joined too."
+    case .phrases:
+      "\u{201C}a branded a branded entry\u{201D} becomes \u{201C}a branded entry\u{201D}. Doubles such as \u{201C}had had\u{201D} are joined too."
+    }
   }
 
   private var pasteOnlyNote: String {

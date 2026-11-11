@@ -111,11 +111,12 @@ public enum TextCleanup {
     }
   }
 
-  /// Collapses stutters. `level` is Perl's `int()` of the configured level:
-  /// Level 2 collapses repeated 2–3 word phrases and words, level 1 words.
-  /// >= 3 only collapses exact adjacent sentences of at least five words,
-  /// preserving short emphasis and grammatical doubles such as "had had".
-  /// Whitespace is normalised at every level, as in the Perl.
+  /// Collapses stutters. `level` is Perl's `int()` of the configured level.
+  /// Sentences run at 3 and above (only exact adjacent sentences of at
+  /// least five words), 2–3 word phrases at 2 and 5, single words at 1, 2,
+  /// 4 and 5 — so 4 is sentences plus words and 5 is all three. Levels 0–3
+  /// are the bash CLI's and unchanged. Whitespace is normalised at every
+  /// level, as in the Perl.
   public static func cleanRepeats(_ text: String, level: Double) -> String {
     PerlText.byteMode(text) { bytes in
       PerlText.eachLine(bytes) { line in
@@ -123,11 +124,11 @@ public enum TextCleanup {
         if level >= 3 {
           out = cleanRepeatedSentences(anySpaceRun.replaceAll(out, template: " "))
         }
-        if level >= 2 && level < 3 {
+        if level == 2 || level == 5 {
           out = repeatedTriple.replaceUntilStable(out, template: "$1 $2 $3")
           out = repeatedPair.replaceUntilStable(out, template: "$1 $2")
         }
-        if level >= 1 && level < 3 {
+        if level == 1 || level == 2 || level == 4 || level == 5 {
           out = repeatedWord.replaceUntilStable(out, template: "$1")
         }
         out = anySpaceRun.replaceAll(out, template: " ")

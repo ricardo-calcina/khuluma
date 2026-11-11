@@ -254,8 +254,8 @@ public struct SettingsStore: Sendable {
     case "clean.enabled":
       let b = try bool(); return { $0.cleanup.enabled = b }
     case "clean.repeats_level":
-      guard let level = Int(value), value.count == 1, (0...3).contains(level) else {
-        throw InvalidSetting("repeat cleanup level must be 0, 1, 2 or 3")
+      guard let level = Int(value), value.count == 1, (0...5).contains(level) else {
+        throw InvalidSetting("repeat cleanup level must be between 0 and 5")
       }
       return { $0.cleanup.repeatsLevel = level }
     case "app.hotkey":

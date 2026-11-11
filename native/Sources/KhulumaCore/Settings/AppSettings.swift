@@ -87,7 +87,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
   public struct Cleanup: Codable, Equatable, Sendable {
     /// Filler removal (`[clean] enabled`).
     public var enabled = false
-    /// 0-3 (`[clean] repeats_level`).
+    /// 0-5 (`[clean] repeats_level`).
     public var repeatsLevel = 1
     /// Vocabulary corrections.
     public var vocabulary = true
@@ -105,8 +105,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
       let c = try d.container(keyedBy: CodingKeys.self)
       enabled = try c.decodeIfPresent(Bool.self, forKey: .enabled) ?? false
       repeatsLevel = try c.decodeIfPresent(Int.self, forKey: .repeatsLevel) ?? 1
-      guard (0...3).contains(repeatsLevel) else {
-        throw DecodingError.dataCorruptedError(forKey: .repeatsLevel, in: c, debugDescription: "repeats_level must be 0-3")
+      guard (0...5).contains(repeatsLevel) else {
+        throw DecodingError.dataCorruptedError(forKey: .repeatsLevel, in: c, debugDescription: "repeats_level must be 0-5")
       }
       vocabulary = try c.decodeIfPresent(Bool.self, forKey: .vocabulary) ?? true
       britishSpelling = try c.decodeIfPresent(Bool.self, forKey: .britishSpelling) ?? true

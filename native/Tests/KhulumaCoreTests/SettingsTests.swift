@@ -163,13 +163,13 @@ import Testing
       ("swift_parakeet.model_version", ""), ("swift_parakeet.model_version", "v2"),
       ("swift_parakeet.model_path", root.path + "/models/parakeet-custom-v2"), ("swift_parakeet.model_path", ""),
       ("debug.keep_logs", "1"), ("inline.autosend", "false"), ("audio.sounds.enabled", "0"), ("clean.enabled", "true"),
-      ("clean.repeats_level", "3"), ("app.hotkey", "ctrl+option+space"), ("app.hotkey", "F20"), ("app.hotkey", "⌘+⇧+k"),
+      ("clean.repeats_level", "3"), ("clean.repeats_level", "5"), ("app.hotkey", "ctrl+option+space"), ("app.hotkey", "F20"), ("app.hotkey", "⌘+⇧+k"),
     ]
     for (key, value) in good { #expect(throws: Never.self) { try store.set(key, value: value) } }
     let bad: [(String, String)] = [
       ("transcription.provider", "whisper"), ("transcription.language", "EN"), ("transcription.language", "english"),
       ("swift_parakeet.model_version", "v4"), ("swift_parakeet.model_path", root.path + "/nope"),
-      ("swift_parakeet.model_path", "a\nb"), ("debug.keep_logs", "yes"), ("clean.repeats_level", "4"),
+      ("swift_parakeet.model_path", "a\nb"), ("debug.keep_logs", "yes"), ("clean.repeats_level", "6"),
       ("clean.repeats_level", "01"), ("app.hotkey", "space"), ("app.hotkey", "F21"), ("app.hotkey", "ctrl+a+b"),
       ("app.hotkey", "hyper+a"), ("inline.send_mode", "enter"), ("history.retention_days", "3"),
     ]
@@ -177,7 +177,7 @@ import Testing
       #expect(throws: SettingsStore.InvalidSetting.self, "\(key)=\(value)") { try store.set(key, value: value) }
     }
     let s = store.load().settings
-    #expect(s.transcription.provider == "elevenlabs" && s.hotkey == "⌘+⇧+k" && s.cleanup.repeatsLevel == 3)
+    #expect(s.transcription.provider == "elevenlabs" && s.hotkey == "⌘+⇧+k" && s.cleanup.repeatsLevel == 5)
   }
 
   @Test func unknownKeysSurviveWrites() throws {

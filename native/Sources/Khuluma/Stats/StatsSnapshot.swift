@@ -79,27 +79,27 @@ enum StatsSnapshot {
       save("app-vocabulary", view: AnyView(AppView(stats: full, settings: local, navigation: vocabularyTab,
                                                    vocabulary: VocabularyModel(settings: local))),
            width: 560, height: 634)
-      // Each Settings page, plus the Scribe variants of Dictation.
+      // Each Settings page, plus the Scribe variants of Transcription.
       for page in SettingsPage.allCases {
         let model = try UISettingsFixture().model()
         model.page = page
         save("settings-\(page.rawValue)", view: AnyView(SettingsView(model: model)), width: 560, height: 634)
       }
-      for (name, model) in [("dictation-cloud", cloud), ("dictation-cloud-labels-off", labelsOff),
-                            ("dictation-key-missing", missingKey)] {
-        model.page = .dictation
+      for (name, model) in [("transcription-cloud", cloud), ("transcription-cloud-labels-off", labelsOff),
+                            ("transcription-key-missing", missingKey)] {
+        model.page = .transcription
         save("settings-\(name)", view: AnyView(SettingsView(model: model)), width: 560, height: 634)
       }
       // A chosen microphone that isn't connected: still chosen, with a note.
       let missingMicrophone = try UISettingsFixture().model()
-      missingMicrophone.page = .dictation
+      missingMicrophone.page = .recording
       missingMicrophone.selectMicrophone(PreviewInputs.missing)
       save("settings-microphone-missing", view: AnyView(SettingsView(model: missingMicrophone)), width: 560, height: 634)
       // The shortest window, with feedback showing in the footer.
       let short = try UISettingsFixture().model()
-      short.page = .dictation
+      short.page = .recording
       short.message = "Preview setting saved in memory."
-      save("settings-dictation-short", view: AnyView(SettingsView(model: short)), width: 560, height: 420)
+      save("settings-recording-short", view: AnyView(SettingsView(model: short)), width: 560, height: 420)
       save("vocabulary", view: AnyView(VocabularyView(model: VocabularyModel(settings: local), settings: local)),
            width: 560, height: 634)
       // Examples with the failing one selected, so the inspector offers its fix.
