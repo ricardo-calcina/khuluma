@@ -2,7 +2,7 @@
 
 ## Now
 
-Pick up (Hex parity push): build 486 installed (214c29c) with six-page Settings and the two repetition controls; Transcribe while recording is on and working · next: keep reading live=on takes, the five-minute ones especially; then slice 4 · branch: wip/hex-parity
+Pick up (Hex parity push): build 486 installed; Sounds page being built in source · next: review and install Sounds, then per-app auto-send rules with restore-clipboard, then the History tab with paste-last; merge wip/hex-parity to main once those have settled · branch: wip/hex-parity
 
 Installed build 486 on 2026-11-11 (Ricardo's OK, 214c29c, from wip/hex-parity). Rollback: `~/Applications/.khuluma-app.dYvZKO/previous.app` (build 483); build 470, the last one from before this push, is `~/Applications/.khuluma-app.s8gnMk/previous.app`. Rollbacks for 464, 476, 478 and 481 are also still there (V9Bt9W, cf3alm, A88hoo, HjMnkA).
 
@@ -36,7 +36,11 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 - [ ] P1 · Tail-merge fix is in build 481: after a few days, recount repeated endings in history for takes from 2026-11-10 on (was 28 of 189; the count is in Decisions). Original item: watch history for repeated endings: before the fix 28 of 189 takes of 12 s or more had one · added 2026-11-10
 - [x] P1 · Hex parity slice 3b: Transcribe while recording wired into the app as a switch, with the recording spooled to disk · added 2026-11-10
 - [ ] P1 · Slice 3b is in build 483; check on real takes: `live=on` lines in app.log (stop→delivered, live_segments, live_forced, any live=fallback and its reason), a crash-recovery try (force-quit mid-recording, relaunch, take appears in history), and that nothing is left in `~/Library/Application Support/Khuluma/live/` after normal takes · added 2026-11-10
-- [ ] P2 · Hex parity slice 4: History window with paste-last (already in phase 2), a Labs page for experiments, and "Keep microphone ready" (pre-roll; costs an always-on mic indicator, so opt-in) · added 2026-11-10
+- [ ] P1 · Sounds page: a menu and play button per event, files from the app's sounds folder, Show in Finder (Ricardo, 2026-11-11) · added 2026-11-11
+- [ ] P1 · Per-app auto-send rules (e.g. WhatsApp pastes without sending) and an opt-in "restore the clipboard after pasting" (Ricardo, 2026-11-11) · added 2026-11-11
+- [ ] P1 · History tab in the window (recent dictations, search, copy) and a "paste last dictation" shortcut, off until set (Ricardo, 2026-11-11) · added 2026-11-11
+- [ ] P1 · Merge wip/hex-parity into main once the above has had a few days of use, including five-minute takes · added 2026-11-11
+- [ ] P3 · Left from slice 4: a Labs page for experiments, and "Keep microphone ready" (pre-roll; costs an always-on mic indicator, so opt-in) · added 2026-11-10
 
 - [ ] P2 · Retire `~/.config/dictate` (pre-rename folder, untouched since 2026-10-22) so it can be binned. Still pointing at it: `~/.local/bin/tmux-whisper-lib/` (config.sh socket `~/.config/dictate/.cache/tmux-whisperd.sock` and sounds in `~/.local/share/sounds/dictate`, which is already gone) and `~/.local/bin/dictate-lib.sh`, both old tmux-whisper libs from 2026-10-21 (fits CLI sunset phase 4); `khuluma-lib/identity.sh` lines 107–119 treat `~/.config/dictate` as the legacy marker for rename-v1, so confirm removing it doesn't re-trigger or break that check; `~/.config/khuluma/tools/pad-sfx.sh` examples still say `sounds/dictate`. Then bin the remaining install leftovers once rollback isn't needed: `.khuluma-install.*` (2026-11-05) and `.khuluma-cutover-*` in `~/.local/bin`, `~/.local/share/khuluma`, `~/.config/khuluma`, plus `~/.config/khuluma/.migration` (rename-v1, committed) · added 2026-11-08
 - [x] P2 · Try Finder Local and Cloud on the same file with quiet speech and laughter and compare output and timing · added 2026-11-06
@@ -95,6 +99,9 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 - [ ] P3 · Deferred separate labs: voxtral-inline API/realtime dictation and faster-whisper-tool batch/subtitle/offline exploration; only after core reliability is stable · added 2026-10-22
 
 ## Decisions
+
+- Not doing (2026-11-11): unloading the model when idle. As macOS reports it the app's footprint is 57 MB and its daemon's 28 MB with the model warm, so there is little to free. Nor trimming the 150 ms in delivery: it is the gap between Cmd+V and the send key that Electron apps need (DeliveryPlan.minimumSendGapMs), it only applies with auto-send, and the text is already on screen before it. Updates, installer and onboarding wait until Ricardo calls a version stable.
+- The CLI's old daemon (pid 2059, `~/.local/share/khuluma/native/khulumad`) was still running on 2026-11-11, six days up; it goes with CLI sunset phase 4.
 
 - Settings pages (Ricardo, 2026-11-11): General, Recording, Transcription, Text, Cloud, Advanced. The ElevenLabs key is on Cloud; delivery, cleanup and vocabulary share Text. Nothing new went to Advanced: each switch sits with what it affects.
 - Repetition cleanup (2026-11-11): two controls over one stored level. Levels 0–3 keep the bash CLI's meaning (and its parity fixtures); 4 is sentences plus single words, 5 adds 2–3 word phrases. Word-level cleanup still joins doubles such as “had had”; no keep-list yet. Ricardo's case was a spoken restart (“a branded uh a branded entry”), not a transcription fault.
