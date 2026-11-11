@@ -157,7 +157,7 @@ struct SettingsView: View {
           .fixedSize()
       }
       .help("Click to record a shortcut. Press it once to start dictation, then again to finish. Control–Escape cancels dictation.")
-      SettingsRow("Hold to talk", note: "Hold to record, release to finish. Off until you set a shortcut.", last: true) {
+      SettingsRow("Hold to talk", note: "Hold to record, release to finish. Off until you set a shortcut.") {
         HStack(spacing: 8) {
           ShortcutRecorder(value: model.holdHotkey, isEnabled: model.editable,
                            onCapture: { model.setHoldHotkey($0) },
@@ -170,6 +170,18 @@ struct SettingsView: View {
         }
       }
       .help("A second shortcut: hold it to record, release to finish. A quick tap discards the take.")
+      SettingsRow("Paste last dictation", note: "Pastes your most recent dictation again, without sending.", last: true) {
+        HStack(spacing: 8) {
+          ShortcutRecorder(value: model.pasteLastHotkey, isEnabled: model.editable,
+                           onCapture: { model.setPasteLastHotkey($0) },
+                           onRecordingChange: model.onShortcutRecordingChange)
+            .fixedSize()
+          if !model.pasteLastHotkey.isEmpty {
+            Button("Clear") { model.setPasteLastHotkey("") }
+              .fixedSize()
+          }
+        }
+      }
     }
     SettingsGroup("Microphone") {
       microphoneRow

@@ -10,6 +10,8 @@ final class SettingsModel: ObservableObject {
   @Published private(set) var menuShowsWeek: Bool
   /// Hold-to-talk's own shortcut, "" = off (Settings › Dictation).
   @Published private(set) var holdHotkey: String
+  /// Re-paste the newest dictation, "" = off (Settings › Recording).
+  @Published private(set) var pasteLastHotkey: String
   @Published private(set) var muteWhileRecording: Bool
   @Published private(set) var keepAwakeWhileRecording: Bool
   @Published private(set) var showRecordingHUD: Bool
@@ -41,6 +43,7 @@ final class SettingsModel: ObservableObject {
   var onIconThemeChange: (StatusIconTheme) -> Void = { _ in }
   /// Runs after the hold-to-talk shortcut changes (re-register it).
   var onHoldHotkeyChange: () -> Void = {}
+  var onPasteLastHotkeyChange: () -> Void = {}
   /// Runs after a While-recording preference changes (e.g. hide the HUD).
   var onWhileRecordingChange: () -> Void = {}
   /// Each runs when anything the Microphone row shows changes.
@@ -106,6 +109,7 @@ final class SettingsModel: ObservableObject {
   private static let microphoneUIDKey = "microphoneUID"
   private static let microphoneNameKey = "microphoneName"
   private static let holdHotkeyKey = "holdHotkey"
+  private static let pasteLastHotkeyKey = "pasteLastHotkey"
   private static let muteWhileRecordingKey = "muteWhileRecording"
   private static let keepAwakeWhileRecordingKey = "keepAwakeWhileRecording"
   private static let showRecordingHUDKey = "showRecordingHUD"
@@ -119,6 +123,7 @@ final class SettingsModel: ObservableObject {
     menuFigures = MenuFigures(storedValue: defaults.string(forKey: Self.menuFiguresKey))
     menuShowsWeek = defaults.object(forKey: Self.menuShowsWeekKey) as? Bool ?? true
     holdHotkey = defaults.string(forKey: Self.holdHotkeyKey) ?? ""
+    pasteLastHotkey = defaults.string(forKey: Self.pasteLastHotkeyKey) ?? ""
     muteWhileRecording = defaults.bool(forKey: Self.muteWhileRecordingKey)
     keepAwakeWhileRecording = defaults.bool(forKey: Self.keepAwakeWhileRecordingKey)
     showRecordingHUD = defaults.bool(forKey: Self.showRecordingHUDKey)
@@ -180,8 +185,19 @@ final class SettingsModel: ObservableObject {
   }
 
   /// Read when each take starts, so a change applies from the next take.
+  /// The paste-only combination (toggle + modifier) is derived, so refuse a
+  /// change whose combo would collide with the paste-last shortcut.
   func selectPasteOnlyModifier(_ modifier: PasteOnlyModifier) {
+    if let toggle = try? HotkeySpec.parse(config?.hotkey ?? ""),
+       let combo = modifier.stopShortcut(for: toggle),
+       let last = try? HotkeySpec.parse(pasteLastHotkey), combo == last {
+      message = "\(combo.display) is your paste-last-dictation shortcut; clear it or choose another modifier"
+      failed = true
+      return
+    }
     pasteOnlyModifier = modifier
+    failed = false
+    message = nil
     if !preview || isolated { defaults.set(modifier.rawValue, forKey: Self.pasteOnlyModifierKey) }
   }
 
@@ -259,6 +275,12 @@ final class SettingsModel: ObservableObject {
   /// "" turns hold-to-talk off. A shortcut that can't be used keeps the old
   /// one and says why in the footer.
   func setHoldHotkey(_ text: String) {
+    if !text.isEmpty, let new = try? HotkeySpec.parse(text),
+       let last = try? HotkeySpec.parse(pasteLastHotkey), new == last {
+      message = "\(last.display) is your paste-last-dictation shortcut; clear it or choose another"
+      failed = true
+      return
+    }
     switch HoldPolicy.hotkey(text, toggle: try? HotkeySpec.parse(config?.hotkey ?? ""), pasteOnly: pasteOnlyShortcut) {
     case .refused(let reason):
       message = reason
@@ -270,6 +292,29 @@ final class SettingsModel: ObservableObject {
       if !preview || isolated { defaults.set(text, forKey: Self.holdHotkeyKey) }
       onHoldHotkeyChange()
     }
+  }
+
+  /// "" turns the re-paste shortcut off. It can't take over the toggle,
+  /// hold-to-talk, paste-only or cancel shortcuts.
+  func setPasteLastHotkey(_ text: String) {
+    if !text.isEmpty, let new = try? HotkeySpec.parse(text) {
+      let clashes: [(HotkeySpec?, String)] = [
+        (try? HotkeySpec.parse(config?.hotkey ?? ""), "dictation"),
+        (try? HotkeySpec.parse(holdHotkey), "hold-to-talk"),
+        (pasteOnlyShortcut, "paste-without-sending"),
+        (try? HotkeySpec.parse("ctrl+escape"), "cancel"),
+      ]
+      for (other, what) in clashes where other == new {
+        message = "\(new.display) is your \(what) shortcut; clear it or choose another"
+        failed = true
+        return
+      }
+    }
+    pasteLastHotkey = text
+    failed = false
+    message = nil
+    if !preview || isolated { defaults.set(text, forKey: Self.pasteLastHotkeyKey) }
+    onPasteLastHotkeyChange()
   }
 
   /// Read when each take starts, so a change applies from the next take.

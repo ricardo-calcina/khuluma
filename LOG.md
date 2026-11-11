@@ -2,7 +2,7 @@
 
 ## Now
 
-Pick up (Hex parity push): build 492 installed (e8c12e3) with per-app auto-send rules and restore-clipboard, waiting on Ricardo's live check · next: the History tab with paste-last · branch: wip/hex-parity
+Pick up (Hex parity push): History tab and paste-last shortcut built in source, not installed (build 492 is running) · next: install on Ricardo's OK and check live (History list, search, copy, paste-last hot key), then a few days of real use before merging to main · branch: wip/hex-parity
 
 Installed build 492 on 2026-11-11 (Ricardo's OK, e8c12e3, from wip/hex-parity). Rollback: `~/Applications/.khuluma-app.nAOhx2/previous.app` (build 490). Earlier: Installed build 490 on 2026-11-11 (Ricardo's OK, 8896b11, from wip/hex-parity). Rollback: `~/Applications/.khuluma-app.J0WSN6/previous.app` (build 486); build 470, the last one from before this push, is `~/Applications/.khuluma-app.s8gnMk/previous.app`. Rollbacks for 464, 476, 478, 481 and 483 are also still there (V9Bt9W, cf3alm, A88hoo, HjMnkA, dYvZKO).
 
@@ -132,6 +132,7 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 
 ## Done
 
+- 2026-11-11 · History tab (search, copy, grouped by day) and optional paste-last-dictation shortcut; source only, not installed · wip/hex-parity
 - 2026-11-11 · Installed build 492 with per-app rules and restore-clipboard (Ricardo's OK); app and daemon relaunched warm · ~/Applications/.khuluma-app.nAOhx2/previous.app
 - 2026-11-11 · Per-app auto-send rules (Settings → Text → Delivery) and opt-in restore-clipboard after pasting; source only, not installed · wip/hex-parity
 - 2026-11-11 · Installed build 490 with the Sounds page (Ricardo's OK); app and daemon relaunched warm · ~/Applications/.khuluma-app.J0WSN6/previous.app

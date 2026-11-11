@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add a **History** tab to the Khuluma window: recent dictations grouped by day with search and a Copy button for each one (Command-2).
+- Add a **Paste last dictation** shortcut (Settings → Recording, off by default) that pastes your most recent dictation again without sending.
 - Add per-app auto-send rules on Settings → Text: an app can always send or always paste without sending, whatever the global switch says. Paste-only still wins everywhere.
 - Add Restore clipboard after pasting (Settings → Text): after the text pastes, what you had copied comes back; the dictation stays in History.
 - Add a **Sounds** page to Settings: each moment (recording starts, stops, text delivered, cancelled, problem) can use the bundled default, be silent, or play a file you drop into the sounds folder, and Play sounds switches them all off. A file you replace there is picked up the next time the app becomes active.

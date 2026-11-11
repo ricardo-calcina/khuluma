@@ -74,7 +74,7 @@ hotkey = "ctrl+option+space"   # e.g. "cmd+shift+d", "f13"
 supervise_daemon = true        # keep the Parakeet daemon warm (launch, wake, recording start)
 ```
 
-The compact, arrowless menu panel shows words, estimated time saved and words per minute in three centered columns, for all time or today (Settings → Appearance → Menu figures), with an optional 7-day bar strip under them. Click the menu icon again to close it. Recording, processing, warm-up and error notices appear when needed. The Auto-send switch in the footer turns sending on or off. The window icon opens the Khuluma window and the gear opens it on **Settings**. The window has three tabs in its title bar, Stats, Vocabulary and Settings (Command-1/2/3; Command-comma for Settings; Escape returns to Stats).
+The compact, arrowless menu panel shows words, estimated time saved and words per minute in three centered columns, for all time or today (Settings → Appearance → Menu figures), with an optional 7-day bar strip under them. Click the menu icon again to close it. Recording, processing, warm-up and error notices appear when needed. The Auto-send switch in the footer turns sending on or off. The window icon opens the Khuluma window and the gear opens it on **Settings**. The window has four tabs in its title bar, Stats, History, Vocabulary and Settings (Command-1/2/3/4; Command-comma for Settings; Escape returns to Stats). The **History** tab lists recent dictations by day; search narrows it, and Copy puts a dictation's text back on the clipboard. Dictations are kept for the configured number of days.
 
 **Settings** has seven pages in a sidebar (General, Recording, Sounds, Transcription, Text, Cloud, Advanced). It records a new shortcut from a key press and controls the transcription provider, auto-send, the paste-without-sending key, sounds, Start at Login and diagnostic logging. Open Log, Open Config and Reload Settings live there.
 
@@ -89,6 +89,8 @@ In Finder, right-click an audio or video file and choose **Transcribe with Local
 - **Timed-out takes:** when the daemon times out on a take, its audio is kept privately for an hour. **Retry** transcribes it again, and **Paste retried dictation** pastes it wherever you are, without sending. If Scribe fails, including on a network or authentication error, Khuluma keeps the recording for recovery.
 - **Quitting:** a take still recording is saved to disk first, then transcribed into history and copied to the clipboard (never pasted). Takes already stopped and waiting for or in transcription are saved to disk too, and finish as usual. Quit waits up to 30 seconds for all of them. Saved audio and records that haven't reached history by then are finished at the next launch, into history without touching the clipboard. If a take's audio can't be written to disk, Khuluma stays open instead of losing it.
 - **Provider failures:** the app keeps the recording for recovery and does not switch providers automatically.
+
+**Paste last dictation:** an optional shortcut (Settings → Recording, off by default) pastes your most recent dictation again, without sending. It waits for the shortcut's own modifier keys to come up first, and Restore clipboard after pasting applies to it too.
 
 **Paste without sending:** with auto-send on, hold Shift as you press the shortcut to finish (for example ⇧F17 or ⌃⌥⇧Space) and that take is pasted without pressing the send key. Choose Option, Control, Command or Off in Settings → Text; the key must not already be part of your shortcut.
 

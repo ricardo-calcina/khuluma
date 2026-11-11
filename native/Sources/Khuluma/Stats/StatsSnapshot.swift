@@ -113,6 +113,32 @@ enum StatsSnapshot {
       let textRules = try textFixture.model()
       textRules.page = .text
       save("settings-text-rules", view: AnyView(SettingsView(model: textRules)), width: 560, height: 634)
+
+      // History: today/yesterday/older, a long entry and a not-pasted one.
+      let hour: TimeInterval = 3600, now = Date()
+      func entry(_ name: String, _ ago: TimeInterval, _ text: String,
+                 app: String = "Notes", delivered: Bool = true) -> DictationHistory.Item {
+        .init(id: name, date: now - ago, app: app, text: text, delivered: delivered, recordMs: 4200)
+      }
+      let entries = [
+        entry("a", 2 * hour, "Book the table for Thursday and remind Tom to bring the slides."),
+        entry("b", 5 * hour, "A short note that failed to paste.", delivered: false),
+        entry("c", 26 * hour, String(repeating: "A longer dictation goes on for a while. ", count: 12), app: "Messages"),
+        entry("d", 75 * hour, "Filed under an older day.", app: "Safari"),
+      ]
+      let history = HistoryModel()
+      history.loadItems = { _ in entries }
+      history.retentionProvider = { 14 }
+      history.adopt(entries)
+      save("history", view: AnyView(HistoryView(model: history)), width: 560, height: 634)
+      let emptyHistory = HistoryModel()
+      emptyHistory.adopt([])
+      save("history-empty", view: AnyView(HistoryView(model: emptyHistory)), width: 560, height: 634)
+      let search = HistoryModel()
+      search.loadItems = { _ in entries }
+      search.adopt(entries)
+      search.query = "table"
+      save("history-search", view: AnyView(HistoryView(model: search)), width: 560, height: 634)
       // A chosen microphone that isn't connected: still chosen, with a note.
       let missingMicrophone = try UISettingsFixture().model()
       missingMicrophone.page = .recording

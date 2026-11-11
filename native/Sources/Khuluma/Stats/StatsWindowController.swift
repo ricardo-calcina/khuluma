@@ -8,6 +8,8 @@ import KhulumaCore
 final class StatsWindowController: NSWindowController, NSWindowDelegate, NSToolbarDelegate {
   private let model: StatsModel
   private let navigation = AppNavigation()
+  /// The History tab's model (fixture-swappable).
+  let historyModel = HistoryModel()
   private let vocabulary: VocabularyModel
   private let detailsPopover = NSPopover()
   private static let tabsItem = NSToolbarItem.Identifier("Khuluma.Tabs")
@@ -29,7 +31,8 @@ final class StatsWindowController: NSWindowController, NSWindowDelegate, NSToolb
     window.title = "Khuluma"
     window.isReleasedWhenClosed = false
     window.contentViewController = NSHostingController(rootView: AppView(
-      stats: model, settings: settings, navigation: navigation, vocabulary: vocabulary))
+      stats: model, settings: settings, navigation: navigation,
+      history: historyModel, vocabulary: vocabulary))
     window.setContentSize(NSSize(width: 560, height: 712))
     window.contentMinSize = NSSize(width: 560, height: 420)
     window.center()
@@ -50,7 +53,11 @@ final class StatsWindowController: NSWindowController, NSWindowDelegate, NSToolb
     window.toolbarStyle = .unifiedCompact
     window.toolbar = toolbar
     window.onSelect = { [weak self] page in self?.navigation.selection = page }
-    window.onRefresh = { [weak self] in self?.refreshStats() }
+    window.onRefresh = { [weak self] in
+      guard let self else { return }
+      if self.navigation.selection == .history { self.historyModel.reload() }
+      else { self.refreshStats() }
+    }
     window.onEscape = { [weak self] in
       guard let self else { return false }
       if self.detailsPopover.isShown { self.detailsPopover.performClose(nil); return true }
@@ -195,7 +202,15 @@ final class StatsWindowController: NSWindowController, NSWindowDelegate, NSToolb
     return item
   }
 
-  func windowDidBecomeKey(_ notification: Notification) { model.windowBecameKey() }
+  func windowDidBecomeKey(_ notification: Notification) {
+    model.windowBecameKey()
+    historyModel.reloadIfShowing(navigation.selection)
+  }
+
+  /// After a take settles: the History page refreshes only while showing.
+  func refreshHistoryIfShowing() {
+    historyModel.reloadIfShowing(navigation.selection)
+  }
   func windowWillClose(_ notification: Notification) {
     settingsModel.keyDraft = ""
     detailsPopover.performClose(nil)
@@ -215,10 +230,11 @@ final class StatsWindowController: NSWindowController, NSWindowDelegate, NSToolb
 @MainActor
 final class AppNavigation: ObservableObject {
   enum Page: CaseIterable {
-    case stats, vocabulary, settings
+    case stats, history, vocabulary, settings
     var title: String {
       switch self {
       case .stats: return "Stats"
+      case .history: return "History"
       case .vocabulary: return "Vocabulary"
       case .settings: return "Settings"
       }
@@ -242,6 +258,7 @@ struct AppView: View {
   @ObservedObject var stats: StatsModel
   @ObservedObject var settings: SettingsModel
   @ObservedObject var navigation: AppNavigation
+  @ObservedObject var history: HistoryModel = HistoryModel()
   let vocabulary: VocabularyModel
 
   var body: some View {
@@ -254,6 +271,8 @@ struct AppView: View {
               .frame(maxWidth: .infinity)
           }
         }
+      case .history:
+        HistoryView(model: history)
       case .vocabulary:
         VocabularyView(model: vocabulary, settings: settings)
       case .settings:
@@ -285,9 +304,10 @@ private final class StatsWindow: NSWindow {
       switch event.charactersIgnoringModifiers {
       case "w": performClose(nil); return true
       case "1": onSelect(.stats); return true
-      case "2": onSelect(.vocabulary); return true
-      case "3", ",": onSelect(.settings); return true
-      case "r" where page == .stats: onRefresh(); return true
+      case "2": onSelect(.history); return true
+      case "3": onSelect(.vocabulary); return true
+      case "4", ",": onSelect(.settings); return true
+      case "r" where page == .stats || page == .history: onRefresh(); return true
       default: break
       }
     }

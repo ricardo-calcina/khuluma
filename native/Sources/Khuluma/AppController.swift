@@ -45,6 +45,13 @@ final class AppController: NSObject, NSApplicationDelegate {
   private lazy var pasteOnlyHotkey = HotkeyMonitor(signature: 0x4B48504F /* 'KHPO' */) { [weak self] in
     self?.stopRecording(pasteOnly: true)
   }
+  /// Paste-last-dictation: always bound while the app runs (off by default),
+  /// like the toggle and hold shortcuts.
+  private lazy var pasteLastKey = HotkeyMonitor(signature: 0x4B48504C /* 'KHPL' */) { [weak self] in
+    self?.pasteLast()
+  }
+  /// One re-paste at a time.
+  private var pastingLast = false
   /// One start at a time; a failed start never leaves its marker behind.
   private let starter = TakeStarter()
   /// Settings live in settings.json in the app folder.
@@ -276,14 +283,17 @@ final class AppController: NSObject, NSApplicationDelegate {
       if recording {
         self.hotkey.unregister()
         self.holdKey.unregister()
+        self.pasteLastKey.unregister()
       } else {
         if self.pipeline != nil, self.hotkey.binding == nil, let spec = try? HotkeySpec.parse(self.config?.hotkey ?? "") {
           self.registerHotkey(spec)
         }
         self.syncHoldHotkey()
+        self.syncPasteLastHotkey()
       }
     }
     settingsModel.onHoldHotkeyChange = { [weak self] in self?.syncHoldHotkey() }
+    settingsModel.onPasteLastHotkeyChange = { [weak self] in self?.syncPasteLastHotkey() }
     settingsModel.onWhileRecordingChange = { [weak self] in self?.refreshStatus() }
     menu.onWillOpen = { [weak self] in
       self?.refreshTimedOutItems()
@@ -1031,6 +1041,7 @@ final class AppController: NSObject, NSApplicationDelegate {
                enabled: settingsModel.showRecordingHUD)
     menu.show(status, recording: take != nil)
     settingsModel.recording = take != nil || starter.isStarting || status.processing > 0
+    DispatchQueue.main.async { self.statsWindow?.refreshHistoryIfShowing() }
   }
 
   // MARK: - Settings
@@ -1103,6 +1114,7 @@ final class AppController: NSObject, NSApplicationDelegate {
       fail("hotkey \"\(config.hotkey)\": \(error)")
     }
     syncHoldHotkey()
+    syncPasteLastHotkey()
   }
 
   /// Takes on settings read for a take: everything except re-registering an
@@ -1163,6 +1175,28 @@ final class AppController: NSObject, NSApplicationDelegate {
       if registerHotkey(spec) { Log.write("settings: hotkey changed to \(spec.display)") }
     }
     syncHoldHotkey()
+    syncPasteLastHotkey()
+  }
+
+  /// Binds or unbinds the paste-last-dictation key from the current
+  /// preference, with the same never-mid-take deferral as hold-to-talk.
+  private func syncPasteLastHotkey() {
+    guard take == nil, !starter.isStarting else { return }
+    let text = settingsModel.pasteLastHotkey
+    guard !text.isEmpty else {
+      if pasteLastKey.binding != nil { pasteLastKey.unregister() }
+      return
+    }
+    guard let spec = try? HotkeySpec.parse(text) else {
+      pasteLastKey.unregister()
+      return
+    }
+    do {
+      try pasteLastKey.register(spec)
+    } catch {
+      let kept = pasteLastKey.binding.map { "; keeping \($0.display)" } ?? ""
+      fail("\(error.localizedDescription)\(kept)")
+    }
   }
 
   /// Binds or unbinds the hold-to-talk key from the current preference.
@@ -1326,6 +1360,54 @@ final class AppController: NSObject, NSApplicationDelegate {
     }
   }
 
+  /// The paste-last-dictation shortcut: re-pastes the newest history entry,
+  /// without sending and with no new history/usage record. Ignored while a
+  /// take is recording or another paste is in flight.
+  private func pasteLast() {
+    guard take == nil, !starter.isStarting, !pastingRetry, !pastingLast else {
+      Log.write("paste-last: ignored while a take or paste is in flight")
+      return
+    }
+    pastingLast = true
+    // Khuluma never takes focus, so this is the app the user chose Paste in.
+    let chosen = NSWorkspace.shared.frontmostApplication
+    let restoreClipboard = config?.inline.restoreClipboard ?? false
+    let delivery = Delivery(autosend: false, sendMode: "enter", pasteTarget: "current",
+                            activateDelayMs: 0, sendDelayMs: 0, restoreClipboard: restoreClipboard)
+    let directory = AppRuntimePaths.support.appendingPathComponent("history", isDirectory: true)
+    pasteQueue.async { [weak self] in
+      defer {
+        DispatchQueue.main.async { self?.pastingLast = false }
+      }
+      guard let item = DictationHistory.latest(directory: directory) else {
+        DispatchQueue.main.async { self?.fail("no dictation to paste yet") }
+        return
+      }
+      // Let the shortcut's own modifiers come up so Cmd-V isn't combined
+      // with them (Cmd-Opt-V is paste-and-match-style in some apps).
+      for _ in 0..<60 {
+        let flags = CGEventSource.flagsState(.combinedSessionState)
+        if flags.intersection([.maskShift, .maskControl, .maskAlternate, .maskCommand]).isEmpty { break }
+        usleep(10_000)
+      }
+      let front = DispatchQueue.main.sync { NSWorkspace.shared.frontmostApplication }
+      guard front?.processIdentifier == chosen?.processIdentifier else {
+        DispatchQueue.main.async {
+          self?.fail("didn't paste: \(front?.localizedName ?? "another app") came to the front")
+        }
+        return
+      }
+      do {
+        let target = try Deliverer.perform(
+          DeliveryPlan.steps(text: item.text, delivery: delivery, hasOriginalApp: false),
+          originalApp: nil)
+        Log.write("paste-last: pasted \(item.text.count) chars, target=\(target ?? "-")")
+      } catch {
+        DispatchQueue.main.async { self?.fail("didn't paste: \(error.localizedDescription)") }
+      }
+    }
+  }
+
   /// Pastes the retried text into the app in front (never sends). The
   /// recording is dropped only once the paste went through.
   private func pasteRetried() {
@@ -1417,6 +1499,9 @@ final class AppController: NSObject, NSApplicationDelegate {
       let window = statsWindow ?? StatsWindowController(
         model: statsModel, settings: settingsModel)
       statsWindow = window
+      window.historyModel.retentionProvider = { [weak self] in
+        self?.settingsStore.load().settings.history.retentionDays ?? 7
+      }
       settingsModel.loginStatus = LoginItem.status
       window.show(settings: settings)
     }
@@ -1513,6 +1598,13 @@ final class AppController: NSObject, NSApplicationDelegate {
        let hold = holdKey.binding ?? (try? HotkeySpec.parse(settingsModel.holdHotkey)),
        let spec = try? HotkeySpec.parse(value), spec == hold {
       settingsModel.finished(error: "\(hold.display) is your hold-to-talk shortcut; clear it or choose another")
+      return
+    }
+    // The toggle shortcut can't take over the paste-last-dictation key.
+    if key == "app.hotkey",
+       let last = pasteLastKey.binding ?? (try? HotkeySpec.parse(settingsModel.pasteLastHotkey)),
+       let spec = try? HotkeySpec.parse(value), spec == last {
+      settingsModel.finished(error: "\(last.display) is your paste-last-dictation shortcut; clear it or choose another")
       return
     }
     if key == "app.hotkey" {
