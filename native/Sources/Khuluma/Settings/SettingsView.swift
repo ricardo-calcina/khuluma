@@ -1,16 +1,18 @@
 import AppKit
 import KhulumaCore
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// The Settings tab's pages, in sidebar order.
 enum SettingsPage: String, CaseIterable, Identifiable {
-  case general, recording, transcription, text, cloud, advanced
+  case general, recording, sounds, transcription, text, cloud, advanced
   var id: String { rawValue }
 
   var title: String {
     switch self {
     case .general: "General"
     case .recording: "Recording"
+    case .sounds: "Sounds"
     case .transcription: "Transcription"
     case .text: "Text"
     case .cloud: "Cloud"
@@ -22,6 +24,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
     switch self {
     case .general: "gearshape"
     case .recording: "mic"
+    case .sounds: "speaker.wave.2"
     case .transcription: "waveform"
     case .text: "text.alignleft"
     case .cloud: "cloud"
@@ -97,6 +100,7 @@ struct SettingsView: View {
     switch model.page {
     case .general: general
     case .recording: recording
+    case .sounds: sounds
     case .transcription: transcription
     case .text: text
     case .cloud: cloud
@@ -167,14 +171,8 @@ struct SettingsView: View {
       }
       .help("A second shortcut: hold it to record, release to finish. A quick tap discards the take.")
     }
-    SettingsGroup("Microphone and sounds") {
+    SettingsGroup("Microphone") {
       microphoneRow
-      SettingsRow("Sounds", last: true) {
-        Toggle("Sounds", isOn: setting("audio.sounds.enabled", model.config?.soundsEnabled ?? true))
-          .labelsHidden()
-          .disabled(!model.editable)
-          .help("Play sounds during dictation.")
-      }
     }
     SettingsGroup("While recording") {
       SettingsRow("Mute other audio", note: "Silences this Mac's sound output while you dictate, after the start sound.") {
@@ -194,6 +192,160 @@ struct SettingsView: View {
           .labelsHidden()
       }
     }
+  }
+
+  /// Event, pop-up title and row note, in page order.
+  private var soundEvents: [(event: String, title: String, note: String)] {
+    [
+      ("start", "Recording starts", "The cue to start speaking."),
+      ("process", "Recording stops", "Plays when you finish, while the text is prepared."),
+      ("stop", "Text delivered", "Plays when the text has been pasted."),
+      ("cancel", "Cancelled", "Plays when a recording is discarded."),
+      ("error", "Problem", "Plays when something goes wrong."),
+    ]
+  }
+
+  /// The row's tag in the event pop-up: the configured choice, the files in
+  /// the sounds folder, a missing file and "Choose File…".
+  private func soundTag(_ choice: SoundChoice) -> String {
+    switch choice {
+    case .standard: "default"
+    case .none: "none"
+    case .file(let path): "file:" + path
+    case .missing(let path): "missing:" + path
+    }
+  }
+
+  private func soundChoice(_ event: String) -> SoundChoice {
+    SoundChoice.current(sound: model.configuredSound(event),
+                        fileExists: { SettingsEnvironment.isRegularFile($0) },
+                        expand: model.expandSoundPath)
+  }
+
+  @ViewBuilder private var sounds: some View {
+    let library = SoundLibrary(directory: model.soundsDirectory)
+    let files = library.files()
+    SettingsGroup("Sounds") {
+      SettingsRow("Play sounds", last: true) {
+        Toggle("Play sounds", isOn: setting("audio.sounds.enabled", model.config?.soundsEnabled ?? true))
+          .labelsHidden()
+          .disabled(!model.editable)
+          .help("Play sounds during dictation.")
+      }
+    }
+    SettingsGroup("Events") {
+      ForEach(Array(soundEvents.enumerated()), id: \.offset) { index, item in
+        soundRow(item, last: index == soundEvents.count - 1, files: files)
+      }
+    }
+    SettingsGroup("Files") {
+      SettingsRow("Sounds folder",
+                  note: "Add your own sound files here, then choose them above.", last: true) {
+        Button("Show in Finder") { showSoundsFolder(library) }
+      }
+    }
+  }
+
+  private func soundRow(_ item: (event: String, title: String, note: String),
+                        last: Bool, files: [URL]) -> some View {
+    let choice = soundChoice(item.event)
+    // The pop-up's file section: every folder file, then the configured file
+    // when it lives elsewhere, then a missing configured file.
+    var items = files.map { (tag: "file:" + $0.path, label: $0.lastPathComponent) }
+    let folderPaths = Set(files.map(\.path))
+    if case .file(let path) = choice, !folderPaths.contains(path) {
+      items.append((tag: "file:" + path, label: URL(fileURLWithPath: path).lastPathComponent))
+    }
+    if case .missing(let path) = choice {
+      items.append((tag: "missing:" + path,
+                    label: "\(URL(fileURLWithPath: path).lastPathComponent) (missing)"))
+    }
+    var note = item.note
+    if item.event == "start", model.muteWhileRecording {
+      note += " Other audio is muted once it has played."
+    }
+    if case .missing = choice {
+      note = "This file is missing, so no sound plays."
+    }
+    return SettingsRow(item.title, note: note, last: last) {
+      HStack(spacing: 8) {
+        Picker(item.title, selection: Binding(
+          get: { soundTag(choice) },
+          set: { pick(item.event, tag: $0, configured: model.configuredSound(item.event)) })) {
+          Text("Default").tag("default")
+          Text("None").tag("none")
+          Divider()
+          ForEach(items, id: \.tag) { i in
+            Text(i.label).tag(i.tag)
+          }
+          Divider()
+          Text("Choose File…").tag("choose")
+        }
+        .labelsHidden().fixedSize()
+        .disabled(!model.editable || !(model.config?.soundsEnabled ?? true))
+        Button { preview(item.event, choice: choice) } label: {
+          Image(systemName: "play.fill")
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(Ember.accent)
+        .disabled({ if case .none = choice { return true }; if case .missing = choice { return true }; return false }())
+        .accessibilityLabel("Play \(item.title) sound")
+        .help("Play this sound")
+      }
+    }
+  }
+
+  /// A pop-up pick: save path and enabled in one write; "Choose File…"
+  /// copies into the sounds folder first and never saves a choice.
+  private func pick(_ event: String, tag: String, configured: AppSettings.Sound) {
+    switch tag {
+    case "default":
+      model.saveSound(event: event, path: "", enabled: true)
+    case "none":
+      model.saveSound(event: event, path: configured.path, enabled: false)
+    case "choose":
+      chooseSoundFile(event)
+    default:
+      if tag.hasPrefix("file:") {
+        model.saveSound(event: event, path: String(tag.dropFirst(5)), enabled: true)
+      }
+    }
+  }
+
+  private func chooseSoundFile(_ event: String) {
+    let panel = NSOpenPanel()
+    panel.allowsMultipleSelection = false
+    panel.canChooseDirectories = false
+    panel.allowedContentTypes = SoundLibrary.extensions
+      .compactMap { UTType(filenameExtension: $0) }
+    guard panel.runModal() == .OK, let url = panel.url else { return }
+    do {
+      let imported = try SoundLibrary(directory: model.soundsDirectory).importFile(url)
+      model.saveSound(event: event, path: imported.path, enabled: true)
+    } catch {
+      model.message = error.localizedDescription
+      model.failed = true
+    }
+  }
+
+  /// The row's selected sound once: the resolved default, a file, or nothing
+  /// for None/missing.
+  private func preview(_ event: String, choice: SoundChoice) {
+    switch choice {
+    case .standard:
+      if let path = model.config?.sounds[event]?.path { model.soundPreview.play(path) }
+    case .file(let path):
+      model.soundPreview.play(path)
+    case .none, .missing:
+      break
+    }
+  }
+
+  private func showSoundsFolder(_ library: SoundLibrary) {
+    try? FileManager.default.createDirectory(
+      at: library.directory, withIntermediateDirectories: true,
+      attributes: [.posixPermissions: 0o700])
+    NSWorkspace.shared.open(library.directory)
   }
 
   @ViewBuilder private var transcription: some View {
@@ -413,7 +565,7 @@ struct SettingsView: View {
   /// The same choice as the menu's Microphone row, for when that is hidden.
   private var microphoneRow: some View {
     let choice = model.microphoneChoice
-    return SettingsRow("Microphone", footnote: choice.note) {
+    return SettingsRow("Microphone", footnote: choice.note, last: true) {
       Picker("Microphone", selection: Binding(get: { choice.stored?.uid ?? "" },
                                               set: { model.selectMicrophone(uid: $0.isEmpty ? nil : $0) })) {
         ForEach(Array(choice.options.enumerated()), id: \.offset) { index, option in

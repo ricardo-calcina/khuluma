@@ -393,7 +393,8 @@ public struct SettingsEnvironment: Sendable {
     return nil
   }
 
-  func expandSound(_ path: String) -> String {
+  /// `~` and `$SOUNDS_DIR` expansion, as `soundPath` applies it.
+  public func expandSound(_ path: String) -> String {
     var p = expand(path)
     if let placeholder = soundsPlaceholder, !placeholder.isEmpty {
       p = p.replacingOccurrences(of: "${SOUNDS_DIR}", with: placeholder).replacingOccurrences(of: "$SOUNDS_DIR", with: placeholder)

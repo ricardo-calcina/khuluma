@@ -50,3 +50,20 @@ final class SoundPlayer {
     }
   }
 }
+
+/// One short-lived player per tap on a Settings play button: independent of
+/// the preloaded SoundPlayer and of the master switch.
+final class SoundPreview {
+  private var player: AVAudioPlayer?
+
+  /// Plays the file once; a missing or unreadable file is silent.
+  func play(_ path: String) {
+    do {
+      let player = try AVAudioPlayer(contentsOf: URL(fileURLWithPath: path))
+      self.player = player
+      player.play()
+    } catch {
+      player = nil
+    }
+  }
+}

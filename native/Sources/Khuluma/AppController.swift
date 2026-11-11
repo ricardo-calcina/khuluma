@@ -256,6 +256,13 @@ final class AppController: NSObject, NSApplicationDelegate {
     }
     settingsModel.onToggleLogin = { [weak self] in self?.toggleStartAtLogin() }
     settingsModel.onSave = { [weak self] key, value in self?.saveSetting(key, value: value) }
+    settingsModel.onSaveSound = { [weak self] event, path, enabled in
+      self?.saveSoundSetting(event: event, path: path, enabled: enabled) }
+    // The Sounds page reads the configured (unresolved) audio.sounds, and
+    // expands `~`/`$SOUNDS_DIR` exactly as the resolver does.
+    let store = settingsStore, env = settingsEnvironment
+    settingsModel.soundsProvider = { store.load().settings.sounds }
+    settingsModel.expandSoundPath = { env.expandSound($0) }
     let vocabulary = VocabularyStore(root: AppRuntimePaths.support)
     settingsModel.onLoadVocabulary = { try vocabulary.show() }
     settingsModel.onSaveVocabulary = { try vocabulary.save($0) }
@@ -591,6 +598,7 @@ final class AppController: NSObject, NSApplicationDelegate {
       take.live?.discard()
       take.marker?.remove()
       self.take = nil
+      drainPendingSoundReload()
       environment.end()
       // The chime never played: nothing sounded, so stay silent. If it did,
       // say the take was discarded.
@@ -767,6 +775,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     take.live?.stop(allSamples: samples)
     let engineStopMs = monotonicMs() - stopAt
     self.take = nil
+    drainPendingSoundReload()
     let recordMs = Int((stopAt - take.startedAt).rounded())
     if let firstBuffer {
       Log.write(String(format: "stop: record %dms, hotkey→first audio %.1fms, samples %d, capture stop %.1fms",
@@ -804,6 +813,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     take.live?.discard()
     take.marker?.remove()
     self.take = nil
+    drainPendingSoundReload()
     sounds.play(.cancel)
     status.recordingCancelled()
     Log.write("cancel: recording discarded")
@@ -1066,7 +1076,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     adoptPersistence(config)
     settingsModel.adopt(config)
     sweepStaleMarkers()
-    sounds.load(from: config)
+    reloadSounds(from: config)
     showConfigStatus(config)
     recoverLeftoverTakes(config: config)
     configureSupervision(config, trigger: firstSettings ? .launch : .settings)
@@ -1109,7 +1119,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     settingsModel.adopt(fresh)
     sweepStaleMarkers()
     configureSupervision(fresh, trigger: .settings)
-    sounds.load(from: fresh)
+    reloadSounds(from: fresh)
     if pipelineChanged {
       Log.write("settings: pipeline " + (fresh.nativePipelineBlocker.map { "takes kept (\($0))" } ?? "ready"))
     }
@@ -1408,6 +1418,56 @@ final class AppController: NSObject, NSApplicationDelegate {
       statsWindow = window
       settingsModel.loginStatus = LoginItem.status
       window.show(settings: settings)
+    }
+  }
+
+  /// Sounds are preloaded, so a file replaced in the folder under the same
+  /// name is only picked up by reloading — never while a take is recording
+  /// (the players are swapped under the take's feet); it happens at take end.
+  private var soundsReloadPending = false
+
+  private func reloadSounds(from config: AppConfig) {
+    guard take == nil else {
+      soundsReloadPending = true
+      return
+    }
+    sounds.load(from: config)
+    soundsReloadPending = false
+  }
+
+  /// A deferred reload (or a file changed while the app was inactive).
+  private func drainPendingSoundReload() {
+    guard soundsReloadPending, let config else { return }
+    reloadSounds(from: config)
+  }
+
+  func applicationDidBecomeActive(_ notification: Notification) {
+    if let config { reloadSounds(from: config) }
+  }
+
+  /// One sound choice (path + enabled) in a single write, like saveSetting.
+  private func saveSoundSetting(event: String, path: String, enabled: Bool) {
+    guard pipeline != nil else {
+      settingsModel.finished(error: "Khuluma is still starting.")
+      return
+    }
+    guard take == nil, !starter.isStarting, status.processing == 0 else {
+      settingsModel.finished(error: "Finish the recording before changing settings.")
+      return
+    }
+    work.async { [weak self] in
+      guard let self else { return }
+      let result = Result { try self.settingsStore.setSound(event: event, path: path, enabled: enabled) }
+        .map { _ in self.loadConfig() }
+      onMainRunLoop {
+        switch result {
+        case .success(let config):
+          self.apply(config)
+          self.settingsModel.finished(error: nil)
+        case .failure(let error):
+          self.settingsModel.finished(error: error.localizedDescription)
+        }
+      }
     }
   }
 

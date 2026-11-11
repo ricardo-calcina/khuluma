@@ -58,6 +58,30 @@ final class SettingsModel: ObservableObject {
   struct NotReady: Error, LocalizedError {
     var errorDescription: String? { "Khuluma is still starting." }
   }
+
+  /// The configured `audio.sounds` section, refreshed when a config is
+  /// adopted — never read from disk on the render path.
+  @Published private(set) var configuredSounds = AppSettings.Sounds()
+  /// How `configuredSounds` is obtained (the store, once per adopt).
+  var soundsProvider: () -> AppSettings.Sounds = { AppSettings.Sounds() }
+  func refreshConfiguredSounds() { configuredSounds = soundsProvider() }
+  /// `~` and `$SOUNDS_DIR` expansion, as the sound resolver applies it.
+  var expandSoundPath: (String) -> String = { $0 }
+  /// Sets an event's path and enabled in one write (wired in AppController).
+  var onSaveSound: (_ event: String, _ path: String, _ enabled: Bool) -> Void = { _, _, _ in }
+  /// Where the user's own sound files live (`<support>/sounds`).
+  var soundsDirectory: URL { SoundLibrary.standard.directory }
+  /// Plays a row's selected sound once, independent of the master switch.
+  let soundPreview = SoundPreview()
+  /// The configured sound for an event, as the page needs it.
+  func configuredSound(_ event: String) -> AppSettings.Sound { configuredSounds.sound(event) }
+  func saveSound(event: String, path: String, enabled: Bool) {
+    guard editable else { return }
+    saving = true
+    message = nil
+    failed = false
+    onSaveSound(event, path, enabled)
+  }
   var onValidateVocabulary: (Data) throws -> VocabularySheet = { try VocabularySheet.decode($0) }
   var onLoadRecentDictations: () throws -> [String] = { [] }
   var preview = false
@@ -98,6 +122,7 @@ final class SettingsModel: ObservableObject {
   func adopt(_ config: AppConfig) {
     if self.config?.transcription.provider != config.transcription.provider { keyDraft = "" }
     self.config = config
+    refreshConfiguredSounds()
     refreshKeySource()
   }
 

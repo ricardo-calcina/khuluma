@@ -90,6 +90,19 @@ enum StatsSnapshot {
         model.page = .transcription
         save("settings-\(name)", view: AnyView(SettingsView(model: model)), width: 560, height: 634)
       }
+      // Sounds with a file picked for the start chime and Text delivered off.
+      let sounds = try UISettingsFixture().model()
+      let soundsDir = SoundLibrary.standard.directory
+      try? FileManager.default.createDirectory(at: soundsDir, withIntermediateDirectories: true)
+      try? Data([1, 2, 3]).write(to: soundsDir.appendingPathComponent("Chime.wav"))
+      try? Data([1]).write(to: soundsDir.appendingPathComponent("Pluck.aiff"))
+      var eventSounds = AppSettings.Sounds()
+      eventSounds.events["start"] = .init(enabled: true, path: soundsDir.appendingPathComponent("Chime.wav").path)
+      eventSounds.events["stop"] = .init(enabled: false, path: "")
+      sounds.soundsProvider = { eventSounds }
+      sounds.refreshConfiguredSounds()
+      sounds.page = .sounds
+      save("settings-sounds", view: AnyView(SettingsView(model: sounds)), width: 560, height: 634)
       // A chosen microphone that isn't connected: still chosen, with a note.
       let missingMicrophone = try UISettingsFixture().model()
       missingMicrophone.page = .recording

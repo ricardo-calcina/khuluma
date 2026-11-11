@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Add a **Sounds** page to Settings: each moment (recording starts, stops, text delivered, cancelled, problem) can use the bundled default, be silent, or play a file you drop into the sounds folder, and Play sounds switches them all off. A file you replace there is picked up the next time the app becomes active.
 - Settings grows from four pages to six in the sidebar (General, Recording, Transcription, Text, Cloud, Advanced): the Dictation page splits into Recording and Transcription, the ElevenLabs key gets its own Cloud page, and when Scribe is chosen without a key, Transcription offers an Open Cloud link.
 - Repetition cleanup becomes two independent options in Settings → Text → Cleanup: **Repeated sentences** (a sentence of five or more words said twice is kept once) and **Repeated words** (Keep, Single words, or Words and short phrases). They combine, so words-and-phrases cleanup can now run together with sentence cleanup (stored levels 4 and 5; levels 0–3 are unchanged).
 - Add **Transcribe while recording** in Settings → Transcription → Model, off by default and Parakeet only: long takes are cut at pauses and transcribed as you speak, so finishing is faster, and the recording is kept on disk while you speak. An interrupted recording is recovered at the next launch.

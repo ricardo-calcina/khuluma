@@ -214,6 +214,36 @@ public struct SettingsStore: Sendable {
     return out
   }
 
+  /// A `sounds.<event>.path` value: "" for the bundled default, else one
+  /// absolute path to an existing regular file (after `~` expansion).
+  static func validateSoundPath(_ value: String, home: String) throws {
+    guard !value.contains("\n"), !value.contains("\r") else {
+      throw InvalidSetting("sound path must be a single line")
+    }
+    guard !value.isEmpty else { return }
+    guard value.hasPrefix("/") || value.hasPrefix("~") || value.hasPrefix("$") else {
+      throw InvalidSetting("sound path must be absolute")
+    }
+    let expanded = value.hasPrefix("~") ? home + value.dropFirst() : value
+    guard expanded.hasPrefix("$") || SettingsEnvironment.isRegularFile(expanded) else {
+      throw InvalidSetting("sound path must be an existing file")
+    }
+  }
+
+  /// One locked write for both halves of an event's sound choice, so a
+  /// pop-up selection can't be torn between two saves.
+  @discardableResult
+  public func setSound(event: String, path: String, enabled: Bool,
+                       home: String = FileManager.default.homeDirectoryForCurrentUser.path) throws -> AppSettings {
+    guard AppSettings.soundEvents.contains(event) else {
+      throw InvalidSetting("unknown sound event \(event)")
+    }
+    try Self.validateSoundPath(path, home: home)
+    return try update(clearsWarning: false) {
+      $0.sounds.events[event] = AppSettings.Sound(enabled: enabled, path: path)
+    }
+  }
+
   /// The allowlist and validation of `app-settings set`.
   static func validate(_ key: String, _ value: String, directoryExists: (String) -> Bool,
                        home: String) throws -> (inout AppSettings) -> Void {
@@ -251,6 +281,16 @@ public struct SettingsStore: Sendable {
       let b = try bool(); return { $0.inline.autosend = b }
     case "audio.sounds.enabled":
       let b = try bool(); return { $0.sounds.enabled = b }
+    case "audio.sounds.start.enabled", "audio.sounds.stop.enabled", "audio.sounds.process.enabled",
+         "audio.sounds.error.enabled", "audio.sounds.cancel.enabled":
+      let b = try bool()
+      let event = String(key.split(separator: ".")[2])
+      return { $0.sounds.events[event]?.enabled = b }
+    case "audio.sounds.start.path", "audio.sounds.stop.path", "audio.sounds.process.path",
+         "audio.sounds.error.path", "audio.sounds.cancel.path":
+      let event = String(key.split(separator: ".")[2])
+      try Self.validateSoundPath(value, home: home)
+      return { $0.sounds.events[event]?.path = value }
     case "clean.enabled":
       let b = try bool(); return { $0.cleanup.enabled = b }
     case "clean.repeats_level":
