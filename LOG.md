@@ -2,7 +2,7 @@
 
 ## Now
 
-Pick up (Hex parity push): build 486 installed; Sounds page being built in source · next: review and install Sounds, then per-app auto-send rules with restore-clipboard, then the History tab with paste-last; merge wip/hex-parity to main once those have settled · branch: wip/hex-parity
+Pick up (Hex parity push): Sounds page built and reviewed in source (60d7026), not installed (build 486 is) · next: Ricardo's OK to install; then per-app auto-send rules with restore-clipboard, then the History tab with paste-last · branch: wip/hex-parity
 
 Installed build 486 on 2026-11-11 (Ricardo's OK, 214c29c, from wip/hex-parity). Rollback: `~/Applications/.khuluma-app.dYvZKO/previous.app` (build 483); build 470, the last one from before this push, is `~/Applications/.khuluma-app.s8gnMk/previous.app`. Rollbacks for 464, 476, 478 and 481 are also still there (V9Bt9W, cf3alm, A88hoo, HjMnkA).
 
@@ -36,7 +36,7 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 - [ ] P1 · Tail-merge fix is in build 481: after a few days, recount repeated endings in history for takes from 2026-11-10 on (was 28 of 189; the count is in Decisions). Original item: watch history for repeated endings: before the fix 28 of 189 takes of 12 s or more had one · added 2026-11-10
 - [x] P1 · Hex parity slice 3b: Transcribe while recording wired into the app as a switch, with the recording spooled to disk · added 2026-11-10
 - [ ] P1 · Slice 3b is in build 483; check on real takes: `live=on` lines in app.log (stop→delivered, live_segments, live_forced, any live=fallback and its reason), a crash-recovery try (force-quit mid-recording, relaunch, take appears in history), and that nothing is left in `~/Library/Application Support/Khuluma/live/` after normal takes · added 2026-11-10
-- [ ] P1 · Sounds page: a menu and play button per event, files from the app's sounds folder, Show in Finder (Ricardo, 2026-11-11) · added 2026-11-11
+- [x] P1 · Sounds page: a menu and play button per event, files from the app's sounds folder, Show in Finder (Ricardo, 2026-11-11) · added 2026-11-11
 - [ ] P1 · Per-app auto-send rules (e.g. WhatsApp pastes without sending) and an opt-in "restore the clipboard after pasting" (Ricardo, 2026-11-11) · added 2026-11-11
 - [ ] P1 · History tab in the window (recent dictations, search, copy) and a "paste last dictation" shortcut, off until set (Ricardo, 2026-11-11) · added 2026-11-11
 - [ ] P1 · Merge wip/hex-parity into main once the above has had a few days of use, including five-minute takes · added 2026-11-11
@@ -132,6 +132,7 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 
 ## Done
 
+- 2026-11-11 · Sounds page in source: a menu and play button per event, files from the app's sounds folder, Choose File copies in without overwriting, Show in Finder, reload when the app becomes active; seven Settings pages; not installed · 60d7026, CHANGELOG Unreleased
 - 2026-11-11 · Installed build 486 (six-page Settings, repetition controls; Ricardo's OK); added “herder” → Herdr to his Brands (112 hits in history; “her” alone can't be mapped) · ~/Applications/.khuluma-app.dYvZKO/previous.app
 - 2026-11-11 · Settings split into six pages; repetition cleanup is now two controls with examples and can combine sentences with words and phrases; not installed · wip/hex-parity, CHANGELOG Unreleased
 - 2026-11-11 · Added “11 Labs” and “eleven labs” → ElevenLabs to Ricardo's Brands (file edit with a backup in vocabulary-backups) · ~/Library/Application Support/Khuluma/vocabulary.json
