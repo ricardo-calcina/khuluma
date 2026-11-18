@@ -102,6 +102,15 @@ private enum TestClient {
   }
 }
 
+/// Runs blocking socket calls on a GCD thread. The in-process server bridges
+/// handlers onto Swift concurrency, so blocking that executor from a test can
+/// starve the handler on small CI runners.
+private func offPool<T: Sendable>(_ body: @escaping @Sendable () throws -> T) async throws -> T {
+  try await withCheckedThrowingContinuation { continuation in
+    DispatchQueue.global().async { continuation.resume(with: Result { try body() }) }
+  }
+}
+
 private func makeSocketPath() throws -> String {
   // Keep it short: sockaddr_un paths are limited to 104 bytes on macOS.
   // Retain each owned fixture root for inspection instead of deleting files.
@@ -127,15 +136,17 @@ struct UnixSocketServerTests {
     defer { server.stop() }
     defer { release.open() }
 
-    let slow = Task.detached {
-      // If the request fails before reaching the handler, don't leave the
-      // test waiting on `entered`; `slow.value` reports the error below.
-      defer { entered.open() }
-      return try TestClient.request(path, DaemonRequest(id: "slow", op: .transcribe, wavPath: "/x"))
+    let slow = Task {
+      try await offPool {
+        // If the request fails before reaching the handler, don't leave the
+        // test waiting on `entered`; `slow.value` reports the error below.
+        defer { entered.open() }
+        return try TestClient.request(path, DaemonRequest(id: "slow", op: .transcribe, wavPath: "/x"))
+      }
     }
     await entered.wait()
 
-    let ping = try TestClient.request(path, DaemonRequest(id: "p", op: .ping))
+    let ping = try await offPool { try TestClient.request(path, DaemonRequest(id: "p", op: .ping)) }
     #expect(ping.ok)
     #expect(ping.id == "p")
 

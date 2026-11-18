@@ -338,7 +338,8 @@ struct DaemonClientTests {
     #expect(loaded.holds(path: "/m", version: "v3"))
     #expect(!loaded.holds(path: "/m", version: "v2"))
     #expect(!loaded.holds(path: "/m/", version: "v3"))
-    #expect(client.status(timeout: 0.2) != nil)
+    let live = try await offPool { client.status(timeout: 0.2) }
+    #expect(live != nil)
     #expect(DaemonClient(socketPath: socketPath()).status(timeout: 0.2) == nil)
   }
 
@@ -363,15 +364,24 @@ struct DaemonClientTests {
     let server = UnixSocketServer(socketPath: path, handler: FakeDaemon(delay: .seconds(10)))
     try server.start()
     defer { server.stop() }
-    let started = Date()
-    await #expect(throws: DaemonClient.ClientError.timedOut(0.3)) {
-      _ = try await offPool {
-        try DaemonClient(socketPath: path).transcribe(
+    // Timed inside the GCD closure: the test task's own resumption can lag
+    // by many seconds on a loaded runner, which says nothing about the client.
+    let outcome = try await offPool { () -> (timedOut: Bool, unexpected: String?, elapsed: TimeInterval) in
+      let started = Date()
+      do {
+        _ = try DaemonClient(socketPath: path).transcribe(
           wav: URL(fileURLWithPath: "/tmp/x.wav"), language: "en", flow: "inline", modelPath: "/m",
           modelVersion: nil, timeout: 0.3)
+        return (false, "request returned successfully", Date().timeIntervalSince(started))
+      } catch DaemonClient.ClientError.timedOut(let seconds) {
+        return (seconds == 0.3, nil, Date().timeIntervalSince(started))
+      } catch {
+        return (false, String(describing: error), Date().timeIntervalSince(started))
       }
     }
-    #expect(Date().timeIntervalSince(started) < 5)
+    #expect(outcome.unexpected == nil)
+    #expect(outcome.timedOut)
+    #expect(outcome.elapsed < 5)
   }
 }
 
