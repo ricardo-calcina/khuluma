@@ -458,7 +458,7 @@ final class AudioRecorder {
       self.converter = converter
       converterFormat = tap
       converterFailed = false
-      tapID += 1
+      self.tapID += 1
       samples.removeAll(keepingCapacity: true)
       firstBufferAt = nil
       self.onFirstAudio = onFirstAudio
