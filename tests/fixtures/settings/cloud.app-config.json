@@ -1,5 +1,4 @@
 {
-  "app_contract": 5,
   "cleanup": {
     "british_spelling": "1",
     "clean": "0",
@@ -9,7 +8,6 @@
     "repeats_level": "1",
     "vocab_clean": "1"
   },
-  "cli_version": "0.11.0",
   "config": {
     "error": null,
     "source": "file"
@@ -34,7 +32,7 @@
     },
     "error": {
       "enabled": false,
-      "path": "@ROOT@/data/sounds/khuluma/error.wav"
+      "path": "@ROOT@/bundled/error.wav"
     },
     "process": {
       "enabled": false,
@@ -51,7 +49,6 @@
   },
   "sounds_enabled": false,
   "transcription": {
-    "ffmpeg": true,
     "keep_logs": false,
     "key_available": false,
     "language": "auto",
@@ -60,7 +57,7 @@
     "model_version": null,
     "processing_dir": "/tmp/khuluma-processing",
     "provider": "elevenlabs",
-    "socket_path": "@ROOT@/config/.cache/khulumad.sock",
+    "socket_path": "@ROOT@/config/khulumad.sock",
     "tail_pad_ms": "500",
     "tail_rescue": true,
     "tail_rescue_min_ms": "",

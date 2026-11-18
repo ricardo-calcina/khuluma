@@ -75,7 +75,7 @@ final class SettingsModel: ObservableObject {
   /// settings.json `history` (retention), refreshed when a config is adopted.
   @Published private(set) var history = AppSettings.History()
   var historyProvider: () -> AppSettings.History = { AppSettings.History() }
-  /// `~` and `$SOUNDS_DIR` expansion, as the sound resolver applies it.
+  /// `~` expansion, as the sound resolver applies it.
   var expandSoundPath: (String) -> String = { $0 }
   /// Sets an event's path and enabled in one write (wired in AppController).
   var onSaveSound: (_ event: String, _ path: String, _ enabled: Bool) -> Void = { _, _, _ in }

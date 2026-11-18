@@ -22,8 +22,6 @@ public struct TranscriptionSettings: Codable, Equatable, Sendable {
   /// `KHULUMA_SWIFT_PARAKEET_TAIL_RESCUE_MIN_MS` ("" = 12000).
   public var tailRescueMinMs: String
   public var keepLogs: Bool
-  /// ffmpeg and ffprobe exist (the CLI skips padding and rescue otherwise).
-  public var ffmpeg: Bool
   public var timeoutSeconds: String
   public var processingDir: String
 
@@ -31,7 +29,7 @@ public struct TranscriptionSettings: Codable, Equatable, Sendable {
     socketPath: String, modelPath: String?, modelVersion: String? = "v3", modelLabel: String = "parakeet",
     language: String = "en", tailPadMs: String = "500", tailRescue: Bool = true, tailRescueMs: String = "",
     tailRescueMinMs: String = "", keepLogs: Bool = false,
-    ffmpeg: Bool = true, timeoutSeconds: String = "600", processingDir: String = TakeMarker.defaultDirectory,
+    timeoutSeconds: String = "600", processingDir: String = TakeMarker.defaultDirectory,
     provider: String = "parakeet", keyAvailable: Bool = false, scribeTagAudioEvents: Bool = true
   ) {
     self.provider = provider
@@ -47,7 +45,6 @@ public struct TranscriptionSettings: Codable, Equatable, Sendable {
     self.tailRescueMs = tailRescueMs
     self.tailRescueMinMs = tailRescueMinMs
     self.keepLogs = keepLogs
-    self.ffmpeg = ffmpeg
     self.timeoutSeconds = timeoutSeconds
     self.processingDir = processingDir
   }
@@ -66,7 +63,6 @@ public struct TranscriptionSettings: Codable, Equatable, Sendable {
     case tailRescueMs = "tail_rescue_ms"
     case tailRescueMinMs = "tail_rescue_min_ms"
     case keepLogs = "keep_logs"
-    case ffmpeg
     case timeoutSeconds = "timeout_seconds"
     case processingDir = "processing_dir"
   }
@@ -86,7 +82,6 @@ public struct TranscriptionSettings: Codable, Equatable, Sendable {
     tailRescueMs = try values.decode(String.self, forKey: .tailRescueMs)
     tailRescueMinMs = try values.decode(String.self, forKey: .tailRescueMinMs)
     keepLogs = try values.decode(Bool.self, forKey: .keepLogs)
-    ffmpeg = try values.decode(Bool.self, forKey: .ffmpeg)
     timeoutSeconds = try values.decode(String.self, forKey: .timeoutSeconds)
     processingDir = try values.decode(String.self, forKey: .processingDir)
   }

@@ -10,6 +10,7 @@ for f in tools/*.sh tests/*.sh; do
 done
 echo "Syntax checks passed."
 
+python3 tests/check_packaging.py
 python3 tests/test_app_build_helpers.py
 python3 tests/test_test_affected.py
 

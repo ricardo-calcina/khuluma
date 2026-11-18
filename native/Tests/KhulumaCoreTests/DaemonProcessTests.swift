@@ -115,19 +115,16 @@ struct DaemonSocketPathTests {
     #expect(DaemonSocketPath.resolve(support: URL(fileURLWithPath: fits + "a")).isFallback)
   }
 
-  @Test func theAppNeverUsesTheConfiguredCLISocket() {
-    var settings = AppSettings()
-    settings.transcription.socketPath = "~/.config/khuluma/.cache/khulumad.sock"
-    let env = SettingsEnvironment(appFolder: URL(fileURLWithPath: "/app"), home: "/home", soundsDir: "/s",
-                                  modelsDir: "/m", defaultSocketPath: "/app/khulumad.sock",
-                                  ffmpegAvailable: true, keyAvailable: false)
+  @Test func theAppAlwaysUsesItsOwnDaemonSocket() throws {
+    let settings = try SettingsStore.decode(Data(#"{"schema_version":1,"transcription":{"socket_path":"/old.sock"}}"#.utf8))
+    let env = SettingsEnvironment(appFolder: URL(fileURLWithPath: "/app"), home: "/home", defaultSocketPath: "/app/khulumad.sock",
+                                  keyAvailable: false)
     #expect(AppConfig(settings: settings, environment: env).transcription.socketPath == "/app/khulumad.sock")
   }
 
   @Test func modelPathIsTheSettingsFolderIfPresentElseFluidAudiosCache() {
-    var env = SettingsEnvironment(appFolder: URL(fileURLWithPath: "/app"), home: "/home", soundsDir: "/s",
-                                  modelsDir: "/m", defaultSocketPath: "/app/khulumad.sock",
-                                  ffmpegAvailable: true, keyAvailable: false)
+    var env = SettingsEnvironment(appFolder: URL(fileURLWithPath: "/app"), home: "/home", defaultSocketPath: "/app/khulumad.sock",
+                                  keyAvailable: false)
     env.defaultModelPath = "/fluid/parakeet-tdt-0.6b-v3"
     var settings = AppSettings()
     settings.transcription.modelPath = "/mine/parakeet-tdt-0.6b-v3"
@@ -558,9 +555,8 @@ struct ReviewFixTests {
 
   // P2-5: a missing configured v2 model falls back to the downloaded v3, as v3.
   @Test func fallingBackToTheCacheResolvesItsVersionToo() {
-    var env = SettingsEnvironment(appFolder: URL(fileURLWithPath: "/app"), home: "/home", soundsDir: "/s",
-                                  modelsDir: "/m", defaultSocketPath: "/app/khulumad.sock",
-                                  ffmpegAvailable: true, keyAvailable: false)
+    var env = SettingsEnvironment(appFolder: URL(fileURLWithPath: "/app"), home: "/home", defaultSocketPath: "/app/khulumad.sock",
+                                  keyAvailable: false)
     env.defaultModelPath = "/fluid/parakeet-tdt-0.6b-v3"
     var settings = AppSettings()
     settings.transcription.modelPath = "/mine/parakeet-custom"
@@ -740,9 +736,8 @@ struct ReReviewFixTests {
 
   // 3: the configured folder is validated as its explicit version.
   @Test func aCustomNamedV2FolderIsCheckedAsV2() {
-    var env = SettingsEnvironment(appFolder: URL(fileURLWithPath: "/app"), home: "/home", soundsDir: "/s",
-                                  modelsDir: "/m", defaultSocketPath: "/app/khulumad.sock",
-                                  ffmpegAvailable: true, keyAvailable: false)
+    var env = SettingsEnvironment(appFolder: URL(fileURLWithPath: "/app"), home: "/home", defaultSocketPath: "/app/khulumad.sock",
+                                  keyAvailable: false)
     env.defaultModelPath = "/fluid/parakeet-tdt-0.6b-v3"
     let asked = Box()
     env.modelAvailable = { path, version in

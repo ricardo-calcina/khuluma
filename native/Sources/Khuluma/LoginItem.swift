@@ -3,7 +3,7 @@ import ServiceManagement
 import KhulumaCore
 
 /// Start at Login. Opt-in, and macOS keeps the setting (System Settings →
-/// General → Login Items), so there's nothing in config.toml. Registered by
+/// General → Login Items), so there's nothing in settings.json. Registered by
 /// bundle, so a rebuild in place keeps it; moving the app needs a re-toggle.
 enum LoginItem {
   typealias Status = SMAppService.Status

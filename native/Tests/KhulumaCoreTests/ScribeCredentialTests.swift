@@ -174,8 +174,7 @@ struct ScribeCredentialLookupTests {
   }
 
   @Test func settingsEnvironmentChecksTheKeyAtEachLoad() throws {
-    var env = SettingsEnvironment(appFolder: URL(fileURLWithPath: "/tmp/a"), home: "/tmp/h", soundsDir: "/s", modelsDir: "/m",
-                                  defaultSocketPath: "/sock", ffmpegAvailable: false, keyAvailable: false)
+    var env = SettingsEnvironment(appFolder: URL(fileURLWithPath: "/tmp/a"), home: "/tmp/h", defaultSocketPath: "/sock", keyAvailable: false)
     let keychain = MemoryKeychain()
     let credential = ScribeCredential(keychain: keychain, environment: [:], home: URL(fileURLWithPath: "/nonexistent"))
     env.keyCheck = { credential.isAvailable }

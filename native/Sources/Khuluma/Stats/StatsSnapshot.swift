@@ -314,7 +314,7 @@ private struct UISettingsFixture {
                         "model_path": "/private/tmp/khuluma-preview/parakeet-v3", "model_version": "v3",
                         "model_label": "Parakeet v3", "language": "en", "tail_pad_ms": "500",
                         "tail_rescue": true, "tail_rescue_ms": "", "tail_rescue_min_ms": "",
-                        "keep_logs": false, "ffmpeg": true, "timeout_seconds": "600",
+                        "keep_logs": false, "timeout_seconds": "600",
                         "processing_dir": "/private/tmp/khuluma-preview/processing"],
       "config": ["error": NSNull(), "source": "file"], "pipeline": ["supervise": false],
       "usage": ["summary_path": "/private/tmp/khuluma-preview/usage.json"],

@@ -392,59 +392,6 @@ struct TimedOutTakesTests {
     #expect(recovered.all().isEmpty)
   }
 
-  @Test func takesLeftInTheOldTempFolderMoveIntoTheStoreAsPairs() throws {
-    let (store, recovered, root) = stores()
-    defer { try? FileManager.default.removeItem(at: root) }
-    let old = TimedOutTakes(directory: root.appendingPathComponent("old-tmp"), recovered: recovered)
-    let later = Date().addingTimeInterval(3600)
-    let info = TimedOutTakes.Info(takeId: "t-old", app: "Notes", recordMs: 900, startupMs: 50, startedAtMs: 1,
-                                  savedAt: Date(timeIntervalSince1970: 2_000_000))
-    try old.save(samples: [0.3, 0.3, 0.3], info: info)
-    try WAVEncoder.encode(samples: [0.1]).write(to: old.directory.appendingPathComponent("orphan.wav"))
-    // A pair whose WAV clashes here with different bytes: the whole pair
-    // stays in the old folder (its sidecar isn't split off).
-    let clash = TimedOutTakes.Info(takeId: "clash", app: nil, recordMs: 1, startupMs: 0, startedAtMs: 0,
-                                   savedAt: Date(timeIntervalSince1970: 2_000_000))
-    try old.save(samples: [0.7], info: clash)
-    try FileManager.default.createDirectory(at: store.directory, withIntermediateDirectories: true)
-    try Data("other".utf8).write(to: store.directory.appendingPathComponent("clash.wav"))
-
-    #expect(store.adoptLegacy(from: old.directory, now: later) == 2)
-    #expect(try Set(FileManager.default.contentsOfDirectory(atPath: old.directory.path)) == ["clash.wav", "clash.json"])
-    #expect(!FileManager.default.fileExists(atPath: store.directory.appendingPathComponent("clash.json").path))
-    let listed = store.all(now: info.savedAt)
-    #expect(listed.map(\.info) == [info])
-    #expect(try RecoveredTakes.samples(at: listed[0].wav).count == 3)
-    #expect(listed[0].wav.deletingLastPathComponent().path == store.directory.path)
-    // The orphan came across and was handed to recovered/; the clashing
-    // "other" (header-less, 5 bytes) was dropped as empty audio.
-    #expect(recovered.all().count == 1)
-    // Now the name is free: the pair moves, then the old folder is gone.
-    #expect(store.adoptLegacy(from: old.directory, now: later) == 1)
-    #expect(!FileManager.default.fileExists(atPath: old.directory.path))
-    #expect(store.adoptLegacy(from: old.directory, now: later) == 0)
-    #expect(store.adoptLegacy(from: root.appendingPathComponent("missing")) == 0)
-  }
-
-  /// Already identical here (a crash after copying, before removing): the
-  /// old copies are removed, nothing doubles.
-  @Test func anAlreadyCopiedPairIsJustRemovedFromTheOldFolder() throws {
-    let (store, recovered, root) = stores()
-    defer { try? FileManager.default.removeItem(at: root) }
-    let old = TimedOutTakes(directory: root.appendingPathComponent("old-tmp"), recovered: recovered)
-    let later = Date().addingTimeInterval(3600)
-    let info = TimedOutTakes.Info(takeId: "t-same", app: nil, recordMs: 1, startupMs: 0, startedAtMs: 0,
-                                  savedAt: Date(timeIntervalSince1970: 2_000_000))
-    try old.save(samples: [0.2, 0.2], info: info)
-    try FileManager.default.createDirectory(at: store.directory, withIntermediateDirectories: true)
-    for name in ["t-same.wav", "t-same.json"] {
-      try FileManager.default.copyItem(at: old.directory.appendingPathComponent(name), to: store.directory.appendingPathComponent(name))
-    }
-    #expect(store.adoptLegacy(from: old.directory, now: later) == 1)
-    #expect(!FileManager.default.fileExists(atPath: old.directory.path))
-    #expect(store.all(now: info.savedAt).map(\.info) == [info])
-  }
-
   /// A pair handed off by the sidecar pass isn't then reported by the
   /// orphan pass as unreadable audio.
   @Test func anExpiredHandoffLogsNothing() throws {
@@ -472,33 +419,6 @@ struct TimedOutTakesTests {
     #expect(try RecoveredTakes.samples(at: a) != RecoveredTakes.samples(at: b))
     #expect(RecoveredTakes.takeId(of: b) == "same-2")
     #expect(try RecoveredTakes.samples(at: a).first.map { abs($0 - 0.1) < 0.001 } == true)
-  }
-
-  @Test func youngLegacyFilesWaitForALaterLaunch() throws {
-    let (store, recovered, root) = stores()
-    defer { try? FileManager.default.removeItem(at: root) }
-    let old = TimedOutTakes(directory: root.appendingPathComponent("old-tmp"), recovered: recovered)
-    try old.save(samples: [0.3], info: .init(takeId: "pair", app: nil, recordMs: 1, startupMs: 0, startedAtMs: 0))
-    try WAVEncoder.encode(samples: [0.1]).write(to: old.directory.appendingPathComponent("lone.wav"))
-    let written = Date()
-    #expect(store.adoptLegacy(from: old.directory, now: written.addingTimeInterval(60)) == 0)
-    #expect(store.adoptLegacy(from: old.directory, now: written.addingTimeInterval(180)) == 1, "the pair after 2 min")
-    #expect(FileManager.default.fileExists(atPath: old.directory.appendingPathComponent("lone.wav").path))
-    #expect(store.adoptLegacy(from: old.directory, now: written.addingTimeInterval(660)) == 1, "the orphan after 10 min")
-  }
-
-  /// A clash on the sidecar aborts before any audio is published, and no
-  /// staged temp file is left or listed.
-  @Test func aFailedMigrationNeverPublishesAudioAlone() throws {
-    let (store, recovered, root) = stores()
-    defer { try? FileManager.default.removeItem(at: root) }
-    let old = TimedOutTakes(directory: root.appendingPathComponent("old-tmp"), recovered: recovered)
-    try old.save(samples: [0.3, 0.3], info: .init(takeId: "t", app: nil, recordMs: 1, startupMs: 0, startedAtMs: 0))
-    try FileManager.default.createDirectory(at: store.directory, withIntermediateDirectories: true)
-    try Data("different".utf8).write(to: store.directory.appendingPathComponent("t.json"))
-    #expect(store.adoptLegacy(from: old.directory, now: Date().addingTimeInterval(3600)) == 0)
-    #expect(try FileManager.default.contentsOfDirectory(atPath: store.directory.path) == ["t.json"])
-    #expect(try Set(FileManager.default.contentsOfDirectory(atPath: old.directory.path)) == ["t.wav", "t.json"])
   }
 
   @Test func aSidecarIsOnlyRemovedOnceItsAudioIsGone() throws {

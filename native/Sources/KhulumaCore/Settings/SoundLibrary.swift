@@ -9,7 +9,7 @@ public enum SoundChoice: Equatable, Sendable {
   case missing(String)
 
   /// `sound` is the configured `audio.sounds.<event>` (path unresolved);
-  /// `expand` applies the resolver's `~`/`$SOUNDS_DIR` expansion.
+  /// `expand` applies the resolver's `~` expansion.
   public static func current(sound: AppSettings.Sound, fileExists: (String) -> Bool,
                              expand: (String) -> String) -> SoundChoice {
     guard sound.enabled else { return .none }

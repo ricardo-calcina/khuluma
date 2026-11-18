@@ -56,8 +56,7 @@ OVERRIDES: dict[str, dict] = {
     # SoundsAndPermissionsTests lists assets/sounds/khuluma by #filePath.
     "assets/sounds/**": {"suites": {CORE_T: ["SoundsAndPermissionsTests"]}},
     # Repo files read by #filePath from the Swift tests.
-    "tests/fixtures/cleanup/**": {"files": {CORE_T: ["native/Tests/KhulumaCoreTests/CleanupParityTests.swift",
-                                                     "native/Tests/KhulumaCoreTests/SettingsTests.swift"]}},
+    "tests/fixtures/cleanup/**": {"files": {CORE_T: ["native/Tests/KhulumaCoreTests/CleanupParityTests.swift"]}},
     "tests/fixtures/settings/**": {"files": {CORE_T: ["native/Tests/KhulumaCoreTests/SettingsTests.swift"]}},
     "tests/fixtures/vocabulary-parity/**": {"files": {CORE_T: ["native/Tests/KhulumaCoreTests/VocabularyParityTests.swift"]}},
     "tests/fixtures/usage-parity/**": {"files": {CORE_T: ["native/Tests/KhulumaCoreTests/UsageParityTests.swift"]}},
@@ -549,6 +548,7 @@ def classify(path: str, plan: Plan, repo: Repo) -> bool:
         plan.cmd(f"bash -n {path}")
         if path == "tools/build-khuluma-app.sh":
             plan.cmd("python3 tests/test_app_build_helpers.py")
+            plan.cmd("python3 tests/check_packaging.py")
         return why("tools", "syntax check", mapped=False)
     if path.startswith("assets/icons/") or path == ".github/workflows/icons.yml":
         return why("assets", "checked by CI (icons.yml)")
@@ -756,13 +756,11 @@ def run_tests(plan: Plan, repo: Repo, flt: list[str] | None, n: int) -> int:
 
 # Environment the app reads (grep of KhulumaCore + Khuluma for ProcessInfo /
 # environment keys, Nov 2026): KHULUMA_SUPPORT_DIR, KHULUMA_LOG_DIR,
-# KHULUMA_DEFAULTS_SUITE (AppRuntimePaths); KHULUMA_DEFAULT_MODEL_DIR,
-# XDG_DATA_HOME, SOUNDS_DIR (AppRuntimePaths, AppSettings); KHULUMA_CONFIG_DIR,
-# XDG_CONFIG_HOME, KHULUMA_USAGE_SUMMARY_FILE (LegacyImport.source);
+# KHULUMA_DEFAULTS_SUITE, KHULUMA_DEFAULT_MODEL_DIR (AppRuntimePaths);
 # KHULUMA_KEEP_LOGS, KHULUMA_DAEMON_BINARY (dropped); ZDOTDIR and
 # ELEVENLABS_API_KEY / ELEVEN_LABS_API_KEY (ScribeCredential; dropped / pointed
 # at the run dir). Every inherited KHULUMA_* and XDG_* is removed first.
-DROP_ENV = ("ELEVENLABS_API_KEY", "ELEVEN_LABS_API_KEY", "ZDOTDIR", "SOUNDS_DIR")
+DROP_ENV = ("ELEVENLABS_API_KEY", "ELEVEN_LABS_API_KEY", "ZDOTDIR")
 LEGACY_RUN = "khuluma-snapshot-run"
 LEGACY_SUITE = "com.ricardo-nth.khuluma.test-affected-snapshot"
 
@@ -824,11 +822,6 @@ def snapshot_env(run_dir: Path, suite: str, base: dict | None = None) -> dict:
         "KHULUMA_LOG_DIR": str(run_dir / "logs"),
         "KHULUMA_DEFAULTS_SUITE": suite,
         "KHULUMA_DEFAULT_MODEL_DIR": str(run_dir / "models"),
-        "KHULUMA_CONFIG_DIR": str(run_dir / "config"),
-        "KHULUMA_USAGE_SUMMARY_FILE": str(run_dir / "config" / "usage.json"),
-        "XDG_DATA_HOME": str(run_dir / "data"),
-        "XDG_CONFIG_HOME": str(run_dir / "config"),
-        "SOUNDS_DIR": str(run_dir / "sounds"),
         "ZDOTDIR": str(run_dir / "zdot"),
     })
     return env

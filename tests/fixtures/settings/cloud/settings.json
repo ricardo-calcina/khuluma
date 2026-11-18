@@ -1,0 +1,5 @@
+{
+  "schema_version": 1,
+  "sounds": {"enabled": false},
+  "transcription": {"provider": "elevenlabs", "language": "auto"}
+}

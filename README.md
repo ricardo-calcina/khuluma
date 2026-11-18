@@ -24,7 +24,7 @@ Khuluma is built from a clone:
 ```bash
 git clone https://github.com/ricardo-calcina/khuluma.git
 cd khuluma
-tools/make-signing-identity.sh   # checks the dedicated identity; prints safe creation instructions if absent
+tools/make-signing-identity.sh   # once: prints how to create the dedicated signing identity in Keychain Access
 tools/build-khuluma-app.sh       # build, sign and install ~/Applications/Khuluma.app
 open ~/Applications/Khuluma.app
 ```

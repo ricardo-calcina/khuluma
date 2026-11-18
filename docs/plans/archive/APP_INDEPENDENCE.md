@@ -1,5 +1,7 @@
 # App independence: Khuluma.app without the CLI
 
+**Done (2026-11-18).** Outcome: the app runs with no CLI (installed as build 449 on 2026-11-06 and since); it keeps its data in `~/Library/Application Support/Khuluma`, runs its bundled `khulumad`, and bundles `khuluma transcribe`, ElevenLabs Scribe and the Finder Quick Actions. `CLIBridge.swift` and the branch are gone, the CLI was retired ([CLI_SUNSET.md](CLI_SUNSET.md)), and the one-time import from `~/.config/khuluma` was removed once it had run. The text below is the plan as it stood.
+
 Status: revised 2026-11-05 after Ricardo's decision to sunset the CLI (LOG Decisions, ee14c0f). Khuluma is the app only. Tab "Khuluma app without the CLI", branch `wip/app-independence`. The earlier two-product version (shared data contract 1, writer tags, dual-writer locks) is in Git history at 671670f and b5d29fc; it is dropped.
 
 ## Goal
@@ -60,7 +62,7 @@ F. **`khuluma transcribe` and the Finder Quick Action** inside the app (keep lis
 G. **Cut the cord**: delete `CLIBridge`, the CLI route and the app-contract checks. A take that can't be processed goes to recovered and retries; it is never lost. Tell the sunset tab (t4k) the app no longer needs the CLI.
 H. **Acceptance, install, merge** (below).
 
-## Keep list (sunset tab t4k, confirmed by Ricardo 2026-11-05; inventory in docs/plans/archive/CLI_SUNSET.md)
+## Keep list (sunset tab t4k, confirmed by Ricardo 2026-11-05; inventory in CLI_SUNSET.md)
 
 1. `khuluma transcribe <file>...`: `-q`; `--format json` (one object per line: `file`, `text`, `audio_duration_ms`, `processing_ms`, `model`, `engine`); `-o <file>`; several files; `--beside` (`<name>.txt` next to each file); `--force` (otherwise never overwrite, and no partial output on failure). Errors as `khuluma: ...` on stderr with a non-zero exit. Raw transcript, no cleanup, not counted in usage or history. Dropped: `-c`, `--out-dir`, stdin `-`, `--no-tail-rescue`.
 2. ElevenLabs Scribe (slice E).

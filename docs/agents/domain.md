@@ -20,7 +20,6 @@ Use the repo's established terms:
 - `KHULUMA_*` for environment overrides.
 - `take` for one recording through delivery.
 - `inline` for the frontmost-app delivery settings (`inline.*` in settings.json).
-- `legacy import` for the one-time copy of the retired CLI's data into `~/Library/Application Support/Khuluma`.
 - `Finder Quick Action` and the agent skill for the `transcribe` adapters.
 
 ## ADRs

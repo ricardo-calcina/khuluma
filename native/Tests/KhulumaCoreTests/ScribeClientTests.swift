@@ -199,8 +199,7 @@ struct ScribeRouteTests {
     let dir = try scratch()
     defer { try? FileManager.default.removeItem(at: dir) }
     let store = SettingsStore(folder: dir)
-    let env = SettingsEnvironment(appFolder: dir, home: dir.path, soundsDir: "/s", modelsDir: "/m",
-                                  defaultSocketPath: "/sock", ffmpegAvailable: false, keyAvailable: true)
+    let env = SettingsEnvironment(appFolder: dir, home: dir.path, defaultSocketPath: "/sock", keyAvailable: true)
     #expect(store.load().settings.transcription.scribeTagAudioEvents)
     for enabled in [true, false] {
       try store.set("transcription.scribe_tag_audio_events", value: String(enabled))
@@ -261,8 +260,7 @@ struct ScribeRouteTests {
 
 struct ScribeConfigTests {
   @Test func scribeSettingsRouteNativelyWithoutAModel() throws {
-    let env = SettingsEnvironment(appFolder: URL(fileURLWithPath: "/tmp/a"), home: "/tmp/h", soundsDir: "/s", modelsDir: "/m",
-                                  defaultSocketPath: "/sock", ffmpegAvailable: false, keyAvailable: true)
+    let env = SettingsEnvironment(appFolder: URL(fileURLWithPath: "/tmp/a"), home: "/tmp/h", defaultSocketPath: "/sock", keyAvailable: true)
     var settings = AppSettings()
     settings.transcription.provider = "elevenlabs"
     let config = AppConfig(settings: settings, environment: env)

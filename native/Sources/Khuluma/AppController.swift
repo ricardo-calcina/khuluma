@@ -55,7 +55,7 @@ final class AppController: NSObject, NSApplicationDelegate {
   /// One start at a time; a failed start never leaves its marker behind.
   private let starter = TakeStarter()
   /// Settings live in settings.json in the app folder.
-  private let settingsStore = SettingsStore.standard()
+  private let settingsStore = SettingsStore()
   /// The model folder resolves through FluidAudio (its shared cache, and
   /// whether a folder holds a complete model).
   private let settingsEnvironment: SettingsEnvironment = {
@@ -128,7 +128,9 @@ final class AppController: NSObject, NSApplicationDelegate {
     menu.install()
     MainActor.assumeIsolated { AppMainMenu.install { [weak self] in self?.showStats(settings: true) } }
     sweepStaleMarkers()
-    Log.write("launch: Khuluma \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev")"
+    let info = Bundle.main.infoDictionary ?? [:]
+    Log.write("launch: Khuluma \(info["CFBundleShortVersionString"] as? String ?? "dev")"
+              + " (build \(info["CFBundleVersion"] as? String ?? "-"), commit \(info["KhulumaGitCommit"] as? String ?? "-"))"
               + ", start at login \(LoginItem.text(LoginItem.status))")
 
     let settings = settingsModel
@@ -166,16 +168,8 @@ final class AppController: NSObject, NSApplicationDelegate {
     TextPipeline.reportInvalidVocabulary = { error in
       Log.write("vocabulary: vocabulary.json is invalid, cleaning without it (fix it in Vocabulary): \(error.localizedDescription)")
     }
-    // The one-time import of the CLI's data (settings included) runs before
-    // settings load and before the persister's replay. Off main: it touches
-    // the disk.
+    TimedOutTakes.report = { Log.write($0) }
     settingsQueue.async { [weak self] in
-      let imported = LegacyImport.run()
-      Log.write("import: \(imported.logLine)")
-      TimedOutTakes.report = { Log.write($0) }
-    // Timed-out takes from builds that kept them in $TMPDIR.
-      let moved = TimedOutTakes.standard.adoptLegacy(from: TimedOutTakes.legacyDirectory)
-      if moved > 0 { Log.write("timed-out: moved \(moved) file(s) from \(TimedOutTakes.legacyDirectory.path) into the app folder") }
       DispatchQueue.main.async {
         guard let self, !self.quitting else { return }
         self.finishInitialization()
@@ -280,11 +274,11 @@ final class AppController: NSObject, NSApplicationDelegate {
       self?.saveSoundSetting(event: event, path: path, enabled: enabled) }
     settingsModel.onSaveAppRules = { [weak self] rules in self?.saveAppRulesSetting(rules) }
     // The Sounds page reads the configured (unresolved) audio.sounds, and
-    // expands `~`/`$SOUNDS_DIR` exactly as the resolver does.
+    // expands `~` exactly as the resolver does.
     let store = settingsStore, env = settingsEnvironment
     settingsModel.soundsProvider = { store.load().settings.sounds }
     settingsModel.historyProvider = { store.load().settings.history }
-    settingsModel.expandSoundPath = { env.expandSound($0) }
+    settingsModel.expandSoundPath = { env.expand($0) }
     let vocabulary = VocabularyStore(root: AppRuntimePaths.support)
     settingsModel.onLoadVocabulary = { try vocabulary.show() }
     settingsModel.onSaveVocabulary = { try vocabulary.save($0) }
@@ -1169,8 +1163,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     let using = status.source == "last_good"
       ? "using the last valid settings"
       : "using defaults, paste without sending"
-    let what = status.source == SettingsStore.importedDefaultsSource || error.hasPrefix("settings were not imported")
-      ? "settings not imported" : "settings.json invalid"
+    let what = "settings.json invalid"
     menu.showConfigWarning("⚠︎ \(what): \(using)")
     Log.write("settings: \(what) (\(error)); \(using)")
   }

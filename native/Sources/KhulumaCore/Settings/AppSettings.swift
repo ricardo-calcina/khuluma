@@ -1,10 +1,8 @@
 import Foundation
 
 /// The app's settings, stored as `settings.json` in the app folder
-/// (`AppRuntimePaths.support`). Replaces the CLI's `config.toml`. Every field
-/// has a default equal to what `khuluma app-config --json` resolved for an
-/// empty config (environment overrides are gone with the CLI), so a missing
-/// key means "default". Unknown keys in the file are kept by `SettingsStore`.
+/// (`AppRuntimePaths.support`). Every field has a default, so a missing key
+/// means "default". Unknown keys in the file are kept by `SettingsStore`.
 public struct AppSettings: Codable, Equatable, Sendable {
   public static let schemaVersion = 1
   public static let fileName = "settings.json"
@@ -12,8 +10,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
 
   public struct Sound: Codable, Equatable, Sendable {
     public var enabled = true
-    /// "" = the default `<sounds dir>/<event>.wav`. `~` and `$SOUNDS_DIR`
-    /// expand as the CLI expanded them.
+    /// "" = the bundled default `<event>.wav`; else an absolute path (a
+    /// leading `~` expands to the home folder).
     public var path = ""
     public init(enabled: Bool = true, path: String = "") { self.enabled = enabled; self.path = path }
     public init(from d: Decoder) throws {
@@ -165,10 +163,6 @@ public struct AppSettings: Codable, Equatable, Sendable {
     public var modelPath = ""
     /// "", v2 or v3 ("" = from the model folder's name).
     public var modelVersion = ""
-    /// Unused since slice D: the app runs its own daemon on its own socket
-    /// (`DaemonSocketPath`). Imported settings point it at the CLI's socket,
-    /// which the app must never use; the key stays readable so old files load.
-    public var socketPath = ""
     public init() {}
 
     enum CodingKeys: String, CodingKey {
@@ -176,7 +170,6 @@ public struct AppSettings: Codable, Equatable, Sendable {
       case scribeTagAudioEvents = "scribe_tag_audio_events"
       case modelPath = "model_path"
       case modelVersion = "model_version"
-      case socketPath = "socket_path"
     }
 
     public init(from d: Decoder) throws {
@@ -189,7 +182,6 @@ public struct AppSettings: Codable, Equatable, Sendable {
       scribeTagAudioEvents = try c.decodeIfPresent(Bool.self, forKey: .scribeTagAudioEvents) ?? true
       modelPath = try c.decodeIfPresent(String.self, forKey: .modelPath) ?? ""
       modelVersion = try c.decodeIfPresent(String.self, forKey: .modelVersion) ?? ""
-      socketPath = try c.decodeIfPresent(String.self, forKey: .socketPath) ?? ""
     }
   }
 
@@ -247,17 +239,12 @@ public struct AppSettings: Codable, Equatable, Sendable {
   public var app = App()
   public var debug = Debug()
   public var history = History()
-  /// Set by the import when the CLI's config couldn't be converted: the
-  /// settings are defaults with autosend off, and the app warns until a
-  /// setting is changed in the app.
-  public var importWarning: String?
 
   public init() {}
 
   enum CodingKeys: String, CodingKey {
     case schemaVersion = "schema_version"
     case hotkey, sounds, inline, cleanup, transcription, app, debug, history
-    case importWarning = "import_warning"
   }
 
   public init(from d: Decoder) throws {
@@ -275,7 +262,6 @@ public struct AppSettings: Codable, Equatable, Sendable {
     app = try c.decodeIfPresent(App.self, forKey: .app) ?? App()
     debug = try c.decodeIfPresent(Debug.self, forKey: .debug) ?? Debug()
     history = try c.decodeIfPresent(History.self, forKey: .history) ?? History()
-    importWarning = try c.decodeIfPresent(String.self, forKey: .importWarning)
   }
 
   /// `normalize_inline_send_mode`.
@@ -310,30 +296,23 @@ public struct AppSettings: Codable, Equatable, Sendable {
 
 // MARK: - Resolving settings into the app's AppConfig
 
-/// What the settings resolve against on this Mac: folders and tool presence.
-/// Injected so tests (and the parity fixtures) never touch real folders.
+/// What the settings resolve against on this Mac: folders and the key check.
+/// Injected so tests never touch real folders.
 public struct SettingsEnvironment: Sendable {
   /// The app folder: vocabulary.json and usage.json live here.
   public var appFolder: URL
   /// `$HOME`, for `~` in paths.
   public var home: String
-  /// Default sounds: `<soundsDir>/<event>.wav` (the CLI's `KHULUMA_SOUNDS_DIR`).
-  public var soundsDir: String
-  /// `$SOUNDS_DIR` placeholder value in sound paths (the CLI's `SOUNDS_DIR`), if any.
-  public var soundsPlaceholder: String?
   /// The app's bundled default sounds (`Khuluma.app/Contents/Resources/sounds`),
   /// nil when not running from a bundle (swift test, dev runs).
   public var bundledSoundsDir: String?
-  /// Where installed Parakeet models live.
-  public var modelsDir: String
   /// The daemon socket when the settings name none.
   public var defaultSocketPath: String
   /// FluidAudio's default cache folder for Parakeet v3 (the app sets it from
   /// FluidAudio's own API; nil in tests unless set).
   public var defaultModelPath: String?
-  /// Isolated runs: a configured model folder here is real data (e.g. an
-  /// imported config.toml pointing at FluidAudio's shared cache) and is
-  /// ignored in favour of the isolated default.
+  /// Isolated runs: a configured model folder here is real data (e.g.
+  /// FluidAudio's shared cache) and is ignored in favour of the isolated default.
   public var isForbiddenModelPath: @Sendable (String) -> Bool = { _ in false }
   /// A complete model of this version ("v2"/"v3") is in this folder (the
   /// app checks the files FluidAudio loads for that version).
@@ -341,7 +320,6 @@ public struct SettingsEnvironment: Sendable {
     SettingsEnvironment.isDirectory(path)
   }
   public var processingDir: String
-  public var ffmpegAvailable: Bool
   public var keyAvailable: Bool
   /// Looks the ElevenLabs key up afresh at each settings load (Keychain, then
   /// shell settings); presence only. Overrides `keyAvailable` when set.
@@ -349,21 +327,16 @@ public struct SettingsEnvironment: Sendable {
   public var fileExists: @Sendable (String) -> Bool
   public var directoryExists: @Sendable (String) -> Bool
 
-  public init(appFolder: URL, home: String, soundsDir: String, soundsPlaceholder: String? = nil,
-              bundledSoundsDir: String? = nil, modelsDir: String,
+  public init(appFolder: URL, home: String, bundledSoundsDir: String? = nil,
               defaultSocketPath: String, processingDir: String = TakeMarker.defaultDirectory,
-              ffmpegAvailable: Bool, keyAvailable: Bool,
+              keyAvailable: Bool,
               fileExists: @escaping @Sendable (String) -> Bool = SettingsEnvironment.isRegularFile,
               directoryExists: @escaping @Sendable (String) -> Bool = SettingsEnvironment.isDirectory) {
     self.appFolder = appFolder
     self.home = home
-    self.soundsDir = soundsDir
-    self.soundsPlaceholder = soundsPlaceholder
     self.bundledSoundsDir = bundledSoundsDir
-    self.modelsDir = modelsDir
     self.defaultSocketPath = defaultSocketPath
     self.processingDir = processingDir
-    self.ffmpegAvailable = ffmpegAvailable
     self.keyAvailable = keyAvailable
     self.fileExists = fileExists
     self.directoryExists = directoryExists
@@ -379,43 +352,25 @@ public struct SettingsEnvironment: Sendable {
     return FileManager.default.fileExists(atPath: path, isDirectory: &dir) && dir.boolValue
   }
 
-  /// This Mac, with the folders the CLI's installer used (sounds, models and
-  /// the daemon's socket stay where they are until later slices move them).
+  /// This Mac: the app folder, the bundled sounds and the app's own daemon socket.
   public static func current(environment: [String: String] = ProcessInfo.processInfo.environment,
                              home: URL = FileManager.default.homeDirectoryForCurrentUser,
                              appFolder: URL = AppRuntimePaths.support) -> SettingsEnvironment {
-    func value(_ key: String) -> String? { environment[key].flatMap { $0.isEmpty ? nil : $0 } }
-    // Isolated runs keep sounds and models under the app folder unless a
-    // data folder is named explicitly.
-    let isolated = AppRuntimePaths.isIsolated(environment: environment)
-    let data = value("XDG_DATA_HOME")
-      ?? (isolated ? AppRuntimePaths.supportDirectory(environment: environment, home: home).path
-                   : home.appendingPathComponent(".local/share").path)
-    let tools = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin"] + (value("PATH")?.split(separator: ":").map(String.init) ?? [])
-    let has = { (name: String) in tools.contains { FileManager.default.isExecutableFile(atPath: $0 + "/" + name) } }
-    // `$SOUNDS_DIR` in sound paths means what it meant to the CLI: the
-    // SOUNDS_DIR variable, else ~/.local/share/sounds (the parent of the
-    // default khuluma sounds folder). Slice D moves sounds into the bundle.
-    let soundsParent = value("SOUNDS_DIR") ?? data + "/sounds"
     var result = SettingsEnvironment(
       appFolder: appFolder, home: home.path,
-      soundsDir: soundsParent + "/khuluma", soundsPlaceholder: soundsParent,
       bundledSoundsDir: Bundle.main.resourceURL?.appendingPathComponent("sounds", isDirectory: true).path,
-      modelsDir: data + "/khuluma/models",
-      // The app's own daemon (slice D), never the CLI's.
       defaultSocketPath: DaemonSocketPath.resolve(support: appFolder).path,
-      ffmpegAvailable: has("ffmpeg") && has("ffprobe"),
       // Presence only: the Keychain, then the environment and zshrc, at
       // each settings load (`keyCheck`).
       keyAvailable: false)
     result.keyCheck = { ScribeCredential(environment: environment, home: home).isAvailable }
-    if isolated {
+    if AppRuntimePaths.isIsolated(environment: environment) {
       result.isForbiddenModelPath = { AppRuntimePaths.isRealData($0, home: home) }
     }
     return result
   }
 
-  /// `expand_path`: a leading `~` becomes `$HOME`.
+  /// A leading `~` becomes `$HOME`.
   public func expand(_ path: String) -> String {
     path.hasPrefix("~") ? home + path.dropFirst() : path
   }
@@ -426,42 +381,17 @@ public struct SettingsEnvironment: Sendable {
     let path = dir + "/" + name
     return fileExists(path) ? path : nil
   }
-
-  /// `$SOUNDS_DIR/khuluma/<name>` (as written in settings.json) maps to the
-  /// bundled `<name>`; anything else has no bundled counterpart.
-  func bundledSound(forPlaceholderPath configured: String) -> String? {
-    for prefix in ["$SOUNDS_DIR/khuluma/", "${SOUNDS_DIR}/khuluma/"] where configured.hasPrefix(prefix) {
-      return bundledSound(String(configured.dropFirst(prefix.count)))
-    }
-    return nil
-  }
-
-  /// `~` and `$SOUNDS_DIR` expansion, as `soundPath` applies it.
-  public func expandSound(_ path: String) -> String {
-    var p = expand(path)
-    if let placeholder = soundsPlaceholder, !placeholder.isEmpty {
-      p = p.replacingOccurrences(of: "${SOUNDS_DIR}", with: placeholder).replacingOccurrences(of: "$SOUNDS_DIR", with: placeholder)
-    }
-    return p
-  }
 }
 
 extension AppSettings {
   /// The sound file for an event, and only if it exists; nil is silent.
-  /// - No path set: the bundled `sounds/<event>.wav`, else (no bundle: dev and
-  ///   test runs) `<soundsDir>/<event>.wav`.
-  /// - A path set: that file (`~` and `$SOUNDS_DIR` expanded) when it exists;
-  ///   else `$SOUNDS_DIR/khuluma/<name>` falls back to the bundled `sounds/<name>`.
+  /// No path set: the bundled `sounds/<event>.wav`. A path set (usually a
+  /// file in the app's sounds folder, `SoundLibrary`): that file, `~` expanded.
   public func soundPath(_ event: String, in env: SettingsEnvironment) -> String? {
     let configured = sounds.sound(event).path
-    if configured.isEmpty {
-      if let bundled = env.bundledSound(event + ".wav") { return bundled }
-      let path = env.soundsDir + "/" + event + ".wav"
-      return env.fileExists(path) ? path : nil
-    }
-    let path = env.expandSound(configured)
-    if env.fileExists(path) { return path }
-    return env.bundledSound(forPlaceholderPath: configured)
+    if configured.isEmpty { return env.bundledSound(event + ".wav") }
+    let path = env.expand(configured)
+    return env.fileExists(path) ? path : nil
   }
 
   /// `resolve_swift_parakeet_model_path`.
@@ -499,9 +429,8 @@ extension AppSettings {
 }
 
 extension AppConfig {
-  /// The app's settings as the in-memory model the rest of the app reads,
-  /// equal to what `khuluma app-config --json` reported for the same
-  /// settings. `status` says where the settings came from.
+  /// The app's settings as the in-memory model the rest of the app reads.
+  /// `status` says where the settings came from.
   public init(settings s: AppSettings, status: ConfigStatus = ConfigStatus(error: nil, source: "file"),
               environment env: SettingsEnvironment) {
     var sounds: [String: Sound] = [:]
@@ -510,8 +439,7 @@ extension AppConfig {
       let on = s.sounds.enabled && s.sounds.sound(event).enabled
       sounds[event] = Sound(enabled: on && path != nil, path: path)
     }
-    // No trustworthy settings (invalid file with no valid copy, an import
-    // that couldn't convert the CLI's config): never send.
+    // No trustworthy settings (invalid file with no valid copy): never send.
     let autosend = s.inline.autosend && !(status.error != nil && status.source != "last_good")
     let inline = Inline(autosend: autosend, sendMode: s.inline.sendMode, pasteTarget: s.inline.pasteTarget,
                         processSound: s.inline.processSound, activateDelayMs: s.inline.activateDelayMs,
@@ -527,13 +455,11 @@ extension AppConfig {
     let model = s.resolvedModel(in: env)
     let modelPath = model?.path
     let label = cloud ? "scribe_v2" : modelPath.map { ($0 as NSString).lastPathComponent } ?? "parakeet-unresolved"
-    // settings.json's socket_path is ignored: always the app's own daemon.
-    let socket = env.defaultSocketPath
     let transcription = TranscriptionSettings(
-      socketPath: socket, modelPath: modelPath,
+      socketPath: env.defaultSocketPath, modelPath: modelPath,
       modelVersion: model?.version,
       modelLabel: label, language: s.transcription.language, tailPadMs: "500", tailRescue: true,
-      tailRescueMs: "", tailRescueMinMs: "", keepLogs: s.debug.keepLogs, ffmpeg: env.ffmpegAvailable,
+      tailRescueMs: "", tailRescueMinMs: "", keepLogs: s.debug.keepLogs,
       timeoutSeconds: "600", processingDir: env.processingDir, provider: s.transcription.provider,
       keyAvailable: env.keyCheck?() ?? env.keyAvailable, scribeTagAudioEvents: s.transcription.scribeTagAudioEvents)
     self.init(schemaVersion: 1, hotkey: s.hotkey, sounds: sounds, soundsEnabled: s.sounds.enabled, inline: inline, cleanup: cleanup,

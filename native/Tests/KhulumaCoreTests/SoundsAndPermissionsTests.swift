@@ -4,11 +4,8 @@ import Testing
 
 @Suite struct SoundsAndPermissionsTests {
   /// An environment whose files are exactly `files`.
-  func env(bundled: String? = "/App/Resources/sounds", files: Set<String>,
-           placeholder: String? = "/S") -> SettingsEnvironment {
-    SettingsEnvironment(appFolder: URL(fileURLWithPath: "/support"), home: "/home", soundsDir: "/S/khuluma",
-                        soundsPlaceholder: placeholder, bundledSoundsDir: bundled, modelsDir: "/m",
-                        defaultSocketPath: "/sock", ffmpegAvailable: false, keyAvailable: false,
+  func env(bundled: String? = "/App/Resources/sounds", files: Set<String>) -> SettingsEnvironment {
+    SettingsEnvironment(appFolder: URL(fileURLWithPath: "/support"), home: "/home", bundledSoundsDir: bundled, defaultSocketPath: "/sock", keyAvailable: false,
                         fileExists: { files.contains($0) }, directoryExists: { _ in false })
   }
 
@@ -19,10 +16,10 @@ import Testing
   }
 
   @Test func defaultsResolveToTheBundledSounds() {
-    let e = env(files: ["/App/Resources/sounds/start.wav", "/S/khuluma/stop.wav"])
+    let e = env(files: ["/App/Resources/sounds/start.wav"])
     #expect(AppSettings().soundPath("start", in: e) == "/App/Resources/sounds/start.wav")
-    // A bundle without that file: the old folder, else silent.
-    #expect(AppSettings().soundPath("stop", in: e) == "/S/khuluma/stop.wav")
+    // A bundle without that file: silent.
+    #expect(AppSettings().soundPath("stop", in: e) == nil)
     #expect(AppSettings().soundPath("error", in: e) == nil)
   }
 
@@ -34,23 +31,13 @@ import Testing
     #expect(env(bundled: "", files: []).bundledSound("start.wav") == nil)
   }
 
-  @Test func soundsDirPlaceholderPrefersTheExistingFileElseTheBundled() {
-    let literal = settings("$SOUNDS_DIR/khuluma/start.wav")
-    let braces = settings("${SOUNDS_DIR}/khuluma/start.wav")
+  @Test func aConfiguredFileIsUsedOnlyWhileItExists() {
     let bundled = "/App/Resources/sounds/start.wav"
-    let existing = env(files: ["/S/khuluma/start.wav", bundled])
-    #expect(literal.soundPath("start", in: existing) == "/S/khuluma/start.wav")
-    #expect(braces.soundPath("start", in: existing) == "/S/khuluma/start.wav")
-    let missing = env(files: [bundled])
-    #expect(literal.soundPath("start", in: missing) == bundled)
-    #expect(braces.soundPath("start", in: missing) == bundled)
-    // No bundled counterpart: silent, as today.
-    #expect(literal.soundPath("start", in: env(files: [])) == nil)
-    #expect(settings("$SOUNDS_DIR/khuluma/custom.wav").soundPath("start", in: missing) == nil)
-    // Only $SOUNDS_DIR/khuluma/<name> maps; other and absolute paths don't.
-    #expect(settings("/Users/x/start.wav").soundPath("start", in: missing) == nil)
-    #expect(settings("$SOUNDS_DIR/other/start.wav").soundPath("start", in: missing) == nil)
-    #expect(settings("$SOUNDS_DIR/khuluma/../start.wav").soundPath("start", in: missing) == nil)
+    let mine = "/support/sounds/Chime.wav"
+    #expect(settings(mine).soundPath("start", in: env(files: [mine, bundled])) == mine)
+    // Gone: silent, not the bundled default (the Sounds page shows it missing).
+    #expect(settings(mine).soundPath("start", in: env(files: [bundled])) == nil)
+    #expect(settings("~/x.wav").soundPath("start", in: env(files: ["/home/x.wav"])) == "/home/x.wav")
   }
 
   @Test func theBuildScriptShipsEveryDefaultSound() throws {

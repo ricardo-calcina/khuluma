@@ -108,9 +108,7 @@ struct AppRulePrecedenceTests {
     return AppConfig(settings: settings,
                      status: AppConfig.ConfigStatus(error: source == "defaults" ? "x" : nil, source: source),
                      environment: SettingsEnvironment(
-                       appFolder: URL(fileURLWithPath: "/tmp"), home: "/tmp", soundsDir: "/tmp",
-                       modelsDir: "/tmp", defaultSocketPath: "/tmp/x.sock", ffmpegAvailable: true,
-                       keyAvailable: false))
+                       appFolder: URL(fileURLWithPath: "/tmp"), home: "/tmp", defaultSocketPath: "/tmp/x.sock", keyAvailable: false))
   }
 
   @Test func fallbackDefaultsBeatASendRule() {

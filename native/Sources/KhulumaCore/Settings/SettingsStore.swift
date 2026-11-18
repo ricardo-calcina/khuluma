@@ -12,27 +12,15 @@ public struct SettingsStore: Sendable {
   /// Never writes (the bundled `khuluma` helper): `load` skips refreshing
   /// the last-good copy.
   public var readOnly = false
-  /// The CLI's config.toml. If it exists while settings.json doesn't (the
-  /// import failed or was refused), the defaults are used with safe delivery
-  /// and a warning, never autosend.
-  public let legacyConfig: URL?
 
-  public init(folder: URL = AppRuntimePaths.support, lockTimeout: TimeInterval = 5, legacyConfig: URL? = nil) {
+  public init(folder: URL = AppRuntimePaths.support, lockTimeout: TimeInterval = 5) {
     self.folder = folder
     self.lockTimeout = lockTimeout
-    self.legacyConfig = legacyConfig
   }
 
-  /// The app's store, with the CLI's config.toml as the legacy file.
-  public static func standard(environment: [String: String] = ProcessInfo.processInfo.environment,
-                              home: URL = FileManager.default.homeDirectoryForCurrentUser) -> SettingsStore {
-    SettingsStore(legacyConfig: LegacyImport.source(environment: environment, home: home).root
-      .appendingPathComponent("config.toml"))
-  }
-
-  /// `ConfigStatus.source` for settings.json written by the import when the
-  /// CLI's config couldn't be converted (defaults, autosend off).
-  public static let importedDefaultsSource = "import_defaults"
+  /// Keys older builds wrote that this version no longer models; dropped
+  /// from the file on the next write.
+  static let retiredKeys: [(section: String?, key: String)] = [(nil, "import_warning"), ("transcription", "socket_path")]
 
   public var url: URL { folder.appendingPathComponent(AppSettings.fileName) }
   public var lastGoodURL: URL { folder.appendingPathComponent("." + AppSettings.fileName + ".last-good") }
@@ -59,10 +47,6 @@ public struct SettingsStore: Sendable {
     do {
       data = try Data(contentsOf: url)
     } catch CocoaError.fileReadNoSuchFile {
-      if let legacyConfig, FileManager.default.fileExists(atPath: legacyConfig.path) {
-        return Loaded(settings: AppSettings(), status: .init(
-          error: "settings were not imported from \(legacyConfig.path)", source: "defaults"))
-      }
       return Loaded(settings: AppSettings(), status: .init(error: nil, source: "file"))
     } catch {
       return fallback(error.localizedDescription)
@@ -70,9 +54,6 @@ public struct SettingsStore: Sendable {
     do {
       let settings = try Self.decode(data)
       if !readOnly { refreshLastGood(data) }
-      if let warning = settings.importWarning {
-        return Loaded(settings: settings, status: .init(error: warning, source: Self.importedDefaultsSource))
-      }
       return Loaded(settings: settings, status: .init(error: nil, source: "file"))
     } catch {
       return fallback(Self.describe(error))
@@ -133,37 +114,24 @@ public struct SettingsStore: Sendable {
                   directoryExists: (String) -> Bool = { SettingsEnvironment.isDirectory($0) },
                   home: String = FileManager.default.homeDirectoryForCurrentUser.path) throws -> AppSettings {
     let change = try Self.validate(key, value, directoryExists: directoryExists, home: home)
-    // Only an explicit autosend choice ends the safe-delivery warning.
-    return try update(clearsWarning: key == "inline.autosend") { change(&$0) }
+    return try update { change(&$0) }
   }
 
-  /// Creates settings.json if it's missing (from `base()`), changing nothing else.
+  /// Creates settings.json if it's missing (the defaults), changing nothing else.
   public func ensureFile() throws {
-    _ = try update(clearsWarning: false) { _ in }
-  }
-
-  /// What a missing settings.json starts from: the defaults, but with
-  /// autosend off and a warning when the CLI's settings exist and weren't
-  /// imported. Sending is then only turned on by an explicit choice.
-  func base() -> AppSettings {
-    var settings = AppSettings()
-    if let legacyConfig, FileManager.default.fileExists(atPath: legacyConfig.path) {
-      settings.inline.autosend = false
-      settings.importWarning = "settings were not imported from \(legacyConfig.path)"
-    }
-    return settings
+    _ = try update { _ in }
   }
 
   /// Writes the whole settings document (keeping unknown keys already in the file).
   public func save(_ settings: AppSettings) throws {
-    _ = try update(clearsWarning: false) { $0 = settings }
+    _ = try update { $0 = settings }
   }
 
-  private func update(clearsWarning: Bool, _ change: (inout AppSettings) -> Void) throws -> AppSettings {
+  private func update(_ change: (inout AppSettings) -> Void) throws -> AppSettings {
     try DataFiles.ensureDirectory(folder)
     return try DataFiles.withLock(lockURL, timeout: lockTimeout) {
       var raw: [String: Any] = [:]
-      var settings = base()
+      var settings = AppSettings()
       // Only a genuinely missing file starts from the defaults; any other
       // read error leaves the file alone.
       let existing: Data?
@@ -183,9 +151,12 @@ public struct SettingsStore: Sendable {
         }
       }
       change(&settings)
-      if clearsWarning {
-        settings.importWarning = nil
-        raw.removeValue(forKey: AppSettings.CodingKeys.importWarning.rawValue)
+      for (section, key) in Self.retiredKeys {
+        if let section {
+          if var inner = raw[section] as? [String: Any] { inner.removeValue(forKey: key); raw[section] = inner }
+        } else {
+          raw.removeValue(forKey: key)
+        }
       }
       let data = try Self.encode(settings, over: raw)
       try DataFiles.replace(url, with: data)
@@ -221,11 +192,11 @@ public struct SettingsStore: Sendable {
       throw InvalidSetting("sound path must be a single line")
     }
     guard !value.isEmpty else { return }
-    guard value.hasPrefix("/") || value.hasPrefix("~") || value.hasPrefix("$") else {
+    guard value.hasPrefix("/") || value.hasPrefix("~") else {
       throw InvalidSetting("sound path must be absolute")
     }
     let expanded = value.hasPrefix("~") ? home + value.dropFirst() : value
-    guard expanded.hasPrefix("$") || SettingsEnvironment.isRegularFile(expanded) else {
+    guard SettingsEnvironment.isRegularFile(expanded) else {
       throw InvalidSetting("sound path must be an existing file")
     }
   }
@@ -245,7 +216,7 @@ public struct SettingsStore: Sendable {
         throw InvalidSetting("two rules name \(rule.bundleID)")
       }
     }
-    return try update(clearsWarning: false) { $0.inline.appRules = rules }
+    return try update { $0.inline.appRules = rules }
   }
 
   /// One locked write for both halves of an event's sound choice, so a
@@ -257,7 +228,7 @@ public struct SettingsStore: Sendable {
       throw InvalidSetting("unknown sound event \(event)")
     }
     try Self.validateSoundPath(path, home: home)
-    return try update(clearsWarning: false) {
+    return try update {
       $0.sounds.events[event] = AppSettings.Sound(enabled: enabled, path: path)
     }
   }

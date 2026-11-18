@@ -260,16 +260,16 @@ class ReviewFixes(unittest.TestCase):
     def test_snapshot_env_is_sanitized(self):
         with tempfile.TemporaryDirectory() as d:
             run_dir = Path(d)
-            inherited = {"PATH": "/usr/bin", "HOME": "/Users/x", "KHULUMA_CONFIG_DIR": "/Users/x/.config/khuluma",
-                         "KHULUMA_USAGE_SUMMARY_FILE": "/Users/x/.config/khuluma/usage.json",
+            inherited = {"PATH": "/usr/bin", "HOME": "/Users/x", "KHULUMA_CONFIG_DIR": "/Users/x/old",
+                         "KHULUMA_USAGE_SUMMARY_FILE": "/Users/x/old/usage.json",
                          "KHULUMA_DAEMON_BINARY": "/x", "XDG_CONFIG_HOME": "/Users/x/.config",
                          "XDG_CACHE_HOME": "/Users/x/.cache", "ELEVENLABS_API_KEY": "secret", "ZDOTDIR": "/Users/x"}
             env = ta.snapshot_env(run_dir, "com.ricardo-nth.khuluma.t.1", base=inherited)
             self.assertEqual(env["PATH"], "/usr/bin")
-            for k in ("KHULUMA_DAEMON_BINARY", "XDG_CACHE_HOME", "ELEVENLABS_API_KEY"):
+            for k in ("KHULUMA_DAEMON_BINARY", "XDG_CACHE_HOME", "ELEVENLABS_API_KEY", "KHULUMA_CONFIG_DIR",
+                      "KHULUMA_USAGE_SUMMARY_FILE", "XDG_CONFIG_HOME"):
                 self.assertNotIn(k, env)
-            for k in ("KHULUMA_SUPPORT_DIR", "KHULUMA_LOG_DIR", "KHULUMA_CONFIG_DIR", "KHULUMA_USAGE_SUMMARY_FILE",
-                      "KHULUMA_DEFAULT_MODEL_DIR", "XDG_DATA_HOME", "XDG_CONFIG_HOME", "SOUNDS_DIR", "ZDOTDIR"):
+            for k in ("KHULUMA_SUPPORT_DIR", "KHULUMA_LOG_DIR", "KHULUMA_DEFAULT_MODEL_DIR", "ZDOTDIR"):
                 self.assertTrue(env[k].startswith(str(run_dir) + "/"), k)
             for sub in ("support", "logs"):
                 self.assertEqual(os.stat(run_dir / sub).st_mode & 0o777, 0o700)

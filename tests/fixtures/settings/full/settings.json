@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "hotkey": "cmd+shift+d",
+  "app": {"supervise_daemon": false},
+  "cleanup": {"enabled": true, "repeats_level": 3},
+  "debug": {"keep_logs": true},
+  "history": {"retention_days": 30, "audio_retention_days": 5, "typing_wpm": 55},
+  "inline": {"autosend": false, "process_sound": false, "paste_target": "origin", "send_mode": "ctrl+j"},
+  "sounds": {
+    "enabled": true,
+    "cancel": {"enabled": false, "path": ""},
+    "error": {"enabled": true, "path": ""},
+    "process": {"enabled": true, "path": "@ROOT@/sounds/process.wav"},
+    "start": {"enabled": true, "path": "@ROOT@/sounds/start.wav"},
+    "stop": {"enabled": true, "path": "@ROOT@/sounds/missing.wav"}
+  },
+  "transcription": {
+    "provider": "parakeet",
+    "language": "fr",
+    "model_path": "@ROOT@/models/parakeet-custom-v2",
+    "model_version": "",
+    "socket_path": "@ROOT@/sock/k.sock"
+  },
+  "agent_note": "unknown keys are kept"
+}

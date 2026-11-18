@@ -2,7 +2,7 @@
 
 ## Pre-release
 
-- [ ] Confirm `main` CI is green (Swift, CI and Icons workflows).
+- [ ] Confirm `main` CI is green (the Swift and CI workflows; when the icon catalog changed, also the Icons workflow on `build/icon-catalog`).
 - [ ] Set `native/VERSION` to the release version (for example, `0.12.0`); the app build stamps it as `CFBundleShortVersionString`.
 - [ ] Run local validation:
   - [ ] `tools/test-affected.sh --full`
@@ -16,7 +16,7 @@
   - [ ] Watch a take through recording, processing, and ready in the menu; confirm the frontmost app is not considered safe to move away from until paste/autosend completes.
   - [ ] Exercise a cancel and a controlled error path; confirm the menu returns to ready rather than retaining a stale recording or processing state.
   - [ ] `~/Applications/Khuluma.app/Contents/Helpers/khuluma transcribe <short file> -q` prints a transcript, and the Finder Quick Action writes `<name>.txt`.
-- [ ] Rebuild Khuluma from the release commit (`tools/build-khuluma-app.sh`) and confirm `app.log` shows the matching version and commit.
+- [ ] Rebuild Khuluma from the release commit (`tools/build-khuluma-app.sh`) and confirm the `launch:` line in `app.log` shows the matching version, build and commit.
 - [ ] Run `tools/khuluma-report.sh` over the last week of takes and confirm the gates still hold.
 
 ## Tag and Publish

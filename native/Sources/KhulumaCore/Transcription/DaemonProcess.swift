@@ -3,7 +3,6 @@ import Foundation
 
 /// Where the app's own daemon listens: `<support>/khulumad.sock`, or a short
 /// per-user path under the temp dir when that is too long for `sun_path`.
-/// Never the CLI's socket (`~/.config/khuluma/.cache/khulumad.sock`).
 public enum DaemonSocketPath {
   /// `sun_path` is 104 bytes on macOS, NUL included.
   public static let maxBytes = 104

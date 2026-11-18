@@ -6,7 +6,7 @@ Dictation stays local and fast, recovery must not lose a take, and usage/logs ho
 
 ## Phases
 
-Phase numbers follow the archived roadmap so LOG items keep their meaning. Phase 1 (the app works without the CLI, [`docs/plans/APP_INDEPENDENCE.md`](docs/plans/APP_INDEPENDENCE.md)), phase 4 (retire the CLI) and phase 5 (remove it from the repositories) are done. The Homebrew tap (`ricardo-calcina/homebrew-tap`) and the copies on Ricardo's Mac are handled outside this repo.
+Phase numbers follow the archived roadmap so LOG items keep their meaning. Phase 1 (the app works without the CLI, [archived plan](docs/plans/archive/APP_INDEPENDENCE.md)), phase 4 (retire the CLI) and phase 5 (remove it from the repositories) are done. The Homebrew tap (`ricardo-calcina/homebrew-tap`) and the copies on Ricardo's Mac are handled outside this repo.
 
 ### Phase 2: ship the app (after the Apple Developer Program)
 

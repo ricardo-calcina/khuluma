@@ -66,9 +66,6 @@ struct TranscriptionSettingsTests {
     var keepLogs = base
     keepLogs.keepLogs = true
     #expect(keepLogs.blocker == nil)  // inline record writes the debug archive
-    var noFFmpeg = base
-    noFFmpeg.ffmpeg = false
-    #expect(noFFmpeg.blocker == nil)  // native WAV prep needs no ffmpeg
     var noPad = base
     noPad.tailPadMs = "0"
     #expect(noPad.blocker == nil && noPad.tailPad == 0)

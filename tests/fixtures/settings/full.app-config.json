@@ -1,5 +1,4 @@
 {
-  "app_contract": 5,
   "cleanup": {
     "british_spelling": "1",
     "clean": "1",
@@ -9,7 +8,6 @@
     "repeats_level": "3",
     "vocab_clean": "1"
   },
-  "cli_version": "0.11.0",
   "config": {
     "error": null,
     "source": "file"
@@ -34,7 +32,7 @@
     },
     "error": {
       "enabled": true,
-      "path": "@ROOT@/data/sounds/khuluma/error.wav"
+      "path": "@ROOT@/bundled/error.wav"
     },
     "process": {
       "enabled": true,
@@ -51,7 +49,6 @@
   },
   "sounds_enabled": true,
   "transcription": {
-    "ffmpeg": true,
     "keep_logs": true,
     "key_available": false,
     "language": "fr",
@@ -60,7 +57,7 @@
     "model_version": "v2",
     "processing_dir": "/tmp/khuluma-processing",
     "provider": "parakeet",
-    "socket_path": "@ROOT@/sock/k.sock",
+    "socket_path": "@ROOT@/config/khulumad.sock",
     "tail_pad_ms": "500",
     "tail_rescue": true,
     "tail_rescue_min_ms": "",

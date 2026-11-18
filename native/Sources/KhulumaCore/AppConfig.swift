@@ -75,7 +75,7 @@ public struct AppConfig: Decodable, Equatable, Sendable {
   /// Transcription settings for the native path.
   public let transcription: TranscriptionSettings
   public let pipeline: Pipeline
-  /// Whether config.toml parsed.
+  /// Whether settings.json parsed.
   public let config: ConfigStatus
   /// Where the usage ledger lives.
   public let usage: Usage
@@ -91,7 +91,7 @@ public struct AppConfig: Decodable, Equatable, Sendable {
   }
 
   public struct ConfigStatus: Decodable, Equatable, Sendable {
-    /// The TOML parse error, if config.toml is invalid.
+    /// The parse error, if settings.json is invalid.
     public let error: String?
     /// "file", or when invalid: "last_good" (last valid copy) or "defaults".
     public let source: String
@@ -102,7 +102,7 @@ public struct AppConfig: Decodable, Equatable, Sendable {
     }
   }
 
-  /// config.toml is invalid and there was no valid copy to fall back to, so
+  /// settings.json is invalid and there was no valid copy to fall back to, so
   /// the settings are the built-in defaults rather than the user's.
   public var usingFallbackDefaults: Bool {
     guard config.error != nil else { return false }

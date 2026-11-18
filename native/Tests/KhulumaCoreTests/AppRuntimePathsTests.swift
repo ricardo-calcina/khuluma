@@ -53,7 +53,7 @@ struct AppRuntimePathsTests {
                  home.appendingPathComponent("Library/Application Support/Khuluma").path,
                  home.appendingPathComponent("Library/Application Support/Khuluma/recovered").path,
                  home.appendingPathComponent("Library/Logs/Khuluma").path,
-                 home.appendingPathComponent(".config/khuluma").path] {
+                 home.appendingPathComponent(".config/anything").path] {
       #expect(AppRuntimePaths.isolationIssue(environment: environment(URL(fileURLWithPath: path)), home: home) != nil)
     }
     var unsafe = environment(root)

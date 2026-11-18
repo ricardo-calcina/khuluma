@@ -12,7 +12,7 @@ enum AppConfigFixture {
      "locale_ctype":"","locale_collate":""},
    "transcription":{"socket_path":"/s.sock","model_path":"/m","model_version":"v3","model_label":"m","language":"en",
      "tail_pad_ms":"500","tail_rescue":true,"tail_rescue_ms":"","tail_rescue_min_ms":"",
-     "keep_logs":false,"ffmpeg":true,"timeout_seconds":"600","processing_dir":"/p"},
+     "keep_logs":false,"timeout_seconds":"600","processing_dir":"/p"},
    "config":{"error":null,"source":"file"},
    "pipeline":{"supervise":true},
    "usage":{"summary_path":"/c/usage.json"}}

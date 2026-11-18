@@ -46,14 +46,13 @@ public enum AppRuntimePaths {
         return "Isolated state cannot use home, system or daily application data trees: \(directory.path)"
       }
     }
-    // Data overrides must not lead an isolated run back into real data: the
-    // shared model cache, the CLI-era data folder or the daily app folder.
+    // The model override must not lead an isolated run back into real data:
+    // the shared model cache or the daily app folder.
     let realData = realDataRoots(home: home)
-    for key in ["KHULUMA_DEFAULT_MODEL_DIR", "XDG_DATA_HOME", "SOUNDS_DIR"] {
+    for key in ["KHULUMA_DEFAULT_MODEL_DIR"] {
       guard let value = environment[key], !value.isEmpty else { continue }
-      // The folder and the subfolders the app appends to it.
-      let subpaths: [String] = key == "XDG_DATA_HOME" ? ["", "sounds/khuluma", "khuluma/models"]
-        : key == "SOUNDS_DIR" ? ["", "khuluma"] : ["", "parakeet-tdt-0.6b-v3"]
+      // The folder and the subfolder the app appends to it.
+      let subpaths = ["", "parakeet-tdt-0.6b-v3"]
       let candidates = subpaths.map { URL(fileURLWithPath: value, isDirectory: true).appendingPathComponent($0, isDirectory: true) }
       if candidates.contains(where: { url in
         realData.contains { contains($0, physicalDirectory(url)) || contains($0, url.standardizedFileURL) }
@@ -150,10 +149,9 @@ public enum AppRuntimePaths {
   }
 
   /// Folders an isolated run must never read or write: FluidAudio's shared
-  /// model cache, the CLI-era data folder and the daily app folder.
+  /// model cache and the daily app folder.
   public static func realDataRoots(home: URL) -> [URL] {
     [home.appendingPathComponent("Library/Application Support/FluidAudio"),
-     home.appendingPathComponent(".local/share"),
      home.appendingPathComponent("Library/Application Support/Khuluma")].map(physicalDirectory)
   }
 
