@@ -2,15 +2,15 @@
 
 ## Now
 
-Pick up (Hex parity push): round 2 installed as build 506: Transcribe again with retention (baa5f8c, 4d16591), spoken formatting (d8295a5), Labs page with Keep microphone ready (see git log) · next: Ricardo tries each on real takes, then merge wip/hex-parity to main on his OK · branch: wip/hex-parity
+Hex parity push done (2026-11-18): merged to main as 37d56f8 (fast-forward) and installed as build 510 with the History/search/Activity tweaks (366da5c). Ricardo is trying round 2 in daily use (Next). Feature branches cleared; work happens on main.
 
-Installed build 506 on 2026-11-18 (Ricardo's OK, bb02263, from wip/hex-parity). Rollback: `~/Applications/.khuluma-app.vXiBhx/previous.app` (build 498). Earlier: Installed build 498 on 2026-11-18 (Ricardo's OK, 0037a71, from wip/hex-parity). Rollback: `~/Applications/.khuluma-app.r30tgd/previous.app` (build 494).
+Installed build 510 on 2026-11-18 (Ricardo's OK, 366da5c, merged to main). Rollback: `~/Applications/.khuluma-app.ngdza1/previous.app` (build 506). Earlier: Installed build 506 on 2026-11-18 (Ricardo's OK, bb02263, from wip/hex-parity). Rollback: `~/Applications/.khuluma-app.vXiBhx/previous.app` (build 498). Earlier: Installed build 498 on 2026-11-18 (Ricardo's OK, 0037a71, from wip/hex-parity). Rollback: `~/Applications/.khuluma-app.r30tgd/previous.app` (build 494).
 
 Installed build 494 on 2026-11-11 (Ricardo's OK, d02add2, from wip/hex-parity). Rollback: `~/Applications/.khuluma-app.RBK4ff/previous.app` (build 492). Earlier: Installed build 492 on 2026-11-11 (Ricardo's OK, e8c12e3, from wip/hex-parity). Rollback: `~/Applications/.khuluma-app.nAOhx2/previous.app` (build 490). Earlier: Installed build 490 on 2026-11-11 (Ricardo's OK, 8896b11, from wip/hex-parity). Rollback: `~/Applications/.khuluma-app.J0WSN6/previous.app` (build 486); build 470, the last one from before this push, is `~/Applications/.khuluma-app.s8gnMk/previous.app`. Rollbacks for 464, 476, 478, 481 and 483 are also still there (V9Bt9W, cf3alm, A88hoo, HjMnkA, dYvZKO).
 
 Hex parity push (Ricardo, 2026-11-10): after comparing Khuluma with anomalyco/hex, bring over what suits a Mac-only app, in slices on `wip/hex-parity`, each one a setting. Order and what was left out are in Next and Decisions.
 
-Pick up (CLI sunset tab): keep list handed to the app tab (t4j) on 2026-11-05 · next: when it confirms the app runs without the CLI, prepare phase 4 (final v0.12.0 with notice, formula disable!) for Ricardo's yes · branch: wip/product-split
+Pick up (CLI sunset tab): keep list handed to the app tab (t4j) on 2026-11-05 · next: when it confirms the app runs without the CLI, prepare phase 4 (final v0.12.0 with notice, formula disable!) for Ricardo's yes · branch: main (wip/product-split no longer exists)
 
 Installed build 470 on 2026-11-07 (Ricardo's OK, 9f412d4). Parakeet is selected for dictation. Both transcription actions appear in Finder under Services. Rollback: `~/Applications/.khuluma-app.V9Bt9W/previous.app` (build 464).
 
@@ -43,7 +43,7 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 - [ ] P1 · Try round 2 after install: Transcribe again on a kept take (text replaced, versions kept, nothing on the clipboard), Keep history/audio pickers, spoken formatting on ("Point one. New line. Point two" in a chat app and in Rex), Keep microphone ready (orange dot on while idle, first word kept, `preroll_ms` in app.log, sleep/wake, unplug a mic) · added 2026-11-18
 - [x] P1 · Per-app auto-send rules (e.g. WhatsApp pastes without sending) and an opt-in "restore the clipboard after pasting" (Ricardo, 2026-11-11) · added 2026-11-11
 - [x] P1 · History tab in the window (recent dictations, search, copy) and a "paste last dictation" shortcut, off until set (Ricardo, 2026-11-11) · added 2026-11-11
-- [ ] P1 · Merge wip/hex-parity into main once the above has had a few days of use, including five-minute takes · added 2026-11-11
+- [x] P1 · Merge wip/hex-parity into main (done 2026-11-18 on Ricardo's say-so) once the above has had a few days of use, including five-minute takes · added 2026-11-11
 - [ ] P3 · Idea (Ricardo, 2026-11-18): app-aware spoken formatting, e.g. on for Just Write and off elsewhere, as a per-app rule beside auto-send (Settings › Text › Delivery) rather than dictation built into Just Write. Decide after he's tried the global switch · added 2026-11-18
 - [x] P3 · Left from slice 4 (now in round 2): a Labs page for experiments, and "Keep microphone ready" (pre-roll; costs an always-on mic indicator, so opt-in) · added 2026-11-10
 
@@ -116,7 +116,7 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 - Transcribe while recording (2026-11-10): cut at pauses and transcribe finished segments with the normal whole-clip path, rather than FluidAudio's streaming manager; it needs no daemon change. Simulated on 5 kept takes (33 s to 3 min, 1,420 words) with `KHULUMA_LIVE_SIMULATE=1` on the bundled CLI: the wait for transcription after stop falls from 0.5–1.8 s to 0.09–0.37 s; 13–17 words differ from the whole-clip text (about 1%, neither side clearly better) and about 110 tokens differ in punctuation or capitals. The simulation stays in the CLI helper, inert without the variable, for re-measuring.
 - Tail-rescue merge replaced (2026-11-10): the old merge needed an exact suffix match and otherwise appended the whole re-transcribed tail, repeating the last ~25 words. In history 28 of 189 takes of 12 s or more had such a repeat (0 of 23 shorter ones), 20 at the very end. `TranscriptMerge.mergeTailAnchored` only ever extends the transcript from a shared run of 3 or more words. The old function stays for the CLI-parity fixtures.
 
-- Vocabulary inside the model is parked (2026-11-10). FluidAudio 0.15.6's CTC boosting, run on the 5 kept takes with the 17 Brands terms: at its default threshold every replacement was wrong (15 with aliases, 7 without; e.g. better → WezTerm), at 0.8 it changed nothing, and it added 0.8–3.4 s to every take, more than the transcription. Recall on real mishearings is untested: the takes held one brand term, already right. Code and numbers are on `wip/vocab-boost-experiment`. Worth another look only with a cheaper method or a set of recordings where names were really misheard.
+- Vocabulary inside the model is parked (2026-11-10). FluidAudio 0.15.6's CTC boosting, run on the 5 kept takes with the 17 Brands terms: at its default threshold every replacement was wrong (15 with aliases, 7 without; e.g. better → WezTerm), at 0.8 it changed nothing, and it added 0.8–3.4 s to every take, more than the transcription. Recall on real mishearings is untested: the takes held one brand term, already right. Code and numbers are in tag `archive/vocab-boost-experiment` (branch removed 2026-11-18). Worth another look only with a cheaper method or a set of recordings where names were really misheard.
 
 - Hex parity (Ricardo, 2026-11-10): tap to start and stop stays the default; hold-to-talk is a second shortcut, off until set. The on-screen indicator, mute other audio and keep-awake are switches, off by default (Ricardo prefers the menu bar to a HUD). Mute, not media pause: pausing other apps needs a private macOS API. Pre-roll is left for slice 4: first audio arrives ~210 ms after the key and the chime follows it, so tap-to-talk loses nothing today. Not brought over: cross-platform, meetings, Annotate, local API/SDK, TypeScript config, LLM rewriting. Sparkle and onboarding stay in phase 2.
 
@@ -138,6 +138,8 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 - Rename the existing repository in place to preserve all history; retain neutral `ricardo-calcina/tap` and rename its formula to `khuluma`. The in-place repository rename, immutable v0.10.0 release and canonical formula/map are published and verified. The app continues to depend on its matching CLI; cask/CLI-independence/deprecation/archive are separate future work.
 
 ## Done
+
+- 2026-11-18 · Installed build 510 with the UI tweaks; wip/hex-parity fast-forwarded into main; branches hex-parity, vocab-boost-experiment (kept as tag archive/vocab-boost-experiment) and codex/scribe-finder-actions removed · 37d56f8
 
 - 2026-11-18 · History button hover, on-brand search fields, Activity as heatmap or bar chart (one at a time); not installed · 366da5c
 
