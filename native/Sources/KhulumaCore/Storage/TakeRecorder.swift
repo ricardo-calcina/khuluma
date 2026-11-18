@@ -201,6 +201,10 @@ public struct TakeRecorder: Sendable {
       // debug copy, then release the working file.
       if archive.archive(wav: wav, record: r, captureGapMs: captureGap(r)) != nil, r.status != "recovered" {
         releaseWorkingAudio(wav, log: log)
+      } else if !HistoryRetention.keepsAudio(settings.audioRetentionDays), r.status == "no_speech" {
+        // Audio Off: a no-speech take is settled and nothing else owns its
+        // audio (unlike timed-out or recovered takes), so don't leave it behind.
+        releaseWorkingAudio(wav, log: log)
       }
     }
     // Every take, with or without audio of its own: so Off (or a shorter

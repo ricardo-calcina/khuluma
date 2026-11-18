@@ -61,7 +61,9 @@ public enum HistoryRevision {
         unlink(temp)
         throw error
       }
-      try DataFiles.syncDirectory(directory)
+      // The new entry is already in place: a failed directory sync must not
+      // report the rewrite as failed (a retry would version it twice).
+      try? DataFiles.syncDirectory(directory)
     }
   }
 }

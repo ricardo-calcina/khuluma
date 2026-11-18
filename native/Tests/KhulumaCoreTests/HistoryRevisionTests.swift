@@ -131,6 +131,27 @@ struct HistoryRevisionTests {
     #expect(!FileManager.default.fileExists(atPath: old.path))
   }
 
+  @Test func audioOffReleasesANoSpeechWAVButKeepsATimedOutOne() throws {
+    let root = try scratch(); defer { try? FileManager.default.removeItem(at: root) }
+    let tmp = root.appendingPathComponent("tmp")
+    try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
+    let recorder = TakeRecorder(root: root.appendingPathComponent("support"),
+                                settings: .init(historyRetentionDays: 7, audioRetentionDays: 0, keepLogs: true),
+                                temporaryRoots: [tmp])
+    let silent = tmp.appendingPathComponent("khuluma-silent1.wav")
+    let timedOut = tmp.appendingPathComponent("khuluma-timedout1.wav")
+    try Data("RIFF".utf8).write(to: silent)
+    try Data("RIFF".utf8).write(to: timedOut)
+    var quiet = TakeRecord(takeId: "q", status: "no_speech", delivered: false)
+    quiet.wavPath = silent.path
+    var failed = TakeRecord(takeId: "f", status: "transcribe_failed", delivered: false)
+    failed.wavPath = timedOut.path
+    _ = recorder.record(quiet)
+    _ = recorder.record(failed)
+    #expect(!FileManager.default.fileExists(atPath: silent.path))
+    #expect(FileManager.default.fileExists(atPath: timedOut.path))
+  }
+
   @Test func stagedRevisionLeavesNoVisibleFile() throws {
     let root = try scratch(); defer { try? FileManager.default.removeItem(at: root) }
     let history = root.appendingPathComponent("history")
