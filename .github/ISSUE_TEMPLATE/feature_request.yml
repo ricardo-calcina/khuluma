@@ -24,10 +24,9 @@ body:
     attributes:
       label: Roadmap area
       options:
-        - khuluma
-        - cli (back end, file transcription)
+        - app
+        - file transcription
         - daemon
-        - rename roadmap phase
         - other
 
   - type: textarea

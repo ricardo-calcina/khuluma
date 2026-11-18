@@ -2,8 +2,7 @@ import CryptoKit
 import Darwin
 import Foundation
 
-/// The app's vocabulary document in its own folder: `vocab-sheet show`,
-/// `validate` and `save` ported from `bin/khuluma-lib/vocabulary.py`.
+/// The app's vocabulary document in its own folder: show, validate and save.
 ///
 /// `vocabulary.json` is the document; before it exists, the retained text
 /// `vocab` file (plus the default fillers) is shown instead. A revision is the

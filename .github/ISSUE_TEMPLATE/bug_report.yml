@@ -16,12 +16,11 @@ body:
     attributes:
       label: Affected flow
       options:
-        - khuluma
-        - transcribe
-        - cli
+        - dictation
+        - transcribe (Finder or khuluma transcribe)
         - daemon
-        - install/bootstrap
-        - homebrew
+        - settings/vocabulary
+        - build/install
     validations:
       required: true
 
@@ -40,7 +39,7 @@ body:
     id: diagnostics
     attributes:
       label: Diagnostics
-      description: Paste key output from `khuluma doctor` and `khuluma status`.
+      description: Paste the relevant lines from ~/Library/Logs/Khuluma/app.log (they hold no dictated text), or `tools/khuluma-report.sh --days 2`.
       render: shell
 
   - type: textarea
@@ -49,6 +48,5 @@ body:
       label: Environment
       placeholder: |
         macOS:
-        install channel (brew/bootstrap/local):
         Parakeet model:
-        Khuluma line from app.log (`settings: ... cli X (contract N)`):
+        Khuluma version (the `launch:` line in app.log):

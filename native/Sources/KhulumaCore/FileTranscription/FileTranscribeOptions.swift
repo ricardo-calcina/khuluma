@@ -1,8 +1,8 @@
 import Foundation
 
-/// `khuluma transcribe` arguments: the CLI's keep-list (`-q`, `--format`,
-/// `-o`, `--beside`, `--force`, several files). The CLI's `-c`, `--out-dir`,
-/// stdin `-` and `--no-tail-rescue` are refused with a clear error.
+/// `khuluma transcribe` arguments: `-q`, `--format`, `-o`, `--beside`,
+/// `--force` and several files. The retired CLI's `-c`, `--out-dir`, stdin `-`
+/// and `--no-tail-rescue` are refused with a clear error.
 public struct FileTranscribeOptions: Equatable, Sendable {
   public enum Format: String, Sendable { case txt, json }
 
@@ -15,8 +15,8 @@ public struct FileTranscribeOptions: Equatable, Sendable {
 
   public init() {}
 
-  /// Why the arguments can't run, as the CLI's `die` says it: `message` is
-  /// what follows `khuluma: `, `exitCode` 2 as `die` exits.
+  /// Why the arguments can't run: `message` is what follows `khuluma: `,
+  /// `exitCode` is 2.
   public struct UsageError: Error, Equatable, Sendable {
     public let message: String
     public let exitCode: Int32

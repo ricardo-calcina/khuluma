@@ -1,7 +1,6 @@
 import Foundation
 
-/// The steps that put a transcript into the target app, mirroring the CLI's
-/// osascript delivery (bin/khuluma process_inline_recording).
+/// The steps that put a transcript into the target app.
 public enum DeliveryStep: Equatable, Sendable {
   case setClipboard(String)
   /// Re-activate the app that was frontmost when recording started.

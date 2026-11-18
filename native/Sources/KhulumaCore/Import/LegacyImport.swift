@@ -27,7 +27,7 @@ public enum LegacyImport {
     public let usage: URL
   }
 
-  /// Same resolution as `bin/khuluma`: KHULUMA_CONFIG_DIR, else
+  /// The retired CLI's resolution: KHULUMA_CONFIG_DIR, else
   /// $XDG_CONFIG_HOME/khuluma, else ~/.config/khuluma; usage at
   /// KHULUMA_USAGE_SUMMARY_FILE, else <root>/usage.json.
   public static func source(environment: [String: String], home: URL) -> Source {
@@ -449,8 +449,7 @@ public enum LegacyImport {
     ((try? JSONSerialization.jsonObject(with: data)) as? [String: Any]) != nil
   }
 
-  /// What the CLI's ledgers prove, per destination (bin/khuluma-lib/app.sh
-  /// `inline_record`): `recorded-takes-history` is marked after save_history
+  /// What the CLI's ledgers prove, per destination (its `inline_record`): `recorded-takes-history` is marked after save_history
   /// succeeds; `recorded-takes` only once history is done and usage (when
   /// wanted) was counted. So history = history ∪ full, usage = full.
   /// `recorded-takes-bench` is marked before history is saved and proves

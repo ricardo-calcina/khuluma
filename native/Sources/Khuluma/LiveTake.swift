@@ -2,7 +2,7 @@ import Foundation
 import KhulumaCore
 
 /// Mutable box for values captured inside @Sendable closures (Swift 5 target
-/// but keep the pattern explicit, like the CLI's ResultBox).
+/// but keep the pattern explicit).
 final class SpansBox: @unchecked Sendable {
   var value: [[Int]]?
 }

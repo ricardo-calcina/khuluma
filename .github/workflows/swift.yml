@@ -9,28 +9,16 @@ on:
       - ".github/workflows/swift.yml"
       - "tools/build-khuluma-app.sh"
       - "tools/make-signing-identity.sh"
-      # Khuluma's TextPipeline must match the CLI cleanup byte for byte.
-      - "bin/khuluma-lib.sh"
-      - "bin/khuluma"
-      - "bin/khuluma-lib/**"
-      - "config/**"
-      - "tests/fixtures/cleanup/**"
-      - "tests/gen-cleanup-fixtures.sh"
-      - "tests/gen_cleanup_fixtures.py"
+      # Frozen golden files the Swift tests read.
+      - "tests/fixtures/**"
   pull_request:
     paths:
       - "native/**"
       - ".github/workflows/swift.yml"
       - "tools/build-khuluma-app.sh"
       - "tools/make-signing-identity.sh"
-      # Khuluma's TextPipeline must match the CLI cleanup byte for byte.
-      - "bin/khuluma-lib.sh"
-      - "bin/khuluma"
-      - "bin/khuluma-lib/**"
-      - "config/**"
-      - "tests/fixtures/cleanup/**"
-      - "tests/gen-cleanup-fixtures.sh"
-      - "tests/gen_cleanup_fixtures.py"
+      # Frozen golden files the Swift tests read.
+      - "tests/fixtures/**"
 
 jobs:
   khuluma-native:
@@ -53,11 +41,6 @@ jobs:
 
       - name: Toolchain
         run: swift --version
-
-      - name: Cleanup fixtures match the CLI
-        # Regenerates the expected outputs from the bash cleanup; fails if the
-        # committed tests/fixtures/cleanup/expected.json is stale.
-        run: ../tests/gen-cleanup-fixtures.sh --check
 
       - name: Test KhulumaDaemonKit and KhulumaCore
         run: swift test

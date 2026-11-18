@@ -12,17 +12,15 @@ If these files do not exist, proceed silently. Do not flag their absence or sugg
 
 ## Layout
 
-This is a single-context repo. Khuluma is the macOS dictation product: app, CLI and daemon (current work: `LOG.md`; [identity-rename outcome](../plans/archive/KHULUMA_IDENTITY_RENAME.md); historical roadmap: `docs/archive/KHULUMA_RENAME_ROADMAP.md`). The app was previously called Lowkey. Khuluma, the native menu-bar app in `native/`, is the only way to dictate. The `khuluma` CLI is its back end (config, vocab, history, usage, the daemon lifecycle) and transcribes audio files. The tmux flow, CLI recording, LLM post-processing, Raycast and SwiftBar are absent from the current product.
+This is a single-context repo. Khuluma is a native macOS dictation app (current work: `LOG.md`; [identity-rename outcome](../plans/archive/KHULUMA_IDENTITY_RENAME.md)). Everything lives in `native/`: the menu-bar app, the `khulumad` Parakeet daemon it bundles and supervises, and the bundled `khuluma` command-line helper (`khuluma transcribe`). The earlier bash CLI and its Homebrew formula were retired in 2026-11 (CHANGELOG, `docs/plans/archive/CLI_SUNSET.md`).
 
 Use the repo's established terms:
 
-- `khuluma` for the public command.
-- `khuluma` and `KHULUMA_*` for new paths and overrides; `dictate`/`DICTATE_*` remain only in explicit legacy readers, migration aliases and historical fixtures.
-- `Khuluma` for the app; `khulumad` for the Parakeet daemon; `KhulumaDaemonKit`, `KhulumaCore` and `Khuluma` for the Swift modules.
-- `take` for one recording through delivery. A take goes the `native` path (daemon socket and Swift cleanup) or `falls back` to the CLI's `inline process`.
-- `inline` for the CLI's pipeline that Khuluma uses (`inline process`, `inline record`, `inline cleanup`), and for the frontmost-app delivery settings (`[inline]`). `tmux` survives only as a value in old history and usage.
-- `app contract` for the integer Khuluma and the CLI must agree on.
-- `take markers` (processing markers) for the files that show a take is in progress; `install receipt` for install provenance.
+- `Khuluma` for the app; `khulumad` for the Parakeet daemon; `khuluma` for the bundled helper command; `KhulumaDaemonKit`, `KhulumaCore` and `Khuluma` for the Swift modules.
+- `KHULUMA_*` for environment overrides.
+- `take` for one recording through delivery.
+- `inline` for the frontmost-app delivery settings (`inline.*` in settings.json).
+- `legacy import` for the one-time copy of the retired CLI's data into `~/Library/Application Support/Khuluma`.
 - `Finder Quick Action` and the agent skill for the `transcribe` adapters.
 
 ## ADRs

@@ -1,10 +1,9 @@
 import Foundation
 
-/// Cleanup settings as the CLI resolves them (env, ~/.zshenv, config.toml):
-/// the `cleanup` section of `khuluma app-config --json`.
+/// Cleanup settings, built from settings.json (`AppConfig`).
 ///
-/// Values stay raw strings and are interpreted here with the CLI's own rules,
-/// so odd values ("2abc", "TRUE", "007") behave identically.
+/// Values stay raw strings and are interpreted here with the rules the retired
+/// CLI used, so odd values ("2abc", "TRUE", "007") behave identically.
 public struct CleanupSettings: Codable, Equatable, Sendable {
   public var configDir: String
   /// `KHULUMA_CLEAN` / `[clean] enabled`: fillers/repeats run only when exactly "1".

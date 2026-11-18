@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
 # Keychain-native creation avoids disposable exported private-key files.
 set -euo pipefail
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
-source "$ROOT/bin/khuluma-lib/identity.sh"
-khuluma_reject_obsolete_environment
 IDENTITY="${KHULUMA_SIGNING_IDENTITY:-Khuluma Local Code Signing}"
 KEYCHAIN="${KHULUMA_KEYCHAIN:-$HOME/Library/Keychains/login.keychain-db}"
 [[ "$IDENTITY" != "Lowkey Local Code Signing" && "$IDENTITY" != - ]] || { echo "Choose the new Khuluma identity; keep the legacy certificate unchanged." >&2; exit 2; }

@@ -4,9 +4,7 @@ Thanks for contributing to Khuluma. Current product work is in [`LOG.md`](LOG.md
 
 ## Scope and Direction
 
-- Khuluma, the menu-bar app, is the product. The CLI is its back end and is being retired step by step, so new user-facing features belong in Khuluma.
-- CLI changes should serve Khuluma, file transcription, or the phase 1 ports (`LOG.md`). Changes to the JSON contracts in `docs/CLI_CONTRACTS.md` are additive only, unless Khuluma changes with them and the app contract number goes up on both sides.
-- `khuluma doctor --json` uses diagnostic schema 2 with neutral identity keys. v0.11.0 removes the old command/schema adapter and legacy environment aliases; app contract 3 and durable data formats remain unchanged. Use canonical interfaces in new callers and keep wrong-profile refusal and explicit recovery intact.
+- Khuluma, the native macOS app in `native/`, is the product. The bash CLI was retired in 2026-11; the only command-line surface is the app's bundled `khuluma transcribe` helper (`native/Sources/khuluma-cli`).
 - Keep changes minimal and production-oriented. Pure logic goes in `KhulumaCore` (no AppKit) with tests; the `Khuluma` target stays a thin shell.
 
 ## Development Setup
@@ -14,10 +12,9 @@ Thanks for contributing to Khuluma. Current product work is in [`LOG.md`](LOG.md
 ```bash
 git clone https://github.com/ricardo-calcina/khuluma.git
 cd khuluma
-./tests/ci.sh
-./install.sh --force
+tools/test-affected.sh --full    # full Swift suite
 tools/make-signing-identity.sh   # once
-tools/build-khuluma-app.sh
+tools/build-khuluma-app.sh       # build, sign and install ~/Applications/Khuluma.app
 ```
 
 ## Work tracking
@@ -29,8 +26,8 @@ Keep current tasks, priorities and decisions in `LOG.md`; completed public relea
 - Create feature branches from `main`.
 - Keep one coherent task per branch.
 - Include rationale and risk in the PR description.
-- Name the affected areas: `khuluma`, `cli`, `daemon`, `transcribe`.
-- Note removals and contract changes in `CHANGELOG.md`.
+- Name the affected areas: `app`, `daemon`, `transcribe`, `tools`.
+- Note removals and user-visible changes in `CHANGELOG.md`.
 
 ## Validation Requirements
 
@@ -53,8 +50,8 @@ It prints each changed file, what it chose for it and why, then each step's time
 | `KhulumaDaemonKit`, `khulumad` | `KhulumaDaemonKitTests`, the Core tests that use the daemon (including the bundled-daemon integration test) |
 | `khuluma-cli` | its build and the file-transcription tests |
 | Test files | the suites in them; a shared helper runs the tests that use it |
-| Cleanup inputs (`bin/`, `config/`, `tests/fixtures/`, the fixture generators) | `tests/gen-cleanup-fixtures.sh --check`, the parity and settings suites; `./tests/ci.sh` for `bin/` |
-| `tests/*.sh`, `tests/*.py`, `tools/` | that test file, or a syntax check and its own tests |
+| `tests/fixtures/` (frozen golden files) | the Swift suites that read them |
+| `tests/*.py`, `tools/` | that test file, or a syntax check and its own tests |
 | `Package.swift`, `Package.resolved`, anything it can't place | the full suite |
 
 It fails safe: anything it can't place widens the set, never empties it. `OVERRIDES` at the top of `tools/test_affected.py` holds the links it can't derive (for example a test that reads repo files by path). Add one there when you find another. Swift steps build into the shared `native/.build` with half the cores, at low priority (`nice`, `taskpolicy -c utility`) and a 20-minute hard timeout that stops the whole process group, so the Mac stays usable. The snapshot render runs the just-built app with private support, log and defaults overrides under `native/.build`, so it never touches the daily app's data; the previous render moves to `native/.build/khuluma-snapshots.prev` for comparison. `--snapshot` adds the render to any run, `--no-snapshot` skips it and `--jobs N` (or `KHULUMA_JOBS`) sets the parallelism.
@@ -65,26 +62,25 @@ It fails safe: anything it can't place widens the set, never empties it. `OVERRI
 
 Running Swift by hand: build first with `swift build --build-tests`, then `swift test --skip-build`, which avoids "TestingMacros not found". With the Command Line Tools toolchain, add `-Xswiftc -plugin-path -Xswiftc /Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing` to both.
 
-**Cleanup changes** must keep the bash and Swift pipelines in step. Regenerate the fixtures with `tests/gen-cleanup-fixtures.sh`, and check that `CleanupParityTests` passes.
+**Cleanup changes** must keep `CleanupParityTests` passing: `tests/fixtures/cleanup/expected.json` is frozen output of the retired bash cleanup, and the Swift pipeline must still match it byte for byte. Change a fixture only for a deliberate behaviour change, and say so in the commit.
 
-**Runtime changes** need a real-use check when installing or restarting the daily app is authorized. The commands below change the installed runtime; they are not required for every task or documentation edit:
+**Repo tool checks:** `./tests/ci.sh` syntax-checks `tools/*.sh` and runs `tests/test_app_build_helpers.py` and `tests/test_test_affected.py`; `.github/workflows/ci.yml` runs it on every push.
+
+**Runtime changes** need a real-use check when installing or restarting the daily app is authorized. These commands change the installed app; they are not required for every task or documentation edit:
 
 ```bash
-./install.sh --force
 tools/build-khuluma-app.sh      # waits for a take in progress, then relaunches Khuluma
-khuluma doctor
 tools/khuluma-report.sh         # after a few real takes
 ```
 
 ## Release Policy
 
 - `main` is stable/releasable.
-- Homebrew tap is updated from stable tags only.
 - Do not ship personal machine-specific config defaults.
 
 ## Security and Privacy
 
 - Never commit API keys, tokens, or private credentials.
-- Keep defaults portable (`config/config.toml`, `config/vocab`).
+- Keep defaults portable; the app writes its own defaults on first run.
 - Do not hardcode user-specific paths or local secrets.
 - Logs, usage and stats never record dictated text. Transcripts live in history, and briefly in Khuluma's pending spool until history has them.

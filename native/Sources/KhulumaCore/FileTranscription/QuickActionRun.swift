@@ -1,7 +1,6 @@
 import Foundation
 
-/// The Quick Action's work, as the CLI's Finder handler did it
-/// (`khuluma transcribe --beside --clipboard`): `<name>.txt` beside each file,
+/// The Quick Action's work: `<name>.txt` beside each file,
 /// never over an existing one (then `<name>-2.txt`, `-3`, ... the first
 /// free name, claimed atomically; Ricardo's call, 2026-11-06), the
 /// transcripts joined for the clipboard, and one notification line.

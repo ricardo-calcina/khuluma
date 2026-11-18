@@ -7,8 +7,6 @@
 #   tools/khuluma-report.sh --days 2         # today and yesterday
 #   tools/khuluma-report.sh --since 2026-10-12 --system
 set -euo pipefail
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
-source "$ROOT/bin/khuluma-lib/identity.sh"
 
 LOG="${KHULUMA_LOG:-$HOME/Library/Logs/Khuluma/app.log}"
 SINCE=""
@@ -31,7 +29,6 @@ while [[ $# -gt 0 ]]; do
   esac
   shift
 done
-khuluma_reject_obsolete_environment
 
 [[ -r "$LOG" ]] || { echo "no log at $LOG" >&2; exit 1; }
 command -v python3 >/dev/null 2>&1 || { echo "python3 is required" >&2; exit 1; }

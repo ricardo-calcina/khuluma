@@ -3,12 +3,9 @@
 # preserves the previous verified bundle for rollback and never creates a key.
 set -Eeuo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
-source "$ROOT/bin/khuluma-lib/identity.sh"
-source "$ROOT/bin/khuluma-lib/migration.sh"
 PKG="$ROOT/native"
 APP_NAME=Khuluma
 BUNDLE_ID=com.ricardo-nth.khuluma
-LEGACY_BUNDLE_ID=com.ricardo-nth.lowkey
 IDENTITY="${KHULUMA_SIGNING_IDENTITY:-Khuluma Local Code Signing}"
 KEYCHAIN="${KHULUMA_KEYCHAIN:-$HOME/Library/Keychains/login.keychain-db}"
 OUT="$HOME/Applications/Khuluma.app"
@@ -42,7 +39,6 @@ for resource in "$APP_ICON" "$APP_CATALOG" "$MENU_ICON" "$RECORDING_ICON" "$FINI
   "$EMBLEM_RECORDING_ICON" "$EMBLEM_FINISHING_ICON" "$EMBLEM_FRAME_ICON" "$EMBLEM_ROTOR_ICON"; do
   [[ -s "$resource" ]] || { echo "Required icon resource missing: $resource" >&2; exit 2; }
 done
-khuluma_reject_obsolete_environment
 command -v python3 >/dev/null 2>&1 || { echo "python3 is required" >&2; exit 2; }
 OUT="$(python3 -c 'import os,sys; print(os.path.abspath(os.path.expanduser(sys.argv[1])))' "$OUT")"
 [[ "$OUT" == *.app && ! -L "$OUT" ]] || { echo "Refusing non-app or symlink output: $OUT" >&2; exit 2; }
@@ -104,13 +100,10 @@ if [[ "$INSTALL" == 0 ]]; then
   python3 - "$OUT" "$HOME" <<'PY'
 import os, sys
 output, home = sys.argv[1:]
-protected = (os.path.join(home, "Applications", "Khuluma.app"), os.path.join(home, "Applications", "Lowkey.app"), "/Applications/Khuluma.app", "/Applications/Lowkey.app")
+protected = (os.path.join(home, "Applications", "Khuluma.app"), "/Applications/Khuluma.app")
 if os.path.realpath(output) in {os.path.realpath(path) for path in protected}:
     raise SystemExit("preview output must be separate from the daily app")
 PY
-else
-  # A direct build must not perform a partial legacy runtime/data cutover.
-  khuluma_identity_preflight "${KHULUMA_BIN_DIR:-$HOME/.local/bin}/khuluma"
 fi
 [[ "$IDENTITY" != - && "$IDENTITY" != "Lowkey Local Code Signing" ]] || { echo "Select the new Khuluma signing identity; the legacy certificate is retained for rollback." >&2; exit 2; }
 # find-identity requires a usable private key, unlike find-certificate. Signing
@@ -147,17 +140,6 @@ verify_existing_bundle() {
   [[ -x "$bundle/Contents/MacOS/$executable" ]] || return 1
   codesign --verify --strict "$bundle"
 }
-# A separate pre-Khuluma app must be quiesced by the serialized migration
-# controller, including its login/admission route. A direct build cannot make
-# that proof and must not install a competing writer beside it.
-legacy_app="$HOME/Applications/Lowkey.app"
-if [[ "$INSTALL" == 1 && "$OUT" != "$legacy_app" && -e "$legacy_app" ]]; then
-  legacy_id="$(plutil -extract CFBundleIdentifier raw -o - "$legacy_app/Contents/Info.plist" 2>/dev/null || true)"
-  if [[ "$legacy_id" == "$LEGACY_BUNDLE_ID" ]]; then
-    echo "Controlled identity migration must drain and retain $legacy_app and its login route before installing Khuluma. Legacy app left unchanged." >&2
-    exit 2
-  fi
-fi
 initial_output_token=""
 if [[ -e "$OUT" ]]; then
   verify_existing_bundle "$OUT" || { echo "Refusing unrelated or unverifiable bundle: $OUT" >&2; exit 2; }
@@ -183,11 +165,11 @@ SRC="$stage_root/source"
 mkdir -p "$SRC"
 if [[ "$dirty" == 1 ]]; then
   # Tracked and untracked (not ignored) files as they are now.
-  (cd "$ROOT" && git ls-files -z --cached --others --exclude-standard -- bin native assets \
+  (cd "$ROOT" && git ls-files -z --cached --others --exclude-standard -- native assets \
     | while IFS= read -r -d '' file; do [[ -e "$file" ]] && printf '%s\0' "$file"; done \
     | rsync -a --from0 --files-from=- ./ "$SRC/")
 else
-  git -C "$ROOT" archive "$commit" bin native assets | tar -x -C "$SRC"
+  git -C "$ROOT" archive "$commit" native assets | tar -x -C "$SRC"
 fi
 PKG="$SRC/native"
 for var in APP_ICON APP_CATALOG MENU_ICON RECORDING_ICON FINISHING_ICON EMBLEM_RECORDING_ICON \
@@ -195,8 +177,8 @@ for var in APP_ICON APP_CATALOG MENU_ICON RECORDING_ICON FINISHING_ICON EMBLEM_R
   printf -v "$var" '%s' "$SRC${!var#"$ROOT"}"
   [[ -s "${!var}" ]] || { echo "Required icon resource missing from the snapshot: ${!var}" >&2; exit 2; }
 done
-version="$(sed -n 's/^KHULUMA_CLI_VERSION="\(.*\)"$/\1/p' "$SRC/bin/khuluma")"
-[[ -n "$version" ]] || { echo "Could not read canonical CLI version" >&2; exit 2; }
+version="$(tr -d '[:space:]' < "$SRC/native/VERSION" 2>/dev/null || true)"
+[[ -n "$version" ]] || { echo "Could not read native/VERSION" >&2; exit 2; }
 build_number="$(git -C "$ROOT" rev-list --count "$commit" 2>/dev/null || echo 1)"
 stage="$stage_root/Khuluma.app"
 echo "Building Khuluma $version ($build_number, $git_commit)…"

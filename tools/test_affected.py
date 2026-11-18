@@ -41,7 +41,6 @@ SNAPSHOT_PREV = NATIVE / ".build" / "khuluma-snapshots.prev"
 PLUGIN_DIR = "/Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing"
 STEP_TIMEOUT = 1200
 SNAPSHOT_TIMEOUT = 300
-GEN_CHECK = "tests/gen-cleanup-fixtures.sh --check"
 CI_SH = "./tests/ci.sh"
 SELFTEST = "python3 tests/test_test_affected.py"
 
@@ -58,15 +57,11 @@ OVERRIDES: dict[str, dict] = {
     "assets/sounds/**": {"suites": {CORE_T: ["SoundsAndPermissionsTests"]}},
     # Repo files read by #filePath from the Swift tests.
     "tests/fixtures/cleanup/**": {"files": {CORE_T: ["native/Tests/KhulumaCoreTests/CleanupParityTests.swift",
-                                                     "native/Tests/KhulumaCoreTests/SettingsTests.swift"]},
-                                  "commands": [GEN_CHECK]},
+                                                     "native/Tests/KhulumaCoreTests/SettingsTests.swift"]}},
     "tests/fixtures/settings/**": {"files": {CORE_T: ["native/Tests/KhulumaCoreTests/SettingsTests.swift"]}},
     "tests/fixtures/vocabulary-parity/**": {"files": {CORE_T: ["native/Tests/KhulumaCoreTests/VocabularyParityTests.swift"]}},
     "tests/fixtures/usage-parity/**": {"files": {CORE_T: ["native/Tests/KhulumaCoreTests/UsageParityTests.swift"]}},
 }
-
-PARITY_FILES = [f"native/Tests/KhulumaCoreTests/{n}.swift"
-                for n in ("CleanupParityTests", "VocabularyParityTests", "UsageParityTests", "SettingsTests")]
 
 # Extending these says nothing about which Khuluma code uses the new members.
 STDLIB = {"String", "Substring", "Character", "Array", "Dictionary", "Set", "Optional", "Int", "Double",
@@ -525,28 +520,6 @@ def classify(path: str, plan: Plan, repo: Repo) -> bool:
         plan.swift_full = True
         return why("package", "full Swift suite + all products")
 
-    # Cleanup/vocabulary/usage parity inputs.
-    if path.startswith("bin/"):
-        plan.cmd(GEN_CHECK)
-        plan.test_files[CORE_T].update(PARITY_FILES)
-        plan.cmd(CI_SH)
-        return why("cli cleanup", "fixtures --check + parity tests + tests/ci.sh")
-    if path.startswith("config/"):
-        plan.cmd(GEN_CHECK)
-        plan.test_files[CORE_T].update(PARITY_FILES)
-        return why("config", "fixtures --check + parity tests")
-    if path in ("tests/gen-cleanup-fixtures.sh", "tests/gen_cleanup_fixtures.py"):
-        plan.cmd(GEN_CHECK)
-        plan.test_files[CORE_T].add(PARITY_FILES[0])
-        return why("fixture gen", "fixtures --check + CleanupParityTests")
-    gens = {"tests/gen_usage_parity_fixtures.py": "UsageParityTests",
-            "tests/gen_vocabulary_parity_fixtures.py": "VocabularyParityTests",
-            "tests/gen-settings-fixtures.sh": "SettingsTests"}
-    if path in gens:
-        plan.test_files[CORE_T].add(f"native/Tests/KhulumaCoreTests/{gens[path]}.swift")
-        if path.endswith(".sh"):
-            plan.cmd(f"bash -n {path}")
-        return why("fixture gen", gens[path])
     if path.startswith("tests/fixtures/"):
         if any(glob_match(path, p) for p in OVERRIDES):
             return why("fixtures", "Swift readers (override map)")
@@ -557,9 +530,6 @@ def classify(path: str, plan: Plan, repo: Repo) -> bool:
             plan.test_files[CORE_T].update(readers)
             return why("fixtures", f"Swift readers: {short([stem(r) for r in readers])}")
         return why("fixtures", "no Swift test reads it", mapped=False)
-    if path == "tests/fixture_helpers.sh":
-        plan.cmd(CI_SH)
-        return why("shell tests", "shared helper → tests/ci.sh")
     if re.fullmatch(r"tests/[^/]+\.sh", path):
         if path == "tests/ci.sh":
             plan.cmd(CI_SH)

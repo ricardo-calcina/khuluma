@@ -60,7 +60,7 @@ F. **`khuluma transcribe` and the Finder Quick Action** inside the app (keep lis
 G. **Cut the cord**: delete `CLIBridge`, the CLI route and the app-contract checks. A take that can't be processed goes to recovered and retries; it is never lost. Tell the sunset tab (t4k) the app no longer needs the CLI.
 H. **Acceptance, install, merge** (below).
 
-## Keep list (sunset tab t4k, confirmed by Ricardo 2026-11-05; inventory in docs/plans/CLI_SUNSET.md)
+## Keep list (sunset tab t4k, confirmed by Ricardo 2026-11-05; inventory in docs/plans/archive/CLI_SUNSET.md)
 
 1. `khuluma transcribe <file>...`: `-q`; `--format json` (one object per line: `file`, `text`, `audio_duration_ms`, `processing_ms`, `model`, `engine`); `-o <file>`; several files; `--beside` (`<name>.txt` next to each file); `--force` (otherwise never overwrite, and no partial output on failure). Errors as `khuluma: ...` on stderr with a non-zero exit. Raw transcript, no cleanup, not counted in usage or history. Dropped: `-c`, `--out-dir`, stdin `-`, `--no-tail-rescue`.
 2. ElevenLabs Scribe (slice E).

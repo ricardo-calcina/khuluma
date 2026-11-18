@@ -134,10 +134,6 @@ elif name in ("open", "mdimport", "lsregister"):
     for value in args:
         if value.startswith("/"):
             owned(value)
-elif name == "mock-event":
-    if args and (args[0] == "preflight" and settings.get("preflight_failure")
-                 or args[0] == "environment-guard" and settings.get("environment_failure")):
-        raise SystemExit(46)
 elif name in ("ps", "osascript", "launchctl", "defaults", "tccutil", "xcrun", "xcodebuild", "service"):
     raise SystemExit("Forbidden nonmocked operation requested: " + name)
 else:
@@ -176,7 +172,7 @@ def main() -> int:
     run = Path(tempfile.mkdtemp(prefix="khuluma-app-helpers-", dir=Path(tempfile.gettempdir()).resolve())).resolve()
     run.chmod(0o700)
     template = run / "template"
-    for relative in ("repo/tools", "repo/bin/khuluma-lib", "repo/native/App", "repo/assets/icons/app", "repo/assets/icons/menu-bar", "mock-bin"):
+    for relative in ("repo/tools", "repo/native/App", "repo/assets/icons/app", "repo/assets/icons/menu-bar", "mock-bin"):
         (template / relative).mkdir(parents=True, exist_ok=True)
     (template / "repo/assets/icons/app/Khuluma.icns").write_bytes(b"MOCK ICNS RESOURCE\n")
     (template / "repo/assets/icons/app/Assets.car").write_bytes(b"MOCK CAR RESOURCE\n")
@@ -200,18 +196,13 @@ def main() -> int:
     tested_script.write_text(original.replace(instrumentation_from, instrumentation_to))
     tested_hash = digest(tested_script)
     # Dependency seams are fixture-only. The build helper itself is byte exact.
-    (template / "repo/bin/khuluma-lib/identity.sh").write_text(
-        'khuluma_normalize_environment() { return 91; }\n'
-        'khuluma_reject_obsolete_environment() { mock-event environment-guard "$@"; }\n')
-    (template / "repo/bin/khuluma-lib/migration.sh").write_text(
-        'khuluma_identity_preflight() { mock-event preflight "$@"; }\n')
-    (template / "repo/bin/khuluma").write_text('KHULUMA_CLI_VERSION="fixture-0.11.0"\n')
+    (template / "repo/native/VERSION").write_text("fixture-0.11.0\n")
     shutil.copy2(SOURCE / "native/App/Khuluma.entitlements", template / "repo/native/App/Khuluma.entitlements")
     mock = template / "mock-bin/mock-command"
     mock.write_text(MOCK.replace("#!INTERPRETER", "#!" + sys.executable))
     mock.chmod(0o700)
     names = ["security", "swift", "git", "plutil", "codesign", "ditto", "open", "mdimport", "lsregister",
-             "mock-event", "ps", "osascript", "launchctl", "defaults", "tccutil", "xcrun", "xcodebuild", "service"]
+             "ps", "osascript", "launchctl", "defaults", "tccutil", "xcrun", "xcodebuild", "service"]
     for name in names:
         (mock.parent / name).symlink_to("mock-command")
     # All product logic is copied verbatim except the one absolute service
@@ -226,7 +217,7 @@ def main() -> int:
     cases: list[dict] = []
     def case(name: str, *, mode: str = "preview", settings: dict | None = None,
              identity: str | None = None, existing: str | None = None, output_kind: str = "fresh",
-             explicit_out: bool = True, separate_legacy: bool = False, existing_executable: str = "Khuluma",
+             explicit_out: bool = True, existing_executable: str = "Khuluma",
              extra_args: tuple = (), expected: int = 0, verify=None) -> None:
         root = run / name
         root.mkdir(mode=0o700)
@@ -241,8 +232,6 @@ def main() -> int:
         output = root / "outputs/Preview.app" if mode == "preview" else daily
         if output_kind == "daily":
             output = daily
-        elif output_kind == "legacy-daily":
-            output = home / "Applications/Lowkey.app"
         elif output_kind == "parent-symlink":
             target = root / "original-target"
             target.mkdir()
@@ -250,8 +239,6 @@ def main() -> int:
             output = root / "alias/Preview.app"
         if existing:
             make_bundle(output, identifier=existing, executable=existing_executable)
-        if separate_legacy:
-            make_bundle(home / "Applications/Lowkey.app", identifier="com.ricardo-nth.lowkey", executable="Lowkey")
         if output_kind == "symlink":
             target = root / "original-target"
             target.mkdir()
@@ -293,9 +280,8 @@ def main() -> int:
         if mode == "preview":
             ui = set(observed) & {"open", "mdimport", "lsregister"}
             lifecycle = any(event["command"] == "swift" and event["args"][0] == "-" for event in events)
-            preflight = any(event["command"] == "mock-event" and event["args"][0] == "preflight" for event in events)
-            if ui or lifecycle or preflight:
-                errors.append("preview invoked service/UI/lifecycle/preflight seam")
+            if ui or lifecycle:
+                errors.append("preview invoked service/UI/lifecycle seam")
         if verify:
             try:
                 verify(root, output, events, result)
@@ -358,11 +344,6 @@ def main() -> int:
         original_retained(root, output, events, result)
         assert not any(event["command"] in ("open", "lsregister", "mdimport") or event["command"] == "swift" and event["args"][0] == "-" for event in events), "pre-install failure invoked lifecycle or UI"
 
-    def separate_legacy_retained(root, output, events, result):
-        assert inspect_bundle(root / "home/Applications/Lowkey.app") == "original", "separate legacy app changed"
-        assert not output.exists(), "competing new app published beside legacy app"
-        assert not any(event["command"] in ("swift", "open", "lsregister", "mdimport") for event in events), "legacy admission failure reached build/lifecycle/UI"
-
     def restored(root, output, events, result):
         original_retained(root, output, events, result)
         transactions = list(output.parent.glob(".khuluma-app.*"))
@@ -384,11 +365,8 @@ def main() -> int:
         assert not events, "help invoked a dependency/guard seam"
         assert not output.exists(), "help created an output"
 
-    case("preview-help-with-obsolete-environment-is-pure", settings={"environment_failure": True}, extra_args=("--help",), verify=help_is_pure)
-    case("preview-environment-guard-refused", settings={"environment_failure": True}, expected=1, verify=rejected_before_build)
-    case("install-old-bundle-rejected", mode="install", existing="com.ricardo-nth.lowkey", expected=1, verify=rejected_before_build)
-    case("install-old-executable-rejected", mode="install", existing="com.ricardo-nth.khuluma", existing_executable="Lowkey", expected=1, verify=rejected_before_build)
-    case("preview-old-daily-path-rejected", output_kind="legacy-daily", expected=1, verify=rejected_before_build)
+    case("preview-help-is-pure", extra_args=("--help",), verify=help_is_pure)
+    case("install-wrong-executable-rejected", mode="install", existing="com.ricardo-nth.khuluma", existing_executable="Other", expected=1, verify=rejected_before_build)
     case("preview-symlink-ancestor-rejected", output_kind="parent-symlink", expected=1, verify=rejected_before_build)
     case("preview-selfsigned-exact-name", verify=new_bundle)
     case("preview-selfsigned-exact-hash", identity=HASH_A.lower(), verify=new_bundle)
@@ -410,9 +388,7 @@ def main() -> int:
     case("preview-output-race-retained", settings={"race_on_build": True}, expected=1, verify=build_race_retained)
     case("install-existing-idle", mode="install", existing="com.ricardo-nth.khuluma", verify=install_new)
     case("install-existing-running", mode="install", existing="com.ricardo-nth.khuluma", settings={"running": True}, verify=install_new)
-    case("install-separate-legacy-app-refused", mode="install", separate_legacy=True, expected=1, verify=separate_legacy_retained)
     case("install-unrelated-bundle-rejected", mode="install", existing="org.unrelated.application", expected=1, verify=original_retained)
-    case("install-preflight-rejected", mode="install", settings={"preflight_failure": True}, expected=1, verify=rejected_before_build)
     case("install-sign-failure-keeps-original", mode="install", existing="com.ricardo-nth.khuluma", settings={"sign_failure": True}, expected=1, verify=original_untouched_before_lifecycle)
     case("install-stage-verify-failure-keeps-original", mode="install", existing="com.ricardo-nth.khuluma", settings={"stage_verify_failure": True}, expected=1, verify=original_untouched_before_lifecycle)
     case("install-copy-failure-keeps-original", mode="install", existing="com.ricardo-nth.khuluma", settings={"copy_failure": True}, expected=1, verify=original_untouched_before_lifecycle)
@@ -426,9 +402,9 @@ def main() -> int:
               "instrumentation": {"from": instrumentation_from, "to": instrumentation_to, "replacements": 1},
               "source_unchanged_during_gate": current_source_hash == source_hash,
               "current_source_sha256": current_source_hash, "run": str(run),
-              "mocked_dependencies": names + ["identity.sh", "migration.sh", "absolute lsregister pathname assignment"],
+              "mocked_dependencies": names + ["absolute lsregister pathname assignment"],
               "real_operations": ["private fixture file reads/writes/copies", "standard shell utilities", "embedded Python checks", "platform exclusive rename in private fixture directories"],
-              "omissions": ["actual cryptographic signing/trust", "actual Swift compilation", "AppKit termination behavior", "actual Launch Services/Spotlight/UI", "preflight implementation"],
+              "omissions": ["actual cryptographic signing/trust", "actual Swift compilation", "AppKit termination behavior", "actual Launch Services/Spotlight/UI"],
               "cases": cases, "passed": sum(case["passed"] for case in cases), "total": len(cases)}
     (run / "results.json").write_text(json.dumps(report, indent=2) + "\n")
     lines = ["# All-mocked app build-helper gate", "", f"Result: {report['passed']}/{report['total']} cases passed.", "",
@@ -437,7 +413,7 @@ def main() -> int:
              "The original source is retained byte-for-byte beside each tested private copy. The only instrumentation replaces the absolute LSREGISTER pathname assignment with the owned stub pathname through `GATE_MOCK_LSREGISTER`; the literal transformation is recorded in results.json. Dependency scripts are fixture seams; all build, signing, keychain, lifecycle, service and UI operations were mocked. No real product command was run. Atomic exclusive renames used the platform syscall only within owned private fixtures. All generated artifacts remain inspectable.", "",
              "| Case | Result | Exit |", "| --- | --- | --- |"]
     lines += [f"| {entry['case']} | {'PASS' if entry['passed'] else 'FAIL'} | {entry['exit_code']} |" for entry in cases]
-    lines += ["", "Coverage limits: actual cryptographic signing/trust, Swift compilation, AppKit process termination, service/UI behavior and preflight implementation were not exercised. These tests establish helper selection/guard/transaction control flow under mocked dependencies.", "",
+    lines += ["", "Coverage limits: actual cryptographic signing/trust, Swift compilation, AppKit process termination, and service/UI behavior were not exercised. These tests establish helper selection/guard/transaction control flow under mocked dependencies.", "",
               f"Full events, stdout/stderr and retained fixture trees: `{run}`."]
     (run / "report.md").write_text("\n".join(lines) + "\n")
     print(f"\n{report['passed']}/{report['total']} passed; evidence: {run / 'report.md'}")

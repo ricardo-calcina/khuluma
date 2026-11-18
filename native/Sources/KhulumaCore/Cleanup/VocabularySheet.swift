@@ -38,8 +38,7 @@ public struct VocabularySheet: Codable, Equatable, Sendable {
     }
   }
 
-  /// The CLI's `vocab-sheet validate`: same rules and messages as
-  /// `bin/khuluma-lib/vocabulary.py`. Unknown fields, duplicate JSON fields
+  /// Validates a vocabulary document. Unknown fields, duplicate JSON fields
   /// and wrong shapes are errors rather than silently lost.
   public static func decode(_ data: Data) throws -> Self {
     guard data.count <= maximumBytes else { throw Invalid.document("Choose a vocabulary JSON file smaller than 1 MB.") }

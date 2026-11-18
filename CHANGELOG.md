@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Retire the bash `khuluma` CLI, `install.sh`, `bootstrap.sh` and the Homebrew formula. Khuluma is the macOS app only: it keeps its own data, runs its own daemon, and bundles the `khuluma transcribe` helper (link `~/.local/bin/khuluma` to `Khuluma.app/Contents/Helpers/khuluma`) and the Finder Quick Actions. The CLI tests, fixture generators, identity-migration tools and formula updater are removed; the cleanup fixtures stay as frozen golden files for the Swift tests.
 - Add a **History** tab to the Khuluma window: recent dictations grouped by day with search and a Copy button for each one (Command-2).
 - Add a **Paste last dictation** shortcut (Settings → Recording, off by default) that pastes your most recent dictation again without sending.
 - Add per-app auto-send rules on Settings → Text: an app can always send or always paste without sending, whatever the global switch says. Paste-only still wins everywhere.

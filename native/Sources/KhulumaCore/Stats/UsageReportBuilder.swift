@@ -1,7 +1,6 @@
 import Foundation
 
-/// `khuluma usage --json --days all`, ported from `usage_summary` in
-/// `bin/khuluma-lib/history.sh`: builds the `UsageReport` the Stats window
+/// Builds the `UsageReport` the Stats window
 /// shows straight from `usage.json`. Read without the data lock: the writer
 /// replaces the file atomically, so a read sees the old or the new document.
 public enum UsageReportBuilder {

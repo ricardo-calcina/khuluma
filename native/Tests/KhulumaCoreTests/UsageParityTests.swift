@@ -3,9 +3,9 @@ import Testing
 
 @testable import KhulumaCore
 
-/// `UsageReportBuilder` against the repo CLI's `usage --json --days all`
-/// (tests/fixtures/usage-parity/cases.json, from tests/gen_usage_parity_fixtures.py
-/// with a fixed clock and time zone). The decoded reports must be equal.
+/// `UsageReportBuilder` against the retired CLI's `usage --json --days all`
+/// (tests/fixtures/usage-parity/cases.json, frozen; recorded with a fixed
+/// clock and time zone). The decoded reports must be equal.
 struct UsageParityTests {
   nonisolated(unsafe) static let cases: [[String: Any]] = {
     let url = CleanupParity.repoRoot.appendingPathComponent("tests/fixtures/usage-parity/cases.json")

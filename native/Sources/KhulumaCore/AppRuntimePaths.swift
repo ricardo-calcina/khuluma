@@ -40,7 +40,7 @@ public enum AppRuntimePaths {
     let protected = ["Library", ".config", ".local", ".ssh", ".codex"].map { home.appendingPathComponent($0) }
       + ["/System", "/Library", "/Applications", "/bin", "/sbin", "/usr", "/opt", "/etc",
          "/private/etc", "/private/var/db", "/private/var/root"].map { URL(fileURLWithPath: $0) }
-      + ["khuluma-timed-out", "lowkey-timed-out"].map { physicalDirectory(FileManager.default.temporaryDirectory).appendingPathComponent($0) }
+      + ["khuluma-timed-out"].map { physicalDirectory(FileManager.default.temporaryDirectory).appendingPathComponent($0) }
     for directory in [parent, support, logs] {
       guard !contains(directory, home), !protected.contains(where: { contains($0, directory) || contains(directory, $0) }) else {
         return "Isolated state cannot use home, system or daily application data trees: \(directory.path)"

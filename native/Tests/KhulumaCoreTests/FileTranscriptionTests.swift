@@ -370,8 +370,8 @@ struct FileTranscribeCommandTests {
     #expect(cmd(captured).main(["help"]) == 0)
     #expect(captured.out.contains("transcribe <file>"))
     captured = Captured()
-    #expect(cmd(captured).main(["dictate"]) == 2)
-    #expect(captured.err == "khuluma: unknown command: dictate (run: khuluma help)\n")
+    #expect(cmd(captured).main(["frobnicate"]) == 2)
+    #expect(captured.err == "khuluma: unknown command: frobnicate (run: khuluma help)\n")
     #expect(cmd(Captured()).main([]) == 2)
   }
 }

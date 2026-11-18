@@ -8,20 +8,4 @@ This repository includes a tiny generated sound pack at `assets/sounds/khuluma/`
 - `error.wav`
 - `cancel.wav`
 
-They are intentionally short and can be installed with:
-
-```bash
-./install.sh --with-sounds
-```
-
-Installed location by default:
-
-```bash
-~/.local/share/sounds/khuluma
-```
-
-To skip sound installation:
-
-```bash
-./install.sh --no-sounds
-```
+`tools/build-khuluma-app.sh` bundles them into `Khuluma.app/Contents/Resources/sounds` as the defaults. Your own sounds go in `~/Library/Application Support/Khuluma/sounds` (Settings → Sounds → Show in Finder).

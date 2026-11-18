@@ -1,7 +1,7 @@
 import Foundation
 
-/// Ports of the CLI's Perl cleanup filters in bin/khuluma-lib.sh. Each
-/// function returns exactly what the Perl one-liner prints for the same input
+/// The cleanup filters, ported from the retired CLI's Perl. Each function
+/// returns exactly what the Perl one-liner printed for the same input
 /// (callers apply bash's `$(...)` newline stripping between stages).
 ///
 /// These filters run Perl without `-CS`, so they see UTF-8 bytes: `\s`, `\b`

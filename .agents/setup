@@ -8,17 +8,9 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 step() { printf '\n==> %s\n' "$*"; }
 SECONDS=0
 
-# command -> Debian package. python3 must be >= 3.11 (tomllib); Debian 12 ships 3.11.
+# command -> Debian package.
 declare -A packages=(
-  [rg]=ripgrep
   [python3]=python3
-  [perl]=perl
-  [shasum]=perl
-  [tmux]=tmux
-  [ffmpeg]=ffmpeg
-  [ffprobe]=ffmpeg
-  [curl]=curl
-  [tar]=tar
 )
 
 step "Checking system packages"
@@ -35,20 +27,16 @@ else
   echo "all present"
 fi
 
-python3 -c 'import tomllib' || { echo "python3 lacks tomllib (need >= 3.11)" >&2; exit 1; }
-
 step "Writing orb agent notes"
 mkdir -p "$HOME/.config/amp"
 cat >"$HOME/.config/amp/AGENTS.md" <<'NOTES'
 # Orb notes (Khuluma)
 
-- Linux orb: `./tests/ci.sh` is the validation that runs here (bash + python3 + rg).
+- Linux orb: `./tests/ci.sh` is the validation that runs here (bash + python3): the
+  repo tool checks only.
 - The Swift package (`native/`, Khuluma, KhulumaDaemonKit) targets macOS 14 only
   (AppKit, CoreML). `swift test` and `tools/build-khuluma-app.sh` cannot run in the orb;
   rely on the `Swift` GitHub workflow (macos-latest) for those.
-- `tests/gen-cleanup-fixtures.sh --check` runs on macOS in CI; results on Linux can differ.
-- `./install.sh --force` installs into the orb's own ~/.local and ~/.config/khuluma, which is
-  harmless here but is not a real-use check.
 NOTES
 
 step "Done in ${SECONDS}s"

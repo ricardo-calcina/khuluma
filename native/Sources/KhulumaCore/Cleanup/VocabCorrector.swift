@@ -1,6 +1,6 @@
 import Foundation
 
-/// Port of `khuluma_lib_apply_vocab_corrections` (bin/khuluma-lib.sh):
+/// Vocabulary corrections (ported from the retired CLI's Perl):
 /// spelled-out acronym compaction, then the `vocab` rules, applied in order so
 /// earlier rules can feed later ones.
 ///

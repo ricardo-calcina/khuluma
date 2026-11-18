@@ -4,10 +4,9 @@ import Testing
 
 @testable import KhulumaCore
 
-/// The native vocabulary store against the repo CLI's `vocab-sheet`
-/// (bin/khuluma-lib/vocabulary.py). The expected outputs in
-/// tests/fixtures/vocabulary-parity/cases.json come from the real CLI, run by
-/// tests/gen_vocabulary_parity_fixtures.py in a throwaway config folder.
+/// The native vocabulary store against the retired CLI's `vocab-sheet`. The
+/// expected outputs in tests/fixtures/vocabulary-parity/cases.json are frozen
+/// recordings from the real CLI in a throwaway config folder.
 /// Documents, errors, saved bytes and backups must match; revisions are opaque
 /// and not compared. Every test uses a fresh temp folder.
 struct VocabularyParityTests {

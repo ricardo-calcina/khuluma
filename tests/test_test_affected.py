@@ -109,20 +109,17 @@ class Selection(unittest.TestCase):
         p = plan(CT + "LeafTests.swift", "native/Package.swift")
         self.assertEqual(p.test_files["KhulumaCoreTests"], set())
 
-    def test_cleanup_inputs(self):
-        p = plan("bin/khuluma-lib.sh")
-        self.assertEqual(p.commands, [ta.GEN_CHECK, ta.CI_SH])
-        self.assertIn(CT + "CleanupParityTests.swift", p.test_files["KhulumaCoreTests"])
+    def test_fixture_inputs(self):
         p = plan("tests/fixtures/cleanup/expected.json")
-        self.assertIn(ta.GEN_CHECK, p.commands)
+        self.assertIn(CT + "CleanupParityTests.swift", p.test_files["KhulumaCoreTests"])
         self.assertFalse(p.swift_full)
         p = plan("tests/fixtures/unknown/x.json")  # no Swift test names it, no script consumes it
         self.assertFalse(p.swift_full)
         self.assertEqual(p.commands, [ta.CI_SH])
 
     def test_scripts(self):
-        self.assertEqual(plan("tests/test_cli.sh").commands, ["bash -n tests/test_cli.sh", "./tests/test_cli.sh"])
-        self.assertEqual(plan("tests/test_vocabulary.py").commands, ["python3 tests/test_vocabulary.py"])
+        self.assertEqual(plan("tests/test_example.sh").commands, ["bash -n tests/test_example.sh", "./tests/test_example.sh"])
+        self.assertEqual(plan("tests/test_app_build_helpers.py").commands, ["python3 tests/test_app_build_helpers.py"])
         self.assertIn("python3 tests/test_app_build_helpers.py", plan("tools/build-khuluma-app.sh").commands)
         self.assertEqual(plan("tools/test_affected.py").commands, [ta.SELFTEST])
         self.assertFalse(plan(".github/workflows/icons.yml").has_tests())
@@ -335,16 +332,16 @@ class ReviewFixes(unittest.TestCase):
     # 6. shell/tool consumers
     def test_shell_consumers(self):
         repo = self.files(**{
-            "tests/test_regression.sh": "bash tools/khuluma-report.sh\n",
-            "tests/test_flow_parity.sh": "source tests/fixtures/usage_writer_v1.sh\n",
+            "tests/test_report.sh": "bash tools/khuluma-report.sh\n",
+            "tests/test_fixture.sh": "source tests/fixtures/helper.sh\n",
             "tests/ci.sh": "tools/khuluma-report.sh tools/other.sh\n",
-            "tests/gen-cleanup-fixtures.sh": "tools/khuluma-report.sh\n"})
+            "tests/gen-example.sh": "tools/khuluma-report.sh\n"})
         p = ta.make_plan(["tools/khuluma-report.sh"], repo)
-        self.assertIn("./tests/test_regression.sh", p.commands)
+        self.assertIn("./tests/test_report.sh", p.commands)
         self.assertNotIn(ta.CI_SH, p.commands)
-        self.assertFalse(any("gen-cleanup" in c for c in p.commands))  # generators rewrite fixtures
-        p = ta.make_plan(["tests/fixtures/usage_writer_v1.sh"], repo)
-        self.assertEqual(p.commands, ["./tests/test_flow_parity.sh"])
+        self.assertFalse(any("gen-example" in c for c in p.commands))  # only tests/test_* are consumers
+        p = ta.make_plan(["tests/fixtures/helper.sh"], repo)
+        self.assertEqual(p.commands, ["./tests/test_fixture.sh"])
         self.assertFalse(p.has_tests())
         p = ta.make_plan(["tools/lonely.sh"], repo)
         self.assertIn(ta.CI_SH, p.commands)

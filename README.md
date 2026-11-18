@@ -2,77 +2,42 @@
 
 Dictation for macOS. Press a key, speak, and the text is pasted into the app in front of you. Parakeet (Swift/CoreML) transcribes locally by default. You can explicitly choose ElevenLabs Scribe v2 in Settings; that sends audio to ElevenLabs and uses your API credits.
 
-**Khuluma** means "speak" in isiNdebele and isiZulu. Current work, installed-state evidence and open gates are in [`LOG.md`](LOG.md). The [archived identity-rename outcome](docs/plans/archive/KHULUMA_IDENTITY_RENAME.md) records the transition from the earlier Tmux Whisper/Lowkey identities. The project has three parts:
+**Khuluma** means "speak" in isiNdebele and isiZulu. Current work, installed-state evidence and open gates are in [`LOG.md`](LOG.md). The [archived identity-rename outcome](docs/plans/archive/KHULUMA_IDENTITY_RENAME.md) records the transition from the earlier Tmux Whisper/Lowkey identities. Everything is one Swift package in `native/`:
 
-- **Khuluma** (`native/Sources/Khuluma`): the menu-bar app you dictate with. It owns the hotkey, the microphone, the sounds, delivery (paste, optionally send) and the Stats window. It transcribes over the daemon's socket and cleans the text up in Swift.
-- **`khulumad`**: the local Parakeet daemon that keeps the model loaded.
-- **The `khuluma` CLI** (`bin/`): Khuluma's back end for now. It holds config, vocab, history and usage, starts and warms the daemon, and transcribes audio files. Khuluma calls it through a small set of JSON commands ([`docs/CLI_CONTRACTS.md`](docs/CLI_CONTRACTS.md)).
+- **Khuluma** (`native/Sources/Khuluma`): the menu-bar app you dictate with. It owns the hotkey, the microphone, the sounds, cleanup, delivery (paste, optionally send), History, Vocabulary, Stats and Settings, and keeps its data in `~/Library/Application Support/Khuluma`.
+- **`khulumad`**: the local Parakeet daemon that keeps the model loaded. The app bundles it and supervises it.
+- **`khuluma`** (`native/Sources/khuluma-cli`): a small command bundled in the app, `khuluma transcribe`, for audio files from a terminal or an agent.
 
-The tmux pane flow, CLI recording, LLM post-processing, the Raycast scripts and the SwiftBar plugin were removed from the current code (see `CHANGELOG.md`).
+The bash `khuluma` CLI, `install.sh` and the Homebrew formula were retired in 2026-11; before that, the tmux pane flow, CLI recording, LLM post-processing, the Raycast scripts and the SwiftBar plugin (see `CHANGELOG.md`).
 
 ## Requirements
 
 - macOS 14 or later
-- `python3` 3.11+ (for `tomllib`) and `ffmpeg`
-- Xcode or the Command Line Tools (`swift`), to build the daemon and Khuluma
-- A Parakeet CoreML model on disk, at `~/.local/share/khuluma/models/parakeet-tdt-0.6b-v3-coreml` (or `-v2-coreml`), or anywhere `swift_parakeet.model_path` in the config points. Install doesn't download it; FluidInference publishes these CoreML conversions on Hugging Face. A v3 folder needs `JointDecisionv3.mlmodelc` (FluidAudio 0.15.6); download again if yours only has `JointDecision.mlmodelc`. FluidAudio's own cache works too: point `model_path` at `~/Library/Application Support/FluidAudio/Models/parakeet-tdt-0.6b-v3` to share one copy with other FluidAudio apps.
+- Xcode or the Command Line Tools (`swift`), to build the app
 
-## Source and installed runtime
-
-A checkout is separate from the installed app and daemon. `tools/build-khuluma-app.sh` builds `native/` in retained private scratch space and installs `~/Applications/Khuluma.app`; the CLI's default installed daemon is `~/.local/share/khuluma/native/khulumad/.build/release/khulumad`. Config or environment overrides may change daemon paths. Preserve build trees, models and caches during documentation housekeeping. The install and build commands below change the runtime; they are not documentation checks.
+The Parakeet model downloads on first run into FluidAudio's shared cache (`~/Library/Application Support/FluidAudio/Models`).
 
 ## Install
 
-Khuluma is built from a clone, and it needs the CLI from the same checkout: the two share an app contract number, and Khuluma refuses takes from a CLI with a different one.
-
-For an older Tmux Whisper/Lowkey installation, start with [Identity migration](docs/INTEGRATIONS.md#identity-migration) before running the installation commands below.
+Khuluma is built from a clone:
 
 ```bash
 git clone https://github.com/ricardo-calcina/khuluma.git
 cd khuluma
-./install.sh                     # the CLI, default config, vocab and sounds
 tools/make-signing-identity.sh   # checks the dedicated identity; prints safe creation instructions if absent
-tools/build-khuluma-app.sh        # build, sign and install ~/Applications/Khuluma.app
+tools/build-khuluma-app.sh       # build, sign and install ~/Applications/Khuluma.app
 open ~/Applications/Khuluma.app
 ```
 
 On first launch, allow Microphone and Accessibility (for pasting) in System Settings → Privacy & Security.
 
-After pulling changes in an already canonical installation, refresh both. For an older Tmux Whisper/Lowkey installation, use the identity migration procedure below first:
+After pulling changes, run `tools/build-khuluma-app.sh` again. It requests a graceful quit before replacement and relaunches an app that was running. Khuluma saves queued takes and drains its work; the helper waits up to 60 seconds and refuses replacement if the app stays open. The previous bundle is kept for rollback.
 
-```bash
-git pull
-./install.sh --force
-tools/build-khuluma-app.sh
-```
-
-`build-khuluma-app.sh` requests a graceful quit before replacement and relaunches an app that was running. Khuluma saves queued takes and drains its work; the helper waits up to 60 seconds and refuses replacement if the app stays open.
-
-**Upgrading an older Tmux Whisper/Lowkey installation:** follow [Identity migration](docs/INTEGRATIONS.md#identity-migration). From the canonical checkout, `tools/migrate-khuluma-identity.sh --help` and `--dry-run` inspect the data transition without changing it. The tool is a data engine; this release does not include a portable automated coordinator for app, CLI, daemon, login and Finder cutover. Its apply/resume/rollback operations require proof from an active, reviewed operator/agent-controlled session. Do not fabricate receipts or use `install.sh --force` to bypass that requirement. Keep the working old runtime until that coordinated handoff is prepared. A legacy default is detected rather than silently replaced with an empty profile.
-
-The new bundle ID is `com.ricardo-nth.khuluma`, signed with a separate `Khuluma Local Code Signing` identity. macOS may require Microphone/Accessibility approval and a Start at Login retoggle; permission carryover is verified on the actual Mac, not assumed. Starting with v0.11.0, normal startup no longer imports Lowkey folders or preference keys. Complete the v0.10.0 coordinated transition first when coming from those older identities; keep all original folders and preference domains until verified.
-
-`install.sh` keeps your config, vocab and sounds, including with `--force`, which only refreshes the scripts and adds missing defaults. Other flags: `--no-sounds`, `--with-sounds`, `--replace-sounds` (overwrite your sound files with the bundled ones). It ends with a daemon warm-up, and writes an install receipt to `~/.config/khuluma/install-receipt.env`.
-
-**CLI only:** the published Homebrew formula (`brew install ricardo-calcina/tap/khuluma`) and `bootstrap.sh` install the CLI without the app. They are for file transcription, or a pinned CLI on another machine:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/ricardo-calcina/khuluma/main/bootstrap.sh | bash -s -- --ref v0.11.0 --force
-```
-
-v0.11.0 exposes the `khuluma` command and `KHULUMA_*` application overrides; standard XDG roots and existing generic overrides such as `SOUNDS_DIR` remain supported. The `tmux-whisper` forwarding command and its older doctor JSON adapter are removed. Rename old environment overrides before updating; obsolete names are rejected before writes, including empty assignments. `khuluma doctor --json` remains schema 2. The local installer retires only the verified v0.10.0 owned shim recoverably and refuses an unknown file at that path.
-
-Canonical config and sounds live at: `~/.config/khuluma` and `~/.local/share/sounds/khuluma`.
+The bundle ID is `com.ricardo-nth.khuluma`, signed with a dedicated `Khuluma Local Code Signing` identity so rebuilds keep the macOS permissions.
 
 ## Using Khuluma
 
-Press the hotkey to start, speak after the chime, press it again to stop. Ctrl+Esc cancels a recording. The default hotkey is `ctrl+option+space`; record a new one in **Settings**, or edit `~/.config/khuluma/config.toml` and choose **Reload Settings** there:
-
-```toml
-[app]
-hotkey = "ctrl+option+space"   # e.g. "cmd+shift+d", "f13"
-supervise_daemon = true        # keep the Parakeet daemon warm (launch, wake, recording start)
-```
+Press the hotkey to start, speak after the chime, press it again to stop. Ctrl+Esc cancels a recording. The default hotkey is `ctrl+option+space`; record a new one in **Settings**.
 
 The compact, arrowless menu panel shows words, estimated time saved and words per minute in three centered columns, for all time or today (Settings → Appearance → Menu figures), with an optional 7-day bar strip under them. Click the menu icon again to close it. Recording, processing, warm-up and error notices appear when needed. The Auto-send switch in the footer turns sending on or off. The window icon opens the Khuluma window and the gear opens it on **Settings**. The window has four tabs in its title bar, Stats, History, Vocabulary and Settings (Command-1/2/3/4; Command-comma for Settings; Escape returns to Stats). The **History** tab lists recent dictations by day; search narrows it, and Copy puts a dictation's text back on the clipboard. Dictations are kept for the configured number of days.
 
@@ -96,16 +61,7 @@ In Finder, right-click an audio or video file and choose **Transcribe with Local
 
 **While recording:** Settings → Recording and Settings → Transcription offer five opt-in extras, all off until you switch them on. **Hold to talk** gives you a second shortcut: hold it down to record and release to finish (a tap under a third of a second discards the take; Control–Escape and the menu's Cancel still work). **Mute other audio** silences the Mac's sound output just after the start chime and restores it when the take ends, but only if you haven't changed it yourself in the meantime. **Keep Mac awake** stops the Mac sleeping during long dictation. **Show on-screen indicator** puts a small capsule at the bottom of the screen with a level waveform and elapsed time while recording, and a spinner while transcribing. **Transcribe while recording** (off by default, Parakeet only) cuts the audio at pauses and transcribes each finished part as you speak, so long dictation finishes sooner; the recording is also kept on disk while you speak, so an interrupted take is recovered at the next launch.
 
-**Delivery settings** live in the CLI:
-
-```bash
-khuluma autosend on|off            # paste and press the send key, or paste only
-khuluma send-mode enter|ctrl_j|cmd_enter
-khuluma target origin|current      # the app in front at the start of recording, or at the end
-khuluma sound start|stop|process|error on|off
-```
-
-**Stats** leads with the same lifetime words, estimated time saved against typing (at 40 wpm by default) and average words per minute, including pauses. A 30/60/90-day activity heatmap and optional words-per-day chart under it sit below, followed by four tiles (current streak, best day, longest take, longest streak), then recording time (all-time and today) and progress toward the next word milestone. The milestone bar shows total words as a share of the next target. Refresh (Command-R) sits beside Settings; the info button opens coverage dates, privacy details and the last update time. Recording time totals audio from delivered dictations; it is separate from estimated time saved. Records cover all available daily history, regardless of the Activity range. It reads `khuluma usage --json --days all`, which holds counts and durations only, never what you said.
+**Stats** leads with the same lifetime words, estimated time saved against typing (at 40 wpm by default) and average words per minute, including pauses. A 30/60/90-day activity heatmap and optional words-per-day chart under it sit below, followed by four tiles (current streak, best day, longest take, longest streak), then recording time (all-time and today) and progress toward the next word milestone. The milestone bar shows total words as a share of the next target. Refresh (Command-R) sits beside Settings; the info button opens coverage dates, privacy details and the last update time. Recording time totals audio from delivered dictations; it is separate from estimated time saved. Records cover all available daily history, regardless of the Activity range. It reads the app's `usage.json`, which holds counts and durations only, never what you said.
 
 **Logs:** `~/Library/Logs/Khuluma/app.log` has one `take:` line per take (path, outcome, timings; no text). `tools/khuluma-report.sh` summarises it: outcomes, fallback and failure rates, and where the time goes.
 
@@ -115,19 +71,11 @@ Open **Settings → Text** to turn cleanup on and choose repetition handling: **
 
 **Examples** keep cleanup reliable as the vocabulary grows. Each one is what was said and the text you expect pasted. Typing in Said (or choosing a **Recent** dictation) shows what the current draft gives; Use as Expected copies it. Every example shows a tick or a cross against the draft, live. When a failing example differs by one word or phrase, Add Rule offers the literal Other words rule that fixes it. Saving with failing examples asks first. Examples are stored in `vocabulary.json` but never used as rules. Recent dictations come from history after filler and repetition cleanup, so they test vocabulary spellings rather than filler removal.
 
-Vocabulary corrections and British spelling run by default. Hesitation and repetition cleanup is opt-in. The same settings can be set in `~/.config/khuluma/config.toml`:
+Vocabulary corrections and British spelling run by default. Hesitation and repetition cleanup is opt-in. Cleanup removes the unquoted hesitation phrases in Fillers while preserving wording such as “I think”, “actually” and “I mean”. Add observed forms such as `ahhh` or `er` as literal entries; no regular expressions are needed. An empty Fillers section keeps hesitation sounds. Level 3 removes exact adjacent sentences of at least five words (ignoring case and extra spaces), keeping the first copy. It preserves changed wording, short emphasis, and grammatical doubles such as “had had”. It does not summarise, remove non-adjacent repeats, or guess which near-repeat you intended. Sentences need matching punctuation and must fit within 2,002 bytes. Levels 1 and 2 retain the older word/short-phrase stutter cleanup; 0 disables repetition cleanup. Levels 4 and 5 combine the two: sentence cleanup plus single words (4), or sentences plus words and short phrases (5).
 
-```toml
-[clean]
-enabled = true
-repeats_level = 3
-```
+`~/Library/Application Support/Khuluma/vocabulary.json` is the single active vocabulary for every app. Before the first save, an older plain-text `vocab` file there is shown instead, its corrections in Other words, and it is kept intact. Earlier JSON versions are retained in `vocabulary-backups/`. Saves refuse to overwrite a newer version written by another agent: export your draft, reload the current version, then review your update again.
 
-This removes the unquoted hesitation phrases in Fillers while preserving wording such as “I think”, “actually” and “I mean”. Add observed forms such as `ahhh` or `er` as literal entries; no regular expressions are needed. An empty Fillers section keeps hesitation sounds. Level 3 removes exact adjacent sentences of at least five words (ignoring case and extra spaces), keeping the first copy. It preserves changed wording, short emphasis, and grammatical doubles such as “had had”. It does not summarise, remove non-adjacent repeats, or guess which near-repeat you intended. Sentences need matching punctuation and must fit within 2,002 bytes. Levels 1 and 2 retain the older word/short-phrase stutter cleanup; 0 disables repetition cleanup. Levels 4 and 5 combine the two: sentence cleanup plus single words (4), or sentences plus words and short phrases (5). `KHULUMA_CLEAN=0|1` overrides `clean.enabled`; `KHULUMA_REPEATS_LEVEL` overrides the configured level.
-
-The first save creates `~/.config/khuluma/vocabulary.json` as the single active vocabulary for every app. The previous `vocab` file is retained intact; its corrections initially appear in Other words. Earlier JSON versions are retained in `vocabulary-backups/`. Saves refuse to overwrite a newer version written by another agent: export your draft, reload the current version, then review your update again.
-
-The portable file is ordinary JSON, with one heard spelling per entry and no duplicate heard phrases across sections. Matching ignores case. Fillers are removals; Brands and Other words use the same literal replacement behavior. A `pnpm` correction leaves `pnpm-lock.yaml` intact. Files support up to 5,000 entries and 1 MB; each phrase is at most 200 characters on one line. See [the example](config/vocabulary.example.json):
+The portable file is ordinary JSON, with one heard spelling per entry and no duplicate heard phrases across sections. Matching ignores case. Fillers are removals; Brands and Other words use the same literal replacement behavior. A `pnpm` correction leaves `pnpm-lock.yaml` intact. Files support up to 5,000 entries and 1 MB; each phrase is at most 200 characters on one line.:
 
 ```json
 {
@@ -138,106 +86,60 @@ The portable file is ordinary JSON, with one heard spelling per entry and no dup
 }
 ```
 
-Before the first JSON save, the existing text vocabulary and its CLI editing commands still work. Once JSON is active, these old editing commands refuse to change the inactive text file; use Settings or the revision-checked `vocab-sheet` API in [CLI contracts](docs/CLI_CONTRACTS.md).
-
-```bash
-khuluma vocab add "clawed::Claude"     # also "wrong -> right"
-khuluma vocab add "Kaluma::Khuluma" "khuluma::Khuluma"
-khuluma vocab add "PN PM::pnpm" "pnpm::pnpm"
-khuluma vocab add "X code::Xcode" "xcode::Xcode"
-khuluma vocab import --dry-run fixes.txt
-khuluma vocab dedupe                   # backs up first
-khuluma vocab rm "literal text"        # --regex to match a pattern
-```
-
-Modes were removed in v0.10.0. If an older install left `modes/` or `current-mode` in `~/.config/khuluma`, `./install.sh` folds each `modes/*/vocab` into `vocab` (skipping rules it already has) and moves the old files to `modes-archive/`. To run it yourself, or preview it first:
-
-```bash
-khuluma migrate-modes --dry-run
-khuluma migrate-modes --skip code   # leave a mode's rules out (still archived)
-```
-
 ## Transcribe audio files
 
-Voice memos use the selected transcription provider:
+The app bundles a `khuluma transcribe` command. Link it onto your `PATH` once:
+
+```bash
+ln -s ~/Applications/Khuluma.app/Contents/Helpers/khuluma ~/.local/bin/khuluma
+```
 
 ```bash
 khuluma transcribe memo.m4a               # raw transcript to stdout
+khuluma transcribe memo.m4a -q            # no progress messages on stderr
 khuluma transcribe memo.m4a --beside      # writes memo.txt next to it
-khuluma transcribe memo.m4a -c            # also copy to the clipboard
-khuluma transcribe *.m4a --out-dir notes/ # one .txt per file
-khuluma transcribe memo.m4a --format json # text + durations + model
-khuluma transcribe - < memo.m4a           # read from stdin
+khuluma transcribe a.m4a b.m4a --format json  # one JSON object per file
+khuluma transcribe memo.m4a -o notes.txt  # write to a file
 ```
 
-- Anything ffmpeg can decode works (m4a, mp3, wav, aac, flac, ogg/opus, video audio tracks). The original is never modified.
-- The output is the **raw** transcript: no dictation cleanup. File transcripts aren't counted in `usage` or written to history.
-- Parakeet chunks long recordings itself: a 10-minute memo took about 15 seconds on an M1 Air with the model warm. Dictation waits while a long file is transcribing.
-- Output files are never overwritten without `--force`, and failures leave no partial output.
+- m4a, mp3, wav, aac, flac and video audio tracks work; the original is never modified.
+- The output is the **raw** transcript: no dictation cleanup. File transcripts aren't counted in usage or written to history.
+- While the app runs, its daemon does the work, and dictation waits while a long file is transcribing.
+- Output files are never overwritten without `--force`.
 
-**Finder:** `khuluma finder install` adds Quick Actions → "Transcribe with Khuluma". It writes `<name>.txt` next to each selected file, copies the text and posts a notification. Remove it with `khuluma finder remove`.
+**Finder:** right-click audio or video files and choose **Transcribe with Local** or **Transcribe with Cloud** (described above).
 
 **Agents:** `integrations/agents/transcribe-audio/SKILL.md` tells Claude Code and Codex to use `khuluma transcribe` for audio files. Copy the folder into `~/.claude/skills/` or `~/.codex/skills/`.
 
 ## History and usage
 
-```bash
-khuluma last                    # the latest dictation, with timings
-khuluma history                 # recent dictations; history N shows one
-khuluma history search "invoice"
-khuluma history stats
-khuluma usage                   # lifetime totals; --json --days N|all for per-day buckets
-khuluma bench 20                # stage timings of recent takes
-```
-
 - **History** keeps transcripts for `history.retention_days` (7 by default).
 - **Audio:** with `debug.keep_logs` enabled, successful takes keep their working WAV until history is saved, then delete it directly. A separate audio archive remains for `history.audio_retention_days` (2 by default). On the next dictation, archives older than the configured retention period (48 hours by default) are deleted directly to free storage. Failed history writes keep the handed-over working audio for retry. With debug audio disabled, native transcription uses temporary WAVs without an audio archive.
 - **Usage** is a separate, transcript-free tally of delivered dictations that survives history pruning. It started when the feature was installed and doesn't backfill. Daily buckets started with v0.10.0.
-- **The time-saved figure** is an estimate. It assumes a typing speed (`KHULUMA_HISTORY_TYPING_WPM`, 40 by default), and changing it recalculates the estimate without touching the recorded totals.
+- **The time-saved figure** is an estimate. It assumes a typing speed (`history.typing_wpm` in settings.json, 40 by default), and changing it recalculates the estimate without touching the recorded totals.
 
-Most read commands take `--json`. The stable ones are listed in [`docs/CLI_CONTRACTS.md`](docs/CLI_CONTRACTS.md).
-
-## Health checks and repair
-
-```bash
-khuluma doctor     # install, config, vocab and daemon, with suggested fixes
-khuluma status     # what's running and the effective settings
-khuluma version    # CLI version, config schema, running binary, install provenance
-khuluma warmup     # start the daemon and load the model
-```
-
-If `doctor` reports config drift or invalid TOML:
-
-```bash
-khuluma config repair --dry-run
-khuluma config repair      # backs up first
-```
-
-`khuluma config`, `config get <key>` and `config defaults` show the config without changing it. More fixes, including Khuluma's own messages, are in [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md).
-
-Khuluma and Finder run the CLI with a minimal environment. Put custom `PATH` entries and `KHULUMA_*` overrides in `~/.zshenv` so they apply there too. More in [`docs/INTEGRATIONS.md`](docs/INTEGRATIONS.md).
+More fixes are in [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md); the integrations are in [`docs/INTEGRATIONS.md`](docs/INTEGRATIONS.md).
 
 ## Development
 
-- `bin/khuluma`, `bin/khuluma-lib/` and `bin/khuluma-lib.sh` hold the CLI (bash).
 - `native/` holds the Swift package. Its main targets are:
   - `KhulumaDaemonKit`: the engine, protocol and socket server;
   - `khulumad`: the daemon;
   - `KhulumaCore`: Khuluma's AppKit-free logic, with most of the tests;
-  - `Khuluma`: the app shell.
-- The CLI builds the daemon on demand into `~/.local/share/khuluma/native/` and rebuilds it when the sources change.
-- `config/` holds the defaults that `install.sh` seeds: config and vocab.
-- `tools/` holds the Khuluma build and report scripts and the Homebrew formula updater.
-- `LOG.md` holds current tasks and decisions. Historical plans remain under `docs/archive/` and `docs/plans/archive/`; the dated name check remains under `docs/plans/`.
-
-For changes affecting the CLI or Swift behavior, use the applicable checks:
+  - `Khuluma`: the app shell;
+  - `khuluma-cli`: the bundled `khuluma transcribe` helper.
+- `native/VERSION` is the app version.
+- `tools/` holds the app build, signing check, icon and log-report scripts, and `test-affected.sh`.
+- `tests/fixtures/` holds frozen golden files the Swift tests read (cleanup, settings, usage and vocabulary parity with the retired CLI); `tests/` also holds the Python tests for the build script and `test_affected.py`.
+- `LOG.md` holds current tasks and decisions. Historical plans remain under `docs/archive/` and `docs/plans/archive/`.
 
 ```bash
-./tests/ci.sh                          # shell syntax, CLI, regression, flow parity, install and bootstrap tests
-cd native && swift test         # Swift tests (KhulumaCore, KhulumaDaemonKit)
+tools/test-affected.sh          # the checks your change affects
+tools/test-affected.sh --full   # the full Swift suite
+./tests/ci.sh                   # repo tool checks
 ```
 
-`tests/fixtures/cleanup/` keeps Khuluma's Swift cleanup in step with the CLI's. Regenerate it with `tests/gen-cleanup-fixtures.sh` after changing cleanup. GitHub Actions runs `ci.sh` on every push and pull request.
+GitHub Actions runs the Swift suite (`swift.yml`), the repo tool checks (`ci.yml`) and the icon checks (`icons.yml`).
 
 [`CONTRIBUTING.md`](CONTRIBUTING.md) covers the workflow. [`docs/RELEASE_CHECKLIST.md`](docs/RELEASE_CHECKLIST.md) covers releases. [`CHANGELOG.md`](CHANGELOG.md) holds the release notes, with older entries in [`CHANGELOG.archive.md`](CHANGELOG.archive.md). [`ROADMAP.md`](ROADMAP.md) gives the direction.
 
@@ -245,7 +147,7 @@ cd native && swift test         # Swift tests (KhulumaCore, KhulumaDaemonKit)
 
 - **Audio and text** stay on your Mac.
 - **What's saved:** history keeps transcripts for the retention period. Before a take reaches history, Khuluma spools its record (text included) to `~/Library/Application Support/Khuluma/pending/`, and removes it once history has it. Saved audio waits in `recovered/` beside it. The usage tally and `app.log` hold counts and timings, never text.
-- **The repository** holds no keys or personal settings. Your config is never overwritten by an install.
+- **The repository** holds no keys or personal settings. Your settings are never overwritten by a build or install.
 
 ## License
 

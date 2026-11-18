@@ -2,8 +2,8 @@ import Foundation
 import Testing
 @testable import KhulumaCore
 
-/// settings.json: parity with `khuluma app-config --json` (fixtures from
-/// tests/gen-settings-fixtures.sh), fallback, validation, unknown keys, import.
+/// settings.json: parity with the retired CLI's `app-config --json` (frozen
+/// fixtures; generator in git history), fallback, validation, unknown keys, import.
 @Suite struct SettingsTests {
   static let repoRoot = URL(fileURLWithPath: #filePath)
     .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
