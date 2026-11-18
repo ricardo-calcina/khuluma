@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 
 /// The Settings tab's pages, in sidebar order.
 enum SettingsPage: String, CaseIterable, Identifiable {
-  case general, recording, sounds, transcription, text, cloud, advanced
+  case general, recording, sounds, transcription, text, cloud, advanced, labs
   var id: String { rawValue }
 
   var title: String {
@@ -17,6 +17,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
     case .text: "Text"
     case .cloud: "Cloud"
     case .advanced: "Advanced"
+    case .labs: "Labs"
     }
   }
 
@@ -29,6 +30,7 @@ enum SettingsPage: String, CaseIterable, Identifiable {
     case .text: "text.alignleft"
     case .cloud: "cloud"
     case .advanced: "wrench.and.screwdriver"
+    case .labs: "flask"
     }
   }
 }
@@ -105,6 +107,7 @@ struct SettingsView: View {
     case .text: text
     case .cloud: cloud
     case .advanced: advanced
+    case .labs: labs
     }
   }
 
@@ -651,6 +654,21 @@ struct SettingsView: View {
       }
       .buttonStyle(.plain)
       .accessibilityLabel("Manage Vocabulary")
+    }
+  }
+
+  @ViewBuilder private var labs: some View {
+    Text("Experiments. They may change or go away.")
+      .font(.callout)
+      .foregroundStyle(.secondary)
+      .padding(.bottom, 14)
+    SettingsGroup("Microphone") {
+      SettingsRow("Keep microphone ready",
+                  note: "Starts recording instantly and keeps the first word. The microphone indicator stays on while Khuluma runs.",
+                  last: true) {
+        Toggle("Keep microphone ready", isOn: Binding(get: { model.keepMicReady }, set: model.setKeepMicReady))
+          .labelsHidden()
+      }
     }
   }
 

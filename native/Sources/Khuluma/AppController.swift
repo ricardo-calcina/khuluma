@@ -140,7 +140,20 @@ final class AppController: NSObject, NSApplicationDelegate {
     // A new choice, or the chosen device coming and going, rebuilds the
     // engine while idle; during a take it waits for the take to end.
     settings.observeMicrophoneChoice { [weak self] in self?.recorder.inputChoiceChanged() }
+    // Labs › Keep microphone ready: the idle engine follows the setting, and
+    // stops for sleep (restarting on wake while still on).
+    settings.onKeepMicReadyChange = { [weak self] in
+      self?.recorder.setKeepReady(settings.keepMicReady, reason: settings.keepMicReady ? "setting on" : "setting off")
+    }
+    let workspace = NSWorkspace.shared.notificationCenter
+    workspace.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { [weak self] _ in
+      self?.recorder.setAsleep(true)
+    }
+    workspace.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
+      self?.recorder.setAsleep(false)
+    }
     AudioRecorder.requestPermission { [weak self] granted in
+      if granted, settings.keepMicReady { self?.recorder.setKeepReady(true, reason: "launch") }
       if !granted { Log.write("permission: microphone denied"); self?.menu.showPermission(PermissionPolicy.microphoneNotice) }
     }
     if !Deliverer.isTrusted(prompt: true) {
@@ -322,12 +335,15 @@ final class AppController: NSObject, NSApplicationDelegate {
   func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
     guard !quitting else { return .terminateLater }
     Log.write("quit: requested; saving recordings and draining")
+    // The idle microphone stops as quit begins; every cancelled path below restores it.
+    recorder.setQuitting(true)
     if take != nil || !unsaved.isEmpty {
       guard saveRecordingForQuit() else {
         // Couldn't write the audio: stay open rather than lose a take. Only
         // the explicit "Discard … and quit" menu item gives it up.
         showDiscardUnsaved()
         fail("couldn't save \(unsaved.count) recording\(unsaved.count == 1 ? "" : "s") for quitting; Quit retries")
+        recorder.setQuitting(false)
         return .terminateCancel
       }
     }
@@ -336,6 +352,7 @@ final class AppController: NSObject, NSApplicationDelegate {
       // Takes already over whose audio still can't be written: as above.
       showDiscardUnsaved()
       fail("couldn't save \(inFlight.held) recording\(inFlight.held == 1 ? "" : "s") for quitting; Quit retries")
+      recorder.setQuitting(false)
       return .terminateCancel
     }
     return terminateAfterDraining()
@@ -345,6 +362,7 @@ final class AppController: NSObject, NSApplicationDelegate {
   /// idempotent, so the take paths that already called it do nothing here.
   func applicationWillTerminate(_ notification: Notification) {
     environment.end()
+    recorder.setQuitting(true)
   }
 
   /// Offers "Discard … and quit" for every take whose audio is only in memory.
@@ -404,6 +422,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     guard failed == 0 else {
       quitting = false
       NSApp.reply(toApplicationShouldTerminate: false)
+      recorder.setQuitting(false)
       showDiscardUnsaved()
       fail("couldn't save \(failed) recording\(failed == 1 ? "" : "s") for quitting; Quit retries")
       return
@@ -754,7 +773,8 @@ final class AppController: NSObject, NSApplicationDelegate {
         }
       }
       Log.write(String(format: "start: engine.start %.1fms, hotkey→capturing %.1fms, app=%@, input=%@",
-                       engineMs, startedAt - hotkeyAt, original?.localizedName ?? "-", recorder.inputName))
+                       engineMs, startedAt - hotkeyAt, original?.localizedName ?? "-", recorder.inputName)
+                + (recorder.prerollSamples > 0 ? " preroll_ms=\(recorder.prerollSamples / 16)" : ""))
       // While you speak: make sure the daemon is up with the model loaded
       // (a ping when it is; a start or model load when it isn't).
       supervisor?.trigger(.recordingStart)

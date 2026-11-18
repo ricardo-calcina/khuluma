@@ -16,6 +16,12 @@ import KhulumaCore
 /// default. Each engine has a generation, so late notices from replaced
 /// engines and the notice our own selection posts are ignored
 /// (`InputEnginePolicy`). Never losing a take comes first.
+///
+/// "Keep microphone ready" (Settings › Labs, off by default) runs the
+/// engine while idle: its buffers go only into a 500 ms `PreRollRing`, and
+/// a take that starts on that running engine begins with the ring's
+/// contents. Off, or whenever the idle engine isn't usable, a take starts
+/// exactly as described above.
 final class AudioRecorder {
   private var engine = AVAudioEngine()
   /// Bumped for every engine; configuration notices carry the one they came from.
@@ -50,12 +56,34 @@ final class AudioRecorder {
   private var converterFormat: CaptureFormat?
   /// No converter could be made mid-take: the take is being stopped.
   private var converterFailed = false
-  /// Bumped per take, so a late mid-take failure can't stop the next take.
-  private var takeNumber = 0
+  /// Bumped per tap installation (kept when an idle tap becomes a take's),
+  /// so a late converter failure only acts on the tap it came from.
+  /// Guarded by `lock`.
+  private var tapID = 0
   private var firstBufferAt: Double?
   /// Called once, on the audio thread, when the take's first buffer arrives.
   private var onFirstAudio: (() -> Void)?
   private(set) var isRecording = false
+  /// Keep the engine running between takes: the setting, while awake and
+  /// not quitting. Main thread.
+  private var readySetting = false
+  private var asleep = false
+  private var quitting = false
+  private var keepReady: Bool { readySetting && !asleep && !quitting }
+  /// The engine is running for the pre-roll only (no take). Main thread.
+  private var idleRunning = false
+  /// Buffers go to `samples` (a take) rather than `ring`. Guarded by `lock`.
+  private var capturing = false
+  /// Idle audio, prepended to the next take. Guarded by `lock`.
+  private var ring = PreRollRing()
+  /// When the ring last took a non-empty buffer, and whether an idle buffer
+  /// was dropped since it was last cleared. Guarded by `lock`.
+  private var ringFilledAt: Double?
+  private var ringGap = false
+  /// The ring is used only if it was filled this recently before the take.
+  private static let prerollFreshMs = 250.0
+  /// Pre-roll samples at the start of the current take (0 = none).
+  private(set) var prerollSamples = 0
   /// The input changed: rebuild the engine before the next take.
   private var needsRebuild = false
   /// Called on the main queue when capture breaks mid-take (device switch).
@@ -83,8 +111,11 @@ final class AudioRecorder {
 
   private func configurationChanged(generation: Int) {
     let change = InputEnginePolicy.configurationChanged(notifiedGeneration: generation, built: built,
-                                                        observed: observe(), recording: isRecording)
+                                                        observed: observe(), recording: isRecording || idleRunning)
     switch change {
+    case .stopTake(let why) where !isRecording:
+      // The idle engine counts as capturing, so a moved default is seen; with no take, it's a rebuild.
+      rebuildWhenSettled(why: why)
     case .ignore(let why):
       Log.write("audio: configuration notice ignored (\(why))")
     case .stopTake(let why):
@@ -98,13 +129,19 @@ final class AudioRecorder {
         Log.write("audio: \(why) mid-take; capture continues, the engine is rebuilt after the take")
         return
       }
-      Log.write("audio: \(why) while idle")
-      // Switches come in bursts (plug-in, then the default input moves):
-      // rebuild once they settle. A press before then rebuilds in start().
-      DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-        guard let self, self.needsRebuild, !self.isRecording else { return }
-        self.rebuild(reason: "input changed while idle")
-      }
+      rebuildWhenSettled(why: why)
+    }
+  }
+
+  private func rebuildWhenSettled(why: String) {
+    needsRebuild = true
+    Log.write("audio: \(why) while idle")
+    // Switches come in bursts (plug-in, then the default input moves):
+    // rebuild once they settle. A press before then rebuilds in start().
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+      guard let self, self.needsRebuild, !self.isRecording else { return }
+      self.rebuild(reason: "input changed while idle")
+      self.startIdle(reason: "engine rebuilt")
     }
   }
 
@@ -163,10 +200,21 @@ final class AudioRecorder {
       old.stop()
       old.reset()
     }
+    retireTap()
+  }
+
+  /// The tap was removed: a callback from it still in flight writes nothing.
+  private func retireTap() {
+    lock.withLock { tapID += 1 }
   }
 
   /// Replaces the engine with a fresh one for the intended input.
   private func rebuild(reason: String) {
+    if idleRunning {
+      idleRunning = false
+      lock.withLock { clearRing() }
+      Log.write("audio: idle engine stopped (rebuild)")
+    }
     retire(engine)
     needsRebuild = false
     choiceChangedDuringTake = false
@@ -253,6 +301,92 @@ final class AudioRecorder {
     choiceChangedDuringTake = false
     guard InputEnginePolicy.rebuildBeforeTake(flagged: false, built: built, wanted: intended().target) else { return }
     rebuild(reason: "microphone choice changed")
+    startIdle(reason: "engine rebuilt")
+  }
+
+  // MARK: Keep microphone ready
+
+  /// Turns the idle engine on or off (the setting, sleep and wake, quit).
+  func setKeepReady(_ on: Bool, reason: String) { readySetting = on; applyReady(reason: reason) }
+  func setAsleep(_ on: Bool) { asleep = on; applyReady(reason: on ? "system sleep" : "wake") }
+  /// Quit began (true) or was cancelled (false).
+  func setQuitting(_ on: Bool) { quitting = on; applyReady(reason: on ? "quit" : "quit cancelled") }
+
+  private func applyReady(reason: String) {
+    if keepReady { startIdle(reason: reason) } else { stopIdle(reason: reason) }
+  }
+
+  private func clearRing() {
+    ring.clear()
+    ringFilledAt = nil
+    ringGap = false
+  }
+
+  /// Starts the engine for the pre-roll if the setting is on and no take runs.
+  /// A failure only logs: the next take starts the usual way.
+  private func startIdle(reason: String) {
+    guard keepReady, !isRecording, !idleRunning,
+          AVCaptureDevice.authorizationStatus(for: .audio) == .authorized else { return }
+    if InputEnginePolicy.rebuildBeforeTake(flagged: needsRebuild, built: built, wanted: intended().target) {
+      rebuild(reason: "input changed before the idle start")
+    }
+    do {
+      _ = try startEngine(onFirstAudio: nil, idle: true)
+      idleRunning = true
+      Log.write("audio: idle engine started (\(reason)); keeping \(PreRollRing.defaultCapacity / 16) ms of pre-roll")
+    } catch {
+      Log.write("audio: idle engine could not start (\(reason)): \(error.localizedDescription); takes start as usual")
+    }
+  }
+
+  private func stopIdle(reason: String) {
+    guard idleRunning else { return }
+    let engine = self.engine
+    _ = try? ObjCException.catching {
+      engine.inputNode.removeTap(onBus: 0)
+      engine.stop()
+    }
+    retireTap()
+    idleRunning = false
+    lock.withLock { clearRing() }
+    Log.write("audio: idle engine stopped (\(reason))")
+  }
+
+  /// A take on the already running idle engine: the ring becomes the
+  /// take's first samples. Nil when that engine isn't fit for a take; the
+  /// caller then stops it and starts the usual way.
+  private func startOnIdleEngine(onFirstAudio: (() -> Void)?) -> Bool {
+    guard idleRunning, !needsRebuild, engine.isRunning,
+          !InputEnginePolicy.rebuildBeforeTake(flagged: false, built: built, wanted: intended().target),
+          built.target.pinned || (built.defaultAtStart != nil
+                                  && AudioInputDevices.defaultInputID() == built.defaultAtStart) else { return false }
+    // The input unit must still be on the device it started on (and, pinned,
+    // the one chosen): a move whose notice hasn't arrived yet rebuilds first.
+    let actual = Self.unitDevice(of: engine)
+    guard actual != nil, actual == built.unitDevice, !built.target.pinned || actual == built.target.device else {
+      needsRebuild = true
+      return false
+    }
+    let now = monotonicMs()
+    let preroll: Int? = lock.withLock {
+      guard !converterFailed, converter != nil, !ringGap,
+            let filled = ringFilledAt, now - filled <= Self.prerollFreshMs else { return nil }
+      samples = ring.drain()
+      ringFilledAt = nil
+      firstBufferAt = nil
+      self.onFirstAudio = onFirstAudio
+      capturing = true
+      return samples.count
+    }
+    guard let preroll else { return false }
+    levelLock.withLock { level = 0 }
+    idleRunning = false
+    prerollSamples = preroll
+    isRecording = true
+    // The baseline stays the one verified above: re-reading the default now
+    // could hide a move whose notice is still on its way.
+    noteTakeInput(engine, promoted: true)
+    return true
   }
 
   /// Starts capture. Returns how long engine start took, in ms. A failure
@@ -265,6 +399,12 @@ final class AudioRecorder {
   @discardableResult
   func start(onFirstAudio: (() -> Void)? = nil) throws -> Double {
     guard !isRecording else { return 0 }
+    prerollSamples = 0
+    if idleRunning {
+      let started = monotonicMs()
+      if startOnIdleEngine(onFirstAudio: onFirstAudio) { return monotonicMs() - started }
+      stopIdle(reason: "not fit for the take")
+    }
     if InputEnginePolicy.rebuildBeforeTake(flagged: needsRebuild, built: built, wanted: intended().target) {
       rebuild(reason: needsRebuild ? "input changed since the last take" : "microphone choice changed since the last take")
     }
@@ -292,7 +432,7 @@ final class AudioRecorder {
     })
   }
 
-  private func startEngine(onFirstAudio: (() -> Void)?) throws -> Double {
+  private func startEngine(onFirstAudio: (() -> Void)?, idle: Bool = false) throws -> Double {
     let engine = self.engine
     // Read now, after pinning and prepare: the hardware format is the one
     // the tap must match, and it may have moved since the engine was built.
@@ -318,16 +458,19 @@ final class AudioRecorder {
       self.converter = converter
       converterFormat = tap
       converterFailed = false
-      takeNumber += 1
+      tapID += 1
       samples.removeAll(keepingCapacity: true)
       firstBufferAt = nil
       self.onFirstAudio = onFirstAudio
+      capturing = !idle
+      clearRing()
     }
+    let tapID = lock.withLock { self.tapID }
     levelLock.withLock { level = 0 }
 
     try ObjCException.catching {
       engine.inputNode.installTap(onBus: 0, bufferSize: 1024, format: tapFormat) { [weak self] buffer, _ in
-        self?.append(buffer)
+        self?.append(buffer, tap: tapID)
       }
     }
     let started = monotonicMs()
@@ -338,9 +481,10 @@ final class AudioRecorder {
         engine.inputNode.removeTap(onBus: 0)
         engine.stop()
       }
+      retireTap()
       throw error
     }
-    isRecording = true
+    if !idle { isRecording = true }
     let elapsed = monotonicMs() - started
     // Later configuration notices compare against the format really in use.
     built.sampleRate = tap.sampleRate
@@ -352,8 +496,8 @@ final class AudioRecorder {
   /// Reads back the device the take really uses and logs requested, actual
   /// and any fallback. A pin that didn't hold can't be fixed mid-take: the
   /// take goes on, and the next one uses the system default.
-  private func noteTakeInput(_ engine: AVAudioEngine) {
-    let actual = Self.unitDevice(of: engine)
+  private func noteTakeInput(_ engine: AVAudioEngine, promoted: Bool = false) {
+    let actual = promoted ? built.unitDevice : Self.unitDevice(of: engine)
     if built.target.pinned, let pinnedUID, case .fallBack(let why) = InputEnginePolicy.selection(
       requested: built.target.device, setStatus: 0, actual: actual) {
       Log.write("audio: the chosen microphone didn't hold after start (\(why)); next take uses the system default")
@@ -363,8 +507,10 @@ final class AudioRecorder {
     }
     // Later notices compare against what is really capturing. Following the
     // default, that is the default input read now, after start.
-    built.unitDevice = actual
-    built.defaultAtStart = built.target.pinned ? nil : AudioInputDevices.defaultInputID()
+    if !promoted {
+      built.unitDevice = actual
+      built.defaultAtStart = built.target.pinned ? nil : AudioInputDevices.defaultInputID()
+    }
     inputName = describe(unit: actual, target: built.target, defaultDevice: .some(built.defaultAtStart))
     let requested = preferredInput().map(\.name) ?? "system default"
     Log.write("audio: take input requested=\(requested) actual=\(inputName) fallback=\(fallbackReason ?? "none")")
@@ -386,8 +532,13 @@ final class AudioRecorder {
       engine.stop()
     }
     isRecording = false
+    // Retire the tap and cut the take in one lock: a buffer that reached the
+    // lock first is kept (as before pre-roll), anything later is refused.
     let take = lock.withLock {
+      tapID += 1
       onFirstAudio = nil
+      capturing = false
+      clearRing()
       let take = samples
       samples.removeAll(keepingCapacity: false)
       return take
@@ -399,14 +550,23 @@ final class AudioRecorder {
         self.rebuildIfStale()
       }
     }
+    if keepReady {
+      // Off the stop path; a fresh ring, so a cancelled take leaves nothing behind.
+      RunLoop.main.perform(inModes: [.common]) { [weak self] in self?.startIdle(reason: "take ended") }
+    }
     return take
   }
 
   /// No converter for the buffers arriving mid-take: stop the take, keeping
   /// what was captured, by the same route as a lost device.
-  private func converterFailedMidTake(_ format: CaptureFormat, take: Int) {
-    let current = lock.withLock { takeNumber }
-    guard isRecording, take == current else { return }
+  private func converterFailedMidTake(_ format: CaptureFormat, tap: Int) {
+    let current = lock.withLock { tapID }
+    guard tap == current else { return }
+    guard isRecording else {
+      // Idle: the engine can't convert; drop it, and the next take starts as usual.
+      if idleRunning { stopIdle(reason: "no 16 kHz converter for \(format)") }
+      return
+    }
     Log.write("audio: no 16 kHz converter for buffers in \(format) mid-take; stopping the take")
     needsRebuild = true
     onConfigurationChange?()
@@ -426,31 +586,47 @@ final class AudioRecorder {
     }
   }
 
-  private func append(_ buffer: AVAudioPCMBuffer) {
+  /// An idle buffer was lost on this tap: the ring has a gap, so no take uses it.
+  private func markIdleGap(tap: Int) {
+    lock.withLock { if tapID == tap, !capturing { ringGap = true } }
+  }
+
+  private func append(_ buffer: AVAudioPCMBuffer, tap: Int) {
     let format = CaptureFormat(buffer.format)
     // Explicit self and types: the local `converter` below otherwise makes
     // this closure a circular reference for some Swift compilers (CI).
     let (current, builtFor, failed, take): (AVAudioConverter?, CaptureFormat?, Bool, Int) = lock.withLock {
-      (self.converter, self.converterFormat, self.converterFailed, self.takeNumber)
+      (self.converter, self.converterFormat, self.converterFailed, self.tapID)
     }
-    guard !failed else { return }
+    // A buffer from a removed tap, or after a converter failure on this one.
+    guard !failed, take == tap else { return }
     var converter = current
     if CaptureStartPolicy.needsNewConverter(builtFor: builtFor, buffer: format) {
       // Rare: the device's format moved after start. Allocated outside the lock.
       guard let fresh = AVAudioConverter(from: buffer.format, to: targetFormat) else {
-        lock.withLock {
+        let current = lock.withLock { () -> Bool in
+          guard tapID == tap else { return false }
           converterFailed = true
           self.converter = nil
+          return true
         }
+        guard current else { return }
         // Common modes: the stop must not wait for an open menu to close.
-        RunLoop.main.perform(inModes: [.common]) { [weak self] in self?.converterFailedMidTake(format, take: take) }
+        // Checked there against the tap, not the take: a tap promoted from
+        // idle meanwhile is the current take's, and the take is stopped.
+        RunLoop.main.perform(inModes: [.common]) { [weak self] in self?.converterFailedMidTake(format, tap: tap) }
         CFRunLoopWakeUp(CFRunLoopGetMain())
         return
       }
-      lock.withLock {
+      let current = lock.withLock { () -> Bool in
+        guard tapID == tap else { return false }
         self.converter = fresh
         converterFormat = format
+        // The old converter's buffered frames are dropped: the ring would splice across them.
+        if !capturing { clearRing() }
+        return true
       }
+      guard current else { return }
       converter = fresh
       let old = builtFor.map(String.init(describing:)) ?? "none"
       RunLoop.main.perform(inModes: [.common]) {
@@ -460,7 +636,10 @@ final class AudioRecorder {
     guard let converter else { return }
     let ratio = targetFormat.sampleRate / buffer.format.sampleRate
     let capacity = AVAudioFrameCount(Double(buffer.frameLength) * ratio) + 32
-    guard let output = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: capacity) else { return }
+    guard let output = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: capacity) else {
+      markIdleGap(tap: tap)
+      return
+    }
 
     var supplied = false
     var error: NSError?
@@ -473,22 +652,37 @@ final class AudioRecorder {
       status.pointee = .haveData
       return buffer
     }
-    guard error == nil, let channel = output.floatChannelData?[0] else { return }
+    guard error == nil, let channel = output.floatChannelData?[0] else {
+      // An idle buffer lost: the ring now has a gap, so the next take won't use it.
+      markIdleGap(tap: tap)
+      return
+    }
     let count = Int(output.frameLength)
+    let buffer = UnsafeBufferPointer(start: channel, count: count)
+    let (isTake, first) = lock.withLock { () -> (Bool, (() -> Void)?) in
+      // A tap removed or replaced while this buffer converted writes nothing.
+      guard tapID == tap else { return (false, nil) }
+      // Idle: the pre-roll ring only; no take, no meter, no first-audio callback.
+      guard capturing else {
+        if count > 0 {
+          ring.append(buffer)
+          ringFilledAt = monotonicMs()
+        }
+        return (false, nil)
+      }
+      samples.append(contentsOf: buffer)
+      guard firstBufferAt == nil else { return (true, nil) }
+      firstBufferAt = monotonicMs()
+      defer { onFirstAudio = nil }
+      return (true, onFirstAudio)
+    }
     // Metered only while the on-screen indicator wants it; the fold into
-    // `level` uses its own lock, keeping the sample lock as short as before.
-    if meteringEnabled {
+    // `level` uses its own lock, outside the sample lock.
+    if isTake && meteringEnabled {
       var rms: Float = 0
       vDSP_rmsqv(channel, 1, &rms, vDSP_Length(count))
       let normalized = InputLevel.normalized(rms: rms)
       levelLock.withLock { level = max(level, normalized) }
-    }
-    let first = lock.withLock { () -> (() -> Void)? in
-      samples.append(contentsOf: UnsafeBufferPointer(start: channel, count: count))
-      guard firstBufferAt == nil else { return nil }
-      firstBufferAt = monotonicMs()
-      defer { onFirstAudio = nil }
-      return onFirstAudio
     }
     first?()
   }

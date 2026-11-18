@@ -16,6 +16,8 @@ final class SettingsModel: ObservableObject {
   @Published private(set) var keepAwakeWhileRecording: Bool
   @Published private(set) var showRecordingHUD: Bool
   @Published private(set) var liveTranscription: Bool
+  /// Labs: run the microphone between takes for a 0.5 s pre-roll. Off by default.
+  @Published private(set) var keepMicReady: Bool
   /// The chosen input (nil = System Default), as UID and the name it had.
   @Published private(set) var microphone: AudioInput?
   /// Connected inputs, from CoreAudio or sample data in previews.
@@ -46,6 +48,8 @@ final class SettingsModel: ObservableObject {
   var onPasteLastHotkeyChange: () -> Void = {}
   /// Runs after a While-recording preference changes (e.g. hide the HUD).
   var onWhileRecordingChange: () -> Void = {}
+  /// Runs after "Keep microphone ready" changes (start or stop the idle engine).
+  var onKeepMicReadyChange: () -> Void = {}
   /// Each runs when anything the Microphone row shows changes.
   private var microphoneObservers: [() -> Void] = []
   /// Each runs only when the choice or the connected inputs change (the
@@ -117,6 +121,7 @@ final class SettingsModel: ObservableObject {
   private static let keepAwakeWhileRecordingKey = "keepAwakeWhileRecording"
   private static let showRecordingHUDKey = "showRecordingHUD"
   private static let liveTranscriptionKey = "liveTranscription"
+  private static let keepMicReadyKey = "keepMicReady"
 
   init(defaults: UserDefaults = AppRuntimePaths.defaults, isolated: Bool = AppRuntimePaths.isolated) {
     self.defaults = defaults
@@ -131,6 +136,7 @@ final class SettingsModel: ObservableObject {
     keepAwakeWhileRecording = defaults.bool(forKey: Self.keepAwakeWhileRecordingKey)
     showRecordingHUD = defaults.bool(forKey: Self.showRecordingHUDKey)
     liveTranscription = defaults.bool(forKey: Self.liveTranscriptionKey)
+    keepMicReady = defaults.bool(forKey: Self.keepMicReadyKey)
     microphone = defaults.string(forKey: Self.microphoneUIDKey).map {
       AudioInput(uid: $0, name: defaults.string(forKey: Self.microphoneNameKey) ?? "Chosen microphone")
     }
@@ -325,6 +331,13 @@ final class SettingsModel: ObservableObject {
   func setMuteWhileRecording(_ on: Bool) {
     muteWhileRecording = on
     if !preview || isolated { defaults.set(on, forKey: Self.muteWhileRecordingKey) }
+  }
+
+  /// Applied at once: the idle engine starts or stops.
+  func setKeepMicReady(_ on: Bool) {
+    keepMicReady = on
+    if !preview || isolated { defaults.set(on, forKey: Self.keepMicReadyKey) }
+    onKeepMicReadyChange()
   }
 
   func setKeepAwakeWhileRecording(_ on: Bool) {
