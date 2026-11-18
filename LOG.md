@@ -37,7 +37,7 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 - [x] P1 · Hex parity slice 3b: Transcribe while recording wired into the app as a switch, with the recording spooled to disk · added 2026-11-10
 - [ ] P1 · Slice 3b is in build 483; check on real takes: `live=on` lines in app.log (stop→delivered, live_segments, live_forced, any live=fallback and its reason), a crash-recovery try (force-quit mid-recording, relaunch, take appears in history), and that nothing is left in `~/Library/Application Support/Khuluma/live/` after normal takes · added 2026-11-10
 - [x] P1 · Sounds page: a menu and play button per event, files from the app's sounds folder, Show in Finder (Ricardo, 2026-11-11) · added 2026-11-11
-- [ ] P1 · Transcribe while recording adds words at the end: the last open piece is transcribed on its own (TakePipeline.swift, `samples[livePrefix.coveredSamples...]`), and Parakeet invents endings on short or near-silent clips. 3 of 24 kept takes of 12 s+ (17-18 Nov): "amount of the same" (final 7.9 s; whole file and last 15 s+ give "amount"), "mmhmm" and "yeah" (final 0.4-0.9 s of silence). Fix to try: drop a final piece with no speech, and give the final pass at least ~15 s of audio before it, joined with `mergeTailAnchored`; re-run the 24-take comparison · added 2026-11-18
+- [ ] P1 · Install the live final-pass fix (903a1ff) on Ricardo's OK, then watch app.log for `live_final=tail_only` (the fallback) and endings in history for a few days · added 2026-11-18
 - [ ] P1 · Per-app auto-send rules (e.g. WhatsApp pastes without sending) and an opt-in "restore the clipboard after pasting" (Ricardo, 2026-11-11) · added 2026-11-11
 - [ ] P1 · History tab in the window (recent dictations, search, copy) and a "paste last dictation" shortcut, off until set (Ricardo, 2026-11-11) · added 2026-11-11
 - [ ] P1 · Merge wip/hex-parity into main once the above has had a few days of use, including five-minute takes · added 2026-11-11
@@ -132,6 +132,8 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 - Rename the existing repository in place to preserve all history; retain neutral `ricardo-calcina/tap` and rename its formula to `khuluma`. The in-place repository rename, immutable v0.10.0 release and canonical formula/map are published and verified. The app continues to depend on its matching CLI; cask/CLI-independence/deprecation/archive are separate future work.
 
 ## Done
+
+- 2026-11-18 · Live final pass gets 4-15 s of context and a cut-bounded merge, so it stops inventing endings ("of the same", "yeah", "mmhmm"); simulated on 27 kept takes: no ending worse, 3 fixed, no fallbacks; not installed · 903a1ff
 
 - 2026-11-11 · Installed build 494 with the History tab and paste-last shortcut (Ricardo's OK); app and daemon relaunched warm · ~/Applications/.khuluma-app.RBK4ff/previous.app
 - 2026-11-11 · History tab (search, copy, grouped by day) and optional paste-last-dictation shortcut; source only, not installed · wip/hex-parity
