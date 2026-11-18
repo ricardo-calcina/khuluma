@@ -2,7 +2,9 @@
 
 ## Now
 
-Pick up (Hex parity push): build 494 installed (d02add2) with the History tab and paste-last shortcut; every planned slice is in · next: a few days of Ricardo's real use (long takes, live transcription, app rules, clipboard restore, History, paste-last), then merge to main on his OK · branch: wip/hex-parity
+Pick up (Hex parity push): build 498 installed (0037a71) with the live final-pass fix; next round chosen by Ricardo 2026-11-18: cancel shortcut, Transcribe again in History (with retention), spoken formatting, Labs page with Keep microphone ready · next: build them one at a time, then merge to main on his OK · branch: wip/hex-parity
+
+Installed build 498 on 2026-11-18 (Ricardo's OK, 0037a71, from wip/hex-parity). Rollback: `~/Applications/.khuluma-app.r30tgd/previous.app` (build 494).
 
 Installed build 494 on 2026-11-11 (Ricardo's OK, d02add2, from wip/hex-parity). Rollback: `~/Applications/.khuluma-app.RBK4ff/previous.app` (build 492). Earlier: Installed build 492 on 2026-11-11 (Ricardo's OK, e8c12e3, from wip/hex-parity). Rollback: `~/Applications/.khuluma-app.nAOhx2/previous.app` (build 490). Earlier: Installed build 490 on 2026-11-11 (Ricardo's OK, 8896b11, from wip/hex-parity). Rollback: `~/Applications/.khuluma-app.J0WSN6/previous.app` (build 486); build 470, the last one from before this push, is `~/Applications/.khuluma-app.s8gnMk/previous.app`. Rollbacks for 464, 476, 478, 481 and 483 are also still there (V9Bt9W, cf3alm, A88hoo, HjMnkA, dYvZKO).
 
@@ -37,11 +39,12 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 - [x] P1 · Hex parity slice 3b: Transcribe while recording wired into the app as a switch, with the recording spooled to disk · added 2026-11-10
 - [ ] P1 · Slice 3b is in build 483; check on real takes: `live=on` lines in app.log (stop→delivered, live_segments, live_forced, any live=fallback and its reason), a crash-recovery try (force-quit mid-recording, relaunch, take appears in history), and that nothing is left in `~/Library/Application Support/Khuluma/live/` after normal takes · added 2026-11-10
 - [x] P1 · Sounds page: a menu and play button per event, files from the app's sounds folder, Show in Finder (Ricardo, 2026-11-11) · added 2026-11-11
-- [ ] P1 · Install the live final-pass fix (903a1ff) on Ricardo's OK, then watch app.log for `live_final=tail_only` (the fallback) and endings in history for a few days · added 2026-11-18
-- [ ] P1 · Per-app auto-send rules (e.g. WhatsApp pastes without sending) and an opt-in "restore the clipboard after pasting" (Ricardo, 2026-11-11) · added 2026-11-11
-- [ ] P1 · History tab in the window (recent dictations, search, copy) and a "paste last dictation" shortcut, off until set (Ricardo, 2026-11-11) · added 2026-11-11
+- [ ] P1 · Live final-pass fix is in build 498: watch app.log for `live_final=tail_only` (the fallback) and endings in history for a few days · added 2026-11-18
+- [ ] P1 · Hex parity round 2 (Ricardo, 2026-11-18): cancel shortcut while recording (Escape by default); History: Transcribe again from kept audio, raw vs cleaned, retention setting for audio and history; spoken formatting ("new line", "new paragraph"), a switch; a Labs page with Keep microphone ready (pre-roll, opt-in) · added 2026-11-18
+- [x] P1 · Per-app auto-send rules (e.g. WhatsApp pastes without sending) and an opt-in "restore the clipboard after pasting" (Ricardo, 2026-11-11) · added 2026-11-11
+- [x] P1 · History tab in the window (recent dictations, search, copy) and a "paste last dictation" shortcut, off until set (Ricardo, 2026-11-11) · added 2026-11-11
 - [ ] P1 · Merge wip/hex-parity into main once the above has had a few days of use, including five-minute takes · added 2026-11-11
-- [ ] P3 · Left from slice 4: a Labs page for experiments, and "Keep microphone ready" (pre-roll; costs an always-on mic indicator, so opt-in) · added 2026-11-10
+- [x] P3 · Left from slice 4 (now in round 2): a Labs page for experiments, and "Keep microphone ready" (pre-roll; costs an always-on mic indicator, so opt-in) · added 2026-11-10
 
 - [ ] P2 · Retire `~/.config/dictate` (pre-rename folder, untouched since 2026-10-22) so it can be binned. Still pointing at it: `~/.local/bin/tmux-whisper-lib/` (config.sh socket `~/.config/dictate/.cache/tmux-whisperd.sock` and sounds in `~/.local/share/sounds/dictate`, which is already gone) and `~/.local/bin/dictate-lib.sh`, both old tmux-whisper libs from 2026-10-21 (fits CLI sunset phase 4); `khuluma-lib/identity.sh` lines 107–119 treat `~/.config/dictate` as the legacy marker for rename-v1, so confirm removing it doesn't re-trigger or break that check; `~/.config/khuluma/tools/pad-sfx.sh` examples still say `sounds/dictate`. Then bin the remaining install leftovers once rollback isn't needed: `.khuluma-install.*` (2026-11-05) and `.khuluma-cutover-*` in `~/.local/bin`, `~/.local/share/khuluma`, `~/.config/khuluma`, plus `~/.config/khuluma/.migration` (rename-v1, committed) · added 2026-11-08
 - [x] P2 · Try Finder Local and Cloud on the same file with quiet speech and laughter and compare output and timing · added 2026-11-06
@@ -132,6 +135,8 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 - Rename the existing repository in place to preserve all history; retain neutral `ricardo-calcina/tap` and rename its formula to `khuluma`. The in-place repository rename, immutable v0.10.0 release and canonical formula/map are published and verified. The app continues to depend on its matching CLI; cask/CLI-independence/deprecation/archive are separate future work.
 
 ## Done
+
+- 2026-11-18 · Installed build 498 with the live final-pass fix (Ricardo's OK); app and daemon relaunched warm · ~/Applications/.khuluma-app.r30tgd/previous.app
 
 - 2026-11-18 · Live final pass gets 4-15 s of context and a cut-bounded merge, so it stops inventing endings ("of the same", "yeah", "mmhmm"); simulated on 27 kept takes: no ending worse, 3 fixed, no fallbacks; not installed · 903a1ff
 
