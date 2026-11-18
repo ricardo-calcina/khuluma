@@ -84,6 +84,8 @@ final class TakePipeline {
         line.add("live_forced", livePrefix.forced)
         line.add("live_covered", livePrefix.coveredSamples * 1000 / AudioPrep.sampleRate)
         line.add("live_asr", livePrefix.asrMs)
+        line.add("live_context", finalContextMs)
+        if finalFallback { line.add("live_final", "tail_only") }
       } else if live != nil {
         line.add("live", "fallback")
         if let liveReason { line.add("live_reason", liveReason) }
@@ -107,6 +109,8 @@ final class TakePipeline {
     // with still match.
     var livePrefix: LiveSession.Prefix?
     var liveReason: String?
+    var finalContextMs: Int?
+    var finalFallback = false
     if let live {
       if live.transcription != transcription || live.modelPath != modelPath {
         liveReason = "settings_changed"
@@ -128,35 +132,60 @@ final class TakePipeline {
     let transcribed: NativeTranscriber.Result
     do {
       if let livePrefix {
-        let tail = Array(samples[livePrefix.coveredSamples...])
-        let tailSpans = SpansBox()
-        var tailResult: NativeTranscriber.Result?
-        if !tail.isEmpty {
-          tailResult = try NativeTranscriber(settings: transcription)
-            .transcribeTimed(samples: tail) { wav, flow in
+        // The open tail, transcribed with already-covered audio before it
+        // (LiveTranscript.FinalPass) and merged on the words they share.
+        let covered = livePrefix.coveredSamples
+        let coveredMs = covered * 1000 / AudioPrep.sampleRate
+        let prefix = LiveTranscript.join(livePrefix.parts)
+        // The window pass skips tail rescue: its short re-pass over the last
+        // seconds is exactly the kind of clip that invents an ending.
+        var windowSettings = transcription
+        windowSettings.tailRescue = false
+        func pass(from: Int, spans: SpansBox, settings: TranscriptionSettings) throws -> NativeTranscriber.Result {
+          try NativeTranscriber(settings: settings)
+            .transcribeTimed(samples: Array(samples[from...])) { wav, flow in
             // Tag the take before its own request can count as contention.
             if flow == "inline" { _ = probeState() }
             let pass = try client.transcribePass(wav: wav, language: transcription.language, flow: flow,
                                                  modelPath: modelPath,
                                                  modelVersion: transcription.modelVersion, timeout: timeout)
-            if flow == "inline" { tailSpans.value = pass.wordSpansMs }
+            if flow == "inline" { spans.value = pass.wordSpansMs }
             return pass
           }
         }
-        var parts = livePrefix.parts
-        if let tailResult {
-          parts.append(.init(text: tailResult.transcript, wordSpansMs: tailSpans.value,
-                             startMs: livePrefix.coveredSamples * 1000 / AudioPrep.sampleRate))
-        }
-        let joined = LiveTranscript.join(parts)
-        if var tailResult {
-          tailResult.transcript = joined.text
-          tailResult.speechMs = joined.wordSpansMs.flatMap { SpeechTime.speechMs(spans: $0) }
-          transcribed = tailResult
+        if covered < samples.count {
+          let windowStart = LiveTranscript.FinalPass.windowStart(coveredSamples: covered, totalSamples: samples.count)
+          let windowStartMs = windowStart * 1000 / AudioPrep.sampleRate
+          let windowSpans = SpansBox()
+          var result = try pass(from: windowStart, spans: windowSpans, settings: windowSettings)
+          finalContextMs = coveredMs - windowStartMs
+          var spans: [[Int]]?
+          if let merged = LiveTranscript.FinalPass.merge(prefix: prefix.text, window: result.transcript) {
+            result.transcript = merged
+            // Speech time: the prefix's spans, plus the window's after the cut.
+            spans = prefix.wordSpansMs.flatMap { prefixSpans in
+              windowSpans.value.map { window in
+                prefixSpans + window.filter { $0.count >= 2 }
+                  .map { [$0[0] + windowStartMs, $0[1] + windowStartMs] }
+                  .filter { $0[0] >= coveredMs }
+              }
+            }
+          } else {
+            // No shared words: the tail on its own, as before.
+            finalFallback = true
+            let tailSpans = SpansBox()
+            result = try pass(from: covered, spans: tailSpans, settings: transcription)
+            let joined = LiveTranscript.join(livePrefix.parts + [
+              .init(text: result.transcript, wordSpansMs: tailSpans.value, startMs: coveredMs)])
+            result.transcript = joined.text
+            spans = joined.wordSpansMs
+          }
+          result.speechMs = spans.flatMap { SpeechTime.speechMs(spans: $0) }
+          transcribed = result
         } else {
           transcribed = NativeTranscriber.Result(
-            transcript: joined.text, captureSamples: samples.count, paddedSamples: samples.count,
-            speechMs: joined.wordSpansMs.flatMap { SpeechTime.speechMs(spans: $0) })
+            transcript: prefix.text, captureSamples: samples.count, paddedSamples: samples.count,
+            speechMs: prefix.wordSpansMs.flatMap { SpeechTime.speechMs(spans: $0) })
         }
       } else {
         transcribed = try NativeTranscriber(settings: transcription, keepWAV: transcription.keepLogs)

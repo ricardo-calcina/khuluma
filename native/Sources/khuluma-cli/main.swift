@@ -79,6 +79,9 @@ final class LiveSim: @unchecked Sendable {
   var on = false
   /// KHULUMA_LIVE_NO_SEGMENT_TAIL=1: non-final segments skip tail rescue.
   var noSegmentTail = false
+  /// KHULUMA_LIVE_TAIL_ONLY=1: the last open segment transcribed alone (pre-FinalPass).
+  var tailOnly = false
+  var finalFallback = false
   var config = PauseSegmenter.Config()
   var engine: ASREngine?
   var modelURL: URL?
@@ -103,7 +106,7 @@ final class LiveSim: @unchecked Sendable {
     if let open = rest.range(of: " (", options: .backwards) {
       input = String(rest[..<open.lowerBound])
     }
-    audioMs = 0; segments = 0; forced = 0
+    audioMs = 0; segments = 0; forced = 0; finalFallback = false
     segMs = []; segAsrMs = []; wholeAsrMs = 0
   }
 
@@ -113,6 +116,7 @@ final class LiveSim: @unchecked Sendable {
     return "live: audio_ms=\(audioMs) segments=\(segments) forced=\(forced)"
       + " seg_ms=\(seg) seg_asr_ms=\(asr)"
       + " last_asr_ms=\(segAsrMs.last ?? 0) whole_asr_ms=\(wholeAsrMs)"
+      + (finalFallback ? " final=tail_only" : "")
   }
 
   /// 16-bit PCM RIFF → Float samples: finds the "data" chunk and reads LE.
@@ -199,7 +203,22 @@ final class LiveSim: @unchecked Sendable {
     for (index, (from, to)) in bounds.enumerated() {
       inlineSpans = nil
       mark = ContinuousClock.now
-      let segmentTranscriber = noSegmentTail && index < bounds.count - 1 ? noTailTranscriber : transcriber
+      let last = index == bounds.count - 1
+      // The app's final pass: the open tail with covered audio before it,
+      // merged on shared words (KHULUMA_LIVE_TAIL_ONLY=1: the old tail alone).
+      if last, !tailOnly, !parts.isEmpty, from < to {
+        let windowStart = LiveTranscript.FinalPass.windowStart(coveredSamples: from, totalSamples: to)
+        let result = try noTailTranscriber.transcribeTimed(samples: Array(samples[windowStart..<to]), passes: pass)
+        let prefix = LiveTranscript.join(parts).text
+        if let merged = LiveTranscript.FinalPass.merge(prefix: prefix, window: result.transcript) {
+          segMs.append((to - from) * 1000 / 16_000)
+          segAsrMs.append(Self.wallMs(mark))
+          return merged
+        }
+        // The tail alone below; last_asr_ms counts both passes.
+        finalFallback = true
+      }
+      let segmentTranscriber = noSegmentTail && !last ? noTailTranscriber : transcriber
       let result = try segmentTranscriber.transcribeTimed(samples: Array(samples[from..<to]), passes: pass)
       segMs.append((to - from) * 1000 / 16_000)
       segAsrMs.append(Self.wallMs(mark))
@@ -283,6 +302,7 @@ if liveEnvironment["KHULUMA_LIVE_SIMULATE"] == "1" {
   if let ms = liveEnvironment["KHULUMA_LIVE_MAX_MS"].flatMap(Int.init) { LiveSim.shared.config.maxSegmentMs = ms }
   if let ms = liveEnvironment["KHULUMA_LIVE_PAUSE_MS"].flatMap(Int.init) { LiveSim.shared.config.pauseMs = ms }
   if liveEnvironment["KHULUMA_LIVE_NO_SEGMENT_TAIL"] == "1" { LiveSim.shared.noSegmentTail = true }
+  if liveEnvironment["KHULUMA_LIVE_TAIL_ONLY"] == "1" { LiveSim.shared.tailOnly = true }
 }
 
 var command = FileTranscribeCommand(
