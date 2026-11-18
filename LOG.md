@@ -2,7 +2,7 @@
 
 ## Now
 
-Khuluma is the native macOS app only (CLI retired 2026-11-18; outcome in docs/plans/archive/CLI_SUNSET.md). Installed: build 518 from main (c0051e9, CLI-era code removed), with Hex parity rounds 1 and 2 and the History/search/Activity tweaks. Ricardo is trying round 2 in daily use (Next). The one kept rollback, `~/Applications/.khuluma-app.ngdza1/previous.app` (build 506), goes to the Bin once 518 has had a few days; after that git is the rollback.
+Khuluma is the native macOS app only (CLI retired 2026-11-18; outcome in docs/plans/archive/CLI_SUNSET.md). Installed: build 518 from main (c0051e9, CLI-era code removed), with Hex parity rounds 1 and 2 and the History/search/Activity tweaks. Ricardo is trying round 2 in daily use (Next). The one kept rollback, `~/Applications/.khuluma-app.vymIcS/previous.app` (build 510), goes to the Bin once 518 has had a few days; after that git is the rollback.
 
 Hex parity (Ricardo, 2026-11-10): bring over from anomalyco/hex what suits a Mac-only app, each as a setting; what was left out is in Decisions.
 
