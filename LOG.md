@@ -2,32 +2,9 @@
 
 ## Now
 
-Hex parity push done (2026-11-18): merged to main as 37d56f8 (fast-forward) and installed as build 510 with the History/search/Activity tweaks (366da5c). Ricardo is trying round 2 in daily use (Next). Feature branches cleared; work happens on main.
+Khuluma is the native macOS app only (CLI retired 2026-11-18; outcome in docs/plans/archive/CLI_SUNSET.md). Installed: build 510 from main (366da5c), with Hex parity rounds 1 and 2 and the History/search/Activity tweaks. Ricardo is trying round 2 in daily use (Next). The one kept rollback, `~/Applications/.khuluma-app.ngdza1/previous.app` (build 506), goes to the Bin once 510 has had a few days; after that git is the rollback.
 
-Installed build 510 on 2026-11-18 (Ricardo's OK, 366da5c, merged to main). Rollback: `~/Applications/.khuluma-app.ngdza1/previous.app` (build 506). Earlier: Installed build 506 on 2026-11-18 (Ricardo's OK, bb02263, from wip/hex-parity). Rollback: `~/Applications/.khuluma-app.vXiBhx/previous.app` (build 498). Earlier: Installed build 498 on 2026-11-18 (Ricardo's OK, 0037a71, from wip/hex-parity). Rollback: `~/Applications/.khuluma-app.r30tgd/previous.app` (build 494).
-
-Installed build 494 on 2026-11-11 (Ricardo's OK, d02add2, from wip/hex-parity). Rollback: `~/Applications/.khuluma-app.RBK4ff/previous.app` (build 492). Earlier: Installed build 492 on 2026-11-11 (Ricardo's OK, e8c12e3, from wip/hex-parity). Rollback: `~/Applications/.khuluma-app.nAOhx2/previous.app` (build 490). Earlier: Installed build 490 on 2026-11-11 (Ricardo's OK, 8896b11, from wip/hex-parity). Rollback: `~/Applications/.khuluma-app.J0WSN6/previous.app` (build 486); build 470, the last one from before this push, is `~/Applications/.khuluma-app.s8gnMk/previous.app`. Rollbacks for 464, 476, 478, 481 and 483 are also still there (V9Bt9W, cf3alm, A88hoo, HjMnkA, dYvZKO).
-
-Hex parity push (Ricardo, 2026-11-10): after comparing Khuluma with anomalyco/hex, bring over what suits a Mac-only app, in slices on `wip/hex-parity`, each one a setting. Order and what was left out are in Next and Decisions.
-
-CLI retired (2026-11-18, Ricardo): bash CLI, install.sh, Homebrew formula and tap gone; tap repo archived; ~/.local/bin/khuluma links to the app's built-in helper; old CLI, Dictate, Tmux Whisper and Lowkey files on the Mac binned. Outcome in docs/plans/archive/CLI_SUNSET.md.
-
-Installed build 470 on 2026-11-07 (Ricardo's OK, 9f412d4). Parakeet is selected for dictation. Both transcription actions appear in Finder under Services. Rollback: `~/Applications/.khuluma-app.V9Bt9W/previous.app` (build 464).
-
-Installed build 449 on 2026-11-06 (app independence, Ricardo's OK): the app runs without the CLI and keeps its own data, imported from ~/.config/khuluma (copy only, left as rollback). Rollback: `~/Applications/.khuluma-app.NH9hiz/previous.app` (build 415). 14-day watch to 2026-11-20: no `khuluma` process started by the app; usage matches delivered takes in history. Until the CLI is retired, the CLI's daemon and the app's own daemon both hold the model. The CLI sunset (phase 4) can start now.
-
-
-Window and menu restyle (2026-11-05) is installed as build 415 from main: Stats, Settings and Vocabulary share one ink-and-ember look (Theme.swift; DESIGN.md), Settings has a four-page sidebar, and Activity keeps one height for every range. Ricardo approved it from a preview build. The menu dropdown matches, and the window now shows in Cmd-Tab and the Dock while open (Ricardo confirmed Cmd-Tab in the preview). Wired headphones and AirPods are still to try on the microphone picker (Next). App rollback is `~/Applications/.khuluma-app.aX5hsD/previous.app` (build 411).
-
-Direction from 2026-10-27: Khuluma splits into two products. The Khuluma CLI, the free tool that grew out of the tmux-whisper setup, stays on the Homebrew tap and gets its SwiftBar integrations back. The native Swift dictation app becomes its own paid product, signed and notarised, installed from the App Store or a website download, not Homebrew. Phases 2, 4 and 5 and the SwiftBar, cask and App Store decisions below predate this and need re-planning (Next P1).
-
-The user accepts the current dictation cleanup and Settings as working well; this work is closed for now. Further settings expansion, repeated-word cleanup and provider comparisons are parked below for a later session.
-
-Khuluma v0.11.0 build 367 and its matching contract-5 CLI were installed from `4dcf33e` (superseded by build 383 on 2026-11-05). Source [CI](https://github.com/ricardo-calcina/khuluma/actions/runs/40016372572) and [Swift](https://github.com/ricardo-calcina/khuluma/actions/runs/40016372589) passed before cutover. The signed app relaunched on the native pipeline; doctor reports zero issues/warnings. A real 35-second take delivered through the native path after cutover. The installation preserved F17, config, existing vocabulary, icon preference/catalog and daemon binary/PID. The installer skipped warm-up and sound replacement; Homebrew and public releases are unchanged.
-
-The installed Settings and vocabulary editor load the existing rules and export equivalent JSON. Installed CLI vocabulary save and filler/sentence/brand cleanup pass against a private synthetic profile. Cleanup is now enabled with Exact repeated sentences (level 3). The prepared vocabulary is active: 11 fillers, 28 brand rules and 7 other-word rules; all previous corrections survive. The installed app confirms the saved settings, and a combined filler/repetition/brand sample passes. A local replay of the latest 97-second dictation exactly reproduces the saved result, including removal of four hesitations. New tool-name variants are active; the separate sentence-repetition check passes. Personal vocabulary contents remain outside Git. The source combines menu/Stats/Settings, adaptive/animated icon themes, audio retention and vocabulary work in four grouped merges on main.
-
-App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (build 355). CLI/code receipts and installer backups remain recorded under `/private/tmp/khuluma-vocabulary-install-aef6o_rh/`; verification and preservation evidence are there too. Preserve newer user data when recovering. Continue the daily-use phase-0 observation before native-writer work.
+Hex parity (Ricardo, 2026-11-10): bring over from anomalyco/hex what suits a Mac-only app, each as a setting; what was left out is in Decisions.
 
 ## Next
 
@@ -69,16 +46,16 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 - [x] P1 · Complete isolated rename/migration/recovery acceptance, controlled daily cutover and source/tap integration · added 2026-10-22
 
 - [ ] P1 · Before phase 2: search UKIPO and EUIPO by hand for KHULUMA (khuluma.app bought by Ricardo 2026-11-05) · added 2026-10-17
-- [ ] P1 · khuluma.app website: decide what it offers before the signed app exists (waitlist, the free CLI, or both); build it in VPS products/Khuluma/site, reusing the approved studio-site Khuluma page copy · added 2026-11-05
+- [ ] P1 · khuluma.app website: decide what it offers before the signed app exists (e.g. a waitlist; the free CLI is retired); build it in VPS products/Khuluma/site, reusing the approved studio-site Khuluma page copy · added 2026-11-05
 - [x] P1 · Install raised adaptive light/dark app icon and 18 pt menu glyph; verify Finder automatic switching · added 2026-10-17
-- [ ] P1 · Join the Apple Developer Program before phase 2 (after app independence and the split, Ricardo 2026-11-05) · added 2026-10-15
-- [ ] P1 · Phase 0 gate: a week of daily use, then `tools/khuluma-report.sh` gates still met · added 2026-10-17
-- [ ] P1 · Phase 1 step 1: native usage ledger and history writer, proven against the CLI with shared fixtures (removes `inline record`) · added 2026-10-17
-- [ ] P1 · Phase 1 after the native writers: port config, bundle and supervise the daemon, add model download and bundled sounds, then port or drop CLI fallbacks; keep shared files/locks compatible while both writers exist · added 2026-10-22
-- [ ] P1 · Phase 1 delivery: use PostEvent permission gates and a bundled child daemon; verify clean-account dictation/Stats/history without CLI and 14 days without CLI invocations or usage mismatch before calling it independent · added 2026-10-22
+- [ ] P1 · Join the Apple Developer Program before phase 2 (app independence and the CLI retirement are done) · added 2026-10-15
+- [x] P1 · Phase 0 gate: a week of daily use, then `tools/khuluma-report.sh` gates still met · added 2026-10-17 (superseded: daily use since, app independent)
+- [x] P1 · Phase 1 step 1: native usage ledger and history writer, proven against the CLI with shared fixtures (removes `inline record`) · added 2026-10-17 (done: app independence, build 449)
+- [x] P1 · Phase 1 after the native writers: port config, bundle and supervise the daemon, add model download and bundled sounds, then port or drop CLI fallbacks; keep shared files/locks compatible while both writers exist · added 2026-10-22 (done: app independence; CLI retired 2026-11-18)
+- [x] P1 · Phase 1 delivery: use PostEvent permission gates and a bundled child daemon; verify clean-account dictation/Stats/history without CLI and 14 days without CLI invocations or usage mismatch before calling it independent · added 2026-10-22 (done: app independence; CLI retired 2026-11-18)
 - [ ] P2 · Add “Show app icon in Dock” next to the Open at login setting · added 2026-10-24
 - [x] P2 · Clarify the Repetition selector with plain labels and before/after examples; explain each option’s scope, preserved repeats and how it interacts with cleanup · added 2026-10-24
-- [ ] P2 · Audit existing CLI/config options against the app Settings; identify useful controls still missing from the UI before expanding it · added 2026-10-24
+- [ ] P2 · Audit the app's settings.json options against Settings; identify useful controls still missing from the UI before expanding it · added 2026-10-24
 - [ ] P2 · Cleanup round (after the split): better transcript cleanup with selectable levels, including an optional cloud model; covers the repetition labels, repeated-word cleanup and Parakeet vs Scribe items · added 2026-11-05
 - [x] P2 · Test conservative repeated-word cleanup such as “don't don't”, preserving intentional emphasis and grammatical doubles · added 2026-10-24
 - [ ] P2 · Compare Parakeet and ElevenLabs Scribe on real repeats, intonation and laughter/non-speech output; verify provider behavior before choosing cleanup rules · added 2026-10-24
@@ -97,18 +74,19 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 - [x] P2 · Choose and install cursed-speech set 1 Recording/Finishing replacements; preserve set 2 · added 2026-10-23
 - [x] P2 · Slowly rotate the Processing fang seal, including menu tracking and Reduce Motion stop/resume · added 2026-10-23
 - [x] P2 · Install and verify rounder Recording mouth and immediate Settings switch between both status icon themes · added 2026-10-23
-- [ ] P2 · Lowkey ideas parked from 3c, only with evidence: config file watcher, warm mic/pre-roll · added 2026-10-16
-- [ ] P2 · Phase 2 after phases 4-5: Developer ID signing/notarisation, versioned .dmg from khuluma.app with Sparkle (no cask); History window; verify fresh-Mac permissions · added 2026-10-22, changed 2026-11-05
+- [x] P2 · Lowkey ideas parked from 3c, only with evidence: config file watcher, warm mic/pre-roll · added 2026-10-16 (done: pre-roll is Labs › Keep microphone ready, build 506)
+- [ ] P2 · Phase 2 (phases 4-5 done 2026-11-18): Developer ID signing/notarisation, versioned .dmg from khuluma.app with Sparkle (no cask); verify fresh-Mac permissions · added 2026-10-22, changed 2026-11-05
 - [x] P2 · Phase 4 after phase 1 exits: final CLI release v0.12.0 with a retirement notice, formula disable!, then remove the CLI from Ricardo's Mac after a week with no CLI calls (ROADMAP.md) · added 2026-10-22, changed 2026-11-05
 - [x] P2 · Phase 5: remove the CLI code, tests, ci.yml and docs from the repo (keep cleanup fixtures and khuluma-report.sh), update the transcribe-audio skill, archive ricardo-calcina/homebrew-tap a few weeks after the disable · added 2026-10-22, changed 2026-11-05
 - [ ] P3 · Deferred separate labs: voxtral-inline API/realtime dictation and faster-whisper-tool batch/subtitle/offline exploration; only after core reliability is stable · added 2026-10-22
 
 ## Decisions
 
+- Priorities: local, fast dictation and never losing a take.
+
 - References (Ricardo, 2026-11-18): Khuluma stays his own app; Wispr Flow (the reason it exists), Superwhisper, Monologue and Hex (anomalyco/hex) are reference and inspiration, not something to switch to. Borrow what fits a Mac-only app, as settings.
 
 - Not doing (2026-11-11): unloading the model when idle. As macOS reports it the app's footprint is 57 MB and its daemon's 28 MB with the model warm, so there is little to free. Nor trimming the 150 ms in delivery: it is the gap between Cmd+V and the send key that Electron apps need (DeliveryPlan.minimumSendGapMs), it only applies with auto-send, and the text is already on screen before it. Updates, installer and onboarding wait until Ricardo calls a version stable.
-- The CLI's old daemon (pid 2059, `~/.local/share/khuluma/native/khulumad`) was still running on 2026-11-11, six days up; it goes with CLI sunset phase 4.
 
 - Settings pages (Ricardo, 2026-11-11): General, Recording, Transcription, Text, Cloud, Advanced. The ElevenLabs key is on Cloud; delivery, cleanup and vocabulary share Text. Nothing new went to Advanced: each switch sits with what it affects.
 - Repetition cleanup (2026-11-11): two controls over one stored level. Levels 0–3 keep the bash CLI's meaning (and its parity fixtures); 4 is sentences plus single words, 5 adds 2–3 word phrases. Word-level cleanup still joins doubles such as “had had”; no keep-list yet. Ricardo's case was a spoken restart (“a branded uh a branded entry”), not a transcription fault.
@@ -124,18 +102,12 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 - App data (Ricardo, 2026-11-05): the app keeps its data in `~/Library/Application Support/Khuluma`, settings in `settings.json`, bench.tsv dropped, a one-time copy-only import from `~/.config/khuluma` (the source stays as the rollback); Scribe ported (Keychain, then the CLI's zshrc lookup); the app runs its own bundled daemon. The shared data contract and writer tags are withdrawn with the sunset. Details in docs/plans/APP_INDEPENDENCE.md.
 - CLI sunset (Ricardo, 2026-11-05; replaces the 2026-10-27 two-product split): Khuluma is the native app only. Ricardo doesn't use the CLI from the terminal or tmux and won't maintain a separate tool or tap. What's kept moves into the app (file transcription as a small command built into the app, which the transcribe-audio skill uses; ElevenLabs Scribe). Then the CLI, its formula and the tap are retired. No long-term app and CLI sharing of data: a one-time import into the app instead.
 - Microphone choice stays a submenu row in the menu, not an inline ticked list (tried in f983018, reverted 2026-11-05): Ricardo rarely switches and mostly stays on System Default; the row only needs to show the input in use. The case for choosing is two inputs at once, e.g. recording a video on the phone while Khuluma keeps the MacBook mic.
-- Icon/theme recovery: `/Users/admin/Applications/.khuluma-app.74v7dj/previous.app` retains signed build 353; current QA is at `/private/tmp/khuluma-themes-qa.RxaJYA/`. `.khuluma-app.xMyT3X/previous.app` retains build 351, `.khuluma-app.atWD6N/previous.app` build 347, `.khuluma-app.LYC8GT/previous.app` build 342 and `.khuluma-app.LYfteh/previous.app` build 340. Earlier motion/status/app-icon QA remains under `/private/tmp/khuluma-{motion,status,icons}-qa.*` as recorded in `assets/icons/README.md`. Preserve newer user data when recovering.
-
-- Local menu/Settings cutover recovery: `/Users/admin/Applications/.khuluma-live.qBasYG/previous.app` retains build 332; `code-manifest.json` and code backups retain the matching prior local CLI/receipt. Preserve newer usage/history when recovering.
 
 - Prefer canonical-only interfaces. v0.11.0 removed ordinary old command/environment/app compatibility after concrete caller and daily-workflow checks, superseding the former 30-day identity wait. Preserve data, historical releases, explicit recovery and wrong-profile/competing-writer refusals. The completed per-file removal plan remains in Git at `8da982b:LOG.md`; source #85 records implementation.
-- Recovery on this Mac remains under `/Users/admin/Documents/Codex/2026-10-22/all-right-next-i-want-to/work/`: `khuluma-live-cutover/`, `khuluma-implementation-evidence/local-brew-recovery-3kf3c92v/` and `khuluma-compat-2026-10-23/`. The committed data manifest is `~/.config/khuluma/.migration/rename-v1/manifest.json`. Closed controller journals are historical: never replay them or restore an old snapshot over newer user work.
 
-- Khuluma is the product; local, fast dictation and never losing a take remain the priorities. The CLI is its back end until native replacements are proven. Keep shared-file and locking contracts while the app and CLI share those files.
 - Name chosen: Khuluma. Approved rename target is bundle `com.ricardo-nth.khuluma` with a separate `Khuluma Local Code Signing` identity; preserve the existing Lowkey identity and data for other apps/rollback. The controlled cutover and final v0.10.0 app acceptance passed. Name research is dated in `docs/plans/KHULUMA_NAME_CHECK.md`; official UK/EU checks remain open above.
 - Distribution: a notarised .dmg from khuluma.app with Sparkle; no Homebrew cask (the tap is retired); Mac App Store parked, the archived roadmap keeps the sandbox research (2026-11-05).
 - Tmux capture, CLI recording, LLM rewriting, silence trim, bash chunking, Raycast and SwiftBar were dropped; reintroduce none without evidence. Usage, Stats and logs keep counts/timings, not transcript text; history and pending recovery are the intentional text stores.
-- Rename the existing repository in place to preserve all history; retain neutral `ricardo-calcina/tap` and rename its formula to `khuluma`. The in-place repository rename, immutable v0.10.0 release and canonical formula/map are published and verified. The app continues to depend on its matching CLI; cask/CLI-independence/deprecation/archive are separate future work.
 
 ## Done
 
