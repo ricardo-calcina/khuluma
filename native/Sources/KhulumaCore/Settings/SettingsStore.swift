@@ -322,6 +322,8 @@ public struct SettingsStore: Sendable {
       return { $0.sounds.events[event]?.path = value }
     case "clean.enabled":
       let b = try bool(); return { $0.cleanup.enabled = b }
+    case "clean.spoken_formatting":
+      let b = try bool(); return { $0.cleanup.spokenFormatting = b }
     case "clean.repeats_level":
       guard let level = Int(value), value.count == 1, (0...5).contains(level) else {
         throw InvalidSetting("repeat cleanup level must be between 0 and 5")

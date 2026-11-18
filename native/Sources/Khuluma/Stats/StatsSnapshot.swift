@@ -351,6 +351,7 @@ private struct UISettingsFixture {
     case "debug.keep_logs": set("transcription", key: "keep_logs", value: value == "true")
     case "clean.enabled": set("cleanup", key: "clean", value: value == "true" ? "1" : "0")
     case "clean.repeats_level": set("cleanup", key: "repeats_level", value: value)
+    case "clean.spoken_formatting": set("cleanup", key: "spoken_formatting", value: value == "true" ? "1" : "0")
     case "audio.sounds.enabled":
       values["sounds_enabled"] = value == "true"
       var sounds = values["sounds"] as! [String: [String: Any]]

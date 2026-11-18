@@ -609,8 +609,7 @@ struct SettingsView: View {
           .disabled(!model.editable || model.config?.cleanup.clean != "1")
       }
       SettingsRow("Repeated words",
-                  note: repeatedWordsNote,
-                  last: true) {
+                  note: repeatedWordsNote) {
         Picker("Repeated words", selection: Binding(
           get: { RepetitionChoice(level: model.config?.cleanup.repeatsLevel ?? "0").words },
           set: { words in
@@ -624,6 +623,14 @@ struct SettingsView: View {
         }
         .labelsHidden().fixedSize()
         .disabled(!model.editable || model.config?.cleanup.clean != "1")
+      }
+      SettingsRow("Spoken formatting",
+                  note: "Say “new line” or “new paragraph” to break lines.",
+                  last: true) {
+        Toggle("Spoken formatting",
+               isOn: setting("clean.spoken_formatting", model.config?.cleanup.spokenFormattingEnabled ?? false))
+          .labelsHidden()
+          .disabled(!model.editable)
       }
     }
     SettingsGroup("Vocabulary") {

@@ -250,7 +250,7 @@ final class TakePipeline {
       Log.write("pipeline: tail rescue pass failed; kept the full transcript")
     }
 
-    let outcome = TextPipeline(settings: cleanup).process(transcript: transcribed.transcript)
+    let outcome = TextPipeline(settings: cleanup).process(transcript: transcribed.transcript).formatted(cleanup)
     let cleanedAt = monotonicMs()
     record.cleanMs = Int(cleanedAt - transcribedAt)
 

@@ -56,7 +56,7 @@ extension TakePipeline {
     record.captureWavMs = AudioPrep.ffprobeDurationMs(sampleCount: samples.count)
     record.captureWavBytes = 44 + 2 * samples.count
     record.transcribeMs = Int(monotonicMs() - startedAt)
-    switch TextPipeline(settings: cleanup).process(transcript: transcript) {
+    switch TextPipeline(settings: cleanup).process(transcript: transcript).formatted(cleanup) {
     case .noSpeech:
       record.status = "no_speech"
       persister.persist(record)
@@ -132,7 +132,7 @@ extension TakePipeline {
     case .failure(.unreadable): return .failed("The recording is unreadable")
     case .failure(.failed): return .failed("Transcription failed")
     case .success(let kept):
-      switch TextPipeline(settings: kept.cleanup).process(transcript: kept.transcript) {
+      switch TextPipeline(settings: kept.cleanup).process(transcript: kept.transcript).formatted(kept.cleanup) {
       case .noSpeech: return .noSpeech
       case .text(let raw, let text): return .text(raw: raw, processed: text)
       }

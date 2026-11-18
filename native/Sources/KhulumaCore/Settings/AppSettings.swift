@@ -129,6 +129,8 @@ public struct AppSettings: Codable, Equatable, Sendable {
     /// Vocabulary corrections.
     public var vocabulary = true
     public var britishSpelling = true
+    /// Spoken "new line" / "new paragraph" become breaks (app-only).
+    public var spokenFormatting = false
     public init() {}
 
     enum CodingKeys: String, CodingKey {
@@ -136,6 +138,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
       case repeatsLevel = "repeats_level"
       case vocabulary
       case britishSpelling = "british_spelling"
+      case spokenFormatting = "spoken_formatting"
     }
 
     public init(from d: Decoder) throws {
@@ -147,6 +150,7 @@ public struct AppSettings: Codable, Equatable, Sendable {
       }
       vocabulary = try c.decodeIfPresent(Bool.self, forKey: .vocabulary) ?? true
       britishSpelling = try c.decodeIfPresent(Bool.self, forKey: .britishSpelling) ?? true
+      spokenFormatting = try c.decodeIfPresent(Bool.self, forKey: .spokenFormatting) ?? false
     }
   }
 
@@ -513,11 +517,12 @@ extension AppConfig {
                         processSound: s.inline.processSound, activateDelayMs: s.inline.activateDelayMs,
                         sendDelayMs: s.inline.sendDelayMs, restoreClipboard: s.inline.restoreClipboard,
                         appRules: s.inline.appRules)
-    let cleanup = CleanupSettings(configDir: env.appFolder.path, clean: s.cleanup.enabled ? "1" : "0",
+    var cleanup = CleanupSettings(configDir: env.appFolder.path, clean: s.cleanup.enabled ? "1" : "0",
                                   repeatsLevel: String(s.cleanup.repeatsLevel),
                                   vocabClean: s.cleanup.vocabulary ? "1" : "0",
                                   britishSpelling: s.cleanup.britishSpelling ? "1" : "0",
                                   localeCtype: "", localeCollate: "")
+    if s.cleanup.spokenFormatting { cleanup.spokenFormatting = "1" }  // nil when off, as the CLI reports it
     let cloud = s.transcription.provider == "elevenlabs"
     let model = s.resolvedModel(in: env)
     let modelPath = model?.path

@@ -41,7 +41,7 @@ extension TakePipeline {
       record.startedAtMs = startedEpochMs
       record.captureWavMs = AudioPrep.ffprobeDurationMs(sampleCount: samples.count)
       record.captureWavBytes = 44 + 2 * samples.count
-      switch TextPipeline(settings: cleanup).process(transcript: transcribed.transcript) {
+      switch TextPipeline(settings: cleanup).process(transcript: transcribed.transcript).formatted(cleanup) {
       case .text(let raw, let text):
         record.rawText = raw
         record.text = text

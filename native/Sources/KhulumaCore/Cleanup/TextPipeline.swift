@@ -20,6 +20,9 @@ public struct CleanupSettings: Codable, Equatable, Sendable {
   /// classes depend on them; only the C locale is reproduced natively.
   public var localeCtype: String?
   public var localeCollate: String?
+  /// App-only (no CLI equivalent): "1" turns spoken "new line" / "new paragraph"
+  /// into breaks, applied after this pipeline (`SpokenFormatting`). nil = off.
+  public var spokenFormatting: String?
 
   public init(
     configDir: String, clean: String = "0", repeatsLevel: String = "1", vocabClean: String = "1",
@@ -42,6 +45,7 @@ public struct CleanupSettings: Codable, Equatable, Sendable {
     case britishSpelling = "british_spelling"
     case localeCtype = "locale_ctype"
     case localeCollate = "locale_collate"
+    case spokenFormatting = "spoken_formatting"
   }
 
   static func isCLocale(_ value: String?) -> Bool {
@@ -53,6 +57,7 @@ public struct CleanupSettings: Codable, Equatable, Sendable {
   /// Perl reads as 0 (which still normalises whitespace).
   var repeatsFilterEnabled: Bool { repeatsLevel != "0" }
   var vocabEnabled: Bool { PerlText.boolIsOn(vocabClean) }
+  public var spokenFormattingEnabled: Bool { spokenFormatting == "1" }
 }
 
 /// Result of cleaning one inline transcript.
@@ -62,6 +67,12 @@ public enum CleanupOutcome: Equatable, Sendable {
   case text(raw: String, text: String)
   /// Nothing left after artefact/filler cleanup ("No speech detected").
   case noSpeech
+
+  /// Applies spoken formatting to the delivered text when it's on; `raw` is untouched.
+  public func formatted(_ settings: CleanupSettings) -> CleanupOutcome {
+    guard settings.spokenFormattingEnabled, case .text(let raw, let text) = self else { return self }
+    return .text(raw: raw, text: SpokenFormatting.apply(text))
+  }
 }
 
 /// Swift port of the inline cleanup in `process_inline_recording`

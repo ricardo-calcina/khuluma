@@ -68,7 +68,7 @@ public struct ScribeRoute: Sendable {
     record.transcribeMs = Int(transcribedAt - startedAt)
     if keepWAV { keep = true; record.wavPath = wav.path }
 
-    let outcome = TextPipeline(settings: cleanup).process(transcript: transcript)
+    let outcome = TextPipeline(settings: cleanup).process(transcript: transcript).formatted(cleanup)
     record.cleanMs = Int(Self.nowMs() - transcribedAt)
     switch outcome {
     case .noSpeech:
