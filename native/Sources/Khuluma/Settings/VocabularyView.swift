@@ -92,7 +92,9 @@ struct VocabularyView: View {
         Text(blurb(model.section)).font(.callout).foregroundStyle(.secondary).lineLimit(1)
       }
       Spacer(minLength: 0)
-      SearchField(text: $model.query, focusRequest: model.searchRequest)
+      KhulumaSearchField(prompt: "Search", text: $model.query, accessibilityLabel: "Search vocabulary",
+                         focusRequest: model.searchRequest)
+        .help("Search vocabulary (⌘F)")
         .frame(minWidth: 120, idealWidth: 170, maxWidth: 170)
         .disabled(model.working)
     }
@@ -519,42 +521,5 @@ private struct TableFocus: NSViewRepresentable {
     if let table = view as? NSTableView { return table }
     for child in view.subviews { if let table = table(in: child) { return table } }
     return nil
-  }
-}
-
-/// The native search field, with Command-F focusing it through `focusRequest`.
-private struct SearchField: NSViewRepresentable {
-  @Binding var text: String
-  var focusRequest: Int
-
-  func makeCoordinator() -> Coordinator { Coordinator(text: $text) }
-  func makeNSView(context: Context) -> NSSearchField {
-    let field = NSSearchField()
-    field.placeholderString = "Search"
-    field.sendsSearchStringImmediately = true
-    field.delegate = context.coordinator
-    field.setAccessibilityLabel("Search vocabulary")
-    field.toolTip = "Search vocabulary (⌘F)"
-    context.coordinator.request = focusRequest
-    return field
-  }
-  func updateNSView(_ field: NSSearchField, context: Context) {
-    context.coordinator.text = $text
-    if field.stringValue != text { field.stringValue = text }
-    field.isEnabled = context.environment.isEnabled
-    if context.coordinator.request != focusRequest {
-      context.coordinator.request = focusRequest
-      DispatchQueue.main.async { field.window?.makeFirstResponder(field) }
-    }
-  }
-
-  final class Coordinator: NSObject, NSSearchFieldDelegate {
-    var text: Binding<String>
-    var request = 0
-    init(text: Binding<String>) { self.text = text }
-    func controlTextDidChange(_ notification: Notification) {
-      guard let field = notification.object as? NSSearchField else { return }
-      text.wrappedValue = field.stringValue
-    }
   }
 }

@@ -315,3 +315,83 @@ struct KhulumaSegments<Option: Hashable>: View {
     }
   }
 }
+
+/// A small icon button: ember glyph, and on hover a pale ember rounded fill,
+/// like the Settings sidebar's selected row. Its padding keeps neighbours'
+/// fills apart.
+struct KhulumaIconButtonStyle: ButtonStyle {
+  func makeBody(configuration: Configuration) -> some View {
+    IconBody(configuration: configuration)
+  }
+
+  private struct IconBody: View {
+    let configuration: ButtonStyleConfiguration
+    @Environment(\.isEnabled) private var isEnabled
+    @StateObject private var hover = HoverState()
+
+    var body: some View {
+      configuration.label
+        .font(.system(size: 12, weight: .medium))
+        .foregroundStyle(hover.active && isEnabled ? Ember.selectedText : Ember.accent)
+        .frame(width: 22, height: 20)
+        .background {
+          RoundedRectangle(cornerRadius: 5, style: .continuous)
+            .fill(Ember.selection.opacity(configuration.isPressed ? 1 : hover.active && isEnabled ? 0.8 : 0))
+        }
+        .contentShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+        .onHover { hover.active = $0 }
+        .opacity(isEnabled ? 1 : 0.45)
+    }
+  }
+}
+
+/// The search field everywhere in Khuluma: a rounded rectangle with a thin
+/// ember outline, stronger when focused, no shadow. `focusRequest` focuses it
+/// each time it changes (Command-F).
+struct KhulumaSearchField: View {
+  let prompt: String
+  @Binding var text: String
+  var accessibilityLabel: String
+  var focusRequest: Int = 0
+
+  @FocusState private var focused: Bool
+  @Environment(\.isEnabled) private var isEnabled
+  @StateObject private var hover = HoverState()
+
+  var body: some View {
+    let shape = RoundedRectangle(cornerRadius: 7, style: .continuous)
+    HStack(spacing: 5) {
+      Image(systemName: "magnifyingglass")
+        .font(.system(size: 11, weight: .medium))
+        .foregroundStyle(focused ? Ember.accent : Color.secondary)
+        .accessibilityHidden(true)
+      TextField(accessibilityLabel, text: $text,
+                prompt: Text(prompt).foregroundStyle(.secondary))
+        .textFieldStyle(.plain)
+        .font(.system(size: 13))
+        .focused($focused)
+        .labelsHidden()
+        .accessibilityLabel(accessibilityLabel)
+      if !text.isEmpty {
+        Button { text = "" } label: {
+          Image(systemName: "xmark.circle.fill").font(.system(size: 11))
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.secondary)
+        .help("Clear")
+        .accessibilityLabel("Clear search")
+      }
+    }
+    .padding(.horizontal, 8)
+    .frame(height: 24)
+    .background(shape.fill(Surface.canvas))
+    .overlay(shape.strokeBorder(Ember.accent.opacity(focused ? 0.9 : hover.active ? 0.5 : 0.3),
+                                lineWidth: focused ? 1.5 : 1))
+    .contentShape(shape)
+    .onTapGesture { focused = true }
+    .onHover { hover.active = $0 }
+    .opacity(isEnabled ? 1 : 0.5)
+    .onChange(of: focusRequest) { _, _ in focused = true }
+    .onExitCommand { if focused { text.isEmpty ? (focused = false) : (text = "") } }
+  }
+}

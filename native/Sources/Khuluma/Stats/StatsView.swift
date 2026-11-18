@@ -79,7 +79,7 @@ private struct StatsContent: View {
         if stats.dailyStatus == "not_started" {
           Notice(symbol: "calendar.badge.clock", text: "Daily stats start with your next dictation.")
         }
-        Activity(stats: stats, rangeDays: $model.rangeDays, showWords: $model.showWordsPerDay)
+        Activity(stats: stats, rangeDays: $model.rangeDays, view: $model.activityView)
         if !stats.coverageComplete {
           Notice(symbol: "info.circle",
                  text: "\(stats.untrackedDeliveries.formatted()) dictation\(stats.untrackedDeliveries == 1 ? " was" : "s were") "
@@ -184,25 +184,22 @@ private struct Notice: View {
 private struct Activity: View {
   let stats: UsageStats
   @Binding var rangeDays: Int
-  @Binding var showWords: Bool
+  @Binding var view: ActivityView
   // Not @State: the Command Line Tools have no SwiftUI macro plugin.
   @StateObject private var hover = Hover()
 
   /// The content width inside the window's 20-point insets.
   static let width: CGFloat = 520
-  /// Words per day sits under the heatmap: its header, gap and bars.
-  static let chartBlock: CGFloat = 10 + 12 + Heatmap.gap + WordsPerDay.height
+  /// The chart area, the same for every range and view so the panel never
+  /// jumps: the heatmap's month row and seven rows of cells.
+  static let chartHeight: CGFloat = Heatmap.monthRow + 7 * (Heatmap.cellHeight + Heatmap.gap)
 
-  /// Activity is the same height for every range and with the chart on or
-  /// off: without the chart the heatmap's rows take its height. Cells stay
-  /// near square and the heatmap is centred when the weeks don't need the
-  /// full width.
+  /// Cells stay near square; the heatmap is centred when the weeks don't
+  /// need the full width.
   private func cellSize(weeks: Int) -> CGSize {
-    let height = showWords ? Heatmap.cellHeight
-      : ((Heatmap.cellHeight * 7 + Self.chartBlock) / 7).rounded(.down)
     let columns = CGFloat(max(weeks, 1))
     let fit = ((Self.width - Heatmap.labelColumn) / columns - Heatmap.gap).rounded(.down)
-    return CGSize(width: min(fit, (height * 1.3).rounded()), height: height)
+    return CGSize(width: min(fit, (Heatmap.cellHeight * 1.3).rounded()), height: Heatmap.cellHeight)
   }
 
   var body: some View {
@@ -210,13 +207,11 @@ private struct Activity: View {
     let weeks = stats.heatmap(days: rangeDays)
     let days = weeks.joined().filter { $0.state != .outsideRange && $0.state != .future }
     VStack(alignment: .leading, spacing: 8) {
-      HStack(spacing: 12) {
+      HStack(spacing: 8) {
         Text("Activity").font(.headline)
         Spacer()
-        Toggle("Words per day", isOn: $showWords)
-          .toggleStyle(KhulumaSwitchStyle())
-          .font(.callout)
-          .foregroundStyle(.secondary)
+        KhulumaSegments(label: "Chart", options: ActivityView.allCases.map { ($0, $0.title) },
+                        selection: $view, size: .small)
         KhulumaSegments(label: "Range", options: StatsModel.ranges.map { ($0, "\($0) days") },
                         selection: $rangeDays, size: .small)
       }
@@ -230,19 +225,24 @@ private struct Activity: View {
         .lineLimit(1)
         .truncationMode(.tail)
         .frame(width: Self.width, height: 18, alignment: .leading)
-      VStack(alignment: .leading, spacing: 10) {
-        Heatmap(weeks: weeks, today: stats.today, coverageComplete: stats.coverageComplete,
-                cellSize: cellSize(weeks: weeks.count), hover: hover)
-          .frame(width: Self.width)
-        if showWords {
-          WordsPerDay(days: days, hover: hover)
+      Group {
+        switch view {
+        case .heatmap:
+          Heatmap(weeks: weeks, today: stats.today, coverageComplete: stats.coverageComplete,
+                  cellSize: cellSize(weeks: weeks.count), hover: hover)
+        case .bars:
+          WordsPerDay(days: days, today: stats.today, rangeDays: rangeDays, hover: hover)
         }
       }
+      .frame(width: Self.width, height: Self.chartHeight, alignment: .top)
       .padding(.top, 2)
+      // The legend's row stays for the bar chart too, so the height holds.
       HStack {
         Spacer()
         Legend(showUntracked: weeks.joined().contains { $0.state == .untracked })
       }
+      .opacity(view == .heatmap ? 1 : 0)
+      .accessibilityHidden(view != .heatmap)
     }
   }
 }
@@ -276,15 +276,17 @@ private struct Heatmap: View {
   let cellSize: CGSize
   @ObservedObject var hover: Hover
 
-  static let cellHeight: CGFloat = 20
+  static let cellHeight: CGFloat = 32
   static let gap: CGFloat = 3
+  /// The month labels' row.
+  static let monthRow: CGFloat = 14
   /// Width of the weekday labels.
   static let labelColumn: CGFloat = 18
 
   var body: some View {
     HStack(alignment: .top, spacing: Self.gap) {
       VStack(alignment: .trailing, spacing: Self.gap) {
-        Text(" ").font(.caption2)
+        Text(" ").font(.caption2).frame(height: Self.monthRow - Self.gap)
         ForEach(0..<7, id: \.self) { row in
           Text(Format.weekdaySymbol(weeks.first?[row].date))
             .font(.caption2)
@@ -299,6 +301,7 @@ private struct Heatmap: View {
             .foregroundStyle(.secondary)
             .fixedSize()
             .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(height: Self.monthRow - Self.gap)
           ForEach(weeks[index], id: \.date) { cell in
             HeatCell(cell: cell, isToday: cell.date == today, coverageComplete: coverageComplete,
                      size: cellSize)
@@ -343,50 +346,104 @@ private struct HeatCell: View {
   }
 }
 
-/// One bar per day, sharing the heatmap's hover line. Drawn by hand: it is
-/// only bars, and this avoids a framework for them.
+/// Words per day, one bar a day, sharing the heatmap's hover line and its
+/// space. Drawn by hand: it is only bars and two axes.
 private struct WordsPerDay: View {
   let days: [UsageStats.Cell]
+  let today: CivilDate
+  let rangeDays: Int
   @ObservedObject var hover: Hover
 
-  static let height: CGFloat = 64
+  /// The y-axis labels' column and the x-axis labels' row.
+  static let axisWidth: CGFloat = 40
+  static let axisHeight: CGFloat = 16
 
   var body: some View {
-    let peak = days.map(\.words).max() ?? 0
-    VStack(alignment: .leading, spacing: Heatmap.gap) {
-      HStack {
-        Text("Words per day")
-        Spacer()
-        if peak > 0 {
-          Text("peak \(peak.formatted())").monospacedDigit()
+    let ticks = Self.ticks(peak: days.map(\.words).max() ?? 0)
+    let top = CGFloat(ticks.last ?? 1)
+    GeometryReader { proxy in
+      let plot = proxy.size.height - Self.axisHeight
+      HStack(alignment: .top, spacing: 6) {
+        // Y axis: word counts, centred on their gridlines.
+        ZStack(alignment: .topTrailing) {
+          ForEach(ticks, id: \.self) { tick in
+            Text(Self.short(tick))
+              .font(.caption2).monospacedDigit()
+              .foregroundStyle(.secondary)
+              .frame(width: Self.axisWidth - 6, height: 12, alignment: .trailing)
+              .offset(y: plot * (1 - CGFloat(tick) / top) - 6)
+          }
         }
-      }
-      .font(.caption2)
-      .foregroundStyle(.secondary)
-      .frame(height: 12)
-      HStack(alignment: .bottom, spacing: days.count > 45 ? 1 : 2) {
-        ForEach(days, id: \.date) { cell in
-          ZStack(alignment: .bottom) {
-            Color.clear
-            if cell.words > 0 {
-              RoundedRectangle(cornerRadius: 2, style: .continuous)
-                .fill(Ember.vertical)
-                .modifier(BarOpacity(highlighted: hover.cell?.date == cell.date))
-                .frame(height: max(2, Self.height * Double(cell.words) / Double(peak)))
+        .frame(width: Self.axisWidth - 6, height: plot, alignment: .topTrailing)
+        VStack(spacing: 0) {
+          ZStack(alignment: .top) {
+            ForEach(ticks, id: \.self) { tick in
+              Rectangle().fill(tick == 0 ? Ink.rule : Ink.rule.opacity(0.6)).frame(height: 1)
+                .offset(y: plot * (1 - CGFloat(tick) / top) - (tick == 0 ? 1 : 0.5))
+            }
+            HStack(alignment: .bottom, spacing: days.count > 45 ? 1 : 2) {
+              ForEach(days, id: \.date) { cell in
+                ZStack(alignment: .bottom) {
+                  Color.clear
+                  if cell.words > 0 {
+                    RoundedRectangle(cornerRadius: 2, style: .continuous)
+                      .fill(Ember.vertical)
+                      .modifier(BarOpacity(highlighted: hover.cell?.date == cell.date || cell.date == today))
+                      .frame(height: max(2, plot * CGFloat(cell.words) / top))
+                  }
+                }
+                .frame(maxWidth: .infinity)
+                .contentShape(Rectangle())
+                .onHover { hover.update(cell, inside: $0) }
+              }
+            }
+            .frame(height: plot)
+          }
+          .frame(height: plot, alignment: .top)
+          // X axis: a date every week or two, ending on today.
+          HStack(spacing: days.count > 45 ? 1 : 2) {
+            ForEach(Array(days.enumerated()), id: \.element.date) { index, cell in
+              Color.clear.frame(maxWidth: .infinity, maxHeight: 1)
+                // The last label ends at today's bar, so it stays inside.
+                .overlay(alignment: index == days.count - 1 ? .topTrailing : .top) {
+                  if Self.labelled(index: index, count: days.count, rangeDays: rangeDays) {
+                    Text(Format.shortDate(cell.date))
+                      .font(.caption2).foregroundStyle(.secondary)
+                      .fixedSize()
+                      .padding(.top, 4)
+                  }
+                }
             }
           }
-          .frame(maxWidth: .infinity)
-          .contentShape(Rectangle())
-          .onHover { hover.update(cell, inside: $0) }
+          .frame(height: Self.axisHeight, alignment: .top)
         }
       }
-      .frame(height: Self.height)
-      .overlay(alignment: .bottom) {
-        Rectangle().fill(.quaternary).frame(height: 1)
-      }
-      .accessibilityHidden(true)
     }
-    .frame(maxWidth: .infinity)
+    .accessibilityElement()
+    .accessibilityLabel("Words per day bar chart")
+  }
+
+  /// Every 7 days at 30, 14 at 60 and 90, counted back from today, and none
+  /// too near the left edge to fit.
+  static func labelled(index: Int, count: Int, rangeDays: Int) -> Bool {
+    let step = rangeDays <= 30 ? 7 : 14
+    let fromEnd = count - 1 - index
+    return fromEnd % step == 0 && index >= step / 3
+  }
+
+  /// Three or four round steps from zero to just above the peak.
+  static func ticks(peak: Int) -> [Int] {
+    guard peak > 0 else { return [0, 100] }
+    let raw = Double(peak) / 3
+    let magnitude = pow(10, floor(log10(raw)))
+    let step = Int([1, 2, 2.5, 5, 10].map { $0 * magnitude }.first { $0 >= raw } ?? 10 * magnitude)
+    let top = Int((Double(peak) / Double(step)).rounded(.up)) * step
+    return Array(stride(from: 0, through: top, by: step))
+  }
+
+  static func short(_ value: Int) -> String {
+    value >= 1000 ? (value % 1000 == 0 ? "\(value / 1000)k" : String(format: "%.1fk", Double(value) / 1000))
+      : "\(value)"
   }
 }
 

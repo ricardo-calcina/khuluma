@@ -4,6 +4,13 @@ import KhulumaCore
 /// What the stats window shows, refreshed from `usage --json` only while the
 /// window is open: on open/key, on ledger changes, at midnight, on a time
 /// zone change, on wake and from the Refresh button. Never polls.
+/// Activity's chart. Stored by raw value, so more views can be added.
+enum ActivityView: String, CaseIterable {
+  case heatmap, bars
+
+  var title: String { self == .heatmap ? "Heatmap" : "Bar chart" }
+}
+
 @MainActor
 final class StatsModel: ObservableObject {
   /// The typing pace assumed for the time-saved estimate, read when a load
@@ -14,7 +21,7 @@ final class StatsModel: ObservableObject {
 
   static let ranges = [30, 60, 90]
   private static let rangeKey = "KhulumaStatsRangeDays"
-  private static let wordsKey = "KhulumaStatsWordsPerDay"
+  private static let viewKey = "KhulumaStatsActivityView"
   private static let milestoneKey = "KhulumaStatsMilestoneSeen"
 
   @Published private(set) var stats: UsageStats?
@@ -28,9 +35,9 @@ final class StatsModel: ObservableObject {
     didSet { if !fixture { AppRuntimePaths.defaults.set(rangeDays, forKey: Self.rangeKey) } }
   }
 
-  /// Whether Activity also charts words per day. On unless turned off.
-  @Published var showWordsPerDay: Bool {
-    didSet { if !fixture { AppRuntimePaths.defaults.set(showWordsPerDay, forKey: Self.wordsKey) } }
+  /// Which chart Activity shows. One at a time; heatmap unless changed.
+  @Published var activityView: ActivityView {
+    didSet { if !fixture { AppRuntimePaths.defaults.set(activityView.rawValue, forKey: Self.viewKey) } }
   }
 
   private let source: () -> Source
@@ -52,18 +59,18 @@ final class StatsModel: ObservableObject {
     fixture = false
     let stored = AppRuntimePaths.defaults.integer(forKey: Self.rangeKey)
     rangeDays = Self.ranges.contains(stored) ? stored : 30
-    showWordsPerDay = AppRuntimePaths.defaults.object(forKey: Self.wordsKey) as? Bool ?? true
+    activityView = AppRuntimePaths.defaults.string(forKey: Self.viewKey).flatMap(ActivityView.init) ?? .heatmap
   }
 
   /// Fixed content, for snapshots.
-  init(stats: UsageStats?, updatedAt: Date?, rangeDays: Int = 30, showWordsPerDay: Bool = true,
+  init(stats: UsageStats?, updatedAt: Date?, rangeDays: Int = 30, activityView: ActivityView = .heatmap,
        celebrating: Int? = nil, refreshFailed: Bool = false) {
     source = { Source(typingWPM: nil) }
     fixture = true
     self.stats = stats
     self.updatedAt = updatedAt
     self.rangeDays = rangeDays
-    self.showWordsPerDay = showWordsPerDay
+    self.activityView = activityView
     self.celebrating = celebrating
     self.refreshFailed = refreshFailed
   }

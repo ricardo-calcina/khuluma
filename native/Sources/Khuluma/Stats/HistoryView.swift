@@ -14,8 +14,8 @@ struct HistoryView: View {
 
   var body: some View {
     VStack(spacing: 0) {
-      TextField("Search dictations", text: $model.query)
-        .textFieldStyle(.roundedBorder)
+      KhulumaSearchField(prompt: "Search dictations", text: $model.query,
+                         accessibilityLabel: "Search dictations")
         .padding(.horizontal, 20)
         .padding(.top, 14)
         .padding(.bottom, 10)
@@ -55,7 +55,7 @@ struct HistoryView: View {
 
   private func row(_ item: DictationHistory.Item) -> some View {
     VStack(alignment: .leading, spacing: 4) {
-      HStack(alignment: .firstTextBaseline, spacing: 8) {
+      HStack(alignment: .center, spacing: 4) {
         Text("\(timeFormatter.string(from: item.date)) · \(item.app.isEmpty ? "-" : item.app) · \(WordCount.count(item.text)) words")
           .font(.caption).foregroundStyle(.secondary)
         if !item.delivered {
@@ -73,11 +73,11 @@ struct HistoryView: View {
         if item.keptWAV != nil, model.transcribeAgain != nil {
           if model.transcribing.contains(item.id) {
             ProgressView().controlSize(.small)
+              .frame(width: 22, height: 20)
               .accessibilityLabel("Transcribing again")
           } else {
             Button { model.transcribe(item) } label: { Image(systemName: "arrow.clockwise") }
-              .buttonStyle(.plain)
-              .foregroundStyle(Ember.accent)
+              .buttonStyle(KhulumaIconButtonStyle())
               .help("Transcribe again from the kept recording")
               .accessibilityLabel("Transcribe again")
           }
@@ -85,8 +85,8 @@ struct HistoryView: View {
         Button { model.copy(item) } label: {
           Image(systemName: model.copiedID == item.id ? "checkmark" : "doc.on.doc")
         }
-        .buttonStyle(.plain)
-        .foregroundStyle(Ember.accent)
+        .buttonStyle(KhulumaIconButtonStyle())
+        .help("Copy")
         .accessibilityLabel("Copy dictation")
       }
       Text(model.showingRaw.contains(item.id) ? item.raw : item.text)
