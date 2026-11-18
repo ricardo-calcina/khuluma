@@ -295,6 +295,15 @@ public struct SettingsStore: Sendable {
       return { $0.transcription.modelPath = value }
     case "debug.keep_logs":
       let b = try bool(); return { $0.debug.keepLogs = b }
+    case "history.retention_days":
+      // 0 = forever. Lowering it below the audio days lowers those too.
+      guard let n = Int(value), n >= 0 else { throw InvalidSetting("history retention must be 0 (forever) or more days") }
+      return { $0.history.retentionDays = n
+               $0.history.audioRetentionDays = HistoryRetention.clampedAudio($0.history.audioRetentionDays, history: n) }
+    case "history.audio_retention_days":
+      // 0 = off; never more than the history days.
+      guard let n = Int(value), n >= 0 else { throw InvalidSetting("audio retention must be 0 (off) or more days") }
+      return { $0.history.audioRetentionDays = HistoryRetention.clampedAudio(n, history: $0.history.retentionDays) }
     case "inline.autosend":
       let b = try bool(); return { $0.inline.autosend = b }
     case "inline.restore_clipboard":

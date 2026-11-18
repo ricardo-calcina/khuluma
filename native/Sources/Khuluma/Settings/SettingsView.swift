@@ -146,6 +146,30 @@ struct SettingsView: View {
           .labelsHidden()
       }
     }
+    SettingsGroup("History") {
+      SettingsRow("Keep history for") {
+        Picker("Keep history for", selection: Binding(get: { model.history.retentionDays },
+                                                      set: { model.save("history.retention_days", String($0)) })) {
+          ForEach(Self.options([1, 7, 30, 90, 0], current: model.history.retentionDays), id: \.self) {
+            Text($0 <= 0 ? "Forever" : $0 == 1 ? "1 day" : "\($0) days").tag($0)
+          }
+        }
+        .labelsHidden().fixedSize()
+        .disabled(!model.editable)
+      }
+      SettingsRow("Keep audio for", note: "Recordings for Transcribe again, kept while Diagnostic logging is on. Never longer than history.",
+                  last: true) {
+        Picker("Keep audio for", selection: Binding(get: { model.history.audioRetentionDays },
+                                                    set: { model.save("history.audio_retention_days", String($0)) })) {
+          ForEach(Self.options([0, 1, 2, 7], current: model.history.audioRetentionDays), id: \.self) { days in
+            Text(days <= 0 ? "Off" : days == 1 ? "1 day" : "\(days) days").tag(days)
+              .disabled(HistoryRetention.clampedAudio(days, history: model.history.retentionDays) != days)
+          }
+        }
+        .labelsHidden().fixedSize()
+        .disabled(!model.editable)
+      }
+    }
   }
 
   @ViewBuilder private var recording: some View {
@@ -728,6 +752,11 @@ struct SettingsView: View {
       return "Your shortcut already uses this key, or the combination is reserved. Choose another key."
     }
     return "Finish with \(shortcut.display) to paste without sending."
+  }
+
+  /// The picker's choices plus a hand-set value from settings.json.
+  private static func options(_ base: [Int], current: Int) -> [Int] {
+    base.contains(current) ? base : base + [current]
   }
 
   private func setting(_ key: String, _ value: Bool) -> Binding<Bool> {

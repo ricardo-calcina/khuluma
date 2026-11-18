@@ -211,7 +211,9 @@ public struct AppSettings: Codable, Equatable, Sendable {
   }
 
   public struct History: Codable, Equatable, Sendable {
+    /// Days of history; 0 keeps it forever (HistoryRetention).
     public var retentionDays = 7
+    /// Days archived WAVs are kept (only while keep_logs is on); 0 = off.
     public var audioRetentionDays = 2
     /// Assumed typing pace for time-saved estimates.
     public var typingWpm = 40

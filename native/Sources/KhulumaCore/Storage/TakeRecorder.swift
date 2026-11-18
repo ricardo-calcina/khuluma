@@ -23,7 +23,9 @@ public struct TakeRecorder: Sendable {
     /// until the settings slice passes the real values from settings.json.
     public static func from(_ config: AppConfig?, historyRetentionDays: Int = 7, audioRetentionDays: Int = 2,
                             environment: [String: String] = ProcessInfo.processInfo.environment) -> Settings {
-      Settings(historyRetentionDays: historyRetentionDays, audioRetentionDays: audioRetentionDays,
+      // Effective audio days: never longer than history, whatever settings.json says.
+      Settings(historyRetentionDays: historyRetentionDays,
+               audioRetentionDays: HistoryRetention.clampedAudio(audioRetentionDays, history: historyRetentionDays),
                keepLogs: environment["KHULUMA_KEEP_LOGS"] == "1" || config?.transcription.keepLogs == true)
     }
   }
@@ -201,7 +203,15 @@ public struct TakeRecorder: Sendable {
         releaseWorkingAudio(wav, log: log)
       }
     }
+    // Every take, with or without audio of its own: so Off (or a shorter
+    // setting) clears old archived WAVs even while logging is off.
+    expireArchivedAudio(log: log)
     return result
+  }
+
+  /// Deletes archived WAVs past the audio retention (all of them when Off).
+  public func expireArchivedAudio(log: (String) -> Void = { _ in }) {
+    do { try archive.expire() } catch { log("history: audio expiry failed: \(error.localizedDescription)") }
   }
 
   private func captureGap(_ r: TakeRecord) -> Int? {
@@ -254,7 +264,6 @@ public struct TakeRecorder: Sendable {
     if !DebugArchive.deleteWorkingAudio(wav.path, roots: temporaryRoots) {
       log("history: left working audio in place (not an owned temporary take file)")
     }
-    do { try archive.expire() } catch { log("history: audio expiry failed: \(error.localizedDescription)") }
   }
 }
 

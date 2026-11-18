@@ -270,6 +270,7 @@ final class AppController: NSObject, NSApplicationDelegate {
     // expands `~`/`$SOUNDS_DIR` exactly as the resolver does.
     let store = settingsStore, env = settingsEnvironment
     settingsModel.soundsProvider = { store.load().settings.sounds }
+    settingsModel.historyProvider = { store.load().settings.history }
     settingsModel.expandSoundPath = { env.expandSound($0) }
     let vocabulary = VocabularyStore(root: AppRuntimePaths.support)
     settingsModel.onLoadVocabulary = { try vocabulary.show() }
@@ -1501,6 +1502,11 @@ final class AppController: NSObject, NSApplicationDelegate {
       statsWindow = window
       window.historyModel.retentionProvider = { [weak self] in
         self?.settingsStore.load().settings.history.retentionDays ?? 7
+      }
+      // Captured here, read off main; rewired on each show.
+      let pipeline = self.pipeline
+      window.historyModel.transcribeAgain = { wav in
+        pipeline?.transcribeAgain(wav) ?? .failed("Khuluma is still starting")
       }
       settingsModel.loginStatus = LoginItem.status
       window.show(settings: settings)

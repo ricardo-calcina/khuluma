@@ -18,15 +18,27 @@ public enum DictationHistory {
     public let delivered: Bool
     /// `metrics.record_ms`, when the record has it.
     public let recordMs: Int?
+    /// The record's `raw` transcript ("" when absent).
+    public let raw: String
+    /// The take's kept WAV (`audio.debug_archive_prefix` + ".wav"), only
+    /// while it still exists.
+    public let keptWAV: URL?
+
+    /// The raw transcript differs from the text shown.
+    public var rawDiffers: Bool {
+      !raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && raw != text
+    }
 
     public init(id: String, date: Date, app: String, text: String,
-                delivered: Bool, recordMs: Int?) {
+                delivered: Bool, recordMs: Int?, raw: String = "", keptWAV: URL? = nil) {
       self.id = id
       self.date = date
       self.app = app
       self.text = text
       self.delivered = delivered
       self.recordMs = recordMs
+      self.raw = raw
+      self.keptWAV = keptWAV
     }
   }
 
@@ -128,8 +140,11 @@ public enum DictationHistory {
     guard let date else { return nil }
     let delivered = (object["delivered"] as? Bool) ?? true
     let metrics = object["metrics"] as? [String: Any]
+    let wav = ((object["audio"] as? [String: Any])?["debug_archive_prefix"] as? String)
+      .flatMap { $0.isEmpty ? nil : URL(fileURLWithPath: $0 + ".wav") }
+      .flatMap { FileManager.default.fileExists(atPath: $0.path) ? $0 : nil }
     return Item(id: id, date: date, app: object["app"] as? String ?? "",
                 text: text, delivered: delivered,
-                recordMs: metrics?["record_ms"] as? Int)
+                recordMs: metrics?["record_ms"] as? Int, raw: raw, keptWAV: wav)
   }
 }

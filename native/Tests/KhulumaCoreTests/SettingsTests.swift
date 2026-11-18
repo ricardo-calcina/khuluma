@@ -171,7 +171,7 @@ import Testing
       ("swift_parakeet.model_version", "v4"), ("swift_parakeet.model_path", root.path + "/nope"),
       ("swift_parakeet.model_path", "a\nb"), ("debug.keep_logs", "yes"), ("clean.repeats_level", "6"),
       ("clean.repeats_level", "01"), ("app.hotkey", "space"), ("app.hotkey", "F21"), ("app.hotkey", "ctrl+a+b"),
-      ("app.hotkey", "hyper+a"), ("inline.send_mode", "enter"), ("history.retention_days", "3"),
+      ("app.hotkey", "hyper+a"), ("inline.send_mode", "enter"), ("history.retention_days", "-1"), ("history.audio_retention_days", "x"),
     ]
     for (key, value) in bad {
       #expect(throws: SettingsStore.InvalidSetting.self, "\(key)=\(value)") { try store.set(key, value: value) }

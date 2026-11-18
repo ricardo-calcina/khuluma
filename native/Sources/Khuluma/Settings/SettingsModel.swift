@@ -68,6 +68,9 @@ final class SettingsModel: ObservableObject {
   /// How `configuredSounds` is obtained (the store, once per adopt).
   var soundsProvider: () -> AppSettings.Sounds = { AppSettings.Sounds() }
   func refreshConfiguredSounds() { configuredSounds = soundsProvider() }
+  /// settings.json `history` (retention), refreshed when a config is adopted.
+  @Published private(set) var history = AppSettings.History()
+  var historyProvider: () -> AppSettings.History = { AppSettings.History() }
   /// `~` and `$SOUNDS_DIR` expansion, as the sound resolver applies it.
   var expandSoundPath: (String) -> String = { $0 }
   /// Sets an event's path and enabled in one write (wired in AppController).
@@ -139,6 +142,7 @@ final class SettingsModel: ObservableObject {
     if self.config?.transcription.provider != config.transcription.provider { keyDraft = "" }
     self.config = config
     refreshConfiguredSounds()
+    history = historyProvider()
     refreshKeySource()
   }
 

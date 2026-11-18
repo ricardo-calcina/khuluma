@@ -100,7 +100,9 @@ public struct HistoryWriter: Sendable {
   /// `find history -name '*.json' -mtime +N`: whole days of age above N.
   /// An entry whose take is still spooled is kept: if it went, the take's
   /// replay would save it again.
+  /// `retentionDays` 0 or less keeps history forever (HistoryRetention).
   public func prune(protecting protectedTakeIds: Set<String> = []) throws {
+    if HistoryRetention.keepsForever(retentionDays) { return }
     let cutoff = now().timeIntervalSince1970
     guard let walker = FileManager.default.enumerator(at: directory, includingPropertiesForKeys: [.contentModificationDateKey, .isRegularFileKey]) else { return }
     var expired: [URL] = []
@@ -200,15 +202,22 @@ public struct DebugArchive: Sendable {
     guard (try? DataFiles.ensureDirectory(directory)) != nil else { return nil }
     let safe = Self.safeName(record.takeId.isEmpty ? "khuluma" : record.takeId)
     let names = (try? FileManager.default.contentsOfDirectory(atPath: directory.path)) ?? []
+    // A replay reuses the earlier archive, but only when its WAV is really
+    // there: a .meta alone (audio Off then, or a failed copy) proves nothing.
+    var earlier: String?
     if !record.takeId.isEmpty, let meta = names.sorted().first(where: { $0.hasSuffix("-\(safe).meta") }) {
       let prefix = directory.appendingPathComponent(String(meta.dropLast(5))).path
-      return Saved(prefix: prefix, wavMs: Self.wavDurationMs(URL(fileURLWithPath: prefix + ".wav")),
-                   wavBytes: Self.fileSize(prefix + ".wav"))
+      if FileManager.default.fileExists(atPath: prefix + ".wav") {
+        return Saved(prefix: prefix, wavMs: Self.wavDurationMs(URL(fileURLWithPath: prefix + ".wav")),
+                     wavBytes: Self.fileSize(prefix + ".wav"))
+      }
+      earlier = prefix
     }
-    let prefix = directory.appendingPathComponent("\(HistoryWriter.localStamp(now(), timeZone))-\(safe)").path
+    let prefix = earlier ?? directory.appendingPathComponent("\(HistoryWriter.localStamp(now(), timeZone))-\(safe)").path
     let wavMs = Self.wavDurationMs(wav)
     let wavBytes = Self.fileSize(wav.path)
-    let copied = (try? Self.copy(wav, to: URL(fileURLWithPath: prefix + ".wav"))) != nil
+    // Audio retention Off: the .meta is still written, the WAV isn't kept.
+    let copied = HistoryRetention.keepsAudio(audioRetentionDays) && (try? Self.copy(wav, to: URL(fileURLWithPath: prefix + ".wav"))) != nil
     let fields: [(String, String)] = [
       ("session_id", record.takeId),
       ("status", record.status),
@@ -231,7 +240,8 @@ public struct DebugArchive: Sendable {
     return copied ? Saved(prefix: prefix, wavMs: wavMs, wavBytes: wavBytes) : nil
   }
 
-  /// Deletes archived WAVs at least `audioRetentionDays` × 24 h old.
+  /// Deletes archived WAVs at least `audioRetentionDays` × 24 h old (all of
+  /// them when audio retention is Off, 0).
   public func expire() throws {
     var info = stat()
     guard lstat(directory.path, &info) == 0 else { return }

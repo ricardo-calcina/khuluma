@@ -21,6 +21,8 @@ final class TakePersister {
     settingsLock.lock()
     settings = fresh
     settingsLock.unlock()
+    // A changed audio setting applies to the archive now, not at the next take.
+    queue.async { [self] in recorder.expireArchivedAudio { Log.write("persist: \($0)") } }
     replayGate.settle()
   }
 

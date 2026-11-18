@@ -42,8 +42,8 @@ struct HistoryView: View {
           .padding(.horizontal, 20)
         }
       }
-      Text(model.retentionDays == 1
-           ? "Dictations are kept for 1 day."
+      Text(model.retentionDays <= 0 ? "Dictations are kept forever."
+           : model.retentionDays == 1 ? "Dictations are kept for 1 day."
            : "Dictations are kept for \(model.retentionDays) days.")
         .font(.caption).foregroundStyle(.secondary)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -63,6 +63,25 @@ struct HistoryView: View {
             .font(.caption).foregroundStyle(Ember.accent)
         }
         Spacer(minLength: 8)
+        if item.rawDiffers {
+          Button(model.showingRaw.contains(item.id) ? "Cleaned" : "Raw") { toggle(&model.showingRaw, item.id) }
+            .buttonStyle(.plain)
+            .font(.caption)
+            .foregroundStyle(Ember.accent)
+            .help(model.showingRaw.contains(item.id) ? "Show the cleaned text" : "Show the raw transcript")
+        }
+        if item.keptWAV != nil, model.transcribeAgain != nil {
+          if model.transcribing.contains(item.id) {
+            ProgressView().controlSize(.small)
+              .accessibilityLabel("Transcribing again")
+          } else {
+            Button { model.transcribe(item) } label: { Image(systemName: "arrow.clockwise") }
+              .buttonStyle(.plain)
+              .foregroundStyle(Ember.accent)
+              .help("Transcribe again from the kept recording")
+              .accessibilityLabel("Transcribe again")
+          }
+        }
         Button { model.copy(item) } label: {
           Image(systemName: model.copiedID == item.id ? "checkmark" : "doc.on.doc")
         }
@@ -70,17 +89,22 @@ struct HistoryView: View {
         .foregroundStyle(Ember.accent)
         .accessibilityLabel("Copy dictation")
       }
-      Text(item.text)
+      Text(model.showingRaw.contains(item.id) ? item.raw : item.text)
         .font(.callout)
+        .foregroundStyle(model.showingRaw.contains(item.id) ? .secondary : .primary)
         .lineLimit(model.expanded.contains(item.id) ? nil : 3)
         .textSelection(.enabled)
         .frame(maxWidth: .infinity, alignment: .leading)
+      if let message = model.rowMessages[item.id] {
+        Text(message).font(.caption).foregroundStyle(Ember.accent)
+      }
     }
     .padding(.vertical, 7)
     .contentShape(Rectangle())
-    .onTapGesture {
-      if model.expanded.contains(item.id) { model.expanded.remove(item.id) }
-      else { model.expanded.insert(item.id) }
-    }
+    .onTapGesture { toggle(&model.expanded, item.id) }
+  }
+
+  private func toggle(_ set: inout Set<String>, _ id: String) {
+    if set.contains(id) { set.remove(id) } else { set.insert(id) }
   }
 }
