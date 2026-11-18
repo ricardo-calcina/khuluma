@@ -139,6 +139,8 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 
 ## Done
 
+- 2026-11-18 · History button hover, on-brand search fields, Activity as heatmap or bar chart (one at a time); not installed · 366da5c
+
 - 2026-11-18 · Installed build 506 with Hex parity round 2 (Ricardo's OK); app and daemon relaunched warm · ~/Applications/.khuluma-app.vXiBhx/previous.app
 
 - 2026-11-18 · Hex parity round 2 built on wip/hex-parity: Transcribe again with retention, spoken formatting, Labs page with Keep microphone ready; each Codex-reviewed; not installed · baa5f8c, d8295a5
