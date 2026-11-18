@@ -104,6 +104,8 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 
 ## Decisions
 
+- References (Ricardo, 2026-11-18): Khuluma stays his own app; Wispr Flow (the reason it exists), Superwhisper, Monologue and Hex (anomalyco/hex) are reference and inspiration, not something to switch to. Borrow what fits a Mac-only app, as settings.
+
 - Not doing (2026-11-11): unloading the model when idle. As macOS reports it the app's footprint is 57 MB and its daemon's 28 MB with the model warm, so there is little to free. Nor trimming the 150 ms in delivery: it is the gap between Cmd+V and the send key that Electron apps need (DeliveryPlan.minimumSendGapMs), it only applies with auto-send, and the text is already on screen before it. Updates, installer and onboarding wait until Ricardo calls a version stable.
 - The CLI's old daemon (pid 2059, `~/.local/share/khuluma/native/khulumad`) was still running on 2026-11-11, six days up; it goes with CLI sunset phase 4.
 
