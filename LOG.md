@@ -2,9 +2,9 @@
 
 ## Now
 
-Pick up (Hex parity push): round 2 built and reviewed, not installed: Transcribe again with retention (baa5f8c, 4d16591), spoken formatting (d8295a5), Labs page with Keep microphone ready (see git log) · next: install on Ricardo's OK, try each on real takes, then merge wip/hex-parity to main on his OK · branch: wip/hex-parity
+Pick up (Hex parity push): round 2 installed as build 506: Transcribe again with retention (baa5f8c, 4d16591), spoken formatting (d8295a5), Labs page with Keep microphone ready (see git log) · next: Ricardo tries each on real takes, then merge wip/hex-parity to main on his OK · branch: wip/hex-parity
 
-Installed build 498 on 2026-11-18 (Ricardo's OK, 0037a71, from wip/hex-parity). Rollback: `~/Applications/.khuluma-app.r30tgd/previous.app` (build 494).
+Installed build 506 on 2026-11-18 (Ricardo's OK, bb02263, from wip/hex-parity). Rollback: `~/Applications/.khuluma-app.vXiBhx/previous.app` (build 498). Earlier: Installed build 498 on 2026-11-18 (Ricardo's OK, 0037a71, from wip/hex-parity). Rollback: `~/Applications/.khuluma-app.r30tgd/previous.app` (build 494).
 
 Installed build 494 on 2026-11-11 (Ricardo's OK, d02add2, from wip/hex-parity). Rollback: `~/Applications/.khuluma-app.RBK4ff/previous.app` (build 492). Earlier: Installed build 492 on 2026-11-11 (Ricardo's OK, e8c12e3, from wip/hex-parity). Rollback: `~/Applications/.khuluma-app.nAOhx2/previous.app` (build 490). Earlier: Installed build 490 on 2026-11-11 (Ricardo's OK, 8896b11, from wip/hex-parity). Rollback: `~/Applications/.khuluma-app.J0WSN6/previous.app` (build 486); build 470, the last one from before this push, is `~/Applications/.khuluma-app.s8gnMk/previous.app`. Rollbacks for 464, 476, 478, 481 and 483 are also still there (V9Bt9W, cf3alm, A88hoo, HjMnkA, dYvZKO).
 
@@ -137,6 +137,8 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 - Rename the existing repository in place to preserve all history; retain neutral `ricardo-calcina/tap` and rename its formula to `khuluma`. The in-place repository rename, immutable v0.10.0 release and canonical formula/map are published and verified. The app continues to depend on its matching CLI; cask/CLI-independence/deprecation/archive are separate future work.
 
 ## Done
+
+- 2026-11-18 · Installed build 506 with Hex parity round 2 (Ricardo's OK); app and daemon relaunched warm · ~/Applications/.khuluma-app.vXiBhx/previous.app
 
 - 2026-11-18 · Hex parity round 2 built on wip/hex-parity: Transcribe again with retention, spoken formatting, Labs page with Keep microphone ready; each Codex-reviewed; not installed · baa5f8c, d8295a5
 
