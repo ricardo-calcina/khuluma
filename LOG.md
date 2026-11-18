@@ -51,7 +51,7 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 - [x] P2 · Try Finder Local and Cloud on the same file with quiet speech and laughter and compare output and timing · added 2026-11-06
 
 - [ ] P2 · Swift tests leave their temp fixture roots behind on purpose (RetainedTestArtifacts): ~4,900 `$TMPDIR/khuluma-*` dirs, 145 MB from 5-6 Nov runs; macOS sweeps them after ~3 days unused. DaemonKit tests do the same in /private/tmp (1,332 `khuluma-kit-*`, 0.4 MB). Proposal: delete a test's root when it passes, keep it on failure. Needs Ricardo's yes, since retention was deliberate · added 2026-11-06
-- [ ] P2 · tests/test_app_build_helpers.py fails 8/36 on main (same before 34c0ac1): the fixture's mock git doesn't answer the build script's dirty-tree check, so success-path cases stop at "Working tree has uncommitted changes" · added 2026-11-06
+- [x] P2 · (fixed 2026-11-18) tests/test_app_build_helpers.py fails 8/36 on main (same before 34c0ac1): the fixture's mock git doesn't answer the build script's dirty-tree check, so success-path cases stop at "Working tree has uncommitted changes" · added 2026-11-06
 - [ ] P3 · Experiment with selectable app themes (e.g. Dracula, Catppuccin) and an ivory light variant; Theme.swift tokens are structured for it (Ricardo, 2026-11-06) · added 2026-11-06
 - [ ] P2 · Speaking-pace WPM on build 458: Ricardo is trying it in daily use and reports any issue; check new history entries carry metrics.speech_ms and usage.json gains pause_duration_ms · added 2026-11-06
 - [ ] P1 · Watch build 449 for 14 days (to 2026-11-20): no `khuluma` process started by the app, usage matches delivered takes in history, nothing lost; first-run on a clean account not tested (Ricardo skipped it) · added 2026-11-06
@@ -138,6 +138,8 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 - Rename the existing repository in place to preserve all history; retain neutral `ricardo-calcina/tap` and rename its formula to `khuluma`. The in-place repository rename, immutable v0.10.0 release and canonical formula/map are published and verified. The app continues to depend on its matching CLI; cask/CLI-independence/deprecation/archive are separate future work.
 
 ## Done
+
+- 2026-11-18 · CI green again: dropped the flow-parity check of the retired app-CLI contract, and brought the build-helper fixture up to the bundled daemon, helpers and sounds (36/36) · tests/
 
 - 2026-11-18 · Installed build 510 with the UI tweaks; wip/hex-parity fast-forwarded into main; branches hex-parity, vocab-boost-experiment (kept as tag archive/vocab-boost-experiment) and codex/scribe-finder-actions removed · 37d56f8
 

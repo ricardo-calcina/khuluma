@@ -53,6 +53,10 @@ elif name == "swift":
         binary.parent.mkdir(parents=True, exist_ok=True)
         binary.write_text("MOCK NEW KHULUMA EXECUTABLE\n")
         binary.chmod(0o700)
+        # The bundled daemon and transcribe helper (Contents/Helpers).
+        for helper in ("khulumad", "khuluma-cli"):
+            (scratch / "release" / helper).write_text("MOCK " + helper + "\n")
+            (scratch / "release" / helper).chmod(0o700)
         if settings.get("race_on_build"):
             output = owned(os.environ["GATE_OUTPUT"])
             output.mkdir(parents=True)
@@ -75,7 +79,18 @@ elif name == "swift":
     else:
         raise SystemExit("Unexpected Swift operation; actual compilation forbidden")
 elif name == "git":
-    print("4242")
+    # A clean checkout at commit 4242: empty status, and `archive` streams
+    # the fixture repo's own files (the build refuses a dirty tree).
+    root = args[args.index("-C") + 1] if "-C" in args else os.getcwd()
+    rest = [a for a in args if a not in ("-C", root)]
+    if rest and rest[0] == "status":
+        pass
+    elif rest and rest[0] == "archive":
+        import subprocess
+        sys.stdout.flush()
+        raise SystemExit(subprocess.call(["/usr/bin/tar", "-c", "-C", root, *rest[2:]]))
+    else:
+        print("4242")
 elif name == "plutil":
     target = owned(args[-1])
     with target.open("rb") as stream:
@@ -90,7 +105,9 @@ elif name == "codesign":
         if settings.get("sign_failure"):
             raise SystemExit(43)
         signer = args[args.index("--sign") + 1]
-        (target / ".mock-signature.json").write_text(json.dumps({"signer": signer}))
+        # Helpers (Contents/Helpers/*) are signed as files, the bundle as a folder.
+        sidecar = target / ".mock-signature.json" if target.is_dir() else target.with_name(target.name + ".mock-signature.json")
+        sidecar.write_text(json.dumps({"signer": signer}))
     elif args[0] == "--verify":
         stage = "khuluma-app-build." in str(target)
         candidate = target.name == "candidate.app"
@@ -170,6 +187,10 @@ def main() -> int:
     (template / "repo/assets/icons/menu-bar/khuluma-emblem-finishing-template.pdf").write_bytes(b"MOCK EMBLEM FINISHING PDF\n")
     (template / "repo/assets/icons/menu-bar/khuluma-emblem-frame-template.pdf").write_bytes(b"MOCK EMBLEM FRAME PDF\n")
     (template / "repo/assets/icons/menu-bar/khuluma-emblem-rotor-template.pdf").write_bytes(b"MOCK EMBLEM ROTOR PDF\n")
+    sounds = template / "repo/assets/sounds/khuluma"
+    sounds.mkdir(parents=True, exist_ok=True)
+    for event in ("start", "stop", "process", "cancel", "error"):
+        (sounds / (event + ".wav")).write_bytes(b"MOCK WAV\n")
     shutil.copy2(source_script, template / "repo/tools/build-khuluma-app.source.sh")
     instrumentation_from = "  LSREGISTER=" + LSREGISTER
     instrumentation_to = '  LSREGISTER="$GATE_MOCK_LSREGISTER"'
@@ -309,7 +330,10 @@ def main() -> int:
         assert (output / "Contents/Resources/KhulumaEmblemFrameTemplate.pdf").read_bytes() == b"MOCK EMBLEM FRAME PDF\n", "emblem frame missing or changed"
         assert (output / "Contents/Resources/KhulumaEmblemRotorTemplate.pdf").read_bytes() == b"MOCK EMBLEM ROTOR PDF\n", "emblem rotor missing or changed"
         signatures = [event for event in events if event["command"] == "codesign" and event["args"][0] == "--force"]
-        assert len(signatures) == 1 and signatures[0]["args"][signatures[0]["args"].index("--sign") + 1] == HASH_A, "signing did not select exact hash"
+        # The two helpers (khulumad, khuluma) and then the bundle, all with the exact hash.
+        signed = [Path(event["args"][-1]).name for event in signatures]
+        assert sorted(signed) == ["Khuluma.app", "khuluma", "khulumad"], "unexpected signing targets: " + repr(signed)
+        assert all(event["args"][event["args"].index("--sign") + 1] == HASH_A for event in signatures), "signing did not select exact hash"
         assert list((root / "tmp").glob("khuluma-app-build.*")), "build workspace was not retained"
 
     def rejected_before_build(root, output, events, result):

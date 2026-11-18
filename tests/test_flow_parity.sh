@@ -1735,12 +1735,6 @@ assert "capabilities" not in c, c
 ' || { echo "$out" >&2; fail "app_config_transcription_section"; }
   pass "app_config_transcription_section"
   assert_equals "app_config_supervise_default" "$(json_field "$out" pipeline.supervise)" "True"
-  # Khuluma refuses takes unless the CLI speaks its contract: the two numbers
-  # must move together.
-  local swift_contract
-  swift_contract="$(sed -nE 's/^ *public static let version = ([0-9]+).*/\1/p' "$ROOT/native/Sources/KhulumaCore/CLIModels.swift")"
-  [[ -n "$swift_contract" ]] || fail "app_contract_swift_constant_found"
-  assert_equals "app_config_contract_matches_khuluma" "$(json_field "$out" app_contract)" "$swift_contract"
   assert_equals "app_config_usage_path" "$(json_field "$out" usage.summary_path)" "$KHULUMA_CONFIG_DIR/usage.json"
   printf '[app]\nsupervise_daemon = false\n' >"$KHULUMA_CONFIG_FILE"
   out="$("$KHULUMA_BIN" app-config --json)"
