@@ -2,7 +2,7 @@
 
 ## Now
 
-Khuluma is the native macOS app only (CLI retired 2026-11-18; outcome in docs/plans/archive/CLI_SUNSET.md). Installed: build 510 from main (366da5c), with Hex parity rounds 1 and 2 and the History/search/Activity tweaks. Ricardo is trying round 2 in daily use (Next). The one kept rollback, `~/Applications/.khuluma-app.ngdza1/previous.app` (build 506), goes to the Bin once 510 has had a few days; after that git is the rollback.
+Khuluma is the native macOS app only (CLI retired 2026-11-18; outcome in docs/plans/archive/CLI_SUNSET.md). Installed: build 518 from main (c0051e9, CLI-era code removed), with Hex parity rounds 1 and 2 and the History/search/Activity tweaks. Ricardo is trying round 2 in daily use (Next). The one kept rollback, `~/Applications/.khuluma-app.ngdza1/previous.app` (build 506), goes to the Bin once 518 has had a few days; after that git is the rollback.
 
 Hex parity (Ricardo, 2026-11-10): bring over from anomalyco/hex what suits a Mac-only app, each as a setting; what was left out is in Decisions.
 
@@ -27,7 +27,7 @@ Hex parity (Ricardo, 2026-11-10): bring over from anomalyco/hex what suits a Mac
 - [x] P2 · Try Finder Local and Cloud on the same file with quiet speech and laughter and compare output and timing · added 2026-11-06
 
 - [ ] P2 · Swift tests leave their temp fixture roots behind on purpose (RetainedTestArtifacts): ~4,900 `$TMPDIR/khuluma-*` dirs, 145 MB from 5-6 Nov runs; macOS sweeps them after ~3 days unused. DaemonKit tests do the same in /private/tmp (1,332 `khuluma-kit-*`, 0.4 MB). Proposal: delete a test's root when it passes, keep it on failure. Needs Ricardo's yes, since retention was deliberate · added 2026-11-06
-- [ ] P2 · Swift CI fails on main in three daemon-socket timing tests (DaemonClientTests statusReportsTheDaemonsIdentity, timesOutOnASlowDaemon; UnixSocketServerTests answersPingWhileATranscriptionIsInFlight): they pass locally in isolation, and fail on the GitHub runner on every run (rerun of ec1b903 too; timesOutOnASlowDaemon also on 6 Nov), likely contention in the full parallel run. Fix: give them their own serialized step or relaxed timeouts on CI · added 2026-11-18
+- [ ] P2 · (Codex 5.6 Sol diagnosing, 2026-11-18) Swift CI fails on main in three daemon-socket timing tests (DaemonClientTests statusReportsTheDaemonsIdentity, timesOutOnASlowDaemon; UnixSocketServerTests answersPingWhileATranscriptionIsInFlight): they pass locally in isolation, and fail on the GitHub runner on every run (rerun of ec1b903 too; timesOutOnASlowDaemon also on 6 Nov), likely contention in the full parallel run. Fix: give them their own serialized step or relaxed timeouts on CI · added 2026-11-18
 - [x] P2 · (fixed 2026-11-18) tests/test_app_build_helpers.py fails 8/36 on main (same before 34c0ac1): the fixture's mock git doesn't answer the build script's dirty-tree check, so success-path cases stop at "Working tree has uncommitted changes" · added 2026-11-06
 - [ ] P3 · Experiment with selectable app themes (e.g. Dracula, Catppuccin) and an ivory light variant; Theme.swift tokens are structured for it (Ricardo, 2026-11-06) · added 2026-11-06
 - [ ] P2 · Speaking-pace WPM on build 458: Ricardo is trying it in daily use and reports any issue; check new history entries carry metrics.speech_ms and usage.json gains pause_duration_ms · added 2026-11-06
@@ -110,6 +110,8 @@ Hex parity (Ricardo, 2026-11-10): bring over from anomalyco/hex what suits a Mac
 - Tmux capture, CLI recording, LLM rewriting, silence trim, bash chunking, Raycast and SwiftBar were dropped; reintroduce none without evidence. Usage, Stats and logs keep counts/timings, not transcript text; history and pending recovery are the intentional text stores.
 
 ## Done
+
+- 2026-11-18 · Installed build 518 (CLI-era code removed); settings, sounds, model and hotkey load unchanged; launch line now logs build and commit · c0051e9
 
 - 2026-11-18 · CLI-era code paths removed (legacy import, socket_path, old sound/model folders, timed-out adoption, ffmpeg probe); packaging check in CI; not installed · ed23a7f
 
