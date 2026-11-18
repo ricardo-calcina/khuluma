@@ -2,7 +2,7 @@
 
 ## Now
 
-Pick up (Hex parity push): build 498 installed (0037a71) with the live final-pass fix; next round chosen by Ricardo 2026-11-18: cancel shortcut, Transcribe again in History (with retention), spoken formatting, Labs page with Keep microphone ready · next: build them one at a time, then merge to main on his OK · branch: wip/hex-parity
+Pick up (Hex parity push): build 498 installed (0037a71) with the live final-pass fix; next round chosen by Ricardo 2026-11-18: Transcribe again in History (with retention), spoken formatting, Labs page with Keep microphone ready · next: build them one at a time, then merge to main on his OK · branch: wip/hex-parity
 
 Installed build 498 on 2026-11-18 (Ricardo's OK, 0037a71, from wip/hex-parity). Rollback: `~/Applications/.khuluma-app.r30tgd/previous.app` (build 494).
 
@@ -40,7 +40,7 @@ App recovery is `/Users/admin/Applications/.khuluma-app.Ma81E6/previous.app` (bu
 - [ ] P1 · Slice 3b is in build 483; check on real takes: `live=on` lines in app.log (stop→delivered, live_segments, live_forced, any live=fallback and its reason), a crash-recovery try (force-quit mid-recording, relaunch, take appears in history), and that nothing is left in `~/Library/Application Support/Khuluma/live/` after normal takes · added 2026-11-10
 - [x] P1 · Sounds page: a menu and play button per event, files from the app's sounds folder, Show in Finder (Ricardo, 2026-11-11) · added 2026-11-11
 - [ ] P1 · Live final-pass fix is in build 498: watch app.log for `live_final=tail_only` (the fallback) and endings in history for a few days · added 2026-11-18
-- [ ] P1 · Hex parity round 2 (Ricardo, 2026-11-18): cancel shortcut while recording (Escape by default); History: Transcribe again from kept audio, raw vs cleaned, retention setting for audio and history; spoken formatting ("new line", "new paragraph"), a switch; a Labs page with Keep microphone ready (pre-roll, opt-in) · added 2026-11-18
+- [ ] P1 · Hex parity round 2 (Ricardo, 2026-11-18; Hex's cancel shortcut dropped, Control-Escape already cancels a take): History: Transcribe again from kept audio, raw vs cleaned, retention setting for audio and history; spoken formatting ("new line", "new paragraph"), a switch; a Labs page with Keep microphone ready (pre-roll, opt-in) · added 2026-11-18
 - [x] P1 · Per-app auto-send rules (e.g. WhatsApp pastes without sending) and an opt-in "restore the clipboard after pasting" (Ricardo, 2026-11-11) · added 2026-11-11
 - [x] P1 · History tab in the window (recent dictations, search, copy) and a "paste last dictation" shortcut, off until set (Ricardo, 2026-11-11) · added 2026-11-11
 - [ ] P1 · Merge wip/hex-parity into main once the above has had a few days of use, including five-minute takes · added 2026-11-11
