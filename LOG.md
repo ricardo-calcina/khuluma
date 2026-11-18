@@ -111,6 +111,8 @@ Hex parity (Ricardo, 2026-11-10): bring over from anomalyco/hex what suits a Mac
 
 ## Done
 
+- 2026-11-18 · CLI-era code paths removed (legacy import, socket_path, old sound/model folders, timed-out adoption, ffmpeg probe); packaging check in CI; not installed · ed23a7f
+
 - 2026-11-18 · CLI removed from the repo (bin/, install/bootstrap, config/, Finder workflow, CLI tests, generators, CLI docs, CLI-parity merge); version now in native/VERSION; ci.sh slimmed to the build-helper and test-affected tests; tap archived and Mac copies binned · see git log
 
 - 2026-11-18 · CI green again: dropped the flow-parity check of the retired app-CLI contract, and brought the build-helper fixture up to the bundled daemon, helpers and sounds (36/36) · tests/
